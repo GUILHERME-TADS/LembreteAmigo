@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "591702637162",
+    "project_id": "lembreteamigo-26fd0",
+    "storage_bucket": "lembreteamigo-26fd0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:591702637162:android:dfc482e52ff4504a6d2813",
+        "android_client_info": {
+          "package_name": "com.example.lembretes_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA-1rLWYLr-S9bODWepxtctvVCOZV94iHQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

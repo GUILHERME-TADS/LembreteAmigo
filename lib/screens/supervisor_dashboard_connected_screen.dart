@@ -213,7 +213,7 @@ class SupervisorDashboardConnectedScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('João tomou todos os\nremédios hoje.', style: TextStyle(fontSize: 18, color: AppColors.onSurfaceVariant)),
+                    const Text('O idoso tomou todos os\nremédios hoje.', style: TextStyle(fontSize: 18, color: AppColors.onSurfaceVariant)),
                     const SizedBox(height: 16),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),

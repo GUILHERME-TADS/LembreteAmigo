@@ -17,13 +17,14 @@ class ElderlyProfileScreen extends StatefulWidget {
 }
 
 class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
-  String _nome = 'João Silva';
-  String _dataNasc = '15/03/1948';
-  String _telefone = '(11) 98765-4321';
-  String _endereco = 'Rua das Flores, 123';
-  List<String> _condicoes = ['Hipertensão', 'Diabetes Tipo 2', 'Colesterol'];
+  String _nome = 'Não cadastrado';
+  String _dataNasc = 'Não informada';
+  String _telefone = 'Não informado';
+  String _endereco = 'Não informado';
+  List<String> _condicoes = [];
   String? _fotoPath;
   bool _isLoading = true;
+  bool _isAutonomous = false;
 
   bool get _useFirebase {
     try {
@@ -53,9 +54,16 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
   Future<void> _loadProfile() async {
     await LembreteService.instance.carregar();
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final pairedId = prefs.getString('paired_idoso_id');
+      if (mounted) {
+        setState(() {
+          _isAutonomous = (pairedId == 'idoso_autonomo');
+        });
+      }
+
       if (_useFirebase) {
-        final prefs = await SharedPreferences.getInstance();
-        final idosoId = prefs.getString('selected_idoso_id') ?? prefs.getString('paired_idoso_id') ?? 'joao';
+        final idosoId = prefs.getString('selected_idoso_id') ?? pairedId ?? 'joao';
         final docPerfil = await FirebaseFirestore.instance
             .collection('idoso_perfil')
             .doc(idosoId)
@@ -67,19 +75,19 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
         
         final localFoto = prefs.getString('idoso_foto_path');
         
-        String nome = 'João Silva';
-        String dataNasc = '15/03/1948';
-        String telefone = '(11) 98765-4321';
-        String endereco = 'Rua das Flores, 123';
-        List<String> condicoes = ['Hipertensão', 'Diabetes Tipo 2', 'Colesterol'];
+        String nome = 'Não cadastrado';
+        String dataNasc = 'Não informada';
+        String telefone = 'Não informado';
+        String endereco = 'Não informado';
+        List<String> condicoes = [];
         String? fotoPath = localFoto;
 
         if (docIdoso.exists && docIdoso.data() != null) {
           final data = docIdoso.data()!;
-          nome = data['nome'] as String? ?? nome;
-          dataNasc = data['dataNascimento'] as String? ?? dataNasc;
-          telefone = data['telefone'] as String? ?? telefone;
-          endereco = data['endereco'] as String? ?? endereco;
+          if (data['nome']?.toString().isNotEmpty == true) nome = data['nome'] as String;
+          if (data['dataNascimento']?.toString().isNotEmpty == true) dataNasc = data['dataNascimento'] as String;
+          if (data['telefone']?.toString().isNotEmpty == true) telefone = data['telefone'] as String;
+          if (data['endereco']?.toString().isNotEmpty == true) endereco = data['endereco'] as String;
           fotoPath = data['fotoPath'] as String? ?? fotoPath;
           if (data['condicoes'] != null) {
             condicoes = List<String>.from(data['condicoes'] as List);
@@ -88,10 +96,10 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
 
         if (docPerfil.exists && docPerfil.data() != null) {
           final data = docPerfil.data()!;
-          nome = data['nome'] as String? ?? nome;
-          dataNasc = data['dataNascimento'] as String? ?? dataNasc;
-          telefone = data['telefone'] as String? ?? telefone;
-          endereco = data['endereco'] as String? ?? endereco;
+          if (data['nome']?.toString().isNotEmpty == true) nome = data['nome'] as String;
+          if (data['dataNascimento']?.toString().isNotEmpty == true) dataNasc = data['dataNascimento'] as String;
+          if (data['telefone']?.toString().isNotEmpty == true) telefone = data['telefone'] as String;
+          if (data['endereco']?.toString().isNotEmpty == true) endereco = data['endereco'] as String;
           fotoPath = data['fotoPath'] as String? ?? fotoPath;
           if (data['condicoes'] != null) {
             condicoes = List<String>.from(data['condicoes'] as List);
@@ -118,10 +126,10 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
           final data = jsonDecode(jsonStr) as Map<String, dynamic>;
           if (mounted) {
             setState(() {
-              _nome = data['nome'] as String? ?? 'João Silva';
-              _dataNasc = data['dataNascimento'] as String? ?? '15/03/1948';
-              _telefone = data['telefone'] as String? ?? '(11) 98765-4321';
-              _endereco = data['endereco'] as String? ?? 'Rua das Flores, 123';
+              _nome = (data['nome'] as String?)?.isNotEmpty == true ? data['nome'] as String : 'Não cadastrado';
+              _dataNasc = (data['dataNascimento'] as String?)?.isNotEmpty == true ? data['dataNascimento'] as String : 'Não informada';
+              _telefone = (data['telefone'] as String?)?.isNotEmpty == true ? data['telefone'] as String : 'Não informado';
+              _endereco = (data['endereco'] as String?)?.isNotEmpty == true ? data['endereco'] as String : 'Não informado';
               _condicoes = List<String>.from(data['condicoes'] as List? ?? []);
               _fotoPath = localFoto;
               _isLoading = false;
@@ -148,6 +156,24 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          TTSService.instance.parar(caller: this);
+          showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: Colors.transparent,
+            builder: (context) => const AlexAssistantSheet(),
+          );
+        },
+        backgroundColor: Colors.white,
+        shape: const CircleBorder(),
+        elevation: 6,
+        child: const Padding(
+          padding: EdgeInsets.all(4.0),
+          child: AlexAvatar(size: 48),
+        ),
+      ),
       body: SafeArea(
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
@@ -166,14 +192,15 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                         ),
                         const Text('Lembrete Amigo', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.primary)),
                         const Spacer(),
-                        GestureDetector(
-                          onTap: () {
+                        IconButton(
+                          icon: const Icon(Icons.volume_up, color: AppColors.primary, size: 32),
+                          onPressed: () {
+                            TTSService.instance.parar(caller: this);
                             TTSService.instance.falar(
                               'Aqui estão as informações pessoais e medicamentos de $_nome.',
                               caller: this,
                             );
                           },
-                          child: const AlexAvatar(size: 40),
                         ),
                       ],
                     ),
@@ -262,7 +289,49 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                       ...medicamentosReais.map((med) {
                         return _medicationItem(med.titulo, med.horarioFormatado);
                       }),
-                    const SizedBox(height: 24),
+                     if (_isAutonomous) ...[
+                      SizedBox(
+                        width: double.infinity,
+                        height: 64,
+                        child: ElevatedButton.icon(
+                          onPressed: () async {
+                            TTSService.instance.parar(caller: this);
+                            await Navigator.pushNamed(context, '/elderly-pairing');
+                            _loadProfile();
+                          },
+                          icon: const Icon(Icons.link, size: 28),
+                          label: const Text('VINCULAR A UM SUPERVISOR', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            elevation: 4,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    SizedBox(
+                      width: double.infinity,
+                      height: 64,
+                      child: ElevatedButton.icon(
+                        onPressed: () async {
+                          TTSService.instance.parar(caller: this);
+                          final result = await Navigator.pushNamed(context, '/edit-profile');
+                          if (result == true) {
+                            _loadProfile();
+                          }
+                        },
+                        icon: const Icon(Icons.edit),
+                        label: const Text('EDITAR DADOS PESSOAIS', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.secondaryContainer,
+                          foregroundColor: AppColors.onSecondaryFixed,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                     SizedBox(
                       width: double.infinity,
                       height: 64,
@@ -272,12 +341,13 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                           await Navigator.pushNamed(context, '/adjust-task');
                           _loadProfile(); // recarrega se voltar
                         },
-                        icon: const Icon(Icons.edit),
-                        label: const Text('EDITAR PERFIL / AJUSTAR TAREFAS', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
+                        icon: const Icon(Icons.access_time),
+                        label: const Text('AJUSTAR HORÁRIOS', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.secondaryContainer,
-                          foregroundColor: AppColors.onSecondaryFixed,
+                          backgroundColor: AppColors.surfaceContainerHigh,
+                          foregroundColor: AppColors.onSurfaceVariant,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          side: const BorderSide(color: AppColors.outlineVariant),
                         ),
                       ),
                     ),

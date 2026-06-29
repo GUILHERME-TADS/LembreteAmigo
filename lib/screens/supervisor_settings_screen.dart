@@ -81,7 +81,7 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
               _settingsGroup('Preferências', [
                 _settingsTile(Icons.notifications, 'Notificações', 'Push, E-mail e SMS'),
                 _settingsTile(Icons.volume_up, 'Som', 'Toque e vibração'),
-                _settingsTile(Icons.dark_mode, 'Modo Escuro', 'Desativado'),
+
                 _settingsSwitchTile(
                   Icons.volume_off,
                   'Simular Volume Baixo',

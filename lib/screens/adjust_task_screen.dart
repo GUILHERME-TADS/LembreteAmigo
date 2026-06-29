@@ -14,7 +14,7 @@ class AdjustTaskScreen extends StatefulWidget {
 }
 
 class _AdjustTaskScreenState extends State<AdjustTaskScreen> {
-  String _nomeIdoso = 'João Silva';
+  String _nomeIdoso = 'Não cadastrado';
   bool _isLoadingProfile = true;
 
   bool get _useFirebase {
@@ -55,7 +55,7 @@ class _AdjustTaskScreenState extends State<AdjustTaskScreen> {
         if (doc.exists && doc.data() != null) {
           if (mounted) {
             setState(() {
-              _nomeIdoso = doc.data()!['nome'] as String? ?? 'João Silva';
+              _nomeIdoso = doc.data()!['nome'] as String? ?? 'Não cadastrado';
               _isLoadingProfile = false;
             });
           }
@@ -68,7 +68,7 @@ class _AdjustTaskScreenState extends State<AdjustTaskScreen> {
           final data = jsonDecode(jsonStr) as Map<String, dynamic>;
           if (mounted) {
             setState(() {
-              _nomeIdoso = data['nome'] as String? ?? 'João Silva';
+              _nomeIdoso = data['nome'] as String? ?? 'Não cadastrado';
               _isLoadingProfile = false;
             });
           }

@@ -126,6 +126,8 @@ class LembreteService {
           criadoEm: _lembretes[idx].criadoEm,
           medicamentoForma: _lembretes[idx].medicamentoForma,
           medicamentoCor: _lembretes[idx].medicamentoCor,
+          medicamentoFotoPath: _lembretes[idx].medicamentoFotoPath,
+          idosoId: _lembretes[idx].idosoId,
         );
         await _salvar();
       }
@@ -153,6 +155,8 @@ class LembreteService {
           criadoEm: _lembretes[idx].criadoEm,
           medicamentoForma: _lembretes[idx].medicamentoForma,
           medicamentoCor: _lembretes[idx].medicamentoCor,
+          medicamentoFotoPath: _lembretes[idx].medicamentoFotoPath,
+          idosoId: _lembretes[idx].idosoId,
         );
         await _salvar();
       }
@@ -188,6 +192,8 @@ class LembreteService {
           criadoEm: _lembretes[idx].criadoEm,
           medicamentoForma: _lembretes[idx].medicamentoForma,
           medicamentoCor: _lembretes[idx].medicamentoCor,
+          medicamentoFotoPath: _lembretes[idx].medicamentoFotoPath,
+          idosoId: _lembretes[idx].idosoId,
         );
         await _salvar();
       }
@@ -224,6 +230,8 @@ class LembreteService {
           criadoEm: _lembretes[idx].criadoEm,
           medicamentoForma: _lembretes[idx].medicamentoForma,
           medicamentoCor: _lembretes[idx].medicamentoCor,
+          medicamentoFotoPath: _lembretes[idx].medicamentoFotoPath,
+          idosoId: _lembretes[idx].idosoId,
         );
         await _salvar();
       }

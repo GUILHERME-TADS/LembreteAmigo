@@ -55,7 +55,7 @@ class SupervisorDashboardEmptyScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 32),
                     const Text(
-                      'Ainda não há lembretes para o João',
+                      'Ainda não há lembretes para o idoso',
                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, height: 1.3, color: AppColors.onSurface),
                     ),

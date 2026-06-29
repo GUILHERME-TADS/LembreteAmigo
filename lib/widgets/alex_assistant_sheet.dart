@@ -11,8 +11,8 @@ import '../utils/period_helper.dart';
 import 'alex_avatar.dart';
 
 class AlexAssistantSheet extends StatefulWidget {
-  final List<Lembrete> lembretes;
-  const AlexAssistantSheet({super.key, required this.lembretes});
+  final List<Lembrete>? lembretes;
+  const AlexAssistantSheet({super.key, this.lembretes});
 
   @override
   State<AlexAssistantSheet> createState() => _AlexAssistantSheetState();
@@ -23,6 +23,8 @@ class _AlexAssistantSheetState extends State<AlexAssistantSheet> {
   bool _isListening = false;
   String _transcription = '';
   String _status = 'Iniciando assistente...';
+
+  List<Lembrete> get _lembretesList => widget.lembretes ?? LembreteService.instance.lembretes;
 
   @override
   void initState() {
@@ -129,7 +131,7 @@ class _AlexAssistantSheetState extends State<AlexAssistantSheet> {
   }
 
   void _handleListReminders() async {
-    final pendentes = widget.lembretes.where((l) => !l.concluido).toList();
+    final pendentes = _lembretesList.where((l) => !l.concluido).toList();
     
     if (pendentes.isEmpty) {
       await TTSService.instance.falar(
@@ -151,7 +153,7 @@ class _AlexAssistantSheetState extends State<AlexAssistantSheet> {
 
   Future<void> _handleCompleteReminder(String text) async {
     Lembrete? match;
-    for (final l in widget.lembretes) {
+    for (final l in _lembretesList) {
       if (!l.concluido) {
         final titleClean = l.titulo.toLowerCase();
         if (text.contains(titleClean) || titleClean.contains(text.replaceAll(RegExp(r'tomei|conclui|fiz|tá pago|marcar|finalizar'), '').trim())) {
@@ -169,7 +171,7 @@ class _AlexAssistantSheetState extends State<AlexAssistantSheet> {
       );
     } else {
       // Find first uncompleted medicine if none matched specific name
-      final meds = widget.lembretes.where((l) => l.categoria == 'medicacao' && !l.concluido).toList();
+      final meds = _lembretesList.where((l) => l.categoria == 'medicacao' && !l.concluido).toList();
       if (meds.isNotEmpty) {
         final first = meds.first;
         await LembreteService.instance.concluir(first.id);

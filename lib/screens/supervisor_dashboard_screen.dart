@@ -21,7 +21,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   int? _lastBpm;
   bool _isLoadingBpm = true;
   StreamSubscription<int>? _bpmSubscription;
-  String _nomeIdoso = 'João';
+  String _nomeIdoso = 'Idoso';
 
   bool get _useFirebase {
     try {
@@ -64,20 +64,20 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       final bpm = prefs.getInt('last_bpm_value');
       final idosoId = prefs.getString('selected_idoso_id') ?? 'joao';
       
-      String nome = 'João';
+      String nome = 'Idoso';
       if (_useFirebase) {
         final doc = await FirebaseFirestore.instance
             .collection('idoso_perfil')
             .doc(idosoId)
             .get();
         if (doc.exists && doc.data() != null) {
-          nome = doc.data()!['nome'] as String? ?? 'João';
+          nome = doc.data()!['nome'] as String? ?? 'Idoso';
         }
       } else {
         final jsonStr = prefs.getString('idoso_perfil');
         if (jsonStr != null) {
           final data = jsonDecode(jsonStr) as Map<String, dynamic>;
-          nome = data['nome'] as String? ?? 'João';
+          nome = data['nome'] as String? ?? 'Idoso';
         }
       }
       

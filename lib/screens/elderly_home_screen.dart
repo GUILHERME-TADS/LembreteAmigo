@@ -25,7 +25,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen> with TickerProvid
   final AudioPlayer _audioPlayer = AudioPlayer();
   bool _isPlaying = false;
   String? _playingAudioPath;
-  bool _isSpeaking = false;
+  bool _isBannerSpeaking = false;
   bool _isOnline = true;
   Timer? _connectivityTimer;
 
@@ -33,11 +33,6 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen> with TickerProvid
   AnimationController? _confettiController;
   final List<_ConfettiParticle> _confetti = [];
   bool _allCompletedTriggered = false;
-
-  bool get _isNightTime {
-    final hour = DateTime.now().hour;
-    return hour >= 18 || hour < 6;
-  }
 
   @override
   void initState() {
@@ -73,7 +68,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen> with TickerProvid
       }
     });
     LembreteService.instance.notifier.addListener(_onLembretesChanged);
-    TTSService.instance.speakingNotifier.addListener(_onTtsSpeakingChanged);
+
     _audioPlayer.onPlayerComplete.listen((_) {
       if (mounted) {
         setState(() {
@@ -167,20 +162,13 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen> with TickerProvid
     _ultimoLembrete = proximo ?? lembretesOrdenados.last;
   }
 
-  void _onTtsSpeakingChanged() {
-    if (mounted) {
-      setState(() {
-        _isSpeaking = TTSService.instance.isSpeaking;
-      });
-    }
-  }
+
 
   @override
   void dispose() {
     _connectivityTimer?.cancel();
     _confettiController?.dispose();
     LembreteService.instance.notifier.removeListener(_onLembretesChanged);
-    TTSService.instance.speakingNotifier.removeListener(_onTtsSpeakingChanged);
     TTSService.instance.parar(caller: this);
     _audioPlayer.dispose();
     super.dispose();
@@ -213,7 +201,9 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen> with TickerProvid
       });
     }
     TTSService.instance.parar(caller: this);
-    setState(() => _isSpeaking = false);
+    setState(() {
+      _isBannerSpeaking = false;
+    });
   }
 
   Future<void> _abrirGravacao() async {
@@ -232,9 +222,9 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen> with TickerProvid
   }
 
   void _playAudio(String path) async {
-    if (_isSpeaking) {
+    if (_isBannerSpeaking) {
       await TTSService.instance.parar(caller: this);
-      if (mounted) setState(() => _isSpeaking = false);
+      if (mounted) setState(() => _isBannerSpeaking = false);
     }
 
     if (_isPlaying) {
@@ -278,16 +268,16 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen> with TickerProvid
       });
     }
 
-    if (_isSpeaking) {
+    if (_isBannerSpeaking) {
       TTSService.instance.parar(caller: this);
-      setState(() => _isSpeaking = false);
+      setState(() => _isBannerSpeaking = false);
       return;
     }
 
-    setState(() => _isSpeaking = true);
+    setState(() => _isBannerSpeaking = true);
     final text = _descreverLembrete(l);
     await TTSService.instance.falar(text, caller: this);
-    if (mounted) setState(() => _isSpeaking = false);
+    if (mounted) setState(() => _isBannerSpeaking = false);
   }
 
   void _toggleSpeak() {
@@ -420,7 +410,6 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen> with TickerProvid
   }
 
   Widget _buildReminderCard(Lembrete lembrete) {
-    final isNight = _isNightTime;
     final isMed = lembrete.categoria == 'medicacao';
     String subtitle = '';
     if (isMed && lembrete.medicamentoForma != null && lembrete.medicamentoCor != null) {
@@ -437,12 +426,12 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen> with TickerProvid
     }
 
     final cardBg = lembrete.concluido 
-        ? (isNight ? const Color(0xFF064E3B) : const Color(0xFFE8F5E9)) 
-        : (isNight ? const Color(0xFF1E293B) : AppColors.surfaceContainerLowest);
+        ? const Color(0xFFE8F5E9) 
+        : AppColors.surfaceContainerLowest;
 
     final titleColor = lembrete.concluido 
-        ? (isNight ? Colors.greenAccent : AppColors.onTertiaryFixedVariant) 
-        : (isNight ? Colors.white : AppColors.primary);
+        ? AppColors.onTertiaryFixedVariant 
+        : AppColors.primary;
 
     return Card(
       elevation: 2,
@@ -486,7 +475,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen> with TickerProvid
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
-                        color: isNight ? Colors.white70 : AppColors.onSurfaceVariant,
+                        color: AppColors.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -497,7 +486,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen> with TickerProvid
                 IconButton(
                   icon: Icon(
                     _isPlaying && _playingAudioPath == lembrete.audioPath ? Icons.stop : Icons.play_arrow,
-                    color: isNight ? Colors.white : AppColors.primary,
+                    color: AppColors.primary,
                     size: 32,
                   ),
                   onPressed: () => _playAudio(lembrete.audioPath!),
@@ -542,21 +531,21 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen> with TickerProvid
         padding: const EdgeInsets.symmetric(vertical: 32),
         child: Column(
           children: [
-            GestureDetector(
-              onTap: () {
-                _stopAllAudioAndTts();
-                showModalBottomSheet(
-                  context: context,
-                  isScrollControlled: true,
-                  backgroundColor: Colors.transparent,
-                  builder: (context) => AlexAssistantSheet(lembretes: _lembretes),
-                );
-              },
-              child: const AlexAvatar(size: 120),
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppColors.outlineVariant.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.notifications_none,
+                size: 80,
+                color: AppColors.outline,
+              ),
             ),
             const SizedBox(height: 24),
             const Text(
-              'Nenhum lembrete para hoje.\nAperte no meu rosto ou no botão grande para falar comigo!',
+              'Nenhum lembrete para hoje.\nAproveite o seu dia!',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 22,
@@ -601,15 +590,15 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen> with TickerProvid
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: _isNightTime ? const Color(0xFF1E293B) : AppColors.surfaceVariant,
+                        color: AppColors.surfaceVariant,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
                         lembrete.horarioFormatado,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
-                          color: _isNightTime ? Colors.amberAccent : AppColors.primary,
+                          color: AppColors.primary,
                         ),
                       ),
                     ),
@@ -650,9 +639,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen> with TickerProvid
 
   @override
   Widget build(BuildContext context) {
-    final bool isNight = _isNightTime;
-    final bgColor = isNight ? const Color(0xFF0F172A) : AppColors.background;
-    final primaryTextColor = isNight ? const Color(0xFFFCD34D) : AppColors.primary;
+    const bgColor = AppColors.background;
 
     return Stack(
       children: [
@@ -678,11 +665,11 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen> with TickerProvid
                         Text(
                           'Aperte para falar comigo',
                           textAlign: TextAlign.center,
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.w700,
                             height: 1.5,
-                            color: primaryTextColor,
+                            color: AppColors.primary,
                           ),
                         ),
                         const SizedBox(height: 24),
@@ -694,10 +681,10 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen> with TickerProvid
                     ),
                   ),
                 ),
-                _buildBottomNav(),
               ],
             ),
           ),
+          bottomNavigationBar: _buildBottomNav(),
         ),
         if (_confettiController != null && _confettiController!.value < 1.0)
           IgnorePointer(
@@ -714,46 +701,68 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen> with TickerProvid
   }
 
   Widget _buildTopBar() {
-    final isNight = _isNightTime;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      height: 64,
-      decoration: BoxDecoration(
-        color: isNight ? const Color(0xFF1E293B) : AppColors.surface,
-        border: const Border(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      height: 100,
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        border: Border(
           bottom: BorderSide(color: AppColors.outlineVariant),
         ),
       ),
       child: Row(
         children: [
-          IconButton(
-            icon: Icon(Icons.arrow_back, color: isNight ? Colors.white : AppColors.primary, size: 32),
-            onPressed: () {
-              _stopAllAudioAndTts();
-              Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
-            },
-          ),
+          const SizedBox(width: 48),
           const Spacer(),
-          Text(
-            'Lembrete Amigo',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w700,
-              color: isNight ? Colors.white : AppColors.primary,
-            ),
-          ),
-          const SizedBox(width: 12),
-          GestureDetector(
-            onTap: () {
-              _stopAllAudioAndTts();
-              showModalBottomSheet(
-                context: context,
-                isScrollControlled: true,
-                backgroundColor: Colors.transparent,
-                builder: (context) => AlexAssistantSheet(lembretes: _lembretes),
-              );
-            },
-            child: const AlexAvatar(size: 40),
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text(
+                'Lembrete Amigo',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(height: 6),
+              GestureDetector(
+                onTap: () {
+                  _stopAllAudioAndTts();
+                  TTSService.instance.falar(
+                    'Esta é a sua tela inicial. Aqui você vê seus lembretes e pode falar com o Alex no botão de falar no final da tela.',
+                    caller: this,
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(99),
+                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.15), width: 1.5),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.record_voice_over,
+                        color: AppColors.primary,
+                        size: 18,
+                      ),
+                      SizedBox(width: 6),
+                      Text(
+                        'Me explica',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
           const Spacer(),
           GestureDetector(
@@ -766,11 +775,9 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen> with TickerProvid
               height: 48,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.fromBorderSide(
-                  BorderSide(color: isNight ? Colors.amberAccent : AppColors.primaryContainer, width: 2),
-                ),
+                border: Border.all(color: AppColors.primaryContainer, width: 2),
               ),
-              child: Icon(Icons.person, color: isNight ? Colors.amberAccent : AppColors.primaryContainer),
+              child: const Icon(Icons.person, color: AppColors.primaryContainer),
             ),
           ),
         ],
@@ -882,8 +889,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen> with TickerProvid
       }
     }
 
-    final isNight = _isNightTime;
-    final bannerBg = isNight ? const Color(0xFF1E293B) : AppColors.surfaceContainerLowest;
+    final bannerBg = AppColors.surfaceContainerLowest;
 
     return GestureDetector(
       onTap: () {
@@ -948,10 +954,10 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen> with TickerProvid
                                 lembrete != null
                                     ? '${lembrete.titulo} — ${lembrete.horarioFormatado}'
                                     : 'Nenhum lembrete ainda',
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontSize: 22,
                                   fontWeight: FontWeight.w800,
-                                  color: isNight ? Colors.white : AppColors.primary,
+                                  color: AppColors.primary,
                                 ),
                               ),
                             ],
@@ -971,7 +977,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen> with TickerProvid
                               shape: BoxShape.circle,
                             ),
                             child: Icon(
-                              _isPlaying || _isSpeaking
+                              _isPlaying || _isBannerSpeaking
                                   ? Icons.stop
                                   : Icons.play_arrow,
                               color: AppColors.primary,
@@ -993,58 +999,117 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen> with TickerProvid
   }
 
   Widget _buildBottomNav() {
-    final isNight = _isNightTime;
-    return Container(
-      height: 96,
-      padding: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: isNight ? const Color(0xFF1E293B) : AppColors.surfaceContainerLowest,
-        border: const Border(
-          top: BorderSide(color: AppColors.outlineVariant, width: 2),
+    return SafeArea(
+      top: false,
+      child: Container(
+        margin: const EdgeInsets.only(left: 16, right: 16, bottom: 12),
+        height: 88,
+        decoration: BoxDecoration(
+          color: AppColors.surfaceContainerLowest,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: AppColors.primary.withValues(alpha: 0.08),
+            width: 2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.06),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
         ),
-      ),
-      child: Row(
-        children: [
-          _bottomNavItem(Icons.home, 'Início', true, null),
-          _bottomNavItem(Icons.list_alt, 'Lembretes', false, () {
-            _stopAllAudioAndTts();
-            Navigator.pushNamed(context, '/all-reminders');
-          }),
-          _bottomNavItem(Icons.help_center, 'Ajuda', false, () {
-            _stopAllAudioAndTts();
-            Navigator.pushNamed(context, '/elderly-help');
-          }),
-        ],
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _bottomNavItem(Icons.home, 'Início', true, null),
+              _bottomNavItem(Icons.list_alt, 'Lembretes', false, () {
+                _stopAllAudioAndTts();
+                Navigator.pushNamed(context, '/all-reminders');
+              }),
+              _bottomNavItem(Icons.help_center, 'Ajuda', false, () {
+                _stopAllAudioAndTts();
+                Navigator.pushNamed(context, '/elderly-help');
+              }),
+              Expanded(
+                child: Center(
+                  child: GestureDetector(
+                    onTap: () {
+                      _stopAllAudioAndTts();
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (context) => AlexAssistantSheet(lembretes: _lembretes),
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: const Column(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          AlexAvatar(size: 40, animate: false),
+                          SizedBox(height: 2),
+                          Text(
+                            'Falar',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 
   Widget _bottomNavItem(IconData icon, String label, bool selected, VoidCallback? onTap) {
-    final isNight = _isNightTime;
     final itemColor = selected 
-        ? AppColors.onSecondaryContainer 
-        : (isNight ? Colors.white70 : AppColors.onSurfaceVariant);
+        ? AppColors.primary 
+        : AppColors.onSurfaceVariant;
 
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
           decoration: BoxDecoration(
-            color: selected ? AppColors.secondaryContainer : null,
-            borderRadius: BorderRadius.circular(9999),
+            color: selected ? AppColors.primary.withValues(alpha: 0.05) : null,
+            borderRadius: BorderRadius.circular(16),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 32, color: itemColor),
+              Icon(icon, size: 28, color: itemColor),
+              const SizedBox(height: 4),
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.05,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
                   color: itemColor,
                 ),
               ),

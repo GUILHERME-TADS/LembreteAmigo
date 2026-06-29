@@ -72,6 +72,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      bottomNavigationBar: _buildBottomNav(context),
       body: SafeArea(
         child: Column(
           children: [
@@ -171,34 +172,10 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                       ),
                     ],
                     const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 64,
-                      child: ElevatedButton.icon(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.arrow_back),
-                        label: const Text(
-                          'VOLTAR',
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: AppColors.onPrimary,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
                   ],
                 ),
               ),
             ),
-            _buildBottomNav(context),
           ],
         ),
       ),
@@ -207,40 +184,65 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
 
   Widget _buildTopBar(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      height: 64,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      height: 100,
       decoration: const BoxDecoration(
         color: AppColors.surface,
         border: Border(bottom: BorderSide(color: AppColors.outlineVariant)),
       ),
       child: Row(
         children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back, color: AppColors.primary, size: 32),
-            onPressed: () {
-              _stopAllAudioAndTts();
-              Navigator.pop(context);
-            },
-          ),
+          const SizedBox(width: 48),
           const Spacer(),
-          const Text(
-            'Todos os Lembretes',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w700,
-              color: AppColors.primary,
-            ),
-          ),
-          const SizedBox(width: 12),
-          GestureDetector(
-            onTap: () {
-              _stopAllAudioAndTts();
-              TTSService.instance.falar(
-                'Aqui estão todos os seus lembretes de hoje.',
-                caller: this,
-              );
-            },
-            child: const AlexAvatar(size: 40),
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text(
+                'Todos os Lembretes',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(height: 6),
+              GestureDetector(
+                onTap: () {
+                  _stopAllAudioAndTts();
+                  TTSService.instance.falar(
+                    'Aqui estão todos os seus lembretes de hoje.',
+                    caller: this,
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(99),
+                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.15), width: 1.5),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.record_voice_over,
+                        color: AppColors.primary,
+                        size: 18,
+                      ),
+                      SizedBox(width: 6),
+                      Text(
+                        'Me explica',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
           const Spacer(),
           GestureDetector(
@@ -266,51 +268,118 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
   }
 
   Widget _buildBottomNav(BuildContext context) {
-    return Container(
-      height: 96,
-      padding: const EdgeInsets.only(bottom: 8),
-      decoration: const BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
-        border: Border(top: BorderSide(color: AppColors.outlineVariant, width: 2)),
-      ),
-      child: Row(
-        children: [
-          _bottomNavItem(Icons.home, 'Início', false, () {
-            _stopAllAudioAndTts();
-            Navigator.pushNamedAndRemoveUntil(context, '/elderly-home', (route) => false);
-          }),
-          _bottomNavItem(Icons.list_alt, 'Lembretes', true, null),
-          _bottomNavItem(Icons.help_center, 'Ajuda', false, () {
-            _stopAllAudioAndTts();
-            Navigator.pushNamed(context, '/elderly-help');
-          }),
-        ],
+    return SafeArea(
+      top: false,
+      child: Container(
+        margin: const EdgeInsets.only(left: 16, right: 16, bottom: 12),
+        height: 88,
+        decoration: BoxDecoration(
+          color: AppColors.surfaceContainerLowest,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: AppColors.primary.withValues(alpha: 0.08),
+            width: 2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.06),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _bottomNavItem(Icons.home, 'Início', false, () {
+                _stopAllAudioAndTts();
+                Navigator.pushNamedAndRemoveUntil(context, '/elderly-home', (route) => false);
+              }),
+              _bottomNavItem(Icons.list_alt, 'Lembretes', true, null),
+              _bottomNavItem(Icons.help_center, 'Ajuda', false, () {
+                _stopAllAudioAndTts();
+                Navigator.pushNamed(context, '/elderly-help');
+              }),
+              Expanded(
+                child: Center(
+                  child: GestureDetector(
+                    onTap: () {
+                      _stopAllAudioAndTts();
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (context) => const AlexAssistantSheet(),
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: const Column(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          AlexAvatar(size: 40, animate: false),
+                          SizedBox(height: 2),
+                          Text(
+                            'Falar',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 
   Widget _bottomNavItem(IconData icon, String label, bool selected, VoidCallback? onTap) {
+    final itemColor = selected 
+        ? AppColors.primary 
+        : AppColors.onSurfaceVariant;
+
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
           decoration: BoxDecoration(
-            color: selected ? AppColors.secondaryContainer : null,
-            borderRadius: BorderRadius.circular(9999),
+            color: selected ? AppColors.primary.withValues(alpha: 0.05) : null,
+            borderRadius: BorderRadius.circular(16),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 32, color: selected ? AppColors.onSecondaryContainer : AppColors.onSurfaceVariant),
+              Icon(icon, size: 28, color: itemColor),
+              const SizedBox(height: 4),
               Text(
-                label.toUpperCase(),
+                label,
                 style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.05,
-                  color: selected ? AppColors.onSecondaryContainer : AppColors.onSurfaceVariant,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  color: itemColor,
                 ),
               ),
             ],

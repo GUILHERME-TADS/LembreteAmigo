@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
 import '../widgets/index.dart';
+import '../services/tts_service.dart';
 
 class ElderlyHomeScreenV2 extends StatefulWidget {
   const ElderlyHomeScreenV2({super.key});
@@ -10,10 +13,51 @@ class ElderlyHomeScreenV2 extends StatefulWidget {
 }
 
 class _ElderlyHomeScreenV2State extends State<ElderlyHomeScreenV2> {
+  String _nome = 'Idoso';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfileName();
+  }
+
+  Future<void> _loadProfileName() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonStr = prefs.getString('idoso_perfil');
+      if (jsonStr != null) {
+        final data = jsonDecode(jsonStr) as Map<String, dynamic>;
+        final nomeCompleto = data['nome'] as String? ?? 'Idoso';
+        if (mounted) {
+          setState(() {
+            _nome = nomeCompleto.split(' ').first;
+          });
+        }
+      }
+    } catch (_) {}
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          TTSService.instance.parar(caller: this);
+          showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: Colors.transparent,
+            builder: (context) => const AlexAssistantSheet(),
+          );
+        },
+        backgroundColor: Colors.white,
+        shape: const CircleBorder(),
+        elevation: 6,
+        child: const Padding(
+          padding: EdgeInsets.all(4.0),
+          child: AlexAvatar(size: 48),
+        ),
+      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -28,14 +72,14 @@ class _ElderlyHomeScreenV2State extends State<ElderlyHomeScreenV2> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Column(
+                        Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Olá, João!',
-                              style: TextStyle(fontSize: 32, fontWeight: FontWeight.w800, height: 1.2, color: AppColors.primary),
+                              'Olá, $_nome!',
+                              style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w800, height: 1.2, color: AppColors.primary),
                             ),
-                            Text(
+                            const Text(
                               'Como você está hoje?',
                               style: TextStyle(fontSize: 18, color: AppColors.onSurfaceVariant),
                             ),
@@ -151,8 +195,8 @@ class _ElderlyHomeScreenV2State extends State<ElderlyHomeScreenV2> {
 
   Widget _buildTopBar() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      height: 64,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      height: 100,
       decoration: const BoxDecoration(
         color: AppColors.surface,
         border: Border(bottom: BorderSide(color: AppColors.outlineVariant)),
@@ -164,11 +208,51 @@ class _ElderlyHomeScreenV2State extends State<ElderlyHomeScreenV2> {
             onPressed: () => Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false),
           ),
           const Spacer(),
-          const Text('Lembrete Amigo', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.primary)),
-          const SizedBox(width: 12),
-          GestureDetector(
-            onTap: () {}, // Simulado para demonstração
-            child: const AlexAvatar(size: 40),
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text(
+                'Lembrete Amigo',
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.primary),
+              ),
+              const SizedBox(height: 6),
+              GestureDetector(
+                onTap: () {
+                  TTSService.instance.parar(caller: this);
+                  TTSService.instance.falar(
+                    'Esta é a tela de início rápida. Aqui você vê suas notificações e pode falar com o Alex no botão de falar no final da tela.',
+                    caller: this,
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(99),
+                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.15), width: 1.5),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.record_voice_over,
+                        color: AppColors.primary,
+                        size: 18,
+                      ),
+                      SizedBox(width: 6),
+                      Text(
+                        'Me explica',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
           const Spacer(),
           GestureDetector(
@@ -274,39 +358,73 @@ class _ElderlyHomeScreenV2State extends State<ElderlyHomeScreenV2> {
   }
 
   Widget _buildBottomNav() {
-    return Container(
-      height: 96,
-      padding: const EdgeInsets.only(bottom: 8),
-      decoration: const BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
-        border: Border(top: BorderSide(color: AppColors.outlineVariant, width: 2)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _navItem(Icons.home, 'Início', true),
-          GestureDetector(
-            onTap: () => Navigator.pushNamed(context, '/elderly-help'),
-            child: _navItem(Icons.help_center, 'Ajuda', false),
+    return SafeArea(
+      top: false,
+      child: Container(
+        margin: const EdgeInsets.only(left: 16, right: 16, bottom: 12),
+        height: 88,
+        decoration: BoxDecoration(
+          color: AppColors.surfaceContainerLowest,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: AppColors.primary.withValues(alpha: 0.08),
+            width: 2,
           ),
-        ],
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.06),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _navItem(Icons.home, 'Início', true, null),
+              _navItem(Icons.help_center, 'Ajuda', false, () {
+                Navigator.pushNamed(context, '/elderly-help');
+              }),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  Widget _navItem(IconData icon, String label, bool selected) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 8),
-      decoration: BoxDecoration(
-        color: selected ? AppColors.secondaryContainer : null,
-        borderRadius: BorderRadius.circular(9999),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: selected ? AppColors.onSecondaryContainer : AppColors.onSurfaceVariant),
-          Text(label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: selected ? AppColors.onSecondaryContainer : AppColors.onSurfaceVariant)),
-        ],
+  Widget _navItem(IconData icon, String label, bool selected, VoidCallback? onTap) {
+    final itemColor = selected 
+        ? AppColors.primary 
+        : AppColors.onSurfaceVariant;
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.primary.withValues(alpha: 0.05) : null,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 28, color: itemColor),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  color: itemColor,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

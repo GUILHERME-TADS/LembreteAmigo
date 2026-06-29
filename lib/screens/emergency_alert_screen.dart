@@ -1,8 +1,10 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_theme.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 class EmergencyAlertScreen extends StatefulWidget {
   const EmergencyAlertScreen({super.key});
@@ -12,7 +14,7 @@ class EmergencyAlertScreen extends StatefulWidget {
 }
 
 class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
-  String _idosoName = 'João Silva';
+  String _idosoName = 'Idoso';
   String _idosoPhone = '';
 
   @override
@@ -25,12 +27,31 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final idosoId = prefs.getString('selected_idoso_id') ?? prefs.getString('paired_idoso_id');
-      if (idosoId != null) {
+      
+      bool useFirebase = false;
+      try {
+        useFirebase = Firebase.apps.isNotEmpty;
+      } catch (_) {}
+
+      if (useFirebase && idosoId != null) {
         final doc = await FirebaseFirestore.instance.collection('idosos').doc(idosoId).get();
         if (doc.exists && mounted) {
           setState(() {
-            _idosoName = doc.data()?['nome'] ?? 'João Silva';
+            _idosoName = doc.data()?['nome'] ?? 'Idoso';
             _idosoPhone = doc.data()?['telefone'] ?? '';
+          });
+          return;
+        }
+      }
+
+      // Fallback local simulation
+      final jsonStr = prefs.getString('idoso_perfil');
+      if (jsonStr != null) {
+        final data = jsonDecode(jsonStr) as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _idosoName = data['nome'] as String? ?? 'Idoso';
+            _idosoPhone = data['telefone'] as String? ?? '';
           });
         }
       }

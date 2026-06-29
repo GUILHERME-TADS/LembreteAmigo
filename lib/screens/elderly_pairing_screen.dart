@@ -164,14 +164,23 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('paired_idoso_id', 'joao');
           
-          final localPerfil = {
-            'nome': 'João Silva',
-            'dataNascimento': '15/03/1948',
-            'telefone': '(11) 98765-4321',
-            'endereco': 'Rua das Flores, 123',
-            'condicoes': ['Hipertensão', 'Diabetes Tipo 2'],
-          };
-          await prefs.setString('idoso_perfil', jsonEncode(localPerfil));
+          final existingPerfilStr = prefs.getString('idoso_perfil');
+          if (existingPerfilStr != null) {
+            try {
+              final Map<String, dynamic> data = jsonDecode(existingPerfilStr);
+              data['status'] = 'active';
+              await prefs.setString('idoso_perfil', jsonEncode(data));
+            } catch (_) {}
+            final localPerfil = {
+              'nome': 'Idoso de Teste',
+              'dataNascimento': '01/01/1950',
+              'telefone': 'Não informado',
+              'endereco': 'Não informado',
+              'condicoes': <String>[],
+              'status': 'active',
+            };
+            await prefs.setString('idoso_perfil', jsonEncode(localPerfil));
+          }
           
           _handleSuccess();
         } else {

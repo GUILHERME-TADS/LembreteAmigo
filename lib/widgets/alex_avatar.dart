@@ -6,11 +6,13 @@ import '../theme/app_theme.dart';
 class AlexAvatar extends StatefulWidget {
   final bool isListening;
   final double size;
+  final bool animate;
 
   const AlexAvatar({
     super.key,
     this.isListening = false,
     this.size = 120.0,
+    this.animate = true,
   });
 
   @override
@@ -41,15 +43,17 @@ class _AlexAvatarState extends State<AlexAvatar> with TickerProviderStateMixin {
       ),
     );
 
-    TTSService.instance.speakingNotifier.addListener(_onSpeakingChanged);
+    if (widget.animate) {
+      TTSService.instance.speakingNotifier.addListener(_onSpeakingChanged);
+    }
     
-    if (TTSService.instance.isSpeaking || widget.isListening) {
+    if ((widget.animate && TTSService.instance.isSpeaking) || widget.isListening) {
       _stopIdlePulsing();
     } else {
       _startIdleTimer();
     }
 
-    if (TTSService.instance.isSpeaking) {
+    if (widget.animate && TTSService.instance.isSpeaking) {
       _animationController.repeat(reverse: true);
     }
   }
@@ -101,7 +105,9 @@ class _AlexAvatarState extends State<AlexAvatar> with TickerProviderStateMixin {
 
   @override
   void dispose() {
-    TTSService.instance.speakingNotifier.removeListener(_onSpeakingChanged);
+    if (widget.animate) {
+      TTSService.instance.speakingNotifier.removeListener(_onSpeakingChanged);
+    }
     _idleTimer?.cancel();
     _animationController.dispose();
     _idlePulseController.dispose();
@@ -124,7 +130,8 @@ class _AlexAvatarState extends State<AlexAvatar> with TickerProviderStateMixin {
 
     return ValueListenableBuilder<bool>(
       valueListenable: TTSService.instance.speakingNotifier,
-      builder: (context, isSpeaking, _) {
+      builder: (context, isSpeakingVal, _) {
+        final bool isSpeaking = widget.animate && isSpeakingVal;
         final borderColor = _getBorderColor(isSpeaking);
         final bool isActiveState = widget.isListening || isSpeaking;
 

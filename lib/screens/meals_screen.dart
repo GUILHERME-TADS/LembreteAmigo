@@ -32,6 +32,24 @@ class _MealsScreenState extends State<MealsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          TTSService.instance.parar(caller: this);
+          showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: Colors.transparent,
+            builder: (context) => const AlexAssistantSheet(),
+          );
+        },
+        backgroundColor: Colors.white,
+        shape: const CircleBorder(),
+        elevation: 6,
+        child: const Padding(
+          padding: EdgeInsets.all(4.0),
+          child: AlexAvatar(size: 48),
+        ),
+      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -165,15 +183,15 @@ class _MealsScreenState extends State<MealsScreen> {
             ),
           ),
           const SizedBox(width: 12),
-          GestureDetector(
-            onTap: () {
+          IconButton(
+            icon: const Icon(Icons.volume_up, color: AppColors.mealsColor, size: 32),
+            onPressed: () {
               TTSService.instance.parar(caller: this);
               TTSService.instance.falar(
                 'Aqui está a lista de refeições para hoje.',
                 caller: this,
               );
             },
-            child: const AlexAvatar(size: 40),
           ),
           const Spacer(),
           Container(

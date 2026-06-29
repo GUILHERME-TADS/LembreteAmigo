@@ -232,8 +232,6 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                 child: Column(
                   children: [
                     const SizedBox(height: 24),
-                    _buildVoiceBanner(context),
-                    const SizedBox(height: 24),
                     _buildCallButton(context),
                     const SizedBox(height: 24),
                     _buildHeartRateCard(context),
@@ -242,114 +240,96 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                     const SizedBox(height: 24),
                     _buildSupportCard(),
                     const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 64,
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          TTSService.instance.parar(caller: this);
-                          Navigator.pop(context);
-                        },
-                        icon: const Icon(Icons.arrow_back),
-                        label: const Text(
-                          'Voltar',
-                          style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: AppColors.onPrimary,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 100),
                   ],
                 ),
               ),
             ),
-            _buildBottomNav(context),
           ],
         ),
       ),
+      bottomNavigationBar: _buildBottomNav(context),
     );
   }
 
   Widget _buildTopBar(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      height: 64,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      height: 100,
       decoration: const BoxDecoration(
         color: AppColors.surface,
         border: Border(bottom: BorderSide(color: AppColors.outlineVariant)),
       ),
       child: Row(
         children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back, color: AppColors.primary, size: 32),
-            onPressed: () {
-              TTSService.instance.parar(caller: this);
-              Navigator.pop(context);
-            },
+          const SizedBox(width: 48),
+          const Spacer(),
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text(
+                'Pedir ajuda',
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.primary),
+              ),
+              const SizedBox(height: 6),
+              GestureDetector(
+                onTap: () {
+                  TTSService.instance.falar(
+                    'Se precisar de ajuda, aperte o botão amarelo de ligar para o seu ajudante.',
+                    caller: this,
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(99),
+                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.15), width: 1.5),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.record_voice_over,
+                        color: AppColors.primary,
+                        size: 18,
+                      ),
+                      SizedBox(width: 6),
+                      Text(
+                        'Me explica',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
           const Spacer(),
-          const Text(
-            'Pedir ajuda',
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.primary),
-          ),
-          const SizedBox(width: 12),
           GestureDetector(
             onTap: () {
-              TTSService.instance.falar(
-                'Se precisar de ajuda, aperte o botão amarelo de ligar para o seu ajudante.',
-                caller: this,
-              );
+              TTSService.instance.parar(caller: this);
+              Navigator.pushNamed(context, '/elderly-profile');
             },
-            child: const AlexAvatar(size: 40),
-          ),
-          const Spacer(),
-          Container(
-            width: 48,
-            height: 48,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.fromBorderSide(
-                BorderSide(color: AppColors.primaryContainer, width: 2),
+            child: Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.primaryContainer, width: 2),
               ),
+              child: const Icon(Icons.person, color: AppColors.primaryContainer),
             ),
-            child: const Icon(Icons.person, color: AppColors.primaryContainer),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildVoiceBanner(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: AppColors.primaryContainer,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primary),
-      ),
-      child: const Row(
-        children: [
-          Icon(Icons.record_voice_over, color: AppColors.onPrimaryContainer, size: 36),
-          SizedBox(width: 16),
-          Expanded(
-            child: Text(
-              '"Aperte aqui para falar com Alex"',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w700,
-                height: 1.5,
-                color: AppColors.onPrimaryContainer,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+
 
   Widget _buildCallButton(BuildContext context) {
     return SizedBox(
@@ -530,63 +510,123 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
   }
 
   Widget _buildBottomNav(BuildContext context) {
-    return Container(
-      height: 96,
-      padding: const EdgeInsets.only(bottom: 8),
-      decoration: const BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
-        border: Border(top: BorderSide(color: AppColors.outlineVariant, width: 2)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: GestureDetector(
-              onTap: () {
+    return SafeArea(
+      top: false,
+      child: Container(
+        margin: const EdgeInsets.only(left: 16, right: 16, bottom: 12),
+        height: 88,
+        decoration: BoxDecoration(
+          color: AppColors.surfaceContainerLowest,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: AppColors.primary.withValues(alpha: 0.08),
+            width: 2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.06),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _bottomNavItem(Icons.home, 'Início', false, () {
                 TTSService.instance.parar(caller: this);
                 Navigator.pushNamedAndRemoveUntil(context, '/elderly-home', (route) => false);
-              },
-              child: _navItem(Icons.home, 'Início', false),
-            ),
-          ),
-          Expanded(
-            child: GestureDetector(
-              onTap: () {
+              }),
+              _bottomNavItem(Icons.list_alt, 'Lembretes', false, () {
                 TTSService.instance.parar(caller: this);
                 Navigator.pushNamed(context, '/all-reminders');
-              },
-              child: _navItem(Icons.list_alt, 'Lembretes', false),
-            ),
+              }),
+              _bottomNavItem(Icons.help_center, 'Ajuda', true, null),
+              Expanded(
+                child: Center(
+                  child: GestureDetector(
+                    onTap: () {
+                      TTSService.instance.parar(caller: this);
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (context) => const AlexAssistantSheet(),
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: const Column(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          AlexAvatar(size: 40, animate: false),
+                          SizedBox(height: 2),
+                          Text(
+                            'Falar',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-          Expanded(
-            child: _navItem(Icons.help_center, 'Ajuda', true),
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _navItem(IconData icon, String label, bool selected) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      decoration: BoxDecoration(
-        color: selected ? AppColors.secondaryContainer : null,
-        borderRadius: BorderRadius.circular(9999),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: 32, color: selected ? AppColors.onSecondaryContainer : AppColors.onSurfaceVariant),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.05,
-              color: selected ? AppColors.onSecondaryContainer : AppColors.onSurfaceVariant,
-            ),
+  Widget _bottomNavItem(IconData icon, String label, bool selected, VoidCallback? onTap) {
+    final itemColor = selected 
+        ? AppColors.primary 
+        : AppColors.onSurfaceVariant;
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.primary.withValues(alpha: 0.05) : null,
+            borderRadius: BorderRadius.circular(16),
           ),
-        ],
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 28, color: itemColor),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  color: itemColor,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

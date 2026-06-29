@@ -14,6 +14,7 @@ import 'screens/take_photo_confirmation_screen.dart';
 import 'screens/reinforcement_alert_screen.dart';
 import 'screens/reminder_with_audio_screen.dart';
 import 'screens/elderly_profile_screen.dart';
+import 'screens/edit_profile_screen.dart';
 import 'screens/adjust_task_screen.dart';
 import 'screens/new_reminder_screen.dart';
 import 'screens/new_reminder_audio_screen.dart';
@@ -148,6 +149,9 @@ class MeuApp extends StatelessWidget {
             break;
           case '/elderly-profile':
             page = const ElderlyProfileScreen();
+            break;
+          case '/edit-profile':
+            page = const EditProfileScreen();
             break;
           case '/adjust-task':
             page = const AdjustTaskScreen();

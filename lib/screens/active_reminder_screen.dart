@@ -74,6 +74,24 @@ class ActiveReminderScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          TTSService.instance.parar();
+          showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: Colors.transparent,
+            builder: (context) => const AlexAssistantSheet(),
+          );
+        },
+        backgroundColor: Colors.white,
+        shape: const CircleBorder(),
+        elevation: 6,
+        child: const Padding(
+          padding: EdgeInsets.all(4.0),
+          child: AlexAvatar(size: 48),
+        ),
+      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -206,14 +224,14 @@ class ActiveReminderScreen extends StatelessWidget {
             style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.primary),
           ),
           const SizedBox(width: 12),
-          GestureDetector(
-            onTap: () {
+          IconButton(
+            icon: const Icon(Icons.volume_up, color: AppColors.primary, size: 32),
+            onPressed: () {
               TTSService.instance.parar();
               TTSService.instance.falar(
                 'Este é o seu lembrete. Aperte o botão de entendi, ou o botão de adiar.',
               );
             },
-            child: const AlexAvatar(size: 40),
           ),
           const Spacer(),
           const Icon(Icons.volume_up, color: AppColors.primary, size: 28),

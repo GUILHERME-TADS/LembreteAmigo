@@ -3,6 +3,7 @@ import '../theme/app_theme.dart';
 import '../models/lembrete.dart';
 import '../services/lembrete_service.dart';
 import '../widgets/supervisor_bottom_nav.dart';
+import '../widgets/me_explica_button.dart';
 
 class NewReminderScreen extends StatefulWidget {
   const NewReminderScreen({super.key});
@@ -35,7 +36,9 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      bottomNavigationBar: const SupervisorBottomNav(selected: SupervisorNavDestination.newReminder),
+      bottomNavigationBar: const SupervisorBottomNav(
+        selected: SupervisorNavDestination.newReminder,
+      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -49,12 +52,24 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                     const SizedBox(height: 24),
                     const Text(
                       'Novo Lembrete',
-                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.onSurface),
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.onSurface,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     const Text(
                       'Configure um lembrete para garantir o bem-estar e a rotina do idoso.',
-                      style: TextStyle(fontSize: 18, color: AppColors.onSurfaceVariant),
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: AppColors.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const MeExplicaButton(
+                      textoExplicacao:
+                          'Nesta tela voce cria um lembrete para o idoso. Escolha a categoria, o horario e, se quiser, grave sua propria voz. Essa voz sera tocada automaticamente quando o lembrete aparecer.',
                     ),
                     const SizedBox(height: 24),
                     _buildCategorySelector(),
@@ -69,7 +84,12 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                     const SizedBox(height: 24),
                     const Text(
                       'O QUE LEMBRAR?',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: AppColors.onSurfaceVariant),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.05,
+                        color: AppColors.onSurfaceVariant,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Container(
@@ -92,7 +112,12 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                     const SizedBox(height: 24),
                     const Text(
                       'HORÁRIO',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: AppColors.onSurfaceVariant),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.05,
+                        color: AppColors.onSurfaceVariant,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Container(
@@ -104,8 +129,12 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                       ),
                       child: InkWell(
                         onTap: () async {
-                          final time = await showTimePicker(context: context, initialTime: _selectedTime);
-                          if (time != null) setState(() => _selectedTime = time);
+                          final time = await showTimePicker(
+                            context: context,
+                            initialTime: _selectedTime,
+                          );
+                          if (time != null)
+                            setState(() => _selectedTime = time);
                         },
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 24),
@@ -120,12 +149,19 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                               Text(
                                 '${_selectedTime.hour.toString().padLeft(2, '0')}:${_selectedTime.minute.toString().padLeft(2, '0')}',
                                 style: const TextStyle(
-                                  fontSize: 40, fontWeight: FontWeight.w800, height: 1.2,
-                                  letterSpacing: -0.01, color: AppColors.primary,
+                                  fontSize: 40,
+                                  fontWeight: FontWeight.w800,
+                                  height: 1.2,
+                                  letterSpacing: -0.01,
+                                  color: AppColors.primary,
                                 ),
                               ),
                               const SizedBox(width: 16),
-                              const Icon(Icons.schedule, size: 32, color: AppColors.onSurfaceVariant),
+                              const Icon(
+                                Icons.schedule,
+                                size: 32,
+                                color: AppColors.onSurfaceVariant,
+                              ),
                             ],
                           ),
                         ),
@@ -165,11 +201,16 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
             child: Text(
               'Lembrete Amigo',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.primary),
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w700,
+                color: AppColors.primary,
+              ),
             ),
           ),
           Container(
-            width: 40, height: 40,
+            width: 40,
+            height: 40,
             decoration: const BoxDecoration(
               color: AppColors.primaryContainer,
               shape: BoxShape.circle,
@@ -183,11 +224,36 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
 
   Widget _buildCategorySelector() {
     final categories = [
-      {'icon': Icons.medication, 'label': 'Remédio', 'key': 'medicacao', 'color': AppColors.medicationsColor},
-      {'icon': Icons.restaurant, 'label': 'Refeição', 'key': 'refeicoes', 'color': AppColors.mealsColor},
-      {'icon': Icons.directions_walk, 'label': 'Exercício', 'key': 'exercicio', 'color': AppColors.tertiaryContainer},
-      {'icon': Icons.water_drop, 'label': 'Água', 'key': 'hidratacao', 'color': AppColors.voiceFeedbackBlue},
-      {'icon': Icons.notifications, 'label': 'Personalizado', 'key': 'personalizado', 'color': AppColors.customColor},
+      {
+        'icon': Icons.medication,
+        'label': 'Remédio',
+        'key': 'medicacao',
+        'color': AppColors.medicationsColor,
+      },
+      {
+        'icon': Icons.restaurant,
+        'label': 'Refeição',
+        'key': 'refeicoes',
+        'color': AppColors.mealsColor,
+      },
+      {
+        'icon': Icons.directions_walk,
+        'label': 'Exercício',
+        'key': 'exercicio',
+        'color': AppColors.tertiaryContainer,
+      },
+      {
+        'icon': Icons.water_drop,
+        'label': 'Água',
+        'key': 'hidratacao',
+        'color': AppColors.voiceFeedbackBlue,
+      },
+      {
+        'icon': Icons.notifications,
+        'label': 'Personalizado',
+        'key': 'personalizado',
+        'color': AppColors.customColor,
+      },
     ];
     return Container(
       width: double.infinity,
@@ -202,7 +268,12 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
         children: [
           const Text(
             'CATEGORIA DO LEMBRETE',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: AppColors.onSurfaceVariant),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.05,
+              color: AppColors.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 12),
           Center(
@@ -215,13 +286,19 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                 final color = cat['color'] as Color;
                 final selected = _selectedCategory == key;
                 return GestureDetector(
-                  onTap: () => setState(() => _selectedCategory = selected ? null : key),
+                  onTap: () =>
+                      setState(() => _selectedCategory = selected ? null : key),
                   child: Container(
                     width: 95,
                     height: 115,
-                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 8,
+                      horizontal: 4,
+                    ),
                     decoration: BoxDecoration(
-                      color: selected ? color.withValues(alpha: 0.2) : AppColors.surfaceContainerLowest,
+                      color: selected
+                          ? color.withValues(alpha: 0.2)
+                          : AppColors.surfaceContainerLowest,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                         color: selected ? color : Colors.transparent,
@@ -235,10 +312,16 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                           width: 48,
                           height: 48,
                           decoration: BoxDecoration(
-                            color: selected ? color : color.withValues(alpha: 0.15),
+                            color: selected
+                                ? color
+                                : color.withValues(alpha: 0.15),
                             shape: BoxShape.circle,
                           ),
-                          child: Icon(cat['icon'] as IconData, size: 24, color: selected ? Colors.white : color),
+                          child: Icon(
+                            cat['icon'] as IconData,
+                            size: 24,
+                            color: selected ? Colors.white : color,
+                          ),
                         ),
                         const SizedBox(height: 8),
                         Text(
@@ -277,11 +360,16 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
         children: [
           const Text(
             'ÁUDIO PERSONALIZADO',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: AppColors.onSurfaceVariant),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.05,
+              color: AppColors.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 4),
           const Text(
-            'Grave sua voz para tornar o lembrete mais humano.',
+            'Grave uma frase familiar. Ela sera tocada automaticamente antes do aviso do app.',
             style: TextStyle(fontSize: 14, color: AppColors.onSurfaceVariant),
           ),
           const SizedBox(height: 12),
@@ -289,35 +377,64 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.audiotrack, color: AppColors.onTertiaryFixedVariant, size: 28),
+                const Icon(
+                  Icons.audiotrack,
+                  color: AppColors.onTertiaryFixedVariant,
+                  size: 28,
+                ),
                 const SizedBox(width: 8),
                 const Text(
                   'Voz de familiar vinculada',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primary),
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 TextButton(
                   onPressed: () => setState(() => _audioPath = null),
-                  child: const Text('Remover', style: TextStyle(color: AppColors.error, fontSize: 16, fontWeight: FontWeight.bold)),
+                  child: const Text(
+                    'Remover',
+                    style: TextStyle(
+                      color: AppColors.error,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ],
             ),
           ] else ...[
             GestureDetector(
               onTap: () async {
-                final result = await Navigator.pushNamed(context, '/new-reminder-audio');
+                final result = await Navigator.pushNamed(
+                  context,
+                  '/new-reminder-audio',
+                );
                 if (result is String) {
                   setState(() => _audioPath = result);
                 }
               },
               child: Container(
-                width: 80, height: 80,
+                width: 80,
+                height: 80,
                 decoration: BoxDecoration(
                   color: AppColors.secondaryContainer,
                   shape: BoxShape.circle,
-                  boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 4))],
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 8,
+                      offset: Offset(0, 4),
+                    ),
+                  ],
                 ),
-                child: const Icon(Icons.mic, size: 36, color: AppColors.onSecondaryContainer),
+                child: const Icon(
+                  Icons.mic,
+                  size: 36,
+                  color: AppColors.onSecondaryContainer,
+                ),
               ),
             ),
           ],
@@ -339,7 +456,12 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
         children: [
           const Text(
             'FOTO REAL DO REMÉDIO (OPCIONAL)',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: AppColors.onSurfaceVariant),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.05,
+              color: AppColors.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 4),
           const Text(
@@ -351,7 +473,8 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
             onTap: () {
               setState(() {
                 if (_fotoPath == null) {
-                  _fotoPath = 'simulado_remedio_${_selectedForma}_$_selectedCor.png';
+                  _fotoPath =
+                      'simulado_remedio_${_selectedForma}_$_selectedCor.png';
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text('Foto do remédio vinculada com sucesso!'),
@@ -370,7 +493,9 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                 color: AppColors.surfaceContainerLowest,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: _fotoPath != null ? AppColors.tertiaryFixedDim : AppColors.outlineVariant,
+                  color: _fotoPath != null
+                      ? AppColors.tertiaryFixedDim
+                      : AppColors.outlineVariant,
                   width: _fotoPath != null ? 3 : 2,
                 ),
               ),
@@ -378,7 +503,11 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                   ? Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.check_circle, color: AppColors.onTertiaryFixedVariant, size: 36),
+                        const Icon(
+                          Icons.check_circle,
+                          color: AppColors.onTertiaryFixedVariant,
+                          size: 36,
+                        ),
                         const SizedBox(width: 12),
                         Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -386,29 +515,51 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                           children: [
                             const Text(
                               'Foto Vinculada!',
-                              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primary),
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.primary,
+                              ),
                             ),
                             Text(
                               'Aparência: $_selectedForma $_selectedCor',
-                              style: const TextStyle(fontSize: 14, color: AppColors.onSurfaceVariant),
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: AppColors.onSurfaceVariant,
+                              ),
                             ),
                           ],
                         ),
                         const SizedBox(width: 20),
                         TextButton(
                           onPressed: () => setState(() => _fotoPath = null),
-                          child: const Text('Remover', style: TextStyle(color: AppColors.error, fontSize: 16, fontWeight: FontWeight.bold)),
+                          child: const Text(
+                            'Remover',
+                            style: TextStyle(
+                              color: AppColors.error,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                       ],
                     )
                   : const Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.photo_camera, size: 48, color: AppColors.primary),
+                        Icon(
+                          Icons.photo_camera,
+                          size: 48,
+                          color: AppColors.primary,
+                        ),
                         SizedBox(height: 8),
                         Text(
                           'Tirar Foto do Remédio',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.primary),
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primary,
+                          ),
                         ),
                       ],
                     ),
@@ -437,7 +588,12 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
         children: [
           const Text(
             'NÍVEL DE URGÊNCIA',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: AppColors.onSurfaceVariant),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.05,
+              color: AppColors.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 12),
           Row(
@@ -446,13 +602,19 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
               final color = u['color'] as Color;
               return Expanded(
                 child: GestureDetector(
-                  onTap: () => setState(() => _selectedUrgency = u['key'] as String),
+                  onTap: () =>
+                      setState(() => _selectedUrgency = u['key'] as String),
                   child: Container(
                     margin: const EdgeInsets.symmetric(horizontal: 4),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
-                      color: selected ? color.withValues(alpha: 0.2) : AppColors.surfaceContainerLowest,
-                      border: Border.all(color: selected ? color : AppColors.outlineVariant, width: 2),
+                      color: selected
+                          ? color.withValues(alpha: 0.2)
+                          : AppColors.surfaceContainerLowest,
+                      border: Border.all(
+                        color: selected ? color : AppColors.outlineVariant,
+                        width: 2,
+                      ),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Center(
@@ -497,7 +659,12 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
         children: [
           const Text(
             'REPETIÇÃO DO LEMBRETE',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: AppColors.onSurfaceVariant),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.05,
+              color: AppColors.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
@@ -505,22 +672,31 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
             decoration: InputDecoration(
               filled: true,
               fillColor: AppColors.surfaceContainerLowest,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
-            items: recorrencias.map((r) => DropdownMenuItem(
-              value: r['key'],
-              child: Text(r['label'] as String),
-            )).toList(),
+            items: recorrencias
+                .map(
+                  (r) => DropdownMenuItem(
+                    value: r['key'],
+                    child: Text(r['label'] as String),
+                  ),
+                )
+                .toList(),
             onChanged: (val) {
               if (val != null) {
                 setState(() => _selectedRecorrencia = val);
               }
             },
           ),
-          
+
           if (_selectedRecorrencia == 'semanal') ...[
             const SizedBox(height: 16),
-            const Text('Selecione os dias da semana:', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+            const Text(
+              'Selecione os dias da semana:',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -539,9 +715,12 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                     });
                   },
                   child: Container(
-                    width: 36, height: 36,
+                    width: 36,
+                    height: 36,
                     decoration: BoxDecoration(
-                      color: selected ? AppColors.primary : AppColors.surfaceContainerLowest,
+                      color: selected
+                          ? AppColors.primary
+                          : AppColors.surfaceContainerLowest,
                       shape: BoxShape.circle,
                       border: Border.all(color: AppColors.outlineVariant),
                     ),
@@ -560,10 +739,13 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
               }),
             ),
           ],
-          
+
           if (_selectedRecorrencia == 'intervalo') ...[
             const SizedBox(height: 16),
-            const Text('Repetir a cada quantas horas?', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+            const Text(
+              'Repetir a cada quantas horas?',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 8),
             Row(
               children: [
@@ -573,12 +755,18 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                     decoration: InputDecoration(
                       filled: true,
                       fillColor: AppColors.surfaceContainerLowest,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                    items: [2, 4, 6, 8, 12].map((h) => DropdownMenuItem(
-                      value: h,
-                      child: Text('$h em $h horas'),
-                    )).toList(),
+                    items: [2, 4, 6, 8, 12]
+                        .map(
+                          (h) => DropdownMenuItem(
+                            value: h,
+                            child: Text('$h em $h horas'),
+                          ),
+                        )
+                        .toList(),
                     onChanged: (val) {
                       if (val != null) {
                         setState(() => _selectedIntervaloHoras = val);
@@ -589,22 +777,26 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
               ],
             ),
           ],
-          
+
           if (_selectedRecorrencia == 'mensal') ...[
             const SizedBox(height: 16),
-            const Text('Qual o dia do mês?', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+            const Text(
+              'Qual o dia do mês?',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 8),
             DropdownButtonFormField<int>(
               value: _selectedDiaMes,
               decoration: InputDecoration(
                 filled: true,
                 fillColor: AppColors.surfaceContainerLowest,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
-              items: List.generate(31, (i) => i + 1).map((d) => DropdownMenuItem(
-                value: d,
-                child: Text('Dia $d'),
-              )).toList(),
+              items: List.generate(31, (i) => i + 1)
+                  .map((d) => DropdownMenuItem(value: d, child: Text('Dia $d')))
+                  .toList(),
               onChanged: (val) {
                 if (val != null) {
                   setState(() => _selectedDiaMes = val);
@@ -622,7 +814,9 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
       padding: const EdgeInsets.all(20),
       decoration: const BoxDecoration(
         color: AppColors.surfaceContainerLowest,
-        border: Border(top: BorderSide(color: AppColors.outlineVariant, width: 2)),
+        border: Border(
+          top: BorderSide(color: AppColors.outlineVariant, width: 2),
+        ),
       ),
       child: SizedBox(
         width: double.infinity,
@@ -630,18 +824,21 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
         child: ElevatedButton.icon(
           onPressed: _salvarLembrete,
           icon: const Icon(Icons.send),
-          label: const Text('Salvar e Enviar', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
+          label: const Text(
+            'Salvar e Enviar',
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
+          ),
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.secondaryContainer,
             foregroundColor: AppColors.onSecondaryContainer,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         ),
       ),
     );
   }
-
-
 
   Widget _buildPillAppearanceSelector() {
     final formas = [
@@ -652,7 +849,11 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
     ];
 
     final cores = [
-      {'key': 'vermelho', 'label': 'Vermelho', 'color': const Color(0xFFE57373)},
+      {
+        'key': 'vermelho',
+        'label': 'Vermelho',
+        'color': const Color(0xFFE57373),
+      },
       {'key': 'azul', 'label': 'Azul', 'color': const Color(0xFF64B5F6)},
       {'key': 'verde', 'label': 'Verde', 'color': const Color(0xFF81C784)},
       {'key': 'amarelo', 'label': 'Amarelo', 'color': const Color(0xFFFFD54F)},
@@ -664,32 +865,60 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
       children: [
         const Text(
           'APARÊNCIA DO REMÉDIO',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: AppColors.onSurfaceVariant),
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.05,
+            color: AppColors.onSurfaceVariant,
+          ),
         ),
         const SizedBox(height: 12),
-        const Text('Formato:', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.onSurfaceVariant)),
+        const Text(
+          'Formato:',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: AppColors.onSurfaceVariant,
+          ),
+        ),
         const SizedBox(height: 8),
         Row(
           children: formas.map((f) {
             final selected = _selectedForma == f['key'];
             return Expanded(
               child: GestureDetector(
-                onTap: () => setState(() => _selectedForma = f['key'] as String),
+                onTap: () =>
+                    setState(() => _selectedForma = f['key'] as String),
                 child: Container(
                   margin: const EdgeInsets.symmetric(horizontal: 4),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   decoration: BoxDecoration(
-                    color: selected ? AppColors.primaryContainer : AppColors.surfaceContainerLowest,
-                    border: Border.all(color: selected ? AppColors.primary : AppColors.outlineVariant, width: 2),
+                    color: selected
+                        ? AppColors.primaryContainer
+                        : AppColors.surfaceContainerLowest,
+                    border: Border.all(
+                      color: selected
+                          ? AppColors.primary
+                          : AppColors.outlineVariant,
+                      width: 2,
+                    ),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Column(
                     children: [
-                      Icon(f['icon'] as IconData, color: selected ? Colors.white : AppColors.primary, size: 24),
+                      Icon(
+                        f['icon'] as IconData,
+                        color: selected ? Colors.white : AppColors.primary,
+                        size: 24,
+                      ),
                       const SizedBox(height: 4),
                       Text(
                         f['label'] as String,
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: selected ? Colors.white : AppColors.onSurface),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: selected ? Colors.white : AppColors.onSurface,
+                        ),
                       ),
                     ],
                   ),
@@ -699,7 +928,14 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
           }).toList(),
         ),
         const SizedBox(height: 16),
-        const Text('Cor:', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.onSurfaceVariant)),
+        const Text(
+          'Cor:',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: AppColors.onSurfaceVariant,
+          ),
+        ),
         const SizedBox(height: 8),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -722,7 +958,9 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                 child: selected
                     ? Icon(
                         Icons.check,
-                        color: c['key'] == 'branco' ? Colors.black : Colors.white,
+                        color: c['key'] == 'branco'
+                            ? Colors.black
+                            : Colors.white,
                       )
                     : null,
               ),
@@ -754,7 +992,9 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
       horarioMinute: _selectedTime.minute,
       categoria: _selectedCategory ?? 'personalizado',
       audioPath: _audioPath,
-      medicamentoForma: _selectedCategory == 'medicacao' ? _selectedForma : null,
+      medicamentoForma: _selectedCategory == 'medicacao'
+          ? _selectedForma
+          : null,
       medicamentoCor: _selectedCategory == 'medicacao' ? _selectedCor : null,
       medicamentoFotoPath: _selectedCategory == 'medicacao' ? _fotoPath : null,
       urgencia: _selectedUrgency,
@@ -764,9 +1004,13 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
       recorrenciaMensal: _selectedRecorrencia == 'mensal',
       recorrenciaIntervalo: _selectedRecorrencia == 'intervalo',
       lembreteUnico: _selectedRecorrencia == 'unico',
-      diasSemana: _selectedRecorrencia == 'semanal' ? _selectedDiasSemana : const [],
+      diasSemana: _selectedRecorrencia == 'semanal'
+          ? _selectedDiasSemana
+          : const [],
       diaMes: _selectedRecorrencia == 'mensal' ? _selectedDiaMes : null,
-      intervaloHoras: _selectedRecorrencia == 'intervalo' ? _selectedIntervaloHoras : null,
+      intervaloHoras: _selectedRecorrencia == 'intervalo'
+          ? _selectedIntervaloHoras
+          : null,
     );
 
     await LembreteService.instance.adicionar(lembrete);

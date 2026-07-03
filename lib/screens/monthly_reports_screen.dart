@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/lembrete.dart';
 import '../services/lembrete_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/me_explica_button.dart';
 import '../widgets/supervisor_bottom_nav.dart';
 
 class MonthlyReportsScreen extends StatefulWidget {
@@ -32,6 +33,10 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
   int _weeklyMissed = 0;
   int? _lastBpm;
   String _weeklyWelfare = 'Sem check-in registrado nesta semana.';
+  String _weeklyHumanSummary =
+      'Ainda nao ha dados suficientes para resumir a semana.';
+  String _weeklyAttention =
+      'Cadastre e acompanhe os lembretes para criar uma linha de cuidado.';
 
   @override
   void initState() {
@@ -91,6 +96,15 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
               .where((evento) => evento.categoria == 'bem_estar')
               .toList()
             ..sort((a, b) => b.registradoEm.compareTo(a.registradoEm));
+      final completedCount = routineEvents
+          .where((evento) => evento.status.isConcluido)
+          .length;
+      final missedCount = routineEvents
+          .where((evento) => evento.status == LembreteStatus.perdido)
+          .length;
+      final weeklyPct = routineEvents.isEmpty
+          ? 0
+          : ((completedCount / routineEvents.length) * 100).round();
 
       if (!mounted) return;
       setState(() {
@@ -104,16 +118,24 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
                       100)
                   .round();
         _weeklyTotal = routineEvents.length;
-        _weeklyDone = routineEvents
-            .where((evento) => evento.status.isConcluido)
-            .length;
-        _weeklyMissed = routineEvents
-            .where((evento) => evento.status == LembreteStatus.perdido)
-            .length;
+        _weeklyDone = completedCount;
+        _weeklyMissed = missedCount;
         _lastBpm = lastBpm;
         _weeklyWelfare = welfareEvents.isNotEmpty
             ? welfareEvents.first.observacao ?? 'Check-in registrado.'
             : 'Sem check-in registrado nesta semana.';
+        _weeklyHumanSummary = _buildHumanSummary(
+          weeklyPct,
+          routineEvents.length,
+          completedCount,
+          missedCount,
+        );
+        _weeklyAttention = _buildAttentionSummary(
+          weeklyPct,
+          missedCount,
+          lastBpm,
+          _weeklyWelfare,
+        );
       });
     } catch (e) {
       debugPrint('Erro ao carregar dados de relatorios: $e');
@@ -163,6 +185,8 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
                         'Ultimo batimento: ${_lastBpm != null ? '$_lastBpm BPM' : 'sem medicao'}',
                   ),
                   pw.Bullet(text: 'Bem-estar: $_weeklyWelfare'),
+                  pw.Bullet(text: 'Resumo familiar: $_weeklyHumanSummary'),
+                  pw.Bullet(text: 'Ponto de atencao: $_weeklyAttention'),
                   pw.SizedBox(height: 20),
                   pw.Text(
                     'ADERENCIA POR CATEGORIA',
@@ -226,6 +250,11 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
                   children: [
                     const SizedBox(height: 24),
                     _buildHeader(),
+                    const SizedBox(height: 12),
+                    const MeExplicaButton(
+                      textoExplicacao:
+                          'Esta tela mostra um resumo da semana para a familia. Ela indica quantos lembretes foram feitos, o que ficou pendente, como foi o bem-estar e se existe algum ponto que merece atencao.',
+                    ),
                     const SizedBox(height: 12),
                     _buildExportButton(),
                     const SizedBox(height: 24),
@@ -366,6 +395,25 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
           ),
           const SizedBox(height: 14),
           Text(
+            _weeklyHumanSummary,
+            style: const TextStyle(
+              fontSize: 17,
+              height: 1.35,
+              fontWeight: FontWeight.w700,
+              color: AppColors.onSurface,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _weeklyAttention,
+            style: const TextStyle(
+              fontSize: 16,
+              height: 1.35,
+              color: AppColors.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
             _lastBpm != null
                 ? 'Ultimo batimento medido: $_lastBpm BPM'
                 : 'Sem batimento medido nesta semana.',
@@ -421,6 +469,35 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
         ),
       ),
     );
+  }
+
+  String _buildHumanSummary(int pct, int total, int done, int missed) {
+    if (total == 0) {
+      return 'Nesta semana ainda nao houve registros suficientes da rotina.';
+    }
+    if (pct >= 85 && missed == 0) {
+      return '$_idosoName teve uma semana estavel, com $pct% da rotina concluida.';
+    }
+    if (pct >= 60) {
+      return '$_idosoName concluiu $done de $total atividades, mas alguns horarios precisam de acompanhamento.';
+    }
+    return 'A semana exige atencao: apenas $done de $total atividades foram confirmadas.';
+  }
+
+  String _buildAttentionSummary(int pct, int missed, int? bpm, String welfare) {
+    if (missed >= 3) {
+      return 'Houve $missed atividades nao feitas. Vale revisar horarios, dificuldade de uso ou necessidade de apoio presencial.';
+    }
+    if (bpm != null && (bpm < 60 || bpm > 100)) {
+      return 'O ultimo batimento ficou fora da faixa de repouso usada pelo app. Acompanhe novas medicoes.';
+    }
+    if (!welfare.startsWith('Sem check-in')) {
+      return 'Ultimo check-in de bem-estar: $welfare';
+    }
+    if (pct >= 85) {
+      return 'Sem ponto critico aparente nesta semana.';
+    }
+    return 'Acompanhe os proximos dias para entender se os atrasos foram pontuais ou recorrentes.';
   }
 
   Widget _buildAdherenceBreakdown() {

@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:async';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
@@ -26,8 +27,10 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
   bool _isSpeakingLoopActive = false;
   bool _isLoopPaused = false;
   final stt.SpeechToText _speech = stt.SpeechToText();
+  final AudioPlayer _familyAudioPlayer = AudioPlayer();
   bool _isListeningForCommand = false;
   Timer? _urgencyReinforcementTimer;
+  Timer? _noResponseTimer;
 
   @override
   void initState() {
@@ -64,12 +67,12 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
         if (mounted && _isSpeakingLoopActive && !l.concluido) {
           _isSpeakingLoopActive = false;
           VibrationService.stopVibration();
-          
+
           await LembreteService.instance.registrarDificuldade(
             l.id,
             'ALERTA CRÍTICO: Idoso não respondeu ao lembrete crítico de remédio em 2 minutos. Reforço automático ativado.',
           );
-          
+
           if (mounted) {
             Navigator.pushNamedAndRemoveUntil(
               context,
@@ -85,6 +88,14 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
         }
       });
     }
+    _noResponseTimer?.cancel();
+    _noResponseTimer = Timer(_noResponseLimit(l), () async {
+      if (!mounted || !_isSpeakingLoopActive || l.concluido) return;
+      await LembreteService.instance.registrarDificuldade(
+        l.id,
+        'Sem resposta do idoso depois de ${_noResponseLimit(l).inMinutes} minutos. O cuidador deve verificar se esta tudo bem.',
+      );
+    });
 
     while (mounted && _isSpeakingLoopActive) {
       if (_isLoopPaused) {
@@ -94,22 +105,28 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
 
       final isCrit = l.urgencia == 'critico';
       final isImp = l.urgencia == 'importante';
-      final prefix = isCrit 
-          ? 'ALERTA URGENTE E ESSENCIAL! Por favor, faça agora: ' 
-          : (isImp ? 'Aviso importante! Está na hora de: ' : 'Atenção! Está na hora de: ');
+      final prefix = isCrit
+          ? 'ALERTA URGENTE E ESSENCIAL! Por favor, faça agora: '
+          : (isImp
+                ? 'Aviso importante! Está na hora de: '
+                : 'Atenção! Está na hora de: ');
 
       if (l.categoria == 'medicacao') {
         _speakText = '$prefix tomar o seu remédio: ${l.titulo}.';
       } else if (l.categoria == 'refeicoes') {
         _speakText = '$prefix comer: ${l.titulo}. Faça a sua refeição.';
       } else if (l.categoria == 'hidratacao') {
-        _speakText = '$prefix se hidratar: ${l.titulo}. Beba um copo de água agora.';
+        _speakText =
+            '$prefix se hidratar: ${l.titulo}. Beba um copo de água agora.';
       } else if (l.categoria == 'exercicio') {
-        _speakText = '$prefix fazer o seu exercício físico: ${l.titulo}. Faça a sua atividade.';
+        _speakText =
+            '$prefix fazer o seu exercício físico: ${l.titulo}. Faça a sua atividade.';
       } else {
         _speakText = '$prefix sua atividade: ${l.titulo}.';
       }
 
+      await _playFamilyAudioIfAvailable(l);
+      if (!mounted || !_isSpeakingLoopActive || _isLoopPaused) continue;
       await TTSService.instance.falar(_speakText, caller: this);
 
       final waitSeconds = isCrit ? 2 : (isImp ? 3 : 4);
@@ -120,16 +137,51 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
     }
   }
 
+  Duration _noResponseLimit(Lembrete l) {
+    if (l.urgencia == 'critico') return const Duration(minutes: 2);
+    if (l.urgencia == 'importante' || l.categoria == 'medicacao') {
+      return const Duration(minutes: 10);
+    }
+    return const Duration(minutes: 20);
+  }
+
+  Future<void> _playFamilyAudioIfAvailable(Lembrete l) async {
+    final path = l.audioPath;
+    if (path == null || path.isEmpty) return;
+    final file = File(path);
+    if (!await file.exists()) return;
+
+    try {
+      AudioManager.stopAll();
+      await TTSService.instance.parar(caller: this);
+      await _familyAudioPlayer.stop();
+      final completed = Completer<void>();
+      final sub = _familyAudioPlayer.onPlayerComplete.listen((_) {
+        if (!completed.isCompleted) completed.complete();
+      });
+      await _familyAudioPlayer.play(DeviceFileSource(path), volume: 1.0);
+      await completed.future.timeout(
+        const Duration(seconds: 20),
+        onTimeout: () async {
+          await _familyAudioPlayer.stop();
+        },
+      );
+      await sub.cancel();
+    } catch (e) {
+      debugPrint('Erro ao tocar voz familiar: $e');
+    }
+  }
+
   Future<void> _startVibrationLoop() async {
     while (mounted && _isSpeakingLoopActive) {
       if (_isLoopPaused) {
         await Future.delayed(const Duration(milliseconds: 500));
         continue;
       }
-      
+
       final isCrit = lembrete?.urgencia == 'critico';
       final isImp = lembrete?.urgencia == 'importante';
-      
+
       await VibrationService.startVibration();
       if (isCrit) {
         await Future.delayed(const Duration(seconds: 4));
@@ -242,6 +294,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
         lower.contains('avisa')) {
       _isSpeakingLoopActive = false;
       _isLoopPaused = false;
+      _noResponseTimer?.cancel();
       if (lembrete != null) {
         await LembreteService.instance.adiar(lembrete!.id, 10);
       }
@@ -266,6 +319,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
         lower == 'no') {
       _isSpeakingLoopActive = false;
       _isLoopPaused = false;
+      _noResponseTimer?.cancel();
       if (lembrete != null) {
         await LembreteService.instance.registrarDificuldade(
           lembrete!.id,
@@ -293,6 +347,9 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
         lower.contains('sim') ||
         lower == 's') {
       if (lembrete?.categoria == 'medicacao') {
+        _isSpeakingLoopActive = false;
+        _noResponseTimer?.cancel();
+        await _familyAudioPlayer.stop();
         if (!mounted) return;
         Navigator.pushNamed(
           context,
@@ -301,6 +358,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
         );
       } else {
         _isSpeakingLoopActive = false;
+        _noResponseTimer?.cancel();
         if (lembrete != null) {
           await LembreteService.instance.alternarConclusao(lembrete!.id);
         }
@@ -327,10 +385,12 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
   @override
   void dispose() {
     _urgencyReinforcementTimer?.cancel();
+    _noResponseTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _isSpeakingLoopActive = false;
     _isLoopPaused = false;
     VibrationService.stopVibration();
+    _familyAudioPlayer.dispose();
     _speech.stop();
     LembreteService.instance.notifier.removeListener(_buscarLembrete);
     TTSService.instance.parar(caller: this);
@@ -444,136 +504,139 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                               textoExplicacao:
                                   'Olá! Esta tela avisa que está na hora de uma tarefa. Se você puder fazer agora, aperte o botão verde grande escrito ENTENDI. Se não puder fazer, aperte o botão de ADIAR ou DIFICULDADE.',
                             ),
-                            Builder(builder: (context) {
-                              final isCrit = lembrete?.urgencia == 'critico';
-                              final isImp = lembrete?.urgencia == 'importante';
+                            Builder(
+                              builder: (context) {
+                                final isCrit = lembrete?.urgencia == 'critico';
+                                final isImp =
+                                    lembrete?.urgencia == 'importante';
 
-                              final border = Border.all(
-                                color: isCrit
-                                    ? Colors.red
-                                    : isImp
-                                        ? Colors.orange
-                                        : iconColor.withValues(alpha: 0.3),
-                                width: isCrit ? 6 : (isImp ? 4 : 3),
-                              );
-
-                              final shadow = [
-                                BoxShadow(
+                                final border = Border.all(
                                   color: isCrit
-                                      ? Colors.red.withValues(alpha: 0.25)
+                                      ? Colors.red
                                       : isImp
-                                          ? Colors.orange.withValues(alpha: 0.18)
-                                          : iconColor.withValues(alpha: 0.1),
-                                  blurRadius: isCrit ? 24 : 16,
-                                  offset: const Offset(0, 8),
-                                ),
-                              ];
+                                      ? Colors.orange
+                                      : iconColor.withValues(alpha: 0.3),
+                                  width: isCrit ? 6 : (isImp ? 4 : 3),
+                                );
 
-                              return Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.all(24),
-                                decoration: BoxDecoration(
-                                  color: AppColors.surfaceContainerLowest,
-                                  borderRadius: BorderRadius.circular(24),
-                                  border: border,
-                                  boxShadow: shadow,
-                                ),
-                                child: Column(
-                                  children: [
-                                    const Text(
-                                      'ATIVIDADE A FAZER:',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w800,
-                                        letterSpacing: 1.5,
-                                        color: AppColors.outline,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    Text(
-                                      lembrete?.titulo ??
-                                          'Carregando lembrete...',
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                        fontSize: 32,
-                                        fontWeight: FontWeight.w900,
-                                        color: AppColors.primary,
-                                        height: 1.3,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    Text(
-                                      subtitleText,
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.w500,
-                                        color: AppColors.onSurfaceVariant,
-                                      ),
-                                    ),
+                                final shadow = [
+                                  BoxShadow(
+                                    color: isCrit
+                                        ? Colors.red.withValues(alpha: 0.25)
+                                        : isImp
+                                        ? Colors.orange.withValues(alpha: 0.18)
+                                        : iconColor.withValues(alpha: 0.1),
+                                    blurRadius: isCrit ? 24 : 16,
+                                    offset: const Offset(0, 8),
+                                  ),
+                                ];
 
-                                    // If it is a medication and has shape/color details, show them
-                                    if (lembrete?.categoria == 'medicacao' &&
-                                        (lembrete?.medicamentoForma != null ||
-                                            lembrete?.medicamentoCor !=
-                                                null)) ...[
-                                      const SizedBox(height: 24),
-                                      const Divider(),
-                                      const SizedBox(height: 12),
+                                return Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(24),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.surfaceContainerLowest,
+                                    borderRadius: BorderRadius.circular(24),
+                                    border: border,
+                                    boxShadow: shadow,
+                                  ),
+                                  child: Column(
+                                    children: [
                                       const Text(
-                                        'APARÊNCIA DO REMÉDIO:',
+                                        'ATIVIDADE A FAZER:',
                                         style: TextStyle(
-                                          fontSize: 14,
+                                          fontSize: 16,
                                           fontWeight: FontWeight.w800,
-                                          letterSpacing: 1.2,
+                                          letterSpacing: 1.5,
                                           color: AppColors.outline,
                                         ),
                                       ),
-                                      const SizedBox(height: 16),
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          PillVisualizer(
-                                            forma: lembrete?.medicamentoForma,
-                                            cor: lembrete?.medicamentoCor,
-                                            fotoPath:
-                                                lembrete?.medicamentoFotoPath,
-                                            size: 80,
-                                          ),
-                                          const SizedBox(width: 16),
-                                          Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                'Formato: ${lembrete?.medicamentoForma ?? "Padrão"}'
-                                                    .toUpperCase(),
-                                                style: const TextStyle(
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: AppColors.primary,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                'Cor: ${lembrete?.medicamentoCor ?? "Padrão"}'
-                                                    .toUpperCase(),
-                                                style: const TextStyle(
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: AppColors.primary,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        lembrete?.titulo ??
+                                            'Carregando lembrete...',
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          fontSize: 32,
+                                          fontWeight: FontWeight.w900,
+                                          color: AppColors.primary,
+                                          height: 1.3,
+                                        ),
                                       ),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        subtitleText,
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.w500,
+                                          color: AppColors.onSurfaceVariant,
+                                        ),
+                                      ),
+
+                                      // If it is a medication and has shape/color details, show them
+                                      if (lembrete?.categoria == 'medicacao' &&
+                                          (lembrete?.medicamentoForma != null ||
+                                              lembrete?.medicamentoCor !=
+                                                  null)) ...[
+                                        const SizedBox(height: 24),
+                                        const Divider(),
+                                        const SizedBox(height: 12),
+                                        const Text(
+                                          'APARÊNCIA DO REMÉDIO:',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w800,
+                                            letterSpacing: 1.2,
+                                            color: AppColors.outline,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 16),
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            PillVisualizer(
+                                              forma: lembrete?.medicamentoForma,
+                                              cor: lembrete?.medicamentoCor,
+                                              fotoPath:
+                                                  lembrete?.medicamentoFotoPath,
+                                              size: 80,
+                                            ),
+                                            const SizedBox(width: 16),
+                                            Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  'Formato: ${lembrete?.medicamentoForma ?? "Padrão"}'
+                                                      .toUpperCase(),
+                                                  style: const TextStyle(
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: AppColors.primary,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  'Cor: ${lembrete?.medicamentoCor ?? "Padrão"}'
+                                                      .toUpperCase(),
+                                                  style: const TextStyle(
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: AppColors.primary,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ],
                                     ],
-                                  ],
-                                ),
-                              );
-                            }),
+                                  ),
+                                );
+                              },
+                            ),
                             const SizedBox(height: 24),
 
                             // Play recorded audio if caregiver left a voice message
@@ -633,6 +696,8 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                   _isLoopPaused = true;
                                   VibrationService.stopVibration();
                                   AudioManager.stopAll();
+                                  _noResponseTimer?.cancel();
+                                  await _familyAudioPlayer.stop();
                                   await TTSService.instance.parar();
                                   if (lembrete != null) {
                                     NotificationService.instance
@@ -708,6 +773,8 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                   _isSpeakingLoopActive = false;
                                   _isLoopPaused = false;
                                   VibrationService.stopVibration();
+                                  _noResponseTimer?.cancel();
+                                  _familyAudioPlayer.stop();
                                   TTSService.instance.parar();
                                   final navigator = Navigator.of(context);
                                   final categoria = lembrete?.categoria;

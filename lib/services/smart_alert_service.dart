@@ -33,6 +33,9 @@ class SmartAlertService {
     int? bpm,
   }) {
     final alerts = <SmartAlert>[];
+    var lateCount = 0;
+    var lateMedicationCount = 0;
+    var criticalLateCount = 0;
 
     for (final lembrete in lembretes) {
       if (!_isReminderActiveToday(lembrete, now)) continue;
@@ -52,6 +55,8 @@ class SmartAlertService {
         alerts.add(
           _buildMissedAlert(lembrete, now: now, minutesLate: minutesLate),
         );
+        lateCount++;
+        if (lembrete.categoria == 'medicacao') lateMedicationCount++;
         continue;
       }
 
@@ -60,8 +65,19 @@ class SmartAlertService {
         alerts.add(
           _buildLateAlert(lembrete, now: now, minutesLate: minutesLate),
         );
+        lateCount++;
+        if (lembrete.categoria == 'medicacao') lateMedicationCount++;
+        if (lembrete.urgencia == 'critico') criticalLateCount++;
       }
     }
+
+    final routineAlert = _buildRoutinePatternAlert(
+      now: now,
+      lateCount: lateCount,
+      lateMedicationCount: lateMedicationCount,
+      criticalLateCount: criticalLateCount,
+    );
+    if (routineAlert != null) alerts.add(routineAlert);
 
     final bpmAlert = _buildBpmAlert(bpm, now: now);
     if (bpmAlert != null) alerts.add(bpmAlert);
@@ -72,6 +88,51 @@ class SmartAlertService {
       return b.minutesLate.compareTo(a.minutesLate);
     });
     return alerts;
+  }
+
+  SmartAlert? _buildRoutinePatternAlert({
+    required DateTime now,
+    required int lateCount,
+    required int lateMedicationCount,
+    required int criticalLateCount,
+  }) {
+    if (criticalLateCount >= 1) {
+      return SmartAlert(
+        key: '${_dateKey(now)}:pattern:critical',
+        lembreteId: '',
+        title: 'Rotina precisa de verificacao',
+        message:
+            'Ha lembrete critico sem resposta. Verifique o idoso ou acione outro cuidador.',
+        severity: SmartAlertSeverity.critical,
+        createdAt: now,
+        minutesLate: 0,
+      );
+    }
+    if (lateMedicationCount >= 2) {
+      return SmartAlert(
+        key: '${_dateKey(now)}:pattern:medication',
+        lembreteId: '',
+        title: 'Medicacoes acumuladas',
+        message:
+            '$lateMedicationCount lembretes de medicamento estao atrasados ou sem resposta hoje.',
+        severity: SmartAlertSeverity.critical,
+        createdAt: now,
+        minutesLate: 10000,
+      );
+    }
+    if (lateCount >= 3) {
+      return SmartAlert(
+        key: '${_dateKey(now)}:pattern:routine',
+        lembreteId: '',
+        title: 'Rotina fora do padrao',
+        message:
+            '$lateCount lembretes estao atrasados ou nao foram feitos hoje. Pode ser um sinal de dificuldade.',
+        severity: SmartAlertSeverity.warning,
+        createdAt: now,
+        minutesLate: 9999,
+      );
+    }
+    return null;
   }
 
   SmartAlert? _buildBpmAlert(int? bpm, {required DateTime now}) {

@@ -29,6 +29,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
   final stt.SpeechToText _speech = stt.SpeechToText();
   final AudioPlayer _familyAudioPlayer = AudioPlayer();
   bool _isListeningForCommand = false;
+  bool _voiceCommandHandled = false;
   Timer? _urgencyReinforcementTimer;
   Timer? _noResponseTimer;
 
@@ -246,7 +247,24 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
       VibrationService.stopVibration();
       await TTSService.instance.parar(caller: this);
 
-      final available = await _speech.initialize();
+      final available = await _speech.initialize(
+        onError: (error) {
+          debugPrint('Erro no reconhecimento de voz: ${error.errorMsg}');
+          _finishVoiceListeningWithoutResult(
+            'Nao consegui ouvir sua resposta. Tente de novo ou use os botoes da tela.',
+          );
+        },
+        onStatus: (status) {
+          final finished =
+              status == stt.SpeechToText.doneStatus ||
+              status == stt.SpeechToText.notListeningStatus;
+          if (finished && _isListeningForCommand && !_voiceCommandHandled) {
+            _finishVoiceListeningWithoutResult(
+              'Nao ouvi sua resposta. Voce pode dizer ja fiz, adiar ou nao consegui.',
+            );
+          }
+        },
+      );
       if (!available) {
         await TTSService.instance.falar(
           'Reconhecimento de voz indisponivel. Use os botoes da tela.',
@@ -257,14 +275,19 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
       }
 
       if (!mounted) return;
+      _voiceCommandHandled = false;
       setState(() => _isListeningForCommand = true);
       _speech.listen(
-        localeId: 'pt_BR',
         listenOptions: stt.SpeechListenOptions(
           listenFor: const Duration(seconds: 8),
+          pauseFor: const Duration(seconds: 3),
+          localeId: 'pt_BR',
+          cancelOnError: true,
+          partialResults: false,
         ),
         onResult: (result) {
           if (result.finalResult) {
+            _voiceCommandHandled = true;
             _handleVoiceCommand(result.recognizedWords);
           }
         },
@@ -280,43 +303,115 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
     }
   }
 
+  Future<void> _finishVoiceListeningWithoutResult(String message) async {
+    if (!mounted || !_isListeningForCommand || _voiceCommandHandled) return;
+    _voiceCommandHandled = true;
+    await _speech.stop();
+    if (!mounted) return;
+    setState(() {
+      _isListeningForCommand = false;
+      _isLoopPaused = false;
+    });
+    await TTSService.instance.falar(message, caller: this);
+  }
+
+  String _normalizeVoiceText(String text) {
+    return text
+        .toLowerCase()
+        .replaceAll(RegExp('[\u00e1\u00e0\u00e2\u00e3\u00e4]'), 'a')
+        .replaceAll(RegExp('[\u00e9\u00e8\u00ea\u00eb]'), 'e')
+        .replaceAll(RegExp('[\u00ed\u00ec\u00ee\u00ef]'), 'i')
+        .replaceAll(RegExp('[\u00f3\u00f2\u00f4\u00f5\u00f6]'), 'o')
+        .replaceAll(RegExp('[\u00fa\u00f9\u00fb\u00fc]'), 'u')
+        .replaceAll('\u00e7', 'c')
+        .replaceAll(RegExp('[^a-z0-9 ]'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  }
+
+  bool _hasAnyPhrase(String text, List<String> phrases) {
+    return phrases.any(text.contains);
+  }
+
+  bool _hasAnyWord(String text, List<String> words) {
+    return words.any((word) {
+      return RegExp('(^| )${RegExp.escape(word)}( |\\z)').hasMatch(text);
+    });
+  }
+
   Future<void> _handleVoiceCommand(String text) async {
-    final lower = text.toLowerCase().trim();
+    final lower = _normalizeVoiceText(text);
     if (!mounted) return;
     setState(() => _isListeningForCommand = false);
     await _speech.stop();
 
-    if (lower.contains('ad') ||
-        lower.contains('depois') ||
-        lower.contains('mais tarde') ||
-        lower.contains('daqui a pouco') ||
-        lower.contains('me lembra') ||
-        lower.contains('avisa')) {
-      _isSpeakingLoopActive = false;
-      _isLoopPaused = false;
-      _noResponseTimer?.cancel();
-      if (lembrete != null) {
-        await LembreteService.instance.adiar(lembrete!.id, 10);
-      }
-      if (!mounted) return;
-      Navigator.pushNamedAndRemoveUntil(
-        context,
-        '/reinforcement-alert',
-        (route) => false,
-        arguments: {'categoria': lembrete?.categoria},
-      );
-      return;
-    }
+    final isDifficulty =
+        _hasAnyPhrase(lower, const [
+          'nao consegui',
+          'nao consigo',
+          'nao fiz',
+          'nao tomei',
+          'nao bebi',
+          'nao comi',
+          'nao posso',
+          'nao da',
+          'preciso de ajuda',
+          'me ajuda',
+          'me ajude',
+          'tenho dificuldade',
+          'esta dificil',
+          'ta dificil',
+        ]) ||
+        _hasAnyWord(lower, const ['ajuda', 'dificuldade', 'dificil']);
 
-    if (lower.contains('nao') ||
-        lower.contains('não') ||
-        lower.contains('ajuda') ||
-        lower.contains('consegui') ||
-        lower.contains('dificuldade') ||
-        lower.contains('difícil') ||
-        lower.contains('dificil') ||
-        lower == 'n' ||
-        lower == 'no') {
+    final isPostpone =
+        _hasAnyPhrase(lower, const [
+          'adiar',
+          'adie',
+          'depois',
+          'mais tarde',
+          'daqui a pouco',
+          'me lembra',
+          'me lembre',
+          'avisa depois',
+          'avise depois',
+          'em dez minutos',
+          'em 10 minutos',
+        ]) ||
+        _hasAnyWord(lower, const ['adiar', 'depois']);
+
+    final isConfirmation =
+        _hasAnyPhrase(lower, const [
+          'ja fiz',
+          'eu fiz',
+          'ja tomei',
+          'eu tomei',
+          'ja bebi',
+          'eu bebi',
+          'ja comi',
+          'eu comi',
+          'consegui fazer',
+          'esta feito',
+          'ta feito',
+        ]) ||
+        _hasAnyWord(lower, const [
+          'tomei',
+          'fiz',
+          'bebi',
+          'comi',
+          'conclui',
+          'concluido',
+          'confirmo',
+          'ok',
+          'sim',
+          'pronto',
+          'feito',
+          'terminei',
+          'consegui',
+          's',
+        ]);
+
+    if (isDifficulty) {
       _isSpeakingLoopActive = false;
       _isLoopPaused = false;
       _noResponseTimer?.cancel();
@@ -336,16 +431,24 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
       return;
     }
 
-    if (lower.contains('tomei') ||
-        lower.contains('fiz') ||
-        lower.contains('bebi') ||
-        lower.contains('comi') ||
-        lower.contains('conclui') ||
-        lower.contains('concluí') ||
-        lower.contains('confirm') ||
-        lower.contains('ok') ||
-        lower.contains('sim') ||
-        lower == 's') {
+    if (isPostpone) {
+      _isSpeakingLoopActive = false;
+      _isLoopPaused = false;
+      _noResponseTimer?.cancel();
+      if (lembrete != null) {
+        await LembreteService.instance.adiar(lembrete!.id, 10);
+      }
+      if (!mounted) return;
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        '/reinforcement-alert',
+        (route) => false,
+        arguments: {'categoria': lembrete?.categoria},
+      );
+      return;
+    }
+
+    if (isConfirmation) {
       if (lembrete?.categoria == 'medicacao') {
         _isSpeakingLoopActive = false;
         _noResponseTimer?.cancel();
@@ -482,12 +585,6 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                         child: Column(
                           children: [
                             const SizedBox(height: 16),
-                            _buildPulsingMedication(
-                              categoryIcon,
-                              iconColor,
-                              lembrete,
-                            ),
-                            const SizedBox(height: 24),
                             Text(
                               titleText,
                               textAlign: TextAlign.center,
@@ -502,8 +599,15 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                             const SizedBox(height: 16),
                             const MeExplicaButton(
                               textoExplicacao:
-                                  'Olá! Esta tela avisa que está na hora de uma tarefa. Se você puder fazer agora, aperte o botão verde grande escrito ENTENDI. Se não puder fazer, aperte o botão de ADIAR ou DIFICULDADE.',
+                                  'Olá! Esta tela avisa que está na hora de uma tarefa. Se você puder fazer agora, aperte o botão verde grande que começa com ENTENDI. Se quiser fazer depois, aperte ME AVISE EM 10 MINUTOS. Se precisar de ajuda, aperte NÃO CONSEGUI FAZER.',
                             ),
+                            const SizedBox(height: 24),
+                            _buildPulsingMedication(
+                              categoryIcon,
+                              iconColor,
+                              lembrete,
+                            ),
+                            const SizedBox(height: 32),
                             Builder(
                               builder: (context) {
                                 final isCrit = lembrete?.urgencia == 'critico';

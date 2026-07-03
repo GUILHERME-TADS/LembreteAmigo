@@ -170,107 +170,107 @@ class _PostponeConfirmationScreenState extends State<PostponeConfirmationScreen>
                       Padding(
                         padding: const EdgeInsets.all(20),
                         child: Column(
-                    children: [
-                      const SizedBox(height: 16),
-                      _buildPulsingIcon(cfg.icon, cfg.color),
-                      const SizedBox(height: 24),
-                      Text(
-                        cfg.titleText,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w700,
-                          height: 1.2,
-                          letterSpacing: 2,
-                          color: AppColors.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      MeExplicaButton(
-                        textoExplicacao: cfg.detailedExplanation,
-                      ),
-                      const SizedBox(height: 24),
-
-                      // STATUS CARD
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: AppColors.surfaceContainerLowest,
-                          borderRadius: BorderRadius.circular(24),
-                          border: Border.all(color: cfg.color.withValues(alpha: 0.3), width: 3),
-                          boxShadow: [
-                            BoxShadow(
-                              color: cfg.color.withValues(alpha: 0.1),
-                              blurRadius: 16,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
-                        ),
-                        child: Column(
                           children: [
-                            const Text(
-                              'STATUS DO LEMBRETE:',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 1.5,
-                                color: AppColors.outline,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 16),
                             Text(
-                              _tipo == 'dificuldade' ? 'Ajuda Solicitada' : 'Adiado por 10 Minutos',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 32,
-                                fontWeight: FontWeight.w900,
-                                color: cfg.color,
-                                height: 1.3,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              cfg.tip,
+                              cfg.titleText,
                               textAlign: TextAlign.center,
                               style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w500,
+                                fontSize: 26,
+                                fontWeight: FontWeight.w700,
+                                height: 1.2,
+                                letterSpacing: 2,
                                 color: AppColors.onSurfaceVariant,
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // FECHAR APLICATIVO button
-                      SizedBox(
-                        width: double.infinity,
-                        height: 80,
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            TTSService.instance.parar();
-                            SystemNavigator.pop();
-                          },
-                          icon: const Icon(Icons.exit_to_app, size: 36),
-                          label: const Text(
-                            'FECHAR APLICATIVO',
-                            style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.secondaryContainer,
-                            foregroundColor: AppColors.onSecondaryContainer,
-                            elevation: 4,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
+                            const SizedBox(height: 16),
+                            MeExplicaButton(
+                              textoExplicacao: cfg.detailedExplanation,
                             ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                    ],
+                            const SizedBox(height: 24),
+                            _buildPulsingIcon(cfg.icon, cfg.color),
+                            const SizedBox(height: 32),
+
+                            // STATUS CARD
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(24),
+                              decoration: BoxDecoration(
+                                color: AppColors.surfaceContainerLowest,
+                                borderRadius: BorderRadius.circular(24),
+                                border: Border.all(color: cfg.color.withValues(alpha: 0.3), width: 3),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: cfg.color.withValues(alpha: 0.1),
+                                    blurRadius: 16,
+                                    offset: const Offset(0, 8),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                children: [
+                                  const Text(
+                                    'STATUS DO LEMBRETE:',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 1.5,
+                                      color: AppColors.outline,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    _tipo == 'dificuldade' ? 'Ajuda Solicitada' : 'Adiado por 10 Minutos',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 32,
+                                      fontWeight: FontWeight.w900,
+                                      color: cfg.color,
+                                      height: 1.3,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    cfg.tip,
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w500,
+                                      color: AppColors.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            const SizedBox(height: 16),
+
+                            // FECHAR APLICATIVO button
+                            SizedBox(
+                              width: double.infinity,
+                              height: 80,
+                              child: ElevatedButton.icon(
+                                onPressed: () {
+                                  TTSService.instance.parar();
+                                  SystemNavigator.pop();
+                                },
+                                icon: const Icon(Icons.exit_to_app, size: 36),
+                                label: const Text(
+                                  'FECHAR APLICATIVO',
+                                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.secondaryContainer,
+                                  foregroundColor: AppColors.onSecondaryContainer,
+                                  elevation: 4,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                          ],
                   ),
                 ),
               ],
@@ -331,7 +331,13 @@ class _PostponeConfirmationScreenState extends State<PostponeConfirmationScreen>
                 shape: BoxShape.circle,
                 border: Border.all(color: color, width: 2),
               ),
-              child: const Icon(Icons.access_time_rounded, color: Colors.amber, size: 22),
+              child: Icon(
+                _tipo == 'dificuldade'
+                    ? Icons.warning_amber_rounded
+                    : Icons.access_time_rounded,
+                color: _tipo == 'dificuldade' ? Colors.red : Colors.amber,
+                size: 22,
+              ),
             ),
           ),
         ],

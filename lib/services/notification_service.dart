@@ -55,12 +55,14 @@ class NotificationService {
       },
     );
 
-    // 6. Request permissions for Android 13+
-    await _plugin
+    // 6. Request Android permissions needed for alarm-like reminders.
+    final androidPlugin = _plugin
         .resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin
-        >()
-        ?.requestNotificationsPermission();
+        >();
+    await androidPlugin?.requestNotificationsPermission();
+    await androidPlugin?.requestExactAlarmsPermission();
+    await androidPlugin?.requestFullScreenIntentPermission();
   }
 
   Future<NotificationAppLaunchDetails?> getLaunchDetails() async {
@@ -138,14 +140,17 @@ class NotificationService {
 
       const AndroidNotificationDetails androidDetails =
           AndroidNotificationDetails(
-            'lembretes_channel',
-            'Lembretes Diários',
-            channelDescription:
-                'Canal de notificações para alarmes de lembretes',
+            'lembretes_alarm_channel',
+            'Alarmes de Lembretes',
+            channelDescription: 'Canal de alarmes para lembretes importantes',
             importance: Importance.max,
-            priority: Priority.high,
+            priority: Priority.max,
+            category: AndroidNotificationCategory.alarm,
             playSound: true,
             enableVibration: true,
+            fullScreenIntent: true,
+            visibility: NotificationVisibility.public,
+            audioAttributesUsage: AudioAttributesUsage.alarm,
           );
 
       const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(

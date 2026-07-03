@@ -182,7 +182,14 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
   void _openDueReminderIfNeeded() {
     if (_lifecycleState != AppLifecycleState.resumed) return;
     if (SessionRoleService.isSupervisor) return;
-    if (_routeTracker.currentRouteName == '/active-reminder') return;
+    
+    final currentRoute = _routeTracker.currentRouteName;
+    if (currentRoute == '/active-reminder' ||
+        currentRoute == '/take-photo-confirmation' ||
+        currentRoute == '/medication-confirmation' ||
+        currentRoute == '/reinforcement-alert') {
+      return;
+    }
 
     final reminder = _findDueReminder();
     if (reminder == null) return;
@@ -193,8 +200,12 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final navigator = navigatorKey.currentState;
+      final latestRoute = _routeTracker.currentRouteName;
       if (navigator == null ||
-          _routeTracker.currentRouteName == '/active-reminder') {
+          latestRoute == '/active-reminder' ||
+          latestRoute == '/take-photo-confirmation' ||
+          latestRoute == '/medication-confirmation' ||
+          latestRoute == '/reinforcement-alert') {
         return;
       }
       navigator.pushNamed('/active-reminder', arguments: reminder.id);
@@ -207,6 +218,7 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
     final candidates =
         LembreteService.instance.lembretes.where((lembrete) {
           if (lembrete.concluido) return false;
+          if (lembrete.status == LembreteStatus.perdido) return false;
           if (!_isReminderActiveToday(lembrete, now)) {
             return false;
           }

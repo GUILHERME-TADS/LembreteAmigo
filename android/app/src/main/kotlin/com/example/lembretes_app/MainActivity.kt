@@ -18,6 +18,13 @@ class MainActivity: FlutterActivity() {
                 val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
                 val volumePercentage = if (maxVolume > 0) (currentVolume.toFloat() / maxVolume.toFloat() * 100).toInt() else 0
                 result.success(volumePercentage)
+            } else if (call.method == "setSafeVolume") {
+                val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+                val safeVolume = (maxVolume * 0.75f).toInt().coerceAtLeast(1)
+                audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, safeVolume, AudioManager.FLAG_SHOW_UI)
+                val volumePercentage = if (maxVolume > 0) (safeVolume.toFloat() / maxVolume.toFloat() * 100).toInt() else 0
+                result.success(volumePercentage)
             } else {
                 result.notImplemented()
             }

@@ -22,19 +22,6 @@ class MedicationConfirmationScreen extends StatelessWidget {
                 child: Column(
                   children: [
                     _buildTopBar(context),
-                    const Spacer(),
-                    Container(
-                      width: 120, height: 120,
-                      decoration: BoxDecoration(
-                        color: AppColors.tertiaryFixedDim,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 4),
-                        boxShadow: const [
-                          BoxShadow(color: Colors.black12, blurRadius: 16, offset: Offset(0, 8)),
-                        ],
-                      ),
-                      child: const Icon(Icons.check_circle, size: 64, color: AppColors.onTertiaryFixedVariant),
-                    ),
                     const SizedBox(height: 24),
                     const Text(
                       'MUITO BEM!',
@@ -49,6 +36,19 @@ class MedicationConfirmationScreen extends StatelessWidget {
                     const SizedBox(height: 12),
                     const MeExplicaButton(
                       textoExplicacao: 'Parabéns! Você concluiu a sua tarefa com sucesso. Para voltar para a tela de início, aperte no botão amarelo de VOLTAR PARA O INÍCIO.',
+                    ),
+                    const Spacer(),
+                    Container(
+                      width: 120, height: 120,
+                      decoration: BoxDecoration(
+                        color: AppColors.tertiaryFixedDim,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 4),
+                        boxShadow: const [
+                          BoxShadow(color: Colors.black12, blurRadius: 16, offset: Offset(0, 8)),
+                        ],
+                      ),
+                      child: const Icon(Icons.check_circle, size: 64, color: AppColors.onTertiaryFixedVariant),
                     ),
                     const SizedBox(height: 32),
                     Container(

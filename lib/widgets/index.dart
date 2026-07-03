@@ -8,3 +8,5 @@ export 'audio_player_card.dart';
 export 'audio_manager.dart';
 export 'reminder_with_audio.dart';
 export 'alex_assistant_sheet.dart';
+export 'me_explica_button.dart';
+export 'supervisor_bottom_nav.dart';

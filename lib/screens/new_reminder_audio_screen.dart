@@ -147,8 +147,14 @@ class _NewReminderAudioScreenState extends State<NewReminderAudioScreen> {
                     onPressed: () => Navigator.pop(context),
                     icon: const Icon(Icons.close, color: AppColors.primary, size: 32),
                   ),
-                  const SizedBox(width: 8),
-                  const Text('Gravar Voz do Familiar', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.primary)),
+                  const Expanded(
+                    child: Text(
+                      'Gravar Voz do Familiar',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.primary),
+                    ),
+                  ),
+                  const SizedBox(width: 48),
                 ],
               ),
               const SizedBox(height: 48),

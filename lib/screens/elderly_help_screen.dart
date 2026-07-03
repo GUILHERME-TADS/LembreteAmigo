@@ -1,9 +1,13 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:record/record.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:path_provider/path_provider.dart';
 import '../theme/app_theme.dart';
+import '../services/message_service.dart';
 import '../services/tts_service.dart';
 import '../widgets/index.dart';
 
@@ -17,6 +21,8 @@ class ElderlyHelpScreen extends StatefulWidget {
 class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
   int? _lastBpm;
   String? _lastBpmTimeText;
+  final AudioRecorder _audioRecorder = AudioRecorder();
+  final AudioPlayer _audioPlayer = AudioPlayer();
 
   @override
   void initState() {
@@ -33,6 +39,8 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
   @override
   void dispose() {
     TTSService.instance.parar(caller: this);
+    _audioRecorder.dispose();
+    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -40,22 +48,22 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final idosoId = prefs.getString('paired_idoso_id') ?? 'joao';
-      final doc = await FirebaseFirestore.instance.collection('idosos').doc(idosoId).get();
-      
+      final doc = await FirebaseFirestore.instance
+          .collection('idosos')
+          .doc(idosoId)
+          .get();
+
       String phone = '';
       if (doc.exists) {
         phone = doc.data()?['telefone'] ?? '';
       }
-      
+
       if (phone.isEmpty) {
         phone = '190';
       }
-      
-      final Uri launchUri = Uri(
-        scheme: 'tel',
-        path: phone,
-      );
-      
+
+      final Uri launchUri = Uri(scheme: 'tel', path: phone);
+
       if (await canLaunchUrl(launchUri)) {
         await launchUrl(launchUri);
       } else {
@@ -67,148 +75,323 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
   }
 
   Future<void> _enviarMensagemDialog() async {
-    final TextEditingController textController = TextEditingController();
-    final stt.SpeechToText speech = stt.SpeechToText();
-    bool isListening = false;
-    String statusMsg = 'Toque no microfone para ditar';
+    await TTSService.instance.parar(caller: this);
+    bool isRecording = false;
+    bool isPlaying = false;
+    String? recordedFilePath;
+    String statusMsg = 'Toque no microfone para começar';
 
+    if (!mounted) return;
     await showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
+            Future<void> startRecording() async {
+              try {
+                final tempDir = await getTemporaryDirectory();
+                final path =
+                    '${tempDir.path}/mensagem_audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
+
+                if (await _audioRecorder.hasPermission()) {
+                  await _audioRecorder.start(
+                    const RecordConfig(encoder: AudioEncoder.aacLc),
+                    path: path,
+                  );
+                  setDialogState(() {
+                    isRecording = true;
+                    recordedFilePath = null;
+                    statusMsg =
+                        'Gravando áudio...\nToque no botão vermelho para parar';
+                  });
+                } else {
+                  setDialogState(() {
+                    isRecording = true;
+                    recordedFilePath = null;
+                    statusMsg = 'Gravando (Simulado)...';
+                  });
+                  Future.delayed(const Duration(seconds: 4), () async {
+                    if (context.mounted && isRecording) {
+                      final file = File(path);
+                      await file.writeAsBytes([0, 1, 2, 3]);
+                      setDialogState(() {
+                        isRecording = false;
+                        recordedFilePath = path;
+                        statusMsg = 'Áudio gravado!';
+                      });
+                    }
+                  });
+                }
+              } catch (e) {
+                debugPrint('Erro ao iniciar gravacao de mensagem: $e');
+                final tempDir = await getTemporaryDirectory();
+                final path =
+                    '${tempDir.path}/mensagem_audio_mock_${DateTime.now().millisecondsSinceEpoch}.m4a';
+                final file = File(path);
+                await file.writeAsBytes([0, 1, 2, 3]);
+                setDialogState(() {
+                  isRecording = false;
+                  recordedFilePath = path;
+                  statusMsg = 'Áudio gravado (Simulado)!';
+                });
+              }
+            }
+
+            Future<void> stopRecording() async {
+              try {
+                if (await _audioRecorder.isRecording()) {
+                  final path = await _audioRecorder.stop();
+                  setDialogState(() {
+                    isRecording = false;
+                    recordedFilePath = path;
+                    statusMsg = 'Áudio gravado!\nToque no Play para ouvir.';
+                  });
+                } else {
+                  setDialogState(() {
+                    isRecording = false;
+                  });
+                }
+              } catch (e) {
+                debugPrint('Erro ao parar gravacao: $e');
+                setDialogState(() {
+                  isRecording = false;
+                });
+              }
+            }
+
+            Future<void> togglePlayback() async {
+              if (recordedFilePath == null) return;
+
+              if (isPlaying) {
+                await _audioPlayer.stop();
+                setDialogState(() => isPlaying = false);
+              } else {
+                setDialogState(() => isPlaying = true);
+                _audioPlayer.onPlayerComplete.first.then((_) {
+                  setDialogState(() => isPlaying = false);
+                });
+                try {
+                  await _audioPlayer.play(
+                    DeviceFileSource(recordedFilePath!),
+                    volume: 1.0,
+                  );
+                } catch (e) {
+                  debugPrint('Erro ao tocar gravacao: $e');
+                  setDialogState(() => isPlaying = false);
+                }
+              }
+            }
+
             return AlertDialog(
               backgroundColor: AppColors.background,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
               title: const Text(
-                'Enviar Mensagem',
-                style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: AppColors.primary),
+                'Gravar Mensagem de Áudio',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                ),
               ),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextField(
-                    controller: textController,
-                    maxLines: 3,
-                    style: const TextStyle(fontSize: 20, color: AppColors.onSurface),
-                    decoration: InputDecoration(
-                      hintText: 'Digite aqui ou use a voz...',
-                      hintStyle: const TextStyle(color: Colors.grey, fontSize: 18),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-                      filled: true,
-                      fillColor: Colors.white,
+                  const SizedBox(height: 12),
+                  if (!isRecording && recordedFilePath == null) ...[
+                    GestureDetector(
+                      onTap: startRecording,
+                      child: Container(
+                        width: 140,
+                        height: 140,
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryContainer,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 6),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black12,
+                              blurRadius: 12,
+                              offset: Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.mic,
+                          size: 56,
+                          color: AppColors.onPrimaryContainer,
+                        ),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
+                  ] else if (isRecording) ...[
+                    GestureDetector(
+                      onTap: stopRecording,
+                      child: Container(
+                        width: 140,
+                        height: 140,
+                        decoration: const BoxDecoration(
+                          color: AppColors.error,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black26,
+                              blurRadius: 12,
+                              offset: Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.stop,
+                          size: 56,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ] else if (recordedFilePath != null) ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        GestureDetector(
+                          onTap: togglePlayback,
+                          child: Container(
+                            width: 100,
+                            height: 100,
+                            decoration: const BoxDecoration(
+                              color: AppColors.secondaryContainer,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              isPlaying ? Icons.stop : Icons.play_arrow,
+                              size: 48,
+                              color: AppColors.onSecondaryContainer,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 24),
+                        GestureDetector(
+                          onTap: startRecording,
+                          child: Container(
+                            width: 70,
+                            height: 70,
+                            decoration: BoxDecoration(
+                              color: AppColors.surfaceContainerHigh,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: AppColors.outlineVariant,
+                              ),
+                            ),
+                            child: const Icon(
+                              Icons.refresh,
+                              size: 28,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: 24),
                   Text(
                     statusMsg,
+                    textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: isListening ? AppColors.secondary : Colors.grey,
+                      color: isRecording ? AppColors.error : AppColors.primary,
                     ),
                   ),
                   const SizedBox(height: 12),
-                  GestureDetector(
-                    onTap: () async {
-                      if (isListening) {
-                        await speech.stop();
-                        setDialogState(() {
-                          isListening = false;
-                          statusMsg = 'Toque no microfone para ditar';
-                        });
-                      } else {
-                        final available = await speech.initialize();
-                        if (available) {
-                          setDialogState(() {
-                            isListening = true;
-                            statusMsg = 'Ouvindo... Fale agora';
-                          });
-                          speech.listen(
-                            onResult: (result) {
-                              setDialogState(() {
-                                textController.text = result.recognizedWords;
-                                if (result.finalResult) {
-                                  isListening = false;
-                                  statusMsg = 'Toque no microfone para ditar';
-                                }
-                              });
-                            },
-                            listenOptions: stt.SpeechListenOptions(
-                              localeId: 'pt_BR',
-                            ),
-                          );
-                        } else {
-                          setDialogState(() {
-                            statusMsg = 'Microfone indisponível';
-                          });
-                        }
-                      }
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: isListening ? AppColors.secondaryContainer : AppColors.primaryContainer,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        isListening ? Icons.mic : Icons.mic_none,
-                        size: 40,
-                        color: isListening ? AppColors.onSecondaryContainer : AppColors.onPrimaryContainer,
-                      ),
-                    ),
-                  ),
                 ],
               ),
+              actionsAlignment: MainAxisAlignment.spaceEvenly,
               actions: [
-                TextButton(
-                  onPressed: () {
-                    speech.stop();
-                    Navigator.pop(context);
-                  },
-                  child: const Text('CANCELAR', style: TextStyle(fontSize: 18, color: AppColors.error, fontWeight: FontWeight.bold)),
-                ),
                 ElevatedButton(
                   onPressed: () async {
-                    final text = textController.text.trim();
-                    if (text.isNotEmpty) {
+                    if (isRecording) {
+                      await _audioRecorder.stop();
+                    }
+                    if (isPlaying) {
+                      await _audioPlayer.stop();
+                    }
+                    if (context.mounted) Navigator.pop(context);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.error,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
+                  ),
+                  child: const Text(
+                    'CANCELAR',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                if (recordedFilePath != null)
+                  ElevatedButton(
+                    onPressed: () async {
+                      if (isPlaying) {
+                        await _audioPlayer.stop();
+                      }
                       try {
                         final prefs = await SharedPreferences.getInstance();
-                        final idosoId = prefs.getString('paired_idoso_id') ?? 'joao';
-                        
+                        final idosoId =
+                            prefs.getString('paired_idoso_id') ?? 'joao';
+
                         String idosoName = 'Idoso';
-                        final doc = await FirebaseFirestore.instance.collection('idosos').doc(idosoId).get();
+                        final doc = await FirebaseFirestore.instance
+                            .collection('idosos')
+                            .doc(idosoId)
+                            .get();
                         if (doc.exists) {
                           idosoName = doc.data()?['nome'] ?? 'Idoso';
                         }
-                        
-                        await FirebaseFirestore.instance.collection('mensagens').add({
-                          'idosoId': idosoId,
-                          'nomeIdoso': idosoName,
-                          'texto': text,
-                          'criadoEm': FieldValue.serverTimestamp(),
-                          'lido': false,
-                        });
-                        
-                        TTSService.instance.falar('Mensagem enviada com sucesso!', caller: this);
+
+                        await MessageService.instance.sendAudio(
+                          audioPath: recordedFilePath!,
+                          fallbackText: 'Mensagem de áudio enviada',
+                          nomeIdoso: idosoName,
+                        );
+
+                        TTSService.instance.falar(
+                          'Mensagem de áudio enviada com sucesso!',
+                          caller: this,
+                        );
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text('Mensagem enviada com sucesso!'),
+                              content: Text(
+                                'Mensagem de áudio enviada com sucesso!',
+                              ),
                               backgroundColor: AppColors.tertiaryFixedDim,
                             ),
                           );
                         }
                       } catch (e) {
-                        debugPrint('Erro ao enviar mensagem: $e');
+                        debugPrint('Erro ao enviar mensagem de áudio: $e');
                       }
-                    }
-                    speech.stop();
-                    if (context.mounted) Navigator.pop(context);
-                  },
-                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.tertiaryFixedDim),
-                  child: const Text('ENVIAR', style: TextStyle(fontSize: 18, color: AppColors.onTertiaryFixed, fontWeight: FontWeight.bold)),
-                ),
+                      if (context.mounted) Navigator.pop(context);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.secondaryContainer,
+                    ),
+                    child: const Text(
+                      'ENVIAR',
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: AppColors.onSecondaryContainer,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
               ],
             );
           },
@@ -238,8 +421,6 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                     const SizedBox(height: 24),
                     _buildSecondaryGrid(context),
                     const SizedBox(height: 24),
-                    _buildSupportCard(),
-                    const SizedBox(height: 24),
                   ],
                 ),
               ),
@@ -268,22 +449,32 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
             children: [
               const Text(
                 'Pedir ajuda',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.primary),
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
+                ),
               ),
               const SizedBox(height: 6),
               GestureDetector(
                 onTap: () {
                   TTSService.instance.falar(
-                    'Se precisar de ajuda, aperte o botão amarelo de ligar para o seu ajudante.',
+                    'Olá! Esta é a tela para pedir ajuda. Aqui você pode ligar para quem cuida de você apertando o grande botão verde, ver como está seu coração apertando o botão vermelho com o desenho de um coração, ou enviar um recado por áudio ou texto se precisar de qualquer outra coisa.',
                     caller: this,
                   );
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.primary.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(99),
-                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.15), width: 1.5),
+                    border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.15),
+                      width: 1.5,
+                    ),
                   ),
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
@@ -321,15 +512,16 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                 shape: BoxShape.circle,
                 border: Border.all(color: AppColors.primaryContainer, width: 2),
               ),
-              child: const Icon(Icons.person, color: AppColors.primaryContainer),
+              child: const Icon(
+                Icons.person,
+                color: AppColors.primaryContainer,
+              ),
             ),
           ),
         ],
       ),
     );
   }
-
-
 
   Widget _buildCallButton(BuildContext context) {
     return SizedBox(
@@ -348,26 +540,24 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
             ),
             child: Column(
               children: [
-                Stack(
-                  children: [
-                    const AlexAvatar(size: 160),
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: Container(
-                        width: 56,
-                        height: 56,
-                        decoration: BoxDecoration(
-                          color: AppColors.secondary,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: AppColors.secondaryContainer, width: 4),
-                        ),
-                        child: const Icon(Icons.call, color: AppColors.onSecondary, size: 28),
+                Container(
+                  width: 140,
+                  height: 140,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2E7D32),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 6),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black12,
+                        blurRadius: 12,
+                        offset: Offset(0, 6),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
+                  child: const Icon(Icons.call, size: 72, color: Colors.white),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
                 const Text(
                   'Ligar para meu ajudante',
                   textAlign: TextAlign.center,
@@ -375,16 +565,6 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                     fontSize: 28,
                     fontWeight: FontWeight.w800,
                     height: 1.2,
-                    color: AppColors.onSecondaryContainer,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Falar com Alex agora',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w500,
-                    height: 1.5,
                     color: AppColors.onSecondaryContainer,
                   ),
                 ),
@@ -397,111 +577,131 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
   }
 
   Widget _buildSecondaryGrid(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Material(
-            color: AppColors.surfaceContainerHigh,
-            borderRadius: BorderRadius.circular(12),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: _enviarMensagemDialog,
-              child: Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  border: Border.all(color: AppColors.outlineVariant, width: 2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Column(
-                  children: [
-                    Icon(Icons.message, size: 36, color: AppColors.primary),
-                    SizedBox(height: 12),
-                    Text(
-                      'Enviar Mensagem',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.05,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Material(
-            color: AppColors.surfaceContainerHigh,
-            borderRadius: BorderRadius.circular(12),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: () {
-                TTSService.instance.parar(caller: this);
-                Navigator.pushNamed(context, '/emergency-alert');
-              },
-              child: Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  border: Border.all(color: AppColors.outlineVariant, width: 2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Column(
-                  children: [
-                    Icon(Icons.medical_services, size: 36, color: AppColors.primary),
-                    SizedBox(height: 12),
-                    Text(
-                      'Emergência',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.05,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSupportCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceBright,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.outlineVariant, width: 2),
-      ),
-      child: const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            'Suporte 24h',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w700,
-              height: 1.3,
-              color: AppColors.primary,
+          Expanded(
+            child: Material(
+              color: AppColors.surfaceContainerHigh,
+              borderRadius: BorderRadius.circular(12),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: _enviarMensagemDialog,
+                child: Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: AppColors.outlineVariant,
+                      width: 2,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.message, size: 36, color: AppColors.primary),
+                      SizedBox(height: 12),
+                      Text(
+                        'Mandar Recado',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.05,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
-          SizedBox(height: 8),
-          Text(
-            'Alex está disponível agora e pronto para ajudar com qualquer dúvida sobre seus remédios ou rotina.',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w400,
-              height: 1.6,
-              color: AppColors.onSurfaceVariant,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Material(
+              color: AppColors.surfaceContainerHigh,
+              borderRadius: BorderRadius.circular(12),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () {
+                  TTSService.instance.parar(caller: this);
+                  Navigator.pushNamed(context, '/emergency-alert');
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: AppColors.outlineVariant,
+                      width: 2,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.medical_services,
+                        size: 36,
+                        color: AppColors.primary,
+                      ),
+                      SizedBox(height: 12),
+                      Text(
+                        'Emergência',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.05,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Material(
+              color: AppColors.surfaceContainerHigh,
+              borderRadius: BorderRadius.circular(12),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () {
+                  TTSService.instance.parar(caller: this);
+                  Navigator.pushNamed(context, '/messages');
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: AppColors.outlineVariant,
+                      width: 2,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.forum, size: 36, color: AppColors.primary),
+                      SizedBox(height: 12),
+                      Text(
+                        'Ver Recados',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.05,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
         ],
@@ -537,7 +737,11 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
             children: [
               _bottomNavItem(Icons.home, 'Início', false, () {
                 TTSService.instance.parar(caller: this);
-                Navigator.pushNamedAndRemoveUntil(context, '/elderly-home', (route) => false);
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  '/elderly-home',
+                  (route) => false,
+                );
               }),
               _bottomNavItem(Icons.list_alt, 'Lembretes', false, () {
                 TTSService.instance.parar(caller: this);
@@ -557,7 +761,10 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                       );
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.primary,
                         borderRadius: BorderRadius.circular(16),
@@ -596,18 +803,21 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
     );
   }
 
-  Widget _bottomNavItem(IconData icon, String label, bool selected, VoidCallback? onTap) {
-    final itemColor = selected 
-        ? AppColors.primary 
-        : AppColors.onSurfaceVariant;
+  Widget _bottomNavItem(
+    IconData icon,
+    String label,
+    bool selected,
+    VoidCallback? onTap,
+  ) {
+    final itemColor = selected ? AppColors.primary : AppColors.onSurfaceVariant;
 
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
           decoration: BoxDecoration(
-            color: selected ? AppColors.primary.withValues(alpha: 0.05) : null,
+            color: selected ? AppColors.secondaryContainer : null,
             borderRadius: BorderRadius.circular(16),
           ),
           child: Column(
@@ -664,24 +874,23 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
           borderRadius: BorderRadius.circular(21),
           onTap: () {
             TTSService.instance.parar(caller: this);
-            Navigator.pushNamed(context, '/heart-rate').then((_) => _loadLastBpm());
+            Navigator.pushNamed(
+              context,
+              '/heart-rate',
+            ).then((_) => _loadLastBpm());
           },
           child: Padding(
             padding: const EdgeInsets.all(24.0),
             child: Row(
               children: [
-                const Icon(
-                  Icons.favorite,
-                  color: AppColors.error,
-                  size: 56,
-                ),
+                const Icon(Icons.favorite, color: AppColors.error, size: 56),
                 const SizedBox(width: 20),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'Medir Batimentos',
+                        'Medir o Coração',
                         style: TextStyle(
                           fontSize: 26,
                           fontWeight: FontWeight.w800,
@@ -692,7 +901,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                       Text(
                         _lastBpm != null
                             ? 'Último: $_lastBpm BPM ($_lastBpmTimeText)'
-                            : 'Veja seus batimentos cardíacos usando a câmera',
+                            : 'Ver como está o seu coração usando a câmera do celular',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w500,

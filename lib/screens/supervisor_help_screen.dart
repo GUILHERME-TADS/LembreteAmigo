@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../widgets/supervisor_bottom_nav.dart';
 
 class SupervisorHelpScreen extends StatelessWidget {
   const SupervisorHelpScreen({super.key});
@@ -8,6 +9,7 @@ class SupervisorHelpScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      bottomNavigationBar: const SupervisorBottomNav(selected: SupervisorNavDestination.help),
       body: SafeArea(
         child: Column(
           children: [
@@ -83,26 +85,10 @@ class SupervisorHelpScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 64,
-                      child: ElevatedButton.icon(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.arrow_back),
-                        label: const Text('VOLTAR', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: AppColors.onPrimary,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
                   ],
                 ),
               ),
             ),
-            _buildBottomNav(context),
           ],
         ),
       ),
@@ -123,16 +109,18 @@ class SupervisorHelpScreen extends StatelessWidget {
             icon: const Icon(Icons.arrow_back, color: AppColors.primary, size: 32),
             onPressed: () => Navigator.pop(context),
           ),
-          const Spacer(),
-          const Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.health_and_safety, size: 32, color: AppColors.primary),
-              SizedBox(width: 8),
-              Text('Cuidador', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.primary)),
-            ],
+          const Expanded(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.health_and_safety, size: 32, color: AppColors.primary),
+                SizedBox(width: 8),
+                Text('Cuidador', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.primary)),
+              ],
+            ),
           ),
-          const Spacer(),
+          const SizedBox(width: 8),
           Container(
             width: 48,
             height: 48,
@@ -183,47 +171,6 @@ class SupervisorHelpScreen extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildBottomNav(BuildContext context) {
-    return Container(
-      height: 96,
-      padding: const EdgeInsets.only(bottom: 8),
-      decoration: const BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
-        border: Border(top: BorderSide(color: AppColors.outlineVariant, width: 2)),
-      ),
-      child: Row(
-        children: [
-          _bottomNavItem(Icons.home, 'Início', false, () => Navigator.pushNamedAndRemoveUntil(context, '/supervisor-dashboard', (route) => false)),
-          _bottomNavItem(Icons.history, 'Histórico', false, () => Navigator.pushNamed(context, '/detailed-history')),
-          _bottomNavItem(Icons.help_center, 'Ajuda', true, null),
-        ],
-      ),
-    );
-  }
-
-  Widget _bottomNavItem(IconData icon, String label, bool selected, VoidCallback? onTap) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          decoration: BoxDecoration(
-            color: selected ? AppColors.secondaryContainer : null,
-            borderRadius: BorderRadius.circular(9999),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: selected ? AppColors.onSecondaryContainer : AppColors.onSurfaceVariant),
-              Text(label.toUpperCase(), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: selected ? AppColors.onSecondaryContainer : AppColors.onSurfaceVariant)),
-            ],
-          ),
-        ),
       ),
     );
   }

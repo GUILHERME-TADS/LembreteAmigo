@@ -169,8 +169,13 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
                     onPressed: () => Navigator.pop(context),
                     icon: const Icon(Icons.arrow_back, color: AppColors.primary),
                   ),
-                  const Text('Lembrete Amigo', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.primary)),
-                  const Spacer(),
+                  const Expanded(
+                    child: Text(
+                      'Lembrete Amigo',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.primary),
+                    ),
+                  ),
                   Container(
                     width: 40, height: 40,
                     decoration: const BoxDecoration(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../widgets/supervisor_bottom_nav.dart';
 import '../widgets/audio_player_card.dart';
 import '../widgets/reminder_with_audio.dart';
 import '../services/lembrete_service.dart';
@@ -51,6 +52,7 @@ class _DetailedHistoryScreenState extends State<DetailedHistoryScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      bottomNavigationBar: const SupervisorBottomNav(selected: SupervisorNavDestination.history),
       body: SafeArea(
         child: Column(
           children: [
@@ -69,9 +71,12 @@ class _DetailedHistoryScreenState extends State<DetailedHistoryScreen> {
                     const SizedBox(height: 24),
                     _dateSection(_getCurrentDateFormatted(), percentage),
                     const SizedBox(height: 8),
-                    const AudioPlayerCard(
+                    AudioPlayerCard(
                       accentColor: AppColors.primary,
                       subtitle: 'Ouça o resumo do dia',
+                      textsToSpeak: list.isEmpty
+                          ? ['Nenhum lembrete cadastrado para hoje.']
+                          : ['Resumo das atividades de hoje:', ...list.map((l) => '${l.titulo} às ${l.horarioFormatado}. Status: ${l.concluido ? "Concluído" : "Pendente"}.')],
                     ),
                     const SizedBox(height: 16),
                     if (list.isEmpty)
@@ -97,7 +102,7 @@ class _DetailedHistoryScreenState extends State<DetailedHistoryScreen> {
                               style: TextStyle(
                                 fontSize: 22,
                                 fontWeight: FontWeight.w700,
-                                color: AppColors.primary,
+                                color: AppColors.onSurfaceVariant,
                               ),
                             ),
                             SizedBox(height: 8),
@@ -115,45 +120,42 @@ class _DetailedHistoryScreenState extends State<DetailedHistoryScreen> {
                     else
                       ...list.map((lembrete) {
                         IconData icon = Icons.notifications;
-                        Color iconBg = AppColors.customColor.withValues(alpha: 0.2);
+                        Color iconBg = AppColors.customColor.withValues(alpha: 0.15);
                         Color iconColor = AppColors.customColor;
                         Color accentColor = AppColors.customColor;
                         String categoryLabel = 'Personalizado';
 
                         switch (lembrete.categoria) {
                           case 'medicacao':
-                            icon = Icons.medical_services;
-                            iconBg = AppColors.secondaryContainer;
-                            iconColor = AppColors.onSecondaryContainer;
+                            icon = Icons.medication;
+                            iconBg = AppColors.medicationsColor.withValues(alpha: 0.15);
+                            iconColor = AppColors.medicationsColor;
                             accentColor = AppColors.medicationsColor;
-                            categoryLabel = 'Medicamento';
+                            categoryLabel = 'Remédio';
                             break;
                           case 'refeicoes':
                             icon = Icons.restaurant;
-                            iconBg = AppColors.mealsColor.withValues(alpha: 0.2);
+                            iconBg = AppColors.mealsColor.withValues(alpha: 0.15);
                             iconColor = AppColors.mealsColor;
                             accentColor = AppColors.mealsColor;
                             categoryLabel = 'Refeição';
                             break;
                           case 'exercicio':
                             icon = Icons.directions_walk;
-                            iconBg = AppColors.tertiaryContainer.withValues(alpha: 0.2);
-                            iconColor = AppColors.onTertiaryContainer;
+                            iconBg = AppColors.tertiaryContainer.withValues(alpha: 0.15);
+                            iconColor = AppColors.tertiaryContainer;
                             accentColor = AppColors.tertiaryContainer;
                             categoryLabel = 'Exercício';
                             break;
                           case 'hidratacao':
                             icon = Icons.water_drop;
-                            iconBg = AppColors.voiceFeedbackBlue.withValues(alpha: 0.2);
+                            iconBg = AppColors.voiceFeedbackBlue.withValues(alpha: 0.15);
                             iconColor = AppColors.voiceFeedbackBlue;
                             accentColor = AppColors.voiceFeedbackBlue;
                             categoryLabel = 'Água';
                             break;
                         }
-
-                        final status = lembrete.concluido 
-                            ? ReminderStatus.done 
-                            : ReminderStatus.scheduled;
+                        final status = reminderStatusFromLembrete(lembrete);
 
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 12.0),
@@ -191,11 +193,17 @@ class _DetailedHistoryScreenState extends State<DetailedHistoryScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: SizedBox(
                 width: double.infinity,
-                height: 48,
+                height: 56,
                 child: ElevatedButton.icon(
                   onPressed: () => Navigator.pushNamed(context, '/monthly-reports'),
-                  icon: const Icon(Icons.assessment, size: 20),
-                  label: const Text('VER RELATÓRIOS MENSAIS', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                  icon: const Icon(Icons.assessment, size: 24),
+                  label: const FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      'VER RELATÓRIOS MENSAIS',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                    ),
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryContainer,
                     foregroundColor: AppColors.onPrimaryContainer,
@@ -205,7 +213,6 @@ class _DetailedHistoryScreenState extends State<DetailedHistoryScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            _buildBottomNav(context),
           ],
         ),
       ),
@@ -226,7 +233,14 @@ class _DetailedHistoryScreenState extends State<DetailedHistoryScreen> {
             onPressed: () => Navigator.pop(context),
             icon: const Icon(Icons.arrow_back, color: AppColors.primary),
           ),
-          const Text('Lembrete Amigo', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.primary)),
+          const Expanded(
+            child: Text(
+              'Lembrete Amigo',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.primary),
+            ),
+          ),
+          const SizedBox(width: 48),
         ],
       ),
     );
@@ -254,47 +268,6 @@ class _DetailedHistoryScreenState extends State<DetailedHistoryScreen> {
             child: Text('$pct% Concluído', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.onTertiaryFixedVariant)),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildBottomNav(BuildContext context) {
-    return Container(
-      height: 96,
-      padding: const EdgeInsets.only(bottom: 8),
-      decoration: const BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
-        border: Border(top: BorderSide(color: AppColors.outlineVariant, width: 2)),
-      ),
-      child: Row(
-        children: [
-          _bottomNavItem(Icons.home, 'Início', false, () => Navigator.pushNamedAndRemoveUntil(context, '/supervisor-dashboard', (route) => false)),
-          _bottomNavItem(Icons.history, 'Histórico', true, null),
-          _bottomNavItem(Icons.help_center, 'Ajuda', false, () => Navigator.pushNamed(context, '/supervisor-help')),
-        ],
-      ),
-    );
-  }
-
-  Widget _bottomNavItem(IconData icon, String label, bool selected, VoidCallback? onTap) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          decoration: BoxDecoration(
-            color: selected ? AppColors.secondaryContainer : null,
-            borderRadius: BorderRadius.circular(9999),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: selected ? AppColors.onSecondaryContainer : AppColors.onSurfaceVariant),
-              Text(label.toUpperCase(), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: selected ? AppColors.onSecondaryContainer : AppColors.onSurfaceVariant)),
-            ],
-          ),
-        ),
       ),
     );
   }

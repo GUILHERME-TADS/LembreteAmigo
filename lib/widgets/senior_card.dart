@@ -69,7 +69,7 @@ class SeniorCard extends StatelessWidget {
                       subtitle,
                       style: const TextStyle(
                         fontSize: 18,
-                        fontWeight: FontWeight.w400,
+                        fontWeight: FontWeight.bold,
                         height: 1.6,
                         color: AppColors.onSurfaceVariant,
                       ),

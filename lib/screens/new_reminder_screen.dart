@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../models/lembrete.dart';
 import '../services/lembrete_service.dart';
+import '../widgets/supervisor_bottom_nav.dart';
 
 class NewReminderScreen extends StatefulWidget {
   const NewReminderScreen({super.key});
@@ -18,6 +19,11 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
   String _selectedCor = 'azul';
   String? _audioPath;
   String? _fotoPath;
+  String _selectedUrgency = 'normal';
+  String _selectedRecorrencia = 'diario';
+  List<int> _selectedDiasSemana = [];
+  int? _selectedIntervaloHoras = 4;
+  int? _selectedDiaMes = 1;
 
   @override
   void dispose() {
@@ -29,6 +35,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      bottomNavigationBar: const SupervisorBottomNav(selected: SupervisorNavDestination.newReminder),
       body: SafeArea(
         child: Column(
           children: [
@@ -51,6 +58,8 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                     ),
                     const SizedBox(height: 24),
                     _buildCategorySelector(),
+                    const SizedBox(height: 24),
+                    _buildUrgencySelector(),
                     if (_selectedCategory == 'medicacao') ...[
                       const SizedBox(height: 24),
                       _buildPillAppearanceSelector(),
@@ -132,7 +141,6 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
               ),
             ),
             _buildBottomBar(),
-            _buildFloatingNav(),
           ],
         ),
       ),
@@ -153,9 +161,13 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
             onPressed: () => Navigator.pop(context),
             icon: const Icon(Icons.arrow_back, color: AppColors.primary),
           ),
-          const SizedBox(width: 8),
-          const Text('Lembrete Amigo', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.primary)),
-          const Spacer(),
+          const Expanded(
+            child: Text(
+              'Lembrete Amigo',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.primary),
+            ),
+          ),
           Container(
             width: 40, height: 40,
             decoration: const BoxDecoration(
@@ -178,6 +190,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
       {'icon': Icons.notifications, 'label': 'Personalizado', 'key': 'personalizado', 'color': AppColors.customColor},
     ];
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surfaceContainerLow,
@@ -192,50 +205,60 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: AppColors.onSurfaceVariant),
           ),
           const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            alignment: WrapAlignment.center,
-            children: categories.map((cat) {
-              final key = cat['key'] as String;
-              final color = cat['color'] as Color;
-              final selected = _selectedCategory == key;
-              return GestureDetector(
-                onTap: () => setState(() => _selectedCategory = selected ? null : key),
-                child: Container(
-                  width: 90,
-                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
-                  decoration: BoxDecoration(
-                    color: selected ? color.withValues(alpha: 0.2) : AppColors.surfaceContainerLowest,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: selected ? color : Colors.transparent,
-                      width: 2,
+          Center(
+            child: Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              alignment: WrapAlignment.center,
+              children: categories.map((cat) {
+                final key = cat['key'] as String;
+                final color = cat['color'] as Color;
+                final selected = _selectedCategory == key;
+                return GestureDetector(
+                  onTap: () => setState(() => _selectedCategory = selected ? null : key),
+                  child: Container(
+                    width: 95,
+                    height: 115,
+                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                    decoration: BoxDecoration(
+                      color: selected ? color.withValues(alpha: 0.2) : AppColors.surfaceContainerLowest,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: selected ? color : Colors.transparent,
+                        width: 2,
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: selected ? color : color.withValues(alpha: 0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(cat['icon'] as IconData, size: 24, color: selected ? Colors.white : color),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          cat['label'] as String,
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: selected ? color : AppColors.onSurface,
+                            height: 1.1,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: selected ? color : color.withValues(alpha: 0.15),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(cat['icon'] as IconData, size: 24, color: selected ? Colors.white : color),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        cat['label'] as String,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: selected ? color : AppColors.onSurface),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }).toList(),
+                );
+              }).toList(),
+            ),
           ),
         ],
       ),
@@ -396,42 +419,201 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
     );
   }
 
+  Widget _buildUrgencySelector() {
+    final urgencies = [
+      {'key': 'normal', 'label': 'Normal', 'color': Colors.green},
+      {'key': 'importante', 'label': 'Importante', 'color': Colors.orange},
+      {'key': 'critico', 'label': 'Crítico', 'color': Colors.red},
+    ];
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'NÍVEL DE URGÊNCIA',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: AppColors.onSurfaceVariant),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: urgencies.map((u) {
+              final selected = _selectedUrgency == u['key'];
+              final color = u['color'] as Color;
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () => setState(() => _selectedUrgency = u['key'] as String),
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      color: selected ? color.withValues(alpha: 0.2) : AppColors.surfaceContainerLowest,
+                      border: Border.all(color: selected ? color : AppColors.outlineVariant, width: 2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Center(
+                      child: Text(
+                        u['label'] as String,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: selected ? color : AppColors.onSurface,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildRecurrenceSection() {
-    final days = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'REPETIÇÃO',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: AppColors.onSurfaceVariant),
-        ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            ...days.map((d) => Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                border: Border.all(color: AppColors.outline),
-                borderRadius: BorderRadius.circular(9999),
-              ),
-              child: Text(d, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
-            )),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: AppColors.primaryContainer,
-                borderRadius: BorderRadius.circular(9999),
-              ),
-              child: const Text(
-                'Todos os dias',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.onPrimaryContainer),
-              ),
+    final recorrencias = [
+      {'key': 'diario', 'label': 'Diário'},
+      {'key': 'semanal', 'label': 'Semanal'},
+      {'key': 'intervalo', 'label': 'A cada X horas'},
+      {'key': 'quinzenal', 'label': 'A cada 15 dias'},
+      {'key': 'mensal', 'label': 'Mensal'},
+      {'key': 'unico', 'label': 'Uma vez'},
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'REPETIÇÃO DO LEMBRETE',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: AppColors.onSurfaceVariant),
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            value: _selectedRecorrencia,
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: AppColors.surfaceContainerLowest,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            items: recorrencias.map((r) => DropdownMenuItem(
+              value: r['key'],
+              child: Text(r['label'] as String),
+            )).toList(),
+            onChanged: (val) {
+              if (val != null) {
+                setState(() => _selectedRecorrencia = val);
+              }
+            },
+          ),
+          
+          if (_selectedRecorrencia == 'semanal') ...[
+            const SizedBox(height: 16),
+            const Text('Selecione os dias da semana:', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: List.generate(7, (idx) {
+                final weekday = idx + 1;
+                final labels = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'];
+                final selected = _selectedDiasSemana.contains(weekday);
+                return GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      if (selected) {
+                        _selectedDiasSemana.remove(weekday);
+                      } else {
+                        _selectedDiasSemana.add(weekday);
+                      }
+                    });
+                  },
+                  child: Container(
+                    width: 36, height: 36,
+                    decoration: BoxDecoration(
+                      color: selected ? AppColors.primary : AppColors.surfaceContainerLowest,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.outlineVariant),
+                    ),
+                    child: Center(
+                      child: Text(
+                        labels[idx],
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: selected ? Colors.white : AppColors.onSurface,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }),
             ),
           ],
-        ),
-      ],
+          
+          if (_selectedRecorrencia == 'intervalo') ...[
+            const SizedBox(height: 16),
+            const Text('Repetir a cada quantas horas?', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<int>(
+                    value: _selectedIntervaloHoras,
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: AppColors.surfaceContainerLowest,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    items: [2, 4, 6, 8, 12].map((h) => DropdownMenuItem(
+                      value: h,
+                      child: Text('$h em $h horas'),
+                    )).toList(),
+                    onChanged: (val) {
+                      if (val != null) {
+                        setState(() => _selectedIntervaloHoras = val);
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ],
+          
+          if (_selectedRecorrencia == 'mensal') ...[
+            const SizedBox(height: 16),
+            const Text('Qual o dia do mês?', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<int>(
+              value: _selectedDiaMes,
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: AppColors.surfaceContainerLowest,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              items: List.generate(31, (i) => i + 1).map((d) => DropdownMenuItem(
+                value: d,
+                child: Text('Dia $d'),
+              )).toList(),
+              onChanged: (val) {
+                if (val != null) {
+                  setState(() => _selectedDiaMes = val);
+                }
+              },
+            ),
+          ],
+        ],
+      ),
     );
   }
 
@@ -459,49 +641,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
     );
   }
 
-  Widget _buildFloatingNav() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      child: Center(
-        child: Container(
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceContainer,
-            borderRadius: BorderRadius.circular(9999),
-            border: Border.all(color: AppColors.outlineVariant),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _floatNavItem(Icons.home, 'Início', false, () => Navigator.pushReplacementNamed(context, '/supervisor-dashboard')),
-              _floatNavItem(Icons.add_circle, 'Novo', true, null),
-              _floatNavItem(Icons.history, 'Histórico', false, () => Navigator.pushReplacementNamed(context, '/activity-history')),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
-  Widget _floatNavItem(IconData icon, String label, bool selected, VoidCallback? onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.secondaryContainer : null,
-          borderRadius: BorderRadius.circular(9999),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 24, color: selected ? AppColors.onSecondaryContainer : AppColors.onSurfaceVariant),
-            Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: selected ? AppColors.onSecondaryContainer : AppColors.onSurfaceVariant)),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildPillAppearanceSelector() {
     final formas = [
@@ -617,6 +757,16 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
       medicamentoForma: _selectedCategory == 'medicacao' ? _selectedForma : null,
       medicamentoCor: _selectedCategory == 'medicacao' ? _selectedCor : null,
       medicamentoFotoPath: _selectedCategory == 'medicacao' ? _fotoPath : null,
+      urgencia: _selectedUrgency,
+      recorrencia: _selectedRecorrencia,
+      repeteTodosOsDias: _selectedRecorrencia == 'diario',
+      recorrenciaSemanal: _selectedRecorrencia == 'semanal',
+      recorrenciaMensal: _selectedRecorrencia == 'mensal',
+      recorrenciaIntervalo: _selectedRecorrencia == 'intervalo',
+      lembreteUnico: _selectedRecorrencia == 'unico',
+      diasSemana: _selectedRecorrencia == 'semanal' ? _selectedDiasSemana : const [],
+      diaMes: _selectedRecorrencia == 'mensal' ? _selectedDiaMes : null,
+      intervaloHoras: _selectedRecorrencia == 'intervalo' ? _selectedIntervaloHoras : null,
     );
 
     await LembreteService.instance.adicionar(lembrete);

@@ -15,9 +15,7 @@ class ElderlyPairingScreen extends StatefulWidget {
 }
 
 class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
-  final List<String> _codeDigits = [];
-  bool _isLoading = false;
-  String? _errorMessage;
+  bool _showModeSelection = true;
 
   bool get _useFirebase {
     try {
@@ -31,12 +29,27 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _speakWelcome();
+    });
+  }
+
+  void _speakWelcome() {
+    if (_showModeSelection) {
+      TTSService.instance.falar(
+        'Como você deseja usar o aplicativo? Você pode entrar de forma autônoma para usar sozinho, ou com um supervisor.',
+        caller: this,
+      );
+    } else {
       TTSService.instance.falar(
         'Por favor, digite o código de seis números fornecido pelo seu supervisor.',
         caller: this,
       );
-    });
+    }
   }
+
+  final List<String> _codeDigits = [];
+  bool _isLoading = false;
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -93,14 +106,15 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
       };
       await prefs.setString('idoso_perfil', jsonEncode(localPerfil));
       
-      TTSService.instance.falar('Bem-vindo! Modo autônomo ativado.', caller: this);
-      
       if (mounted) {
         Navigator.pushNamedAndRemoveUntil(
           context,
           '/elderly-home',
           (route) => false,
-          arguments: {'connected': false},
+          arguments: {
+            'connected': false,
+            'speak': 'Bem-vindo! Modo autônomo ativado.',
+          },
         );
       }
     } catch (e) {
@@ -196,13 +210,15 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
 
   void _handleSuccess() async {
     TTSService.instance.parar(caller: this);
-    await TTSService.instance.falar('Aparelho conectado com sucesso! Bem vindo.', caller: this);
     if (!mounted) return;
     Navigator.pushNamedAndRemoveUntil(
       context,
       '/elderly-home',
       (route) => false,
-      arguments: {'connected': true},
+      arguments: {
+        'connected': true,
+        'speak': 'Aparelho conectado com sucesso! Bem vindo.',
+      },
     );
   }
 
@@ -223,100 +239,146 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
           children: [
             const VolumeWarningBanner(),
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 16),
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 16),
                     Row(
                       children: [
                         IconButton(
                           icon: const Icon(Icons.arrow_back, color: AppColors.primary, size: 36),
-                          onPressed: () => Navigator.pop(context),
+                          onPressed: () {
+                            if (!_showModeSelection) {
+                              setState(() {
+                                _showModeSelection = true;
+                              });
+                              _speakWelcome();
+                            } else {
+                              Navigator.pop(context);
+                            }
+                          },
                         ),
-                        const Spacer(),
-                        const Text(
-                          'Lembrete Amigo',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                        const Spacer(),
-                        const SizedBox(width: 48),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    const Text(
-                      'Conectar Aparelho',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.w800,
-                        height: 1.2,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Digite o código de 6 números gerado pelo seu supervisor no celular dele.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: AppColors.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    
-                    // Display of typed code
-                    _buildCodeDisplay(),
-                    
-                    if (_errorMessage != null) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        _errorMessage!,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          color: AppColors.error,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                    
-                    const Spacer(),
-                    
-                    // Keypad
-                    if (_isLoading)
-                      const Center(
-                        child: CircularProgressIndicator(color: AppColors.primary),
-                      )
-                    else ...[
-                      _buildKeypad(),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 56,
-                        child: TextButton(
-                          onPressed: _entrarSemSupervisor,
-                          child: const Text(
-                            'Usar sem Supervisor (Autônomo)',
+                        const Expanded(
+                          child: Text(
+                            'Lembrete Amigo',
+                            textAlign: TextAlign.center,
                             style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
+                              fontSize: 24,
+                              fontWeight: FontWeight.w700,
                               color: AppColors.primary,
-                              decoration: TextDecoration.underline,
                             ),
                           ),
                         ),
+                        const SizedBox(width: 48),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    const MeExplicaButton(
+                      textoExplicacao: 'Olá! Esta é a tela para conectar o aplicativo com quem cuida de você. Aqui você pode escolher se vai usar o aplicativo sozinho ou se vai conectar com o celular do seu ajudante ou cuidador para ele te acompanhar.',
+                    ),
+                    const SizedBox(height: 12),
+                    if (_showModeSelection) ...[
+                      const SizedBox(height: 32),
+                      const Text(
+                        'Como você vai usar?',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.w800,
+                          height: 1.2,
+                          color: AppColors.primary,
+                        ),
                       ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Escolha uma das opções abaixo para começar.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: AppColors.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      SeniorButton(
+                        label: 'USAR SOZINHO',
+                        icon: Icons.person_outline,
+                        backgroundColor: AppColors.secondaryContainer,
+                        textColor: AppColors.onSecondaryContainer,
+                        onPressed: _entrarSemSupervisor,
+                      ),
+                      const SizedBox(height: 24),
+                      SeniorButton(
+                        label: 'CONECTAR COM AJUDANTE',
+                        icon: Icons.supervisor_account,
+                        backgroundColor: AppColors.primary,
+                        textColor: Colors.white,
+                        onPressed: () {
+                          setState(() {
+                            _showModeSelection = false;
+                            _errorMessage = null;
+                          });
+                          _speakWelcome();
+                        },
+                      ),
+                      const SizedBox(height: 24),
+                    ] else ...[
+                      const SizedBox(height: 24),
+                      const Text(
+                        'Conectar com Ajudante',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.w800,
+                          height: 1.2,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Digite o código de 6 números que aparece no celular do seu ajudante ou cuidador.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: AppColors.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      
+                      // Display of typed code
+                      _buildCodeDisplay(),
+                      
+                      if (_errorMessage != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          _errorMessage!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            color: AppColors.error,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                      
+                      const SizedBox(height: 24),
+                      
+                      // Keypad
+                      if (_isLoading)
+                        const Center(
+                          child: CircularProgressIndicator(color: AppColors.primary),
+                        )
+                      else ...[
+                        _buildKeypad(),
+                        const SizedBox(height: 24),
+                      ],
                     ],
-                    const SizedBox(height: 24),
                   ],
                 ),
               ),
             ),
+          ),
           ],
         ),
       ),

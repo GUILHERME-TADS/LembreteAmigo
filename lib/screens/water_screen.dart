@@ -32,24 +32,6 @@ class _WaterScreenState extends State<WaterScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          TTSService.instance.parar(caller: this);
-          showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            backgroundColor: Colors.transparent,
-            builder: (context) => const AlexAssistantSheet(),
-          );
-        },
-        backgroundColor: Colors.white,
-        shape: const CircleBorder(),
-        elevation: 6,
-        child: const Padding(
-          padding: EdgeInsets.all(4.0),
-          child: AlexAvatar(size: 48),
-        ),
-      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -82,6 +64,10 @@ class _WaterScreenState extends State<WaterScreen> {
                             height: 1.5,
                             color: AppColors.onSurfaceVariant,
                           ),
+                        ),
+                        const SizedBox(height: 12),
+                        const MeExplicaButton(
+                          textoExplicacao: 'Olá! Esta é a tela de beber água. Aqui você vê as tarefas de beber água do dia. Sempre que beber um copo de água, aperte em cima do retângulo do lembrete para avisar.',
                         ),
                         const SizedBox(height: 24),
                         AudioPlayerCard(
@@ -158,27 +144,17 @@ class _WaterScreenState extends State<WaterScreen> {
               Navigator.pop(context);
             },
           ),
-          const Spacer(),
-          const Text(
-            'Hidratação',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w700,
-              color: AppColors.voiceFeedbackBlue,
+          Expanded(
+            child: Text(
+              'Hidratação',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w700,
+                color: AppColors.voiceFeedbackBlue,
+              ),
             ),
           ),
-          const SizedBox(width: 12),
-          IconButton(
-            icon: const Icon(Icons.volume_up, color: AppColors.voiceFeedbackBlue, size: 32),
-            onPressed: () {
-              TTSService.instance.parar(caller: this);
-              TTSService.instance.falar(
-                'Aqui você pode ver a quantidade de água que bebeu hoje.',
-                caller: this,
-              );
-            },
-          ),
-          const Spacer(),
           Container(
             width: 48,
             height: 48,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
+import '../services/session_role_service.dart';
 import '../services/tts_service.dart';
 import '../widgets/index.dart';
 
@@ -42,136 +43,177 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 child: Column(
                   children: [
                     const SizedBox(height: 24),
-              const Text(
-                'Lembrete Amigo',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w700,
-                  height: 1.3,
-                  color: AppColors.primary,
-                ),
-              ),
-              const SizedBox(height: 48),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  children: [
-                    GestureDetector(
-                      onTap: () {
-                        TTSService.instance.falar(
-                          'Aperte o botão amarelo se você for o idoso, ou o botão branco se você for o supervisor.',
-                          caller: this,
-                        );
-                      },
-                      child: const AlexAvatar(size: 140),
-                    ),
-                    const SizedBox(height: 24),
                     const Text(
-                      'Olá! Como vamos cuidar hoje?',
-                      textAlign: TextAlign.center,
+                      'Lembrete Amigo',
                       style: TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.w800,
-                        height: 1.2,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w700,
+                        height: 1.3,
                         color: AppColors.primary,
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Escolha o seu perfil para acessar a plataforma personalizada para as suas necessidades.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w400,
-                        height: 1.6,
-                        color: AppColors.onSurfaceVariant,
+                    const SizedBox(height: 48),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Column(
+                        children: [
+                          GestureDetector(
+                            onTap: () {
+                              TTSService.instance.falar(
+                                'Aperte o botão amarelo se você for o idoso, ou o botão branco se você for o supervisor.',
+                                caller: this,
+                              );
+                            },
+                            child: const AlexAvatar(size: 140),
+                          ),
+                          const SizedBox(height: 24),
+                          const Text(
+                            'Olá! Como vamos cuidar hoje?',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.w800,
+                              height: 1.2,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          const Text(
+                            'Escolha o seu perfil para acessar a plataforma personalizada para as suas necessidades.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w400,
+                              height: 1.6,
+                              color: AppColors.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          const MeExplicaButton(
+                            textoExplicacao: 'Olá! Esta é a tela para começar a usar o aplicativo. Por favor, aperte no botão amarelo de cima se você for o idoso, ou no botão de baixo se você for o supervisor ou ajudante.',
+                          ),
+                          const SizedBox(height: 32),
+                          _buildProfileButton(
+                            icon: Icons.elderly,
+                            title: 'Sou o Idoso',
+                            subtitle: 'Acesso fácil e simplificado',
+                            bgColor: AppColors.secondaryContainer,
+                            textColor: AppColors.onSecondaryContainer,
+                            iconBgColor: AppColors.surfaceContainerLowest,
+                            iconColor: AppColors.onSecondaryContainer,
+                            onTap: () async {
+                              TTSService.instance.parar(caller: this);
+                              await SessionRoleService.setElderly();
+                              final prefs =
+                                  await SharedPreferences.getInstance();
+                              final isPaired =
+                                  prefs.getString('paired_idoso_id') != null;
+                              if (!mounted) return;
+                              if (isPaired) {
+                                Navigator.pushNamed(
+                                  context,
+                                  '/elderly-home',
+                                  arguments: {'connected': true},
+                                );
+                              } else {
+                                Navigator.pushNamed(
+                                  context,
+                                  '/elderly-onboarding',
+                                );
+                              }
+                            },
+                          ),
+                          const SizedBox(height: 24),
+                          _buildProfileButton(
+                            icon: Icons.medical_services,
+                            title: 'Sou o Supervisor',
+                            subtitle: 'Painel de controle e monitoramento',
+                            bgColor: AppColors.surfaceContainerLowest,
+                            textColor: AppColors.primary,
+                            iconBgColor: AppColors.primaryContainer,
+                            iconColor: AppColors.onPrimaryContainer,
+                            onTap: () async {
+                              TTSService.instance.parar(caller: this);
+                              await SessionRoleService.setSupervisor();
+                              if (!mounted) return;
+                              Navigator.pushNamed(context, '/supervisor-login');
+                            },
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 32),
-                    _buildProfileButton(
-                      icon: Icons.elderly,
-                      title: 'Sou o Idoso',
-                      subtitle: 'Acesso fácil e simplificado',
-                      bgColor: AppColors.secondaryContainer,
-                      textColor: AppColors.onSecondaryContainer,
-                      iconBgColor: AppColors.surfaceContainerLowest,
-                      iconColor: AppColors.onSecondaryContainer,
-                      onTap: () async {
-                        TTSService.instance.parar(caller: this);
-                        final prefs = await SharedPreferences.getInstance();
-                        final isPaired = prefs.getString('paired_idoso_id') != null;
-                        if (!mounted) return;
-                        if (isPaired) {
-                          Navigator.pushNamed(context, '/elderly-home', arguments: {'connected': true});
-                        } else {
-                          Navigator.pushNamed(context, '/elderly-onboarding');
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 24),
-                    _buildProfileButton(
-                      icon: Icons.medical_services,
-                      title: 'Sou o Supervisor',
-                      subtitle: 'Painel de controle e monitoramento',
-                      bgColor: AppColors.surfaceContainerLowest,
-                      textColor: AppColors.primary,
-                      iconBgColor: AppColors.primaryContainer,
-                      iconColor: AppColors.onPrimaryContainer,
-                      onTap: () {
-                        TTSService.instance.parar(caller: this);
-                        Navigator.pushNamed(context, '/supervisor-login');
-                      },
+                    const SizedBox(height: 48),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Column(
+                        children: [
+                          const Text(
+                            'Precisa de ajuda com o aplicativo?',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w400,
+                              height: 1.4,
+                              color: AppColors.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              TextButton.icon(
+                                onPressed: () {
+                                  _showInfoBottomSheet(
+                                    context: context,
+                                    title: 'Suporte',
+                                    content:
+                                        'Precisa de ajuda com o aplicativo? Nossa equipe está pronta para ajudar!\n\nEmail: suporte@lembreteamigo.com\nTelefone: (11) 99999-8888\n\nHorário de atendimento: Segunda a Sexta, das 8h às 18h.',
+                                    icon: Icons.support_agent,
+                                  );
+                                },
+                                icon: const Icon(Icons.support_agent, size: 20),
+                                label: const Text('Suporte'),
+                              ),
+                              const Text(
+                                '|',
+                                style: TextStyle(
+                                  color: AppColors.outlineVariant,
+                                ),
+                              ),
+                              TextButton.icon(
+                                onPressed: () {
+                                  _showInfoBottomSheet(
+                                    context: context,
+                                    title: 'Sobre o Lembrete Amigo',
+                                    content:
+                                        'O Lembrete Amigo é um aplicativo inteligente e de alta acessibilidade projetado para auxiliar idosos na manutenção de suas rotinas de medicação, hidratação e bem-estar, com monitoramento em tempo real por supervisores autorizados.\n\nDesenvolvido com carinho para promover independência e tranquilidade para toda a família.',
+                                    icon: Icons.info_outline,
+                                  );
+                                },
+                                icon: const Icon(Icons.info, size: 20),
+                                label: const Text('Sobre'),
+                              ),
+                            ],
+                          ),
+                          const Text(
+                            'v1.0.0 • Lembrete Amigo',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: AppColors.outline,
+                              letterSpacing: 2,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                        ],
+                      ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 48),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  children: [
-                    const Text(
-                      'Precisa de ajuda com o aplicativo?',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                        height: 1.4,
-                        color: AppColors.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        TextButton.icon(
-                          onPressed: () {},
-                          icon: const Icon(Icons.support_agent, size: 20),
-                          label: const Text('Suporte'),
-                        ),
-                        const Text('|', style: TextStyle(color: AppColors.outlineVariant)),
-                        TextButton.icon(
-                          onPressed: () {},
-                          icon: const Icon(Icons.info, size: 20),
-                          label: const Text('Sobre'),
-                        ),
-                      ],
-                    ),
-                    const Text(
-                      'v1.0.2 • Lembrete Amigo',
-                      style: TextStyle(fontSize: 10, color: AppColors.outline, letterSpacing: 2),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
-    ],
-  ),
-),
-);
+    );
   }
 
   Widget _buildProfileButton({
@@ -185,7 +227,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     required VoidCallback onTap,
   }) {
     return Container(
-      height: 120,
+      constraints: const BoxConstraints(minHeight: 120),
       decoration: BoxDecoration(
         color: bgColor,
         border: Border.all(color: AppColors.outlineVariant),
@@ -204,7 +246,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           onTap: onTap,
           borderRadius: BorderRadius.circular(12),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
             child: Row(
               children: [
                 Container(
@@ -249,6 +291,93 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  void _showInfoBottomSheet({
+    required BuildContext context,
+    required String title,
+    required String content,
+    required IconData icon,
+  }) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          decoration: const BoxDecoration(
+            color: AppColors.background,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 48,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.outlineVariant,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Icon(icon, color: AppColors.primary, size: 32),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  content,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    height: 1.5,
+                    color: AppColors.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      'FECHAR',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

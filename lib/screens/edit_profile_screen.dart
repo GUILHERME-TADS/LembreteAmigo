@@ -1,11 +1,14 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../theme/app_theme.dart';
 import '../services/tts_service.dart';
 import '../widgets/senior_button.dart';
+import '../widgets/volume_warning_banner.dart';
+import '../widgets/me_explica_button.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -206,53 +209,71 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        IconButton(
-                          onPressed: () {
-                            TTSService.instance.parar(caller: this);
-                            Navigator.pop(context);
-                          },
-                          icon: const Icon(Icons.arrow_back, color: AppColors.primary),
-                        ),
-                        const Text(
-                          'Editar Perfil',
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.primary,
+        child: Column(
+          children: [
+            const VolumeWarningBanner(),
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : SingleChildScrollView(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: IconButton(
+                                  onPressed: () {
+                                    TTSService.instance.parar(caller: this);
+                                    Navigator.pop(context);
+                                  },
+                                  icon: const Icon(Icons.arrow_back, color: AppColors.primary),
+                                ),
+                              ),
+                              const Text(
+                                'Editar Perfil',
+                                style: TextStyle(
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    SeniorInputField(
-                      label: 'Nome Completo',
-                      placeholder: 'Nome do idoso',
-                      prefixIcon: Icons.person,
-                      controller: _nameController,
-                    ),
-                    const SizedBox(height: 24),
-                    SeniorInputField(
-                      label: 'Data de Nascimento',
-                      placeholder: 'DD/MM/AAAA',
-                      prefixIcon: Icons.calendar_today,
-                      controller: _birthDateController,
-                    ),
-                    const SizedBox(height: 24),
-                    SeniorInputField(
-                      label: 'Telefone de Contato',
-                      placeholder: '(11) 99999-9999',
-                      prefixIcon: Icons.phone,
-                      controller: _phoneController,
-                    ),
+                           const SizedBox(height: 12),
+                           const Center(
+                             child: MeExplicaButton(
+                               textoExplicacao: 'Olá! Aqui você altera as suas informações, como seu nome completo, sua data de nascimento, seu telefone e seu endereço. Quando terminar, aperte o botão salvar perfil no final.',
+                             ),
+                           ),
+                           const SizedBox(height: 24),
+                          SeniorInputField(
+                            label: 'Nome Completo',
+                            placeholder: 'Nome do idoso',
+                            prefixIcon: Icons.person,
+                            controller: _nameController,
+                          ),
+                          const SizedBox(height: 24),
+                          SeniorInputField(
+                            label: 'Data de Nascimento',
+                            placeholder: 'DD/MM/AAAA',
+                            prefixIcon: Icons.calendar_today,
+                            controller: _birthDateController,
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [DateInputFormatter()],
+                          ),
+                          const SizedBox(height: 24),
+                          SeniorInputField(
+                            label: 'Telefone de Contato',
+                            placeholder: '(11) 99999-9999',
+                            prefixIcon: Icons.phone,
+                            controller: _phoneController,
+                            keyboardType: TextInputType.phone,
+                            inputFormatters: [PhoneInputFormatter()],
+                          ),
                     const SizedBox(height: 24),
                     SeniorInputField(
                       label: 'Endereço',
@@ -309,6 +330,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   ],
                 ),
               ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -336,6 +360,64 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class DateInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    final text = newValue.text;
+    if (text.length < oldValue.text.length) {
+      return newValue;
+    }
+    final clean = text.replaceAll(RegExp(r'\D'), '');
+    final buffer = StringBuffer();
+    for (int i = 0; i < clean.length; i++) {
+      if (i == 2 || i == 4) {
+        buffer.write('/');
+      }
+      if (i < 8) {
+        buffer.write(clean[i]);
+      }
+    }
+    final formatted = buffer.toString();
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+}
+
+class PhoneInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    final text = newValue.text;
+    if (text.length < oldValue.text.length) {
+      return newValue;
+    }
+    final clean = text.replaceAll(RegExp(r'\D'), '');
+    final buffer = StringBuffer();
+    for (int i = 0; i < clean.length; i++) {
+      if (i == 0) {
+        buffer.write('(');
+      }
+      if (i == 2) {
+        buffer.write(') ');
+      }
+      if (i == 7 && clean.length > 10) {
+        buffer.write('-');
+      } else if (i == 6 && clean.length <= 10) {
+        buffer.write('-');
+      }
+      if (i < 11) {
+        buffer.write(clean[i]);
+      }
+    }
+    final formatted = buffer.toString();
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
     );
   }
 }

@@ -66,7 +66,7 @@ class AppTypography {
   static const headlineLg = TextStyle(
     fontFamily: fontFamily,
     fontSize: 40,
-    fontWeight: FontWeight.w800,
+    fontWeight: FontWeight.bold,
     height: 1.2,
     letterSpacing: -0.01,
   );
@@ -74,35 +74,35 @@ class AppTypography {
   static const headlineLgMobile = TextStyle(
     fontFamily: fontFamily,
     fontSize: 32,
-    fontWeight: FontWeight.w800,
+    fontWeight: FontWeight.bold,
     height: 1.2,
   );
 
   static const headlineMd = TextStyle(
     fontFamily: fontFamily,
     fontSize: 28,
-    fontWeight: FontWeight.w700,
+    fontWeight: FontWeight.bold,
     height: 1.3,
   );
 
   static const bodyLg = TextStyle(
     fontFamily: fontFamily,
     fontSize: 24,
-    fontWeight: FontWeight.w500,
+    fontWeight: FontWeight.bold,
     height: 1.5,
   );
 
   static const bodyMd = TextStyle(
     fontFamily: fontFamily,
     fontSize: 18,
-    fontWeight: FontWeight.w400,
+    fontWeight: FontWeight.bold,
     height: 1.6,
   );
 
   static const labelCaps = TextStyle(
     fontFamily: fontFamily,
     fontSize: 16,
-    fontWeight: FontWeight.w700,
+    fontWeight: FontWeight.bold,
     height: 1.2,
     letterSpacing: 0.05,
   );
@@ -110,7 +110,7 @@ class AppTypography {
   static const supervisorData = TextStyle(
     fontFamily: fontFamily,
     fontSize: 14,
-    fontWeight: FontWeight.w400,
+    fontWeight: FontWeight.bold,
     height: 1.4,
   );
 }
@@ -134,10 +134,36 @@ class AppRadius {
 }
 
 class AppTheme {
+  static TextTheme get _boldTextTheme => const TextTheme(
+    bodyLarge: TextStyle(fontWeight: FontWeight.bold),
+    bodyMedium: TextStyle(fontWeight: FontWeight.bold),
+    bodySmall: TextStyle(fontWeight: FontWeight.bold),
+    labelLarge: TextStyle(fontWeight: FontWeight.bold),
+    labelMedium: TextStyle(fontWeight: FontWeight.bold),
+    labelSmall: TextStyle(fontWeight: FontWeight.bold),
+    titleLarge: TextStyle(fontWeight: FontWeight.bold),
+    titleMedium: TextStyle(fontWeight: FontWeight.bold),
+    titleSmall: TextStyle(fontWeight: FontWeight.bold),
+    headlineLarge: TextStyle(fontWeight: FontWeight.bold),
+    headlineMedium: TextStyle(fontWeight: FontWeight.bold),
+    headlineSmall: TextStyle(fontWeight: FontWeight.bold),
+    displayLarge: TextStyle(fontWeight: FontWeight.bold),
+    displayMedium: TextStyle(fontWeight: FontWeight.bold),
+    displaySmall: TextStyle(fontWeight: FontWeight.bold),
+  );
+
+  static IconThemeData get _boldIconTheme => const IconThemeData(
+    weight: 900.0,
+    fill: 1.0,
+  );
+
   static ThemeData get lightTheme => ThemeData(
     useMaterial3: true,
     brightness: Brightness.light,
     fontFamily: AppTypography.fontFamily,
+    textTheme: _boldTextTheme,
+    iconTheme: _boldIconTheme,
+    primaryIconTheme: _boldIconTheme,
     colorScheme: ColorScheme(
       brightness: Brightness.light,
       primary: AppColors.primary,
@@ -165,5 +191,41 @@ class AppTheme {
       surfaceTint: AppColors.surfaceTint,
     ),
     scaffoldBackgroundColor: AppColors.surface,
+  );
+
+  static ThemeData get highContrastTheme => ThemeData(
+    useMaterial3: true,
+    brightness: Brightness.light,
+    fontFamily: AppTypography.fontFamily,
+    textTheme: _boldTextTheme,
+    iconTheme: _boldIconTheme,
+    primaryIconTheme: _boldIconTheme,
+    colorScheme: const ColorScheme(
+      brightness: Brightness.light,
+      primary: Colors.black,
+      onPrimary: Colors.white,
+      primaryContainer: Colors.black,
+      onPrimaryContainer: Colors.yellow,
+      secondary: Colors.black,
+      onSecondary: Colors.yellow,
+      secondaryContainer: Colors.yellow,
+      onSecondaryContainer: Colors.black,
+      tertiary: Colors.black,
+      onTertiary: Colors.white,
+      tertiaryContainer: Colors.black,
+      onTertiaryContainer: Colors.greenAccent,
+      error: Colors.red,
+      onError: Colors.white,
+      errorContainer: Colors.red,
+      onErrorContainer: Colors.white,
+      surface: Colors.white,
+      onSurface: Colors.black,
+      onSurfaceVariant: Colors.black,
+      outline: Colors.black,
+      outlineVariant: Colors.black,
+      inverseSurface: Colors.black,
+      surfaceTint: Colors.black,
+    ),
+    scaffoldBackgroundColor: Colors.white,
   );
 }

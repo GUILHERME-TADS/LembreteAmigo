@@ -49,7 +49,14 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
                     onPressed: () => Navigator.pop(context),
                     icon: const Icon(Icons.arrow_back, color: AppColors.primary),
                   ),
-                  const Text('Configurações', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.primary)),
+                  const Expanded(
+                    child: Text(
+                      'Configurações',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.primary),
+                    ),
+                  ),
+                  const SizedBox(width: 48),
                 ],
               ),
               const SizedBox(height: 24),

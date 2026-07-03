@@ -52,7 +52,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
       case 'hidratacao':
         return (Icons.water_drop, AppColors.voiceFeedbackBlue, AppColors.voiceFeedbackBlue);
       default:
-        return (Icons.notifications, AppColors.secondaryContainer, AppColors.primary);
+        return (Icons.notifications, AppColors.customColor, AppColors.customColor);
     }
   }
 
@@ -86,7 +86,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                   children: [
                     const SizedBox(height: 24),
                     const Text(
-                      'Todos os lembretes do dia',
+                      'Suas tarefas do dia',
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.w500,
@@ -96,14 +96,13 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                     ),
                     const SizedBox(height: 4),
                     const Text(
-                      'Ordenado por horário',
+                      'Organizadas do mais cedo para o mais tarde',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w400,
                         color: AppColors.onSurfaceVariant,
                       ),
                     ),
-                    const SizedBox(height: 24),
                     AudioPlayerCard(
                       subtitle: 'Ouça todos os lembretes',
                       audioPath: _voiceReminders.isNotEmpty
@@ -115,7 +114,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                     if (_voiceReminders.isNotEmpty) ...[
                       const SizedBox(height: 24),
                       const Text(
-                        'Meus lembretes',
+                        'Minha lista',
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w700,
@@ -135,9 +134,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                             title: r.titulo,
                             time: r.horarioFormatado,
                             audioPath: r.audioPath,
-                            status: r.concluido
-                                ? ReminderStatus.done
-                                : ReminderStatus.scheduled,
+                            status: reminderStatusFromLembrete(r),
                             onTap: () async {
                               _stopAllAudioAndTts();
                               if (!r.concluido) {
@@ -210,7 +207,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                 onTap: () {
                   _stopAllAudioAndTts();
                   TTSService.instance.falar(
-                    'Aqui estão todos os seus lembretes de hoje.',
+                    'Olá! Esta é a tela com todas as suas tarefas de hoje, organizadas do horário mais cedo para o mais tarde.',
                     caller: this,
                   );
                 },
@@ -363,9 +360,9 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
           decoration: BoxDecoration(
-            color: selected ? AppColors.primary.withValues(alpha: 0.05) : null,
+            color: selected ? AppColors.secondaryContainer : null,
             borderRadius: BorderRadius.circular(16),
           ),
           child: Column(

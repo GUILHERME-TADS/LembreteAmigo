@@ -26,15 +26,20 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
   Future<void> _loadActiveIdosoData() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final idosoId = prefs.getString('selected_idoso_id') ?? prefs.getString('paired_idoso_id');
-      
+      final idosoId =
+          prefs.getString('selected_idoso_id') ??
+          prefs.getString('paired_idoso_id');
+
       bool useFirebase = false;
       try {
         useFirebase = Firebase.apps.isNotEmpty;
       } catch (_) {}
 
       if (useFirebase && idosoId != null) {
-        final doc = await FirebaseFirestore.instance.collection('idosos').doc(idosoId).get();
+        final doc = await FirebaseFirestore.instance
+            .collection('idosos')
+            .doc(idosoId)
+            .get();
         if (doc.exists && mounted) {
           setState(() {
             _idosoName = doc.data()?['nome'] ?? 'Idoso';
@@ -115,31 +120,50 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
                               SizedBox(width: 12),
                               Text(
                                 'ALERTA CRÍTICO',
-                                style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: 0.05),
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                  letterSpacing: 0.05,
+                                ),
                               ),
                             ],
                           ),
                         ),
                         const SizedBox(height: 24),
                         Container(
-                          width: 80, height: 80,
+                          width: 80,
+                          height: 80,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: AppColors.surfaceContainerHigh,
                             border: Border.all(color: AppColors.outlineVariant),
                           ),
-                          child: const Icon(Icons.person, size: 48, color: AppColors.onSurfaceVariant),
+                          child: const Icon(
+                            Icons.person,
+                            size: 48,
+                            color: AppColors.onSurfaceVariant,
+                          ),
                         ),
                         const SizedBox(height: 12),
                         Text(
                           _idosoName,
-                          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.onSurface),
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.onSurface,
+                          ),
                         ),
                         const SizedBox(height: 16),
                         Text(
                           'ALERTA: $_idosoName não confirmou a atividade recente agendada.',
                           textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500, height: 1.6, color: AppColors.onSurfaceVariant),
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                            height: 1.6,
+                            color: AppColors.onSurfaceVariant,
+                          ),
                         ),
                         const SizedBox(height: 32),
                         SizedBox(
@@ -148,11 +172,19 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
                           child: ElevatedButton.icon(
                             onPressed: _fazerLigacao,
                             icon: const Icon(Icons.phone, size: 28),
-                            label: Text('Ligar para $_idosoName', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+                            label: Text(
+                              'Ligar para $_idosoName',
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.error,
                               foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
                           ),
                         ),
@@ -163,11 +195,19 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
                           child: ElevatedButton.icon(
                             onPressed: () => Navigator.pop(context),
                             icon: const Icon(Icons.visibility, size: 24),
-                            label: const Text('Ver Detalhes', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                            label: const Text(
+                              'Ver Detalhes',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.surfaceContainerHigh,
                               foregroundColor: AppColors.onSurfaceVariant,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
                           ),
                         ),
@@ -180,11 +220,18 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
               const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.verified_user, size: 16, color: AppColors.onSurfaceVariant),
+                  Icon(
+                    Icons.verified_user,
+                    size: 16,
+                    color: AppColors.onSurfaceVariant,
+                  ),
                   SizedBox(width: 8),
                   Text(
                     'Modo Assistido Ativo • V. 1.0',
-                    style: TextStyle(fontSize: 14, color: AppColors.onSurfaceVariant),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.onSurfaceVariant,
+                    ),
                   ),
                 ],
               ),
@@ -202,7 +249,11 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.arrow_back, color: AppColors.onSurface, size: 28),
+            icon: const Icon(
+              Icons.arrow_back,
+              color: AppColors.onSurface,
+              size: 28,
+            ),
             onPressed: () => Navigator.pop(context),
           ),
           const Spacer(),
@@ -214,26 +265,50 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
   Widget _buildStatusBar() {
     final now = DateTime.now();
     const diasSemana = [
-      'Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira',
-      'Quinta-feira', 'Sexta-feira', 'Sábado'
+      'Domingo',
+      'Segunda-feira',
+      'Terça-feira',
+      'Quarta-feira',
+      'Quinta-feira',
+      'Sexta-feira',
+      'Sábado',
     ];
     const meses = [
-      'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+      'Janeiro',
+      'Fevereiro',
+      'Março',
+      'Abril',
+      'Maio',
+      'Junho',
+      'Julho',
+      'Agosto',
+      'Setembro',
+      'Outubro',
+      'Novembro',
+      'Dezembro',
     ];
-    final String timeStr = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
-    final String dateStr = '${diasSemana[now.weekday % 7]}, ${now.day} de ${meses[now.month - 1]}';
+    final String timeStr =
+        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+    final String dateStr =
+        '${diasSemana[now.weekday % 7]}, ${now.day} de ${meses[now.month - 1]}';
 
     return Column(
       children: [
         const SizedBox(height: 16),
         Text(
           timeStr,
-          style: const TextStyle(fontSize: 48, fontWeight: FontWeight.w300, color: AppColors.onSurface),
+          style: const TextStyle(
+            fontSize: 48,
+            fontWeight: FontWeight.bold,
+            color: AppColors.onSurface,
+          ),
         ),
         Text(
           dateStr,
-          style: const TextStyle(fontSize: 16, color: AppColors.onSurfaceVariant),
+          style: const TextStyle(
+            fontSize: 16,
+            color: AppColors.onSurfaceVariant,
+          ),
         ),
       ],
     );

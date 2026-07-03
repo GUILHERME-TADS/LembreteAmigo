@@ -4,6 +4,8 @@ import '../models/lembrete.dart';
 import '../services/lembrete_service.dart';
 import '../services/tts_service.dart';
 import '../utils/period_helper.dart';
+import '../widgets/volume_warning_banner.dart';
+import '../widgets/me_explica_button.dart';
 
 class MealDetailScreen extends StatefulWidget {
   const MealDetailScreen({super.key});
@@ -62,6 +64,7 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
       body: SafeArea(
         child: Column(
           children: [
+            const VolumeWarningBanner(),
             _buildTopBar(context),
             Expanded(
               child: SingleChildScrollView(
@@ -91,6 +94,10 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
                         height: 1.5,
                         color: AppColors.onSurfaceVariant,
                       ),
+                    ),
+                    const SizedBox(height: 12),
+                    const MeExplicaButton(
+                      textoExplicacao: 'Olá, esta é a tela de detalhes da sua refeição. Aqui você pode ver qual refeição foi programada e o horário dela. Se for comer agora, aperte o botão verde escrito ENTENDI. Se quiser comer mais tarde, aperte o botão amarelo escrito ADIAR.',
                     ),
                     const SizedBox(height: 48),
                     SizedBox(
@@ -166,12 +173,13 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
             icon: const Icon(Icons.arrow_back, color: AppColors.mealsColor, size: 32),
             onPressed: () => Navigator.pop(context),
           ),
-          const Spacer(),
-          const Text(
-            'Hora de Comer',
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.mealsColor),
+          const Expanded(
+            child: Text(
+              'Hora de Comer',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.mealsColor),
+            ),
           ),
-          const Spacer(),
           const Icon(Icons.volume_up, color: AppColors.mealsColor, size: 28),
           const SizedBox(width: 8),
           SizedBox(

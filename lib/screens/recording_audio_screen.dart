@@ -283,6 +283,7 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
       {'icon': Icons.notifications, 'label': 'Personalizado', 'key': 'personalizado', 'color': AppColors.customColor},
     ];
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surfaceContainerLow,
@@ -297,50 +298,60 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: AppColors.onSurfaceVariant),
           ),
           const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            alignment: WrapAlignment.center,
-            children: categories.map((cat) {
-              final key = cat['key'] as String;
-              final color = cat['color'] as Color;
-              final selected = _selectedCategory == key;
-              return GestureDetector(
-                onTap: () => setState(() => _selectedCategory = selected ? null : key),
-                child: Container(
-                  width: 90,
-                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
-                  decoration: BoxDecoration(
-                    color: selected ? color.withValues(alpha: 0.2) : AppColors.surfaceContainerLowest,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: selected ? color : Colors.transparent,
-                      width: 2,
+          Center(
+            child: Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              alignment: WrapAlignment.center,
+              children: categories.map((cat) {
+                final key = cat['key'] as String;
+                final color = cat['color'] as Color;
+                final selected = _selectedCategory == key;
+                return GestureDetector(
+                  onTap: () => setState(() => _selectedCategory = selected ? null : key),
+                  child: Container(
+                    width: 95,
+                    height: 115,
+                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                    decoration: BoxDecoration(
+                      color: selected ? color.withValues(alpha: 0.2) : AppColors.surfaceContainerLowest,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: selected ? color : Colors.transparent,
+                        width: 2,
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: selected ? color : color.withValues(alpha: 0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(cat['icon'] as IconData, size: 24, color: selected ? Colors.white : color),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          cat['label'] as String,
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: selected ? color : AppColors.onSurface,
+                            height: 1.1,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: selected ? color : color.withValues(alpha: 0.15),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(cat['icon'] as IconData, size: 24, color: selected ? Colors.white : color),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        cat['label'] as String,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: selected ? color : AppColors.onSurface),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }).toList(),
+                );
+              }).toList(),
+            ),
           ),
         ],
       ),
@@ -523,32 +534,32 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
                     },
                     icon: const Icon(Icons.arrow_back, color: AppColors.primary),
                   ),
-                  const SizedBox(width: 8),
-                  const Text('Lembrete Amigo', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.primary)),
-                  const Spacer(),
-                  GestureDetector(
-                    onTap: () {
-                      TTSService.instance.falar(
-                        'Aperte no meu rosto e fale o lembrete e a hora.',
-                        caller: this,
-                      );
-                    },
-                    child: const AlexAvatar(size: 40),
+                  const Expanded(
+                    child: Text(
+                      'Lembrete Amigo',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.primary),
+                    ),
                   ),
+                  const SizedBox(width: 48),
                 ],
+              ),
+              const SizedBox(height: 12),
+              const MeExplicaButton(
+                textoExplicacao: 'Olá! Esta é a tela para criar tarefas com a voz. Aperte no rosto do Alex no meio e fale a sua tarefa e o horário. Depois, confirme se a gravação ficou certa.',
               ),
               const SizedBox(height: 12),
               Expanded(
                 child: SingleChildScrollView(
                   child: Column(
                     children: [
-                      const Text(
-                        'Fale seu lembrete',
+                       const Text(
+                        'Fale a sua tarefa',
                         style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.onSurface),
                       ),
                       const SizedBox(height: 8),
                       const Text(
-                        'Diga o lembrete e o horário.\nEx: "15:30 tomar dipirona"',
+                        'Fale a tarefa e a hora dela.\nExemplo: "Tomar remédio às duas da tarde"',
                         textAlign: TextAlign.center,
                         style: TextStyle(fontSize: 18, color: AppColors.onSurfaceVariant),
                       ),
@@ -562,6 +573,7 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Stack(
+                              alignment: Alignment.center,
                               clipBehavior: Clip.none,
                               children: [
                                 AlexAvatar(
@@ -588,7 +600,7 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
                                       ],
                                     ),
                                     child: Icon(
-                                      _isListening ? Icons.mic : Icons.touch_app,
+                                      _isListening ? Icons.stop : Icons.mic,
                                       color: _isListening
                                           ? Colors.white
                                           : AppColors.onSecondaryContainer,
@@ -647,11 +659,15 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
                               ),
                               const SizedBox(height: 12),
                               ElevatedButton.icon(
-                                onPressed: () {
-                                  TTSService.instance.falar(
-                                    _transcricao,
-                                    caller: this,
-                                  );
+                                onPressed: () async {
+                                  if (_isListening) {
+                                    await _speech.stop();
+                                    setState(() {
+                                      _isListening = false;
+                                      _hasRecorded = true;
+                                    });
+                                  }
+                                  _falarConfirmacao();
                                 },
                                 icon: const Icon(Icons.volume_up, size: 28),
                                 label: const Text(
@@ -693,5 +709,76 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
   ),
 ),
 );
+  }
+}
+
+class _PulsingWaves extends StatefulWidget {
+  final double size;
+  const _PulsingWaves({required this.size});
+
+  @override
+  State<_PulsingWaves> createState() => _PulsingWavesState();
+}
+
+class _PulsingWavesState extends State<_PulsingWaves> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return Stack(
+          alignment: Alignment.center,
+          children: [
+            // Wave 1
+            Transform.scale(
+              scale: 1.0 + (_controller.value * 0.3),
+              child: Opacity(
+                opacity: (1.0 - _controller.value).clamp(0.0, 1.0),
+                child: Container(
+                  width: widget.size,
+                  height: widget.size,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.voiceFeedbackBlue.withValues(alpha: 0.12),
+                  ),
+                ),
+              ),
+            ),
+            // Wave 2
+            Transform.scale(
+              scale: 1.0 + (((_controller.value + 0.5) % 1.0) * 0.3),
+              child: Opacity(
+                opacity: (1.0 - ((_controller.value + 0.5) % 1.0)).clamp(0.0, 1.0),
+                child: Container(
+                  width: widget.size,
+                  height: widget.size,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.voiceFeedbackBlue.withValues(alpha: 0.08),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 }

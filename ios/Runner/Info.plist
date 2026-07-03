@@ -49,5 +49,7 @@
 	<string>Este aplicativo precisa da câmera para medir seus batimentos cardíacos através da ponta do seu dedo.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Este aplicativo precisa do microfone para inicializar a câmera do aparelho.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Este aplicativo usa sua localizacao apenas quando voce envia um pedido de SOS para ajudar seu cuidador a encontrar voce.</string>
 </dict>
 </plist>

@@ -32,24 +32,6 @@ class _MealsScreenState extends State<MealsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          TTSService.instance.parar(caller: this);
-          showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            backgroundColor: Colors.transparent,
-            builder: (context) => const AlexAssistantSheet(),
-          );
-        },
-        backgroundColor: Colors.white,
-        shape: const CircleBorder(),
-        elevation: 6,
-        child: const Padding(
-          padding: EdgeInsets.all(4.0),
-          child: AlexAvatar(size: 48),
-        ),
-      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -82,6 +64,10 @@ class _MealsScreenState extends State<MealsScreen> {
                             height: 1.5,
                             color: AppColors.onSurfaceVariant,
                           ),
+                        ),
+                        const SizedBox(height: 12),
+                        const MeExplicaButton(
+                          textoExplicacao: 'Olá! Esta é a tela de comidas. Aqui você vê as tarefas de tomar café da manhã, almoço, lanche ou jantar. Quando terminar de comer, aperte em cima do retângulo da refeição para avisar.',
                         ),
                         const SizedBox(height: 24),
                         AudioPlayerCard(
@@ -173,27 +159,17 @@ class _MealsScreenState extends State<MealsScreen> {
               Navigator.pop(context);
             },
           ),
-          const Spacer(),
-          const Text(
-            'Refeições',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w700,
-              color: AppColors.mealsColor,
+          Expanded(
+            child: Text(
+              'Refeições',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w700,
+                color: AppColors.mealsColor,
+              ),
             ),
           ),
-          const SizedBox(width: 12),
-          IconButton(
-            icon: const Icon(Icons.volume_up, color: AppColors.mealsColor, size: 32),
-            onPressed: () {
-              TTSService.instance.parar(caller: this);
-              TTSService.instance.falar(
-                'Aqui está a lista de refeições para hoje.',
-                caller: this,
-              );
-            },
-          ),
-          const Spacer(),
           Container(
             width: 48,
             height: 48,

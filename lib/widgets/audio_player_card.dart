@@ -215,7 +215,7 @@ class _AudioPlayerCardState extends State<AudioPlayerCard>
                         widget.subtitle,
                         style: const TextStyle(
                           fontSize: 16,
-                          fontWeight: FontWeight.w400,
+                          fontWeight: FontWeight.bold,
                           color: AppColors.onSurfaceVariant,
                         ),
                       ),

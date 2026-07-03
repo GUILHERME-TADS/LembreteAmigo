@@ -25,4 +25,8 @@ class AudioManager {
       _activeIdNotifier.value = null;
     }
   }
+
+  static void stopAll() {
+    _activeIdNotifier.value = null;
+  }
 }

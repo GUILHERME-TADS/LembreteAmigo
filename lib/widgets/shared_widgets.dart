@@ -213,17 +213,18 @@ class TopAppBar extends StatelessWidget implements PreferredSizeWidget {
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.marginMobile),
           child: Row(
             children: [
-              ?leading,
-              if (leading != null) const SizedBox(width: 12),
-              Text(
-                title,
-                style: AppTypography.headlineMd.copyWith(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.bold,
+              if (leading != null) leading! else const SizedBox(width: 48),
+              Expanded(
+                child: Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: AppTypography.headlineMd.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
-              const Spacer(),
-              ?trailing,
+              if (trailing != null) trailing! else const SizedBox(width: 48),
             ],
           ),
         ),

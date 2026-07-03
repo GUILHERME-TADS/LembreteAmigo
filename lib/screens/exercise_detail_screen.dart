@@ -4,6 +4,8 @@ import '../models/lembrete.dart';
 import '../services/lembrete_service.dart';
 import '../services/tts_service.dart';
 import '../utils/period_helper.dart';
+import '../widgets/volume_warning_banner.dart';
+import '../widgets/me_explica_button.dart';
 
 class ExerciseDetailScreen extends StatefulWidget {
   const ExerciseDetailScreen({super.key});
@@ -62,6 +64,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
       body: SafeArea(
         child: Column(
           children: [
+            const VolumeWarningBanner(),
             _buildTopBar(context),
             Expanded(
               child: SingleChildScrollView(
@@ -91,6 +94,10 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                         height: 1.5,
                         color: AppColors.onSurfaceVariant,
                       ),
+                    ),
+                    const SizedBox(height: 12),
+                    const MeExplicaButton(
+                      textoExplicacao: 'Olá, esta é a tela de detalhes do seu exercício. Aqui você pode ver o nome do exercício e o horário programado. Se for realizar a atividade agora, aperte o botão verde escrito ENTENDI. Se quiser fazer mais tarde, aperte o botão amarelo escrito ADIAR.',
                     ),
                     const SizedBox(height: 48),
                     SizedBox(
@@ -166,12 +173,13 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
             icon: const Icon(Icons.arrow_back, color: AppColors.tertiaryContainer, size: 32),
             onPressed: () => Navigator.pop(context),
           ),
-          const Spacer(),
-          const Text(
-            'Vamos nos Mexer',
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.tertiaryContainer),
+          const Expanded(
+            child: Text(
+              'Vamos nos Mexer',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.tertiaryContainer),
+            ),
           ),
-          const Spacer(),
           const Icon(Icons.volume_up, color: AppColors.tertiaryContainer, size: 28),
           const SizedBox(width: 8),
           SizedBox(

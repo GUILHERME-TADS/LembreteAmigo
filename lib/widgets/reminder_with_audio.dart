@@ -3,12 +3,43 @@ import 'dart:io';
 import 'dart:math';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import '../models/lembrete.dart';
 import '../services/tts_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/period_helper.dart';
 import 'audio_manager.dart';
+import 'reminder_status_badge.dart';
 
-enum ReminderStatus { done, late, scheduled }
+enum ReminderStatus { done, late, scheduled, postponed, missed }
+
+ReminderStatus reminderStatusFromLembrete(Lembrete lembrete) {
+  switch (lembrete.status) {
+    case LembreteStatus.adiado:
+      return ReminderStatus.postponed;
+    case LembreteStatus.perdido:
+      return ReminderStatus.missed;
+    case LembreteStatus.concluido:
+    case LembreteStatus.concluidoComFoto:
+    case LembreteStatus.confirmadoPeloCuidador:
+      return ReminderStatus.done;
+    case LembreteStatus.pendente:
+      return ReminderStatus.scheduled;
+  }
+}
+
+LembreteStatus _getLembreteStatus(ReminderStatus status) {
+  switch (status) {
+    case ReminderStatus.done:
+      return LembreteStatus.concluido;
+    case ReminderStatus.late:
+    case ReminderStatus.missed:
+      return LembreteStatus.perdido;
+    case ReminderStatus.postponed:
+      return LembreteStatus.adiado;
+    case ReminderStatus.scheduled:
+      return LembreteStatus.pendente;
+  }
+}
 
 class ReminderWithAudio extends StatefulWidget {
   final IconData icon;
@@ -155,7 +186,9 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Áudio não encontrado. Grave o lembrete novamente.'),
+            content: const Text(
+              'Áudio não encontrado. Grave o lembrete novamente.',
+            ),
             backgroundColor: AppColors.error,
           ),
         );
@@ -163,10 +196,7 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
       return;
     }
     try {
-      await _audioPlayer.play(
-        DeviceFileSource(widget.audioPath!),
-        volume: 1.0,
-      );
+      await _audioPlayer.play(DeviceFileSource(widget.audioPath!), volume: 1.0);
     } catch (e) {
       AudioManager.stopPlay(audioId);
       debugPrint('Erro ao reproduzir áudio: $e');
@@ -190,13 +220,19 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
+        color: widget.status == ReminderStatus.done
+            ? const Color(0xFFE8F5E9)
+            : widget.status == ReminderStatus.postponed
+            ? const Color(0xFFFFFDE7)
+            : AppColors.surfaceContainerLowest,
         border: Border.all(
           color: widget.status == ReminderStatus.done
               ? AppColors.tertiaryFixedDim
               : widget.status == ReminderStatus.late
-                  ? AppColors.error
-                  : widget.accentColor,
+              ? AppColors.error
+              : widget.status == ReminderStatus.postponed
+              ? AppColors.secondaryFixedDim
+              : widget.accentColor,
           width: 2,
         ),
         borderRadius: BorderRadius.circular(12),
@@ -213,8 +249,10 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
                     color: widget.status == ReminderStatus.done
                         ? AppColors.tertiaryFixedDim.withValues(alpha: 0.3)
                         : widget.status == ReminderStatus.late
-                            ? AppColors.error.withValues(alpha: 0.15)
-                            : widget.iconBg,
+                        ? AppColors.error.withValues(alpha: 0.15)
+                        : widget.status == ReminderStatus.postponed
+                        ? AppColors.secondaryFixed.withValues(alpha: 0.3)
+                        : widget.iconBg,
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
@@ -222,8 +260,10 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
                     color: widget.status == ReminderStatus.done
                         ? AppColors.onTertiaryFixedVariant
                         : widget.status == ReminderStatus.late
-                            ? AppColors.error
-                            : widget.iconColor,
+                        ? AppColors.error
+                        : widget.status == ReminderStatus.postponed
+                        ? AppColors.onSecondaryFixedVariant
+                        : widget.iconColor,
                     size: 32,
                   ),
                 ),
@@ -240,14 +280,14 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
                           height: 1.3,
                           color: widget.status == ReminderStatus.done
                               ? AppColors.onSurfaceVariant
+                              : widget.status == ReminderStatus.postponed
+                              ? AppColors.onSecondaryFixedVariant
                               : widget.accentColor,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 6,
-                        crossAxisAlignment: WrapCrossAlignment.center,
+                      const SizedBox(height: 8),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
                             mainAxisSize: MainAxisSize.min,
@@ -255,11 +295,10 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
                               Icon(
                                 PeriodHelper.getPeriodIconFromStr(widget.time),
                                 size: 24,
-                                color: widget.status == ReminderStatus.late
-                                    ? AppColors.error
-                                    : widget.status == ReminderStatus.done
-                                        ? AppColors.onSurfaceVariant
-                                        : PeriodHelper.getPeriodColorFromStr(widget.time, widget.accentColor),
+                                color: PeriodHelper.getPeriodColorFromStr(
+                                  widget.time,
+                                  widget.accentColor,
+                                ),
                               ),
                               const SizedBox(width: 6),
                               Text(
@@ -268,64 +307,44 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
                                   fontSize: 20,
                                   fontWeight: FontWeight.w800,
                                   height: 1.3,
-                                  color: widget.status == ReminderStatus.late
-                                      ? AppColors.error
-                                      : widget.status == ReminderStatus.done
-                                          ? AppColors.onSurfaceVariant
-                                          : PeriodHelper.getPeriodColorFromStr(widget.time, widget.accentColor),
+                                  color: PeriodHelper.getPeriodColorFromStr(
+                                    widget.time,
+                                    widget.accentColor,
+                                  ),
                                 ),
                               ),
                             ],
                           ),
+                          const SizedBox(height: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
-                              color: AppColors.surfaceContainerHigh,
+                              color: PeriodHelper.getPeriodColorFromStr(
+                                widget.time,
+                                widget.accentColor,
+                              ).withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
                               widget.time,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
-                                color: AppColors.onSurfaceVariant,
+                                color: PeriodHelper.getPeriodColorFromStr(
+                                  widget.time,
+                                  widget.accentColor,
+                                ),
                               ),
                             ),
                           ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: widget.status == ReminderStatus.done
-                                  ? AppColors.tertiaryFixedDim.withValues(alpha: 0.2)
-                                  : widget.status == ReminderStatus.late
-                                      ? AppColors.error.withValues(alpha: 0.15)
-                                      : AppColors.surfaceContainerHigh,
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(
-                                color: widget.status == ReminderStatus.done
-                                    ? AppColors.tertiaryFixedDim
-                                    : widget.status == ReminderStatus.late
-                                        ? AppColors.error
-                                        : Colors.transparent,
-                                width: 1,
-                              ),
-                            ),
-                            child: Text(
-                              widget.status == ReminderStatus.done
-                                  ? 'Tudo certo!'
-                                  : widget.status == ReminderStatus.late
-                                      ? 'Atrasado'
-                                      : 'Falta fazer',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: widget.status == ReminderStatus.done
-                                    ? AppColors.onTertiaryFixedVariant
-                                    : widget.status == ReminderStatus.late
-                                        ? AppColors.error
-                                        : AppColors.onSurfaceVariant,
-                              ),
-                            ),
+                          const SizedBox(height: 8),
+                          ReminderStatusBadge(
+                            status: _getLembreteStatus(widget.status),
+                            compact: true,
+                            accentColor: widget.accentColor,
                           ),
                         ],
                       ),
@@ -339,15 +358,17 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
                     decoration: BoxDecoration(
                       color: widget.status == ReminderStatus.done
                           ? AppColors.tertiaryFixedDim.withValues(alpha: 0.2)
+                          : widget.status == ReminderStatus.postponed
+                          ? AppColors.secondaryFixed.withValues(alpha: 0.2)
                           : widget.accentColor.withValues(alpha: 0.2),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      _isPlaying || _isSpeaking
-                          ? Icons.stop
-                          : Icons.play_arrow,
+                      _isPlaying || _isSpeaking ? Icons.stop : Icons.play_arrow,
                       color: widget.status == ReminderStatus.done
                           ? AppColors.onTertiaryFixedVariant
+                          : widget.status == ReminderStatus.postponed
+                          ? AppColors.onSecondaryFixedVariant
                           : widget.accentColor,
                       size: 24,
                     ),
@@ -365,13 +386,17 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
                       widget.status == ReminderStatus.done
                           ? Icons.check_circle
                           : widget.status == ReminderStatus.late
-                              ? Icons.error_outline
-                              : Icons.circle_outlined,
+                          ? Icons.error_outline
+                          : widget.status == ReminderStatus.postponed
+                          ? Icons.schedule
+                          : Icons.circle_outlined,
                       color: widget.status == ReminderStatus.done
                           ? AppColors.onTertiaryFixedVariant
                           : widget.status == ReminderStatus.late
-                              ? AppColors.error
-                              : AppColors.outline,
+                          ? AppColors.error
+                          : widget.status == ReminderStatus.postponed
+                          ? AppColors.onSecondaryFixedVariant
+                          : AppColors.outline,
                       size: 36,
                     ),
                   ),
@@ -393,15 +418,21 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
                       children: List.generate(24, (i) {
                         final seed = (i * 0.7 + i % 3 * 1.3);
                         final baseHeight = 0.15 + (sin(seed) * 0.5 + 0.5) * 0.7;
-                        final animOffset = sin(_waveController.value * pi * 2 + seed) * 0.3;
-                        final heightFactor = (baseHeight + animOffset).clamp(0.1, 1.0);
+                        final animOffset =
+                            sin(_waveController.value * pi * 2 + seed) * 0.3;
+                        final heightFactor = (baseHeight + animOffset).clamp(
+                          0.1,
+                          1.0,
+                        );
                         return Expanded(
                           child: Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 1),
                             child: Container(
                               height: 32 * heightFactor,
                               decoration: BoxDecoration(
-                                color: widget.accentColor.withValues(alpha: 0.4 + heightFactor * 0.6),
+                                color: widget.accentColor.withValues(
+                                  alpha: 0.4 + heightFactor * 0.6,
+                                ),
                                 borderRadius: BorderRadius.circular(2),
                               ),
                             ),

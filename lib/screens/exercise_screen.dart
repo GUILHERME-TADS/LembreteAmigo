@@ -32,24 +32,6 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          TTSService.instance.parar(caller: this);
-          showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            backgroundColor: Colors.transparent,
-            builder: (context) => const AlexAssistantSheet(),
-          );
-        },
-        backgroundColor: Colors.white,
-        shape: const CircleBorder(),
-        elevation: 6,
-        child: const Padding(
-          padding: EdgeInsets.all(4.0),
-          child: AlexAvatar(size: 48),
-        ),
-      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -82,6 +64,10 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
                             height: 1.5,
                             color: AppColors.onSurfaceVariant,
                           ),
+                        ),
+                        const SizedBox(height: 12),
+                        const MeExplicaButton(
+                          textoExplicacao: 'Olá! Esta é a tela de exercícios. Aqui você vê o que está marcado para se movimentar hoje. Quando terminar de fazer o exercício, aperte em cima do retângulo da tarefa para avisar.',
                         ),
                         const SizedBox(height: 24),
                         AudioPlayerCard(
@@ -176,27 +162,17 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
               Navigator.pop(context);
             },
           ),
-          const Spacer(),
-          const Text(
-            'Exercícios',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w700,
-              color: AppColors.tertiaryContainer,
+          Expanded(
+            child: Text(
+              'Exercícios',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w700,
+                color: AppColors.tertiaryContainer,
+              ),
             ),
           ),
-          const SizedBox(width: 12),
-          IconButton(
-            icon: const Icon(Icons.volume_up, color: AppColors.tertiaryContainer, size: 32),
-            onPressed: () {
-              TTSService.instance.parar(caller: this);
-              TTSService.instance.falar(
-                'Aqui estão os seus exercícios físicos de hoje.',
-                caller: this,
-              );
-            },
-          ),
-          const Spacer(),
           Container(
             width: 48,
             height: 48,

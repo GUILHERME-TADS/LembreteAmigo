@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../models/lembrete.dart';
 import '../services/lembrete_service.dart';
+import '../widgets/volume_warning_banner.dart';
 
 class ActivityHistoryScreen extends StatefulWidget {
   const ActivityHistoryScreen({super.key});
@@ -101,6 +102,7 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
       body: SafeArea(
         child: Column(
           children: [
+            const VolumeWarningBanner(),
             _buildTopBar(context),
             Expanded(
               child: ValueListenableBuilder<List<Lembrete>>(
@@ -220,8 +222,13 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
             onPressed: () => Navigator.pop(context),
             icon: const Icon(Icons.arrow_back, color: AppColors.primary),
           ),
-          const Text('Lembrete Amigo', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.primary)),
-          const Spacer(),
+          const Expanded(
+            child: Text(
+              'Lembrete Amigo',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.primary),
+            ),
+          ),
           Container(
             width: 40, height: 40,
             decoration: const BoxDecoration(

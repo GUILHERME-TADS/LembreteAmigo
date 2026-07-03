@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
+import '../services/session_role_service.dart';
 import '../widgets/senior_button.dart';
 
 class SupervisorLoginScreen extends StatefulWidget {
@@ -14,8 +16,41 @@ class SupervisorLoginScreen extends StatefulWidget {
 class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
   bool _obscurePassword = true;
   bool _isLoading = false;
+  bool _rememberMe = false;
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRemembered();
+  }
+
+  Future<void> _loadRemembered() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final remember = prefs.getBool('remember_supervisor') ?? false;
+      if (remember) {
+        final email = prefs.getString('remembered_email') ?? '';
+        setState(() {
+          _rememberMe = true;
+          _emailController.text = email;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _saveRemembered() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('remember_supervisor', _rememberMe);
+      if (_rememberMe) {
+        await prefs.setString('remembered_email', _emailController.text.trim());
+      } else {
+        await prefs.remove('remembered_email');
+      }
+    } catch (_) {}
+  }
 
   bool get _useFirebase {
     try {
@@ -36,6 +71,8 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
+    await _saveRemembered();
+
     if (_useFirebase) {
       if (email.isEmpty || password.isEmpty) {
         _showError('Por favor, preencha todos os campos.');
@@ -49,6 +86,7 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
           email: email,
           password: password,
         );
+        await SessionRoleService.setSupervisor();
         if (!mounted) return;
         Navigator.pushReplacementNamed(context, '/supervisor-dashboard');
       } on FirebaseAuthException catch (e) {
@@ -70,6 +108,8 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
       }
     } else {
       // Bypass local
+      await SessionRoleService.setSupervisor();
+      if (!mounted) return;
       Navigator.pushReplacementNamed(context, '/supervisor-dashboard');
     }
   }
@@ -79,7 +119,10 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Erro de Acesso', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Erro de Acesso',
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
         content: Text(message, style: const TextStyle(fontSize: 18)),
         actions: [
           TextButton(
@@ -108,14 +151,22 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
                       Row(
                         children: [
                           IconButton(
-                            icon: const Icon(Icons.arrow_back, color: AppColors.primary, size: 32),
+                            icon: const Icon(
+                              Icons.arrow_back,
+                              color: AppColors.primary,
+                              size: 32,
+                            ),
                             onPressed: () => Navigator.pop(context),
                           ),
                           const Spacer(),
                           const Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.health_and_safety, size: 40, color: AppColors.primary),
+                              Icon(
+                                Icons.health_and_safety,
+                                size: 40,
+                                color: AppColors.primary,
+                              ),
                               SizedBox(width: 8),
                               Text(
                                 'Cuidador',
@@ -141,10 +192,11 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
                             Text(
                               'Bem-vindo, Supervisor',
                               style: TextStyle(
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.w700,
-                                  height: 1.3,
-                                  color: AppColors.onSurface),
+                                fontSize: 28,
+                                fontWeight: FontWeight.w700,
+                                height: 1.3,
+                                color: AppColors.onSurface,
+                              ),
                             ),
                             SizedBox(height: 8),
                             Text(
@@ -183,7 +235,10 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
                                 ),
                               ),
                               TextButton(
-                                onPressed: () => Navigator.pushNamed(context, '/forgot-password'),
+                                onPressed: () => Navigator.pushNamed(
+                                  context,
+                                  '/forgot-password',
+                                ),
                                 child: const Text(
                                   'Esqueci minha senha',
                                   style: TextStyle(
@@ -201,14 +256,19 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
                             height: 64,
                             decoration: BoxDecoration(
                               color: AppColors.surfaceContainerLow,
-                              border: Border.all(color: AppColors.outlineVariant),
+                              border: Border.all(
+                                color: AppColors.outlineVariant,
+                              ),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Row(
                               children: [
                                 const Padding(
                                   padding: EdgeInsets.only(left: 16),
-                                  child: Icon(Icons.lock, color: AppColors.outline),
+                                  child: Icon(
+                                    Icons.lock,
+                                    color: AppColors.outline,
+                                  ),
                                 ),
                                 Expanded(
                                   child: TextField(
@@ -218,14 +278,20 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
                                     decoration: const InputDecoration(
                                       hintText: '••••••••',
                                       border: InputBorder.none,
-                                      contentPadding: EdgeInsets.symmetric(horizontal: 16),
+                                      contentPadding: EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                      ),
                                     ),
                                   ),
                                 ),
                                 IconButton(
-                                  onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                                  onPressed: () => setState(
+                                    () => _obscurePassword = !_obscurePassword,
+                                  ),
                                   icon: Icon(
-                                    _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                                    _obscurePassword
+                                        ? Icons.visibility
+                                        : Icons.visibility_off,
                                     color: AppColors.outline,
                                   ),
                                 ),
@@ -235,28 +301,35 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: Checkbox(
-                              value: false,
-                              onChanged: (_) {},
-                              fillColor: WidgetStateProperty.all(AppColors.primary),
+                      GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _rememberMe = !_rememberMe;
+                          });
+                        },
+                        child: Row(
+                          children: [
+                            Checkbox(
+                              value: _rememberMe,
+                              onChanged: (val) {
+                                setState(() {
+                                  _rememberMe = val ?? false;
+                                });
+                              },
+                              activeColor: AppColors.primary,
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          const Text(
-                            'Lembrar neste dispositivo',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w400,
-                              height: 1.6,
-                              color: AppColors.onSurfaceVariant,
+                            const SizedBox(width: 8),
+                            const Text(
+                              'Lembrar neste dispositivo',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w400,
+                                height: 1.6,
+                                color: AppColors.onSurfaceVariant,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 32),
                       SizedBox(
@@ -268,17 +341,25 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
                               ? const SizedBox(
                                   width: 24,
                                   height: 24,
-                                  child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2),
+                                  child: CircularProgressIndicator(
+                                    color: AppColors.primary,
+                                    strokeWidth: 2,
+                                  ),
                                 )
                               : const Icon(Icons.login),
                           label: Text(
                             _isLoading ? 'Carregando...' : 'Entrar',
-                            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.secondaryContainer,
                             foregroundColor: AppColors.onSecondaryFixed,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                         ),
                       ),
@@ -296,7 +377,10 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
                             ),
                           ),
                           TextButton(
-                            onPressed: () => Navigator.pushNamed(context, '/supervisor-register'),
+                            onPressed: () => Navigator.pushNamed(
+                              context,
+                              '/supervisor-register',
+                            ),
                             child: const Text(
                               'Criar conta',
                               style: TextStyle(
@@ -317,16 +401,58 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
                         alignment: WrapAlignment.center,
                         children: [
                           TextButton(
-                            onPressed: () {},
-                            child: const Text('Termos de Uso', style: TextStyle(fontSize: 14, color: AppColors.onSurfaceVariant)),
+                            onPressed: () {
+                              _showInfoBottomSheet(
+                                context: context,
+                                title: 'Termos de Uso',
+                                content:
+                                    'Ao utilizar o Lembrete Amigo, você concorda com nossos termos de uso. O aplicativo foi feito para auxiliar a lembrança de rotinas, mas não substitui recomendações médicas ou supervisão profissional direta. Use de forma responsável e mantenha os dados atualizados.',
+                                icon: Icons.description_outlined,
+                              );
+                            },
+                            child: const Text(
+                              'Termos de Uso',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: AppColors.onSurfaceVariant,
+                              ),
+                            ),
                           ),
                           TextButton(
-                            onPressed: () {},
-                            child: const Text('Privacidade', style: TextStyle(fontSize: 14, color: AppColors.onSurfaceVariant)),
+                            onPressed: () {
+                              _showInfoBottomSheet(
+                                context: context,
+                                title: 'Política de Privacidade',
+                                content:
+                                    'Sua privacidade é nossa prioridade. Todos os dados cadastrados, incluindo histórico de medicamentos e check-ins de saúde, são criptografados e armazenados com segurança. Não compartilhamos informações pessoais com terceiros.',
+                                icon: Icons.security_outlined,
+                              );
+                            },
+                            child: const Text(
+                              'Privacidade',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: AppColors.onSurfaceVariant,
+                              ),
+                            ),
                           ),
                           TextButton(
-                            onPressed: () {},
-                            child: const Text('Suporte Técnico', style: TextStyle(fontSize: 14, color: AppColors.onSurfaceVariant)),
+                            onPressed: () {
+                              _showInfoBottomSheet(
+                                context: context,
+                                title: 'Suporte Técnico',
+                                content:
+                                    'Para problemas técnicos, falhas no carregamento de áudio ou sincronização de dados:\n\nEntre em contato via suporte@lembreteamigo.com informando o modelo do dispositivo e a descrição do erro.',
+                                icon: Icons.build_outlined,
+                              );
+                            },
+                            child: const Text(
+                              'Suporte Técnico',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: AppColors.onSurfaceVariant,
+                              ),
+                            ),
                           ),
                         ],
                       ),
@@ -339,6 +465,93 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  void _showInfoBottomSheet({
+    required BuildContext context,
+    required String title,
+    required String content,
+    required IconData icon,
+  }) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          decoration: const BoxDecoration(
+            color: AppColors.background,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 48,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.outlineVariant,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Icon(icon, color: AppColors.primary, size: 32),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  content,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    height: 1.5,
+                    color: AppColors.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      'FECHAR',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

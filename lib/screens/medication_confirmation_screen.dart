@@ -13,64 +13,75 @@ class MedicationConfirmationScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            children: [
-              _buildTopBar(context),
-              const Spacer(),
-              Container(
-                width: 120, height: 120,
-                decoration: BoxDecoration(
-                  color: AppColors.tertiaryFixedDim,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 4),
-                  boxShadow: const [
-                    BoxShadow(color: Colors.black12, blurRadius: 16, offset: Offset(0, 8)),
+        child: Column(
+          children: [
+            const VolumeWarningBanner(),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    _buildTopBar(context),
+                    const Spacer(),
+                    Container(
+                      width: 120, height: 120,
+                      decoration: BoxDecoration(
+                        color: AppColors.tertiaryFixedDim,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 4),
+                        boxShadow: const [
+                          BoxShadow(color: Colors.black12, blurRadius: 16, offset: Offset(0, 8)),
+                        ],
+                      ),
+                      child: const Icon(Icons.check_circle, size: 64, color: AppColors.onTertiaryFixedVariant),
+                    ),
+                    const SizedBox(height: 24),
+                    const Text(
+                      'MUITO BEM!',
+                      style: TextStyle(fontSize: 40, fontWeight: FontWeight.w800, height: 1.2, color: AppColors.primary),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      message ?? 'Você tomou seu remédio.',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w500, height: 1.5, color: AppColors.onSurfaceVariant),
+                    ),
+                    const SizedBox(height: 12),
+                    const MeExplicaButton(
+                      textoExplicacao: 'Parabéns! Você concluiu a sua tarefa com sucesso. Para voltar para a tela de início, aperte no botão amarelo de VOLTAR PARA O INÍCIO.',
+                    ),
+                    const SizedBox(height: 32),
+                    Container(
+                      width: 160, height: 160,
+                      decoration: BoxDecoration(
+                        color: AppColors.tertiaryFixedDim.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      child: const Icon(Icons.eco, size: 80, color: AppColors.onTertiaryFixedVariant),
+                    ),
+                    const Spacer(),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 80,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          TTSService.instance.parar();
+                          Navigator.pushNamedAndRemoveUntil(context, '/elderly-home', (route) => false);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.secondaryContainer,
+                          foregroundColor: AppColors.onSecondaryContainer,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: const Text('VOLTAR PARA O INÍCIO', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
                   ],
                 ),
-                child: const Icon(Icons.check_circle, size: 64, color: AppColors.onTertiaryFixedVariant),
               ),
-              const SizedBox(height: 24),
-              const Text(
-                'MUITO BEM!',
-                style: TextStyle(fontSize: 40, fontWeight: FontWeight.w800, height: 1.2, color: AppColors.primary),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                message ?? 'Você tomou seu remédio.',
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w500, height: 1.5, color: AppColors.onSurfaceVariant),
-              ),
-              const SizedBox(height: 32),
-              Container(
-                width: 160, height: 160,
-                decoration: BoxDecoration(
-                  color: AppColors.tertiaryFixedDim.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: const Icon(Icons.eco, size: 80, color: AppColors.onTertiaryFixedVariant),
-              ),
-              const Spacer(),
-              SizedBox(
-                width: double.infinity,
-                height: 80,
-                child: ElevatedButton(
-                  onPressed: () {
-                    TTSService.instance.parar();
-                    Navigator.pushNamedAndRemoveUntil(context, '/elderly-home', (route) => false);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.secondaryContainer,
-                    foregroundColor: AppColors.onSecondaryContainer,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: const Text('VOLTAR PARA O INÍCIO', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
-                ),
-              ),
-              const SizedBox(height: 24),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

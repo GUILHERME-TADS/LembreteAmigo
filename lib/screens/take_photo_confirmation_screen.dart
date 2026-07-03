@@ -26,6 +26,10 @@ class _TakePhotoConfirmationScreenState extends State<TakePhotoConfirmationScree
   bool _isFlashActive = false;
   XFile? _capturedFile;
   final FocusNode _focusNode = FocusNode();
+  bool _isProfilePhoto = false;
+  String? _lembreteId;
+  bool _hasSpokenExplanation = false;
+  CameraLensDirection _lensDirection = CameraLensDirection.back;
 
   @override
   void initState() {
@@ -33,28 +37,58 @@ class _TakePhotoConfirmationScreenState extends State<TakePhotoConfirmationScree
     _initCamera();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusNode.requestFocus();
-      TTSService.instance.falar(
-        'Coloque o remédio na frente do celular e aperte na tela para tirar a foto.',
-        caller: this,
-      );
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_hasSpokenExplanation) {
+      final args = ModalRoute.of(context)?.settings.arguments;
+      _isProfilePhoto = args == 'profile_photo';
+      _lembreteId = args is String ? args : null;
+      if (_isProfilePhoto) {
+        TTSService.instance.falar(
+          'Olhe para a câmera e aperte na tela para tirar a foto de perfil.',
+          caller: this,
+        );
+      } else {
+        TTSService.instance.falar(
+          'Coloque o remédio na frente do celular e aperte na tela para tirar a foto.',
+          caller: this,
+        );
+      }
+      _hasSpokenExplanation = true;
+    }
   }
 
   Future<void> _initCamera() async {
     try {
+      if (_cameraController != null) {
+        await _cameraController!.dispose();
+        _cameraController = null;
+        if (mounted) {
+          setState(() {
+            _isCameraInitialized = false;
+          });
+        }
+      }
+
       final cameras = await availableCameras();
       if (cameras.isEmpty) {
         debugPrint('Nenhuma câmera encontrada.');
         return;
       }
 
-      final backCamera = cameras.firstWhere(
-        (c) => c.lensDirection == CameraLensDirection.back,
+      final selectedCamera = cameras.firstWhere(
+        (c) => c.lensDirection == _lensDirection,
         orElse: () => cameras.first,
       );
 
+      _lensDirection = selectedCamera.lensDirection;
+
       _cameraController = CameraController(
-        backCamera,
+        selectedCamera,
         ResolutionPreset.medium,
         enableAudio: false,
       );
@@ -68,6 +102,15 @@ class _TakePhotoConfirmationScreenState extends State<TakePhotoConfirmationScree
     } catch (e) {
       debugPrint('Erro ao inicializar câmera: $e');
     }
+  }
+
+  Future<void> _toggleCamera() async {
+    setState(() {
+      _lensDirection = _lensDirection == CameraLensDirection.back
+          ? CameraLensDirection.front
+          : CameraLensDirection.back;
+    });
+    await _initCamera();
   }
 
   Future<void> _capturePhoto(String? lembreteId) async {
@@ -102,6 +145,7 @@ class _TakePhotoConfirmationScreenState extends State<TakePhotoConfirmationScree
   }
 
   Future<void> _analyzePhotoColor(XFile file, String? lembreteId) async {
+    if (_isProfilePhoto || lembreteId == 'profile_photo') return;
     try {
       final bytes = await File(file.path).readAsBytes();
       final decoded = img.decodeImage(bytes);
@@ -193,7 +237,8 @@ class _TakePhotoConfirmationScreenState extends State<TakePhotoConfirmationScree
 
   @override
   Widget build(BuildContext context) {
-    final String? lembreteId = ModalRoute.of(context)?.settings.arguments as String?;
+    final args = ModalRoute.of(context)?.settings.arguments;
+    final String? lembreteId = args is String ? args : null;
 
     return KeyboardListener(
       focusNode: _focusNode,
@@ -215,6 +260,9 @@ class _TakePhotoConfirmationScreenState extends State<TakePhotoConfirmationScree
                 children: [
                   _buildTopBar(context),
                   const VolumeWarningBanner(),
+                  const MeExplicaButton(
+                    textoExplicacao: 'Olá! Esta é a tela para tirar foto. Mostre a tarefa que você fez para a câmera e aperte o botão redondo no meio para tirar a foto. Se a foto ficar boa, aperte o botão de Confirmar.',
+                  ),
                   Expanded(
                     child: GestureDetector(
                       onTap: !_isCaptured ? () => _capturePhoto(lembreteId) : null,
@@ -227,7 +275,7 @@ class _TakePhotoConfirmationScreenState extends State<TakePhotoConfirmationScree
                             _buildPhotoPreview(),
 
                           if (!_isCaptured)
-                            _buildSilhouetteOverlay(),
+                            _buildSilhouetteOverlay(lembreteId),
 
                           if (_isFlashActive)
                             Container(
@@ -260,25 +308,18 @@ class _TakePhotoConfirmationScreenState extends State<TakePhotoConfirmationScree
               Navigator.pop(context);
             },
           ),
-          const SizedBox(width: 8),
-          const Text(
-            'Confirmar com Foto',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
+          const Expanded(
+            child: Text(
+              'Confirmar com Foto',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
             ),
           ),
-          const Spacer(),
-          GestureDetector(
-            onTap: () {
-              TTSService.instance.falar(
-                'Coloque o remédio na frente do celular e aperte na tela para tirar a foto.',
-                caller: this,
-              );
-            },
-            child: const AlexAvatar(size: 40),
-          ),
+          const SizedBox(width: 48),
         ],
       ),
     );
@@ -304,7 +345,55 @@ class _TakePhotoConfirmationScreenState extends State<TakePhotoConfirmationScree
     );
   }
 
-  Widget _buildSilhouetteOverlay() {
+  Widget _buildSilhouetteOverlay(String? lembreteId) {
+    final isProfilePhoto = _isProfilePhoto || lembreteId == 'profile_photo';
+    
+    if (isProfilePhoto) {
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 260,
+            height: 320,
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: AppColors.secondaryContainer,
+                width: 4,
+                style: BorderStyle.solid,
+              ),
+              borderRadius: BorderRadius.circular(130),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.person_outline,
+                  color: AppColors.secondaryContainer.withValues(alpha: 0.8),
+                  size: 100,
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    'Posicione seu rosto aqui',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -371,30 +460,48 @@ class _TakePhotoConfirmationScreenState extends State<TakePhotoConfirmationScree
       return Container(
         height: 140,
         color: Colors.black,
-        alignment: Alignment.center,
-        child: InkWell(
-          onTap: () => _capturePhoto(lembreteId),
-          borderRadius: BorderRadius.circular(9999),
-          child: Container(
-            width: 88,
-            height: 88,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.transparent,
-              border: Border.all(color: Colors.white, width: 6),
-            ),
-            child: Center(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const SizedBox(width: 48),
+            InkWell(
+              onTap: () => _capturePhoto(lembreteId),
+              borderRadius: BorderRadius.circular(9999),
               child: Container(
-                width: 68,
-                height: 68,
-                decoration: const BoxDecoration(
+                width: 88,
+                height: 88,
+                decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: AppColors.secondaryContainer,
+                  color: Colors.transparent,
+                  border: Border.all(color: Colors.white, width: 6),
                 ),
-                child: const Icon(Icons.camera_alt, color: AppColors.onSecondaryContainer, size: 36),
+                child: Center(
+                  child: Container(
+                    width: 68,
+                    height: 68,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppColors.secondaryContainer,
+                    ),
+                    child: const Icon(Icons.camera_alt, color: AppColors.onSecondaryContainer, size: 36),
+                  ),
+                ),
               ),
             ),
-          ),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: IconButton(
+                icon: const Icon(Icons.sync, color: Colors.white, size: 32),
+                onPressed: _toggleCamera,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+              ),
+            ),
+          ],
         ),
       );
     } else {
@@ -438,30 +545,28 @@ class _TakePhotoConfirmationScreenState extends State<TakePhotoConfirmationScree
                   onPressed: () async {
                     final navigator = Navigator.of(context);
                     TTSService.instance.parar(caller: this);
-                    if (lembreteId != null) {
-                      if (lembreteId == 'profile_photo') {
-                        final prefs = await SharedPreferences.getInstance();
-                        await prefs.setString('idoso_foto_path', _capturedFile!.path);
-                        final idosoId = prefs.getString('paired_idoso_id') ?? 'joao';
-                        try {
-                          await FirebaseFirestore.instance
-                              .collection('idoso_perfil')
-                              .doc(idosoId)
-                              .set({'fotoPath': _capturedFile!.path}, SetOptions(merge: true));
-                          await FirebaseFirestore.instance
-                              .collection('idosos')
-                              .doc(idosoId)
-                              .set({'fotoPath': _capturedFile!.path}, SetOptions(merge: true));
-                        } catch (e) {
-                          debugPrint('Erro ao salvar foto de perfil: $e');
-                        }
-                        SystemSound.play(SystemSoundType.click);
-                        HapticFeedback.vibrate();
-                        navigator.pop(_capturedFile!.path);
-                        return;
-                      } else {
-                        await LembreteService.instance.concluirComFoto(lembreteId);
+                    if (_isProfilePhoto || lembreteId == 'profile_photo') {
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.setString('idoso_foto_path', _capturedFile!.path);
+                      final idosoId = prefs.getString('paired_idoso_id') ?? 'joao';
+                      try {
+                        await FirebaseFirestore.instance
+                            .collection('idoso_perfil')
+                            .doc(idosoId)
+                            .set({'fotoPath': _capturedFile!.path}, SetOptions(merge: true));
+                        await FirebaseFirestore.instance
+                            .collection('idosos')
+                            .doc(idosoId)
+                            .set({'fotoPath': _capturedFile!.path}, SetOptions(merge: true));
+                      } catch (e) {
+                        debugPrint('Erro ao salvar foto de perfil: $e');
                       }
+                      SystemSound.play(SystemSoundType.click);
+                      HapticFeedback.vibrate();
+                      navigator.pop(_capturedFile!.path);
+                      return;
+                    } else if (lembreteId != null) {
+                      await LembreteService.instance.concluirComFoto(lembreteId);
                     } else {
                       final medicacoes = LembreteService.instance.lembretes
                           .where((l) => l.categoria == 'medicacao' && !l.concluido)

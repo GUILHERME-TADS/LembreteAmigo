@@ -1,10 +1,15 @@
 import 'dart:convert';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../models/lembrete.dart';
+import '../models/lembrete_evento.dart';
 import 'notification_service.dart';
+import 'offline_sync_service.dart';
+import 'smart_alert_service.dart';
 
 class LembreteService {
   LembreteService._();
@@ -12,10 +17,13 @@ class LembreteService {
   static LembreteService get instance => _instance;
 
   final List<Lembrete> _lembretes = [];
+  final List<LembreteEvento> _eventos = [];
   final ValueNotifier<List<Lembrete>> notifier = ValueNotifier([]);
+  final ValueNotifier<List<LembreteEvento>> eventosNotifier = ValueNotifier([]);
   bool _loaded = false;
 
   List<Lembrete> get lembretes => List.unmodifiable(_lembretes);
+  List<LembreteEvento> get eventos => List.unmodifiable(_eventos);
 
   bool get _useFirebase {
     try {
@@ -36,235 +44,314 @@ class LembreteService {
     if (_loaded) return;
     _loaded = true;
 
-    if (_useFirebase) {
-      final idosoId = await _getActiveIdosoId();
-      FirebaseFirestore.instance
-          .collection('lembretes')
-          .where('idosoId', isEqualTo: idosoId)
-          .snapshots()
-          .listen((snapshot) {
-        _lembretes.clear();
-        for (var doc in snapshot.docs) {
-          _lembretes.add(Lembrete.fromJson(doc.data()));
-        }
-        // Sort locally by criadoEm descending to avoid firestore index creation requirement
-        _lembretes.sort((a, b) => b.criadoEm.compareTo(a.criadoEm));
-        notifier.value = List.from(_lembretes);
-        NotificationService.instance.agendarTodos(_lembretes);
-      });
-    } else {
-      final prefs = await SharedPreferences.getInstance();
-      final data = prefs.getString('lembretes');
-      if (data != null) {
-        final list = jsonDecode(data) as List;
-        _lembretes.addAll(list.map((e) => Lembrete.fromJson(e as Map<String, dynamic>)));
-      }
-      notifier.value = List.from(_lembretes);
-      NotificationService.instance.agendarTodos(_lembretes);
+    await _carregarCacheLocal();
+    await OfflineSyncService.instance.loadQueue();
+    await OfflineSyncService.instance.syncPendingWrites();
+
+    if (!_useFirebase) return;
+
+    final idosoId = await _getActiveIdosoId();
+    FirebaseFirestore.instance
+        .collection('lembretes')
+        .where('idosoId', isEqualTo: idosoId)
+        .snapshots()
+        .listen((snapshot) async {
+          _lembretes
+            ..clear()
+            ..addAll(snapshot.docs.map((doc) => Lembrete.fromJson(doc.data())))
+            ..sort((a, b) => b.criadoEm.compareTo(a.criadoEm));
+          await _salvarLembretesLocais();
+          await _publicarLembretes();
+          await OfflineSyncService.instance.syncPendingWrites();
+        });
+  }
+
+  Future<void> _carregarCacheLocal() async {
+    final prefs = await SharedPreferences.getInstance();
+    final data = prefs.getString('lembretes');
+    if (data != null) {
+      final list = jsonDecode(data) as List;
+      _lembretes
+        ..clear()
+        ..addAll(
+          list.map((item) => Lembrete.fromJson(item as Map<String, dynamic>)),
+        );
     }
+
+    final eventosData = prefs.getString('lembretes_eventos');
+    if (eventosData != null) {
+      final list = jsonDecode(eventosData) as List;
+      _eventos
+        ..clear()
+        ..addAll(
+          list.map(
+            (item) => LembreteEvento.fromJson(item as Map<String, dynamic>),
+          ),
+        );
+    }
+
+    eventosNotifier.value = List.from(_eventos);
+    await _publicarLembretes();
   }
 
   Future<void> _salvar() async {
+    await _salvarLembretesLocais();
+    await _publicarLembretes();
+  }
+
+  Future<void> _salvarLembretesLocais() async {
     final prefs = await SharedPreferences.getInstance();
     final data = jsonEncode(_lembretes.map((l) => l.toJson()).toList());
     await prefs.setString('lembretes', data);
+  }
+
+  Future<void> _salvarEventosLocais() async {
+    final prefs = await SharedPreferences.getInstance();
+    final data = jsonEncode(_eventos.map((e) => e.toJson()).toList());
+    await prefs.setString('lembretes_eventos', data);
+    eventosNotifier.value = List.from(_eventos);
+  }
+
+  Future<void> _publicarLembretes() async {
     notifier.value = List.from(_lembretes);
     NotificationService.instance.agendarTodos(_lembretes);
+    await SmartAlertService.instance.atualizar(_lembretes);
+  }
+
+  void _upsertLocal(Lembrete lembrete) {
+    final idx = _lembretes.indexWhere((item) => item.id == lembrete.id);
+    if (idx == -1) {
+      _lembretes.add(lembrete);
+    } else {
+      _lembretes[idx] = lembrete;
+    }
+  }
+
+  Lembrete? _findLocal(String id) {
+    try {
+      return _lembretes.firstWhere((item) => item.id == id);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<Lembrete?> _findLocalOrRemote(String id) async {
+    final local = _findLocal(id);
+    if (local != null) return local;
+    if (!_useFirebase) return null;
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('lembretes')
+          .doc(id)
+          .get()
+          .timeout(const Duration(seconds: 5));
+      if (!doc.exists || doc.data() == null) return null;
+      return Lembrete.fromJson(doc.data()!);
+    } catch (e) {
+      debugPrint('Nao foi possivel buscar lembrete remoto $id: $e');
+      return null;
+    }
+  }
+
+  Future<void> _registrarEvento(
+    Lembrete lembrete,
+    LembreteStatus status, {
+    String? observacao,
+  }) async {
+    final evento = LembreteEvento.fromLembrete(
+      lembrete,
+      status: status,
+      observacao: observacao,
+    );
+
+    _eventos.insert(0, evento);
+    await _salvarEventosLocais();
+
+    if (_useFirebase) {
+      await OfflineSyncService.instance.setOrQueue(
+        'lembrete_eventos',
+        evento.id,
+        evento.toJson(),
+      );
+    }
+  }
+
+  bool _bloqueiaConclusaoSemFoto(Lembrete lembrete, LembreteStatus status) {
+    return lembrete.categoria == 'medicacao' &&
+        status.isConcluido &&
+        status != LembreteStatus.concluidoComFoto;
+  }
+
+  Future<void> _atualizarStatus(
+    String id,
+    LembreteStatus status, {
+    String? observacao,
+  }) async {
+    final lembrete = await _findLocalOrRemote(id);
+    if (lembrete == null) return;
+    if (_bloqueiaConclusaoSemFoto(lembrete, status)) return;
+
+    final atualizado = lembrete.copyWith(status: status);
+    _upsertLocal(atualizado);
+    await _salvar();
+
+    if (_useFirebase) {
+      await OfflineSyncService.instance.updateOrQueue('lembretes', id, {
+        'status': status.storageValue,
+        'concluido': status.isConcluido,
+        'concluidoComFoto': status == LembreteStatus.concluidoComFoto,
+      });
+    }
+
+    await _registrarEvento(atualizado, status, observacao: observacao);
+  }
+
+  Future<void> _atualizarLocalERemoto(
+    String id,
+    Lembrete Function(Lembrete lembrete) updateLocal,
+    Map<String, dynamic> remotePatch,
+  ) async {
+    final lembrete = await _findLocalOrRemote(id);
+    if (lembrete == null) return;
+
+    final atualizado = updateLocal(lembrete);
+    _upsertLocal(atualizado);
+    await _salvar();
+
+    if (_useFirebase) {
+      await OfflineSyncService.instance.updateOrQueue(
+        'lembretes',
+        id,
+        remotePatch,
+      );
+    }
   }
 
   Future<void> adicionar(Lembrete lembrete) async {
-    String novoTitulo = lembrete.titulo;
-    if (novoTitulo.isNotEmpty) {
-      novoTitulo = novoTitulo[0].toUpperCase() + novoTitulo.substring(1);
-    }
     final idosoId = await _getActiveIdosoId();
-    final lembreteCapitalizado = Lembrete(
-      id: lembrete.id,
-      titulo: novoTitulo,
-      horarioHour: lembrete.horarioHour,
-      horarioMinute: lembrete.horarioMinute,
-      categoria: lembrete.categoria,
-      audioPath: lembrete.audioPath,
-      concluido: lembrete.concluido,
-      concluidoComFoto: lembrete.concluidoComFoto,
-      criadoEm: lembrete.criadoEm,
-      medicamentoForma: lembrete.medicamentoForma,
-      medicamentoCor: lembrete.medicamentoCor,
-      medicamentoFotoPath: lembrete.medicamentoFotoPath,
-      idosoId: idosoId,
-    );
+    final titulo = lembrete.titulo.isEmpty
+        ? lembrete.titulo
+        : lembrete.titulo[0].toUpperCase() + lembrete.titulo.substring(1);
+    final novo = lembrete.copyWith(titulo: titulo, idosoId: idosoId);
+
+    _upsertLocal(novo);
+    await _salvar();
 
     if (_useFirebase) {
-      await FirebaseFirestore.instance
-          .collection('lembretes')
-          .doc(lembreteCapitalizado.id)
-          .set(lembreteCapitalizado.toJson());
-    } else {
-      _lembretes.add(lembreteCapitalizado);
-      await _salvar();
+      await OfflineSyncService.instance.setOrQueue(
+        'lembretes',
+        novo.id,
+        novo.toJson(),
+      );
     }
   }
 
   Future<void> concluir(String id) async {
-    if (_useFirebase) {
-      await FirebaseFirestore.instance
-          .collection('lembretes')
-          .doc(id)
-          .update({'concluido': true});
-    } else {
-      final idx = _lembretes.indexWhere((l) => l.id == id);
-      if (idx != -1) {
-        _lembretes[idx] = Lembrete(
-          id: _lembretes[idx].id,
-          titulo: _lembretes[idx].titulo,
-          horarioHour: _lembretes[idx].horarioHour,
-          horarioMinute: _lembretes[idx].horarioMinute,
-          categoria: _lembretes[idx].categoria,
-          audioPath: _lembretes[idx].audioPath,
-          concluido: true,
-          concluidoComFoto: _lembretes[idx].concluidoComFoto,
-          criadoEm: _lembretes[idx].criadoEm,
-          medicamentoForma: _lembretes[idx].medicamentoForma,
-          medicamentoCor: _lembretes[idx].medicamentoCor,
-          medicamentoFotoPath: _lembretes[idx].medicamentoFotoPath,
-          idosoId: _lembretes[idx].idosoId,
-        );
-        await _salvar();
-      }
-    }
+    await _atualizarStatus(id, LembreteStatus.concluido);
   }
 
   Future<void> concluirComFoto(String id) async {
-    if (_useFirebase) {
-      await FirebaseFirestore.instance
-          .collection('lembretes')
-          .doc(id)
-          .update({'concluido': true, 'concluidoComFoto': true});
-    } else {
-      final idx = _lembretes.indexWhere((l) => l.id == id);
-      if (idx != -1) {
-        _lembretes[idx] = Lembrete(
-          id: _lembretes[idx].id,
-          titulo: _lembretes[idx].titulo,
-          horarioHour: _lembretes[idx].horarioHour,
-          horarioMinute: _lembretes[idx].horarioMinute,
-          categoria: _lembretes[idx].categoria,
-          audioPath: _lembretes[idx].audioPath,
-          concluido: true,
-          concluidoComFoto: true,
-          criadoEm: _lembretes[idx].criadoEm,
-          medicamentoForma: _lembretes[idx].medicamentoForma,
-          medicamentoCor: _lembretes[idx].medicamentoCor,
-          medicamentoFotoPath: _lembretes[idx].medicamentoFotoPath,
-          idosoId: _lembretes[idx].idosoId,
-        );
-        await _salvar();
-      }
-    }
+    await _atualizarStatus(id, LembreteStatus.concluidoComFoto);
   }
 
   Future<void> alternarConclusao(String id) async {
+    final lembrete = await _findLocalOrRemote(id);
+    if (lembrete == null) return;
+
+    final novoStatus = lembrete.concluido
+        ? LembreteStatus.pendente
+        : LembreteStatus.concluido;
+    if (_bloqueiaConclusaoSemFoto(lembrete, novoStatus)) return;
+
+    final atualizado = lembrete.copyWith(status: novoStatus);
+    _upsertLocal(atualizado);
+    await _salvar();
+
     if (_useFirebase) {
-      final doc = await FirebaseFirestore.instance.collection('lembretes').doc(id).get();
-      if (doc.exists) {
-        final atualConcluido = doc.data()?['concluido'] as bool? ?? false;
-        await FirebaseFirestore.instance
-            .collection('lembretes')
-            .doc(id)
-            .update({
-          'concluido': !atualConcluido,
-          'concluidoComFoto': !atualConcluido ? (doc.data()?['concluidoComFoto'] as bool? ?? false) : false
-        });
-      }
-    } else {
-      final idx = _lembretes.indexWhere((l) => l.id == id);
-      if (idx != -1) {
-        final novoConcluido = !_lembretes[idx].concluido;
-        _lembretes[idx] = Lembrete(
-          id: _lembretes[idx].id,
-          titulo: _lembretes[idx].titulo,
-          horarioHour: _lembretes[idx].horarioHour,
-          horarioMinute: _lembretes[idx].horarioMinute,
-          categoria: _lembretes[idx].categoria,
-          audioPath: _lembretes[idx].audioPath,
-          concluido: novoConcluido,
-          concluidoComFoto: novoConcluido ? _lembretes[idx].concluidoComFoto : false,
-          criadoEm: _lembretes[idx].criadoEm,
-          medicamentoForma: _lembretes[idx].medicamentoForma,
-          medicamentoCor: _lembretes[idx].medicamentoCor,
-          medicamentoFotoPath: _lembretes[idx].medicamentoFotoPath,
-          idosoId: _lembretes[idx].idosoId,
-        );
-        await _salvar();
-      }
+      await OfflineSyncService.instance.updateOrQueue('lembretes', id, {
+        'status': novoStatus.storageValue,
+        'concluido': novoStatus.isConcluido,
+        'concluidoComFoto': false,
+      });
     }
+    await _registrarEvento(atualizado, novoStatus);
   }
 
   Future<void> remover(String id) async {
+    _lembretes.removeWhere((item) => item.id == id);
+    await _salvar();
+
     if (_useFirebase) {
-      await FirebaseFirestore.instance.collection('lembretes').doc(id).delete();
-    } else {
-      _lembretes.removeWhere((l) => l.id == id);
-      await _salvar();
+      await OfflineSyncService.instance.deleteOrQueue('lembretes', id);
     }
   }
 
   Future<void> atualizarHorario(String id, int hour, int minute) async {
-    if (_useFirebase) {
-      await FirebaseFirestore.instance
-          .collection('lembretes')
-          .doc(id)
-          .update({'horarioHour': hour, 'horarioMinute': minute});
-    } else {
-      final idx = _lembretes.indexWhere((l) => l.id == id);
-      if (idx != -1) {
-        _lembretes[idx] = Lembrete(
-          id: _lembretes[idx].id,
-          titulo: _lembretes[idx].titulo,
-          horarioHour: hour,
-          horarioMinute: minute,
-          categoria: _lembretes[idx].categoria,
-          audioPath: _lembretes[idx].audioPath,
-          concluido: _lembretes[idx].concluido,
-          concluidoComFoto: _lembretes[idx].concluidoComFoto,
-          criadoEm: _lembretes[idx].criadoEm,
-          medicamentoForma: _lembretes[idx].medicamentoForma,
-          medicamentoCor: _lembretes[idx].medicamentoCor,
-          medicamentoFotoPath: _lembretes[idx].medicamentoFotoPath,
-          idosoId: _lembretes[idx].idosoId,
-        );
-        await _salvar();
-      }
-    }
+    await _atualizarLocalERemoto(
+      id,
+      (lembrete) => lembrete.copyWith(horarioHour: hour, horarioMinute: minute),
+      {'horarioHour': hour, 'horarioMinute': minute},
+    );
+  }
+
+  Future<void> atualizarTitulo(String id, String novoTitulo) async {
+    final tituloCapitalizado = novoTitulo.isEmpty
+        ? novoTitulo
+        : novoTitulo[0].toUpperCase() + novoTitulo.substring(1);
+    await _atualizarLocalERemoto(
+      id,
+      (lembrete) => lembrete.copyWith(titulo: tituloCapitalizado),
+      {'titulo': tituloCapitalizado},
+    );
   }
 
   Future<void> adiar(String id, int minutos) async {
     final now = DateTime.now().add(Duration(minutes: minutos));
+    final lembrete = await _findLocalOrRemote(id);
+    if (lembrete == null) return;
+
+    final atualizado = lembrete.copyWith(
+      horarioHour: now.hour,
+      horarioMinute: now.minute,
+      status: LembreteStatus.adiado,
+    );
+    _upsertLocal(atualizado);
+    await _salvar();
+
     if (_useFirebase) {
-      await FirebaseFirestore.instance
-          .collection('lembretes')
-          .doc(id)
-          .update({'horarioHour': now.hour, 'horarioMinute': now.minute});
-    } else {
-      final idx = _lembretes.indexWhere((l) => l.id == id);
-      if (idx != -1) {
-        _lembretes[idx] = Lembrete(
-          id: _lembretes[idx].id,
-          titulo: _lembretes[idx].titulo,
-          horarioHour: now.hour,
-          horarioMinute: now.minute,
-          categoria: _lembretes[idx].categoria,
-          audioPath: _lembretes[idx].audioPath,
-          concluido: _lembretes[idx].concluido,
-          concluidoComFoto: _lembretes[idx].concluidoComFoto,
-          criadoEm: _lembretes[idx].criadoEm,
-          medicamentoForma: _lembretes[idx].medicamentoForma,
-          medicamentoCor: _lembretes[idx].medicamentoCor,
-          medicamentoFotoPath: _lembretes[idx].medicamentoFotoPath,
-          idosoId: _lembretes[idx].idosoId,
-        );
-        await _salvar();
-      }
+      await OfflineSyncService.instance.updateOrQueue('lembretes', id, {
+        'horarioHour': now.hour,
+        'horarioMinute': now.minute,
+        'status': LembreteStatus.adiado.storageValue,
+        'concluido': false,
+        'concluidoComFoto': false,
+      });
     }
+    await _registrarEvento(
+      atualizado,
+      LembreteStatus.adiado,
+      observacao: 'Adiado por $minutos minutos',
+    );
+  }
+
+  Future<void> registrarDificuldade(String id, String motivo) async {
+    await _atualizarStatus(id, LembreteStatus.perdido, observacao: motivo);
+  }
+
+  Future<void> registrarWelfareCheckin(String emotion) async {
+    final mockLembrete = Lembrete(
+      id: 'welfare_${DateTime.now().millisecondsSinceEpoch}',
+      titulo: 'Check-in de Bem-estar',
+      horarioHour: DateTime.now().hour,
+      horarioMinute: DateTime.now().minute,
+      categoria: 'bem_estar',
+      idosoId: await _getActiveIdosoId(),
+    );
+    await _registrarEvento(
+      mockLembrete,
+      LembreteStatus.concluido,
+      observacao: emotion,
+    );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
 
 class SeniorButton extends StatelessWidget {
@@ -44,76 +45,15 @@ class SeniorButton extends StatelessWidget {
               Icon(icon, size: 32),
               const SizedBox(width: 12),
             ],
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.w700,
-                height: 1.3,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class SupervisorBottomNav extends StatelessWidget {
-  final int selectedIndex;
-  final ValueChanged<int>? onTap;
-
-  const SupervisorBottomNav({
-    super.key,
-    this.selectedIndex = 0,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 96,
-      padding: const EdgeInsets.only(bottom: 8, left: 16, right: 16),
-      decoration: const BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
-        border: Border(
-          top: BorderSide(color: AppColors.outlineVariant, width: 2),
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _navItem(Icons.home, 'Início', 0),
-          _navItem(Icons.add_circle, 'Novo', 1),
-          _navItem(Icons.history, 'Histórico', 2),
-          _navItem(Icons.help_center, 'Ajuda', 3),
-        ],
-      ),
-    );
-  }
-
-  Widget _navItem(IconData icon, String label, int index) {
-    final selected = selectedIndex == index;
-    return GestureDetector(
-      onTap: () => onTap?.call(index),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.secondaryContainer : null,
-          borderRadius: BorderRadius.circular(9999),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: selected ? AppColors.onSecondaryContainer : AppColors.onSurfaceVariant),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.05,
-                color: selected ? AppColors.onSecondaryContainer : AppColors.onSurfaceVariant,
+            Flexible(
+              child: Text(
+                label,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  height: 1.2,
+                ),
               ),
             ),
           ],
@@ -195,6 +135,8 @@ class SeniorInputField extends StatelessWidget {
   final IconData? prefixIcon;
   final bool isPassword;
   final TextEditingController? controller;
+  final List<TextInputFormatter>? inputFormatters;
+  final TextInputType? keyboardType;
 
   const SeniorInputField({
     super.key,
@@ -203,6 +145,8 @@ class SeniorInputField extends StatelessWidget {
     this.prefixIcon,
     this.isPassword = false,
     this.controller,
+    this.inputFormatters,
+    this.keyboardType,
   });
 
   @override
@@ -238,6 +182,8 @@ class SeniorInputField extends StatelessWidget {
                 child: TextField(
                   controller: controller,
                   obscureText: isPassword,
+                  keyboardType: keyboardType,
+                  inputFormatters: inputFormatters,
                   style: const TextStyle(fontSize: 18),
                   decoration: InputDecoration(
                     hintText: placeholder,

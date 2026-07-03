@@ -75,6 +75,10 @@ class _ElderlyOnboardingScreenState extends State<ElderlyOnboardingScreen> {
                         color: AppColors.onSurfaceVariant,
                       ),
                     ),
+                    const SizedBox(height: 12),
+                    const MeExplicaButton(
+                      textoExplicacao: 'Olá, seja muito bem-vindo ao aplicativo Lembrete Amigo. Este aplicativo foi feito para te ajudar a lembrar das suas atividades do dia-a-dia de forma muito simples. Para começar a usar, toque no grande botão amarelo escrito Entendi no final da tela.',
+                    ),
                     const SizedBox(height: 32),
                     GestureDetector(
                       onTap: () {

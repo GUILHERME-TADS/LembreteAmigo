@@ -58,6 +58,10 @@ class _CustomRemindersScreenState extends State<CustomRemindersScreen> {
                             color: AppColors.onSurfaceVariant,
                           ),
                         ),
+                        const SizedBox(height: 12),
+                        const MeExplicaButton(
+                          textoExplicacao: 'Olá! Esta é a tela de outras tarefas do seu dia. Aqui você vê atividades diferentes que foram marcadas para você fazer. Quando terminar a atividade, aperte em cima do retângulo dela para avisar.',
+                        ),
                         const SizedBox(height: 24),
                         AudioPlayerCard(
                           accentColor: AppColors.customColor,
@@ -139,16 +143,17 @@ class _CustomRemindersScreenState extends State<CustomRemindersScreen> {
                 color: AppColors.customColor, size: 32),
             onPressed: () => Navigator.pop(context),
           ),
-          const Spacer(),
-          const Text(
-            'Personalizados',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w700,
-              color: AppColors.customColor,
+          const Expanded(
+            child: Text(
+              'Personalizados',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w700,
+                color: AppColors.customColor,
+              ),
             ),
           ),
-          const Spacer(),
           Container(
             width: 48,
             height: 48,

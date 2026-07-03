@@ -20,8 +20,13 @@ class ConnectedSettingsScreen extends StatelessWidget {
                     onPressed: () => Navigator.pop(context),
                     icon: const Icon(Icons.arrow_back, color: AppColors.primary),
                   ),
-                  const Text('Configurações', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.primary)),
-                  const Spacer(),
+                  const Expanded(
+                    child: Text(
+                      'Configurações',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.primary),
+                    ),
+                  ),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(

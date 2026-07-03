@@ -130,12 +130,14 @@ class SupervisorReminderDetailScreen extends StatelessWidget {
             icon: Icon(Icons.arrow_back, color: accentColor, size: 32),
             onPressed: () => Navigator.pop(context),
           ),
-          const Spacer(),
-          Text(
-            'Detalhes',
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: accentColor),
+          Expanded(
+            child: Text(
+              'Detalhes',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: accentColor),
+            ),
           ),
-          const Spacer(),
+          const SizedBox(width: 48),
         ],
       ),
     );

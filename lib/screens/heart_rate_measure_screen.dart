@@ -4,6 +4,8 @@ import 'package:camera/camera.dart';
 import '../theme/app_theme.dart';
 import '../services/tts_service.dart';
 import '../services/health_service.dart';
+import '../widgets/volume_warning_banner.dart';
+import '../widgets/me_explica_button.dart';
 
 class HeartRateMeasureScreen extends StatefulWidget {
   const HeartRateMeasureScreen({super.key});
@@ -334,6 +336,7 @@ class _HeartRateMeasureScreenState extends State<HeartRateMeasureScreen>
       body: SafeArea(
         child: Column(
           children: [
+            const VolumeWarningBanner(),
             // Top Bar
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -360,6 +363,11 @@ class _HeartRateMeasureScreenState extends State<HeartRateMeasureScreen>
                 ],
               ),
             ),
+            const SizedBox(height: 12),
+            const MeExplicaButton(
+              textoExplicacao: 'Olá! Esta é a tela para ver como está o seu coração. Coloque a ponta do seu dedo indicador em cima da câmera traseira do celular, cobrindo ela inteira, e segure firme. A medição vai começar sozinha.',
+            ),
+            const SizedBox(height: 12),
             
             // Corpo Principal
             Expanded(

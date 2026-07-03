@@ -28,6 +28,10 @@ class TTSService {
     });
   }
 
+  Future<void> setSpeechRate(double rate) async {
+    await _tts.setSpeechRate(rate);
+  }
+
   Future<void> falar(String texto, {Object? caller}) async {
     _cancelSpeech = true;
     await _tts.stop();

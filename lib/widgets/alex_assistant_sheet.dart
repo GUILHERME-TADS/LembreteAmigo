@@ -122,7 +122,7 @@ class _AlexAssistantSheetState extends State<AlexAssistantSheet> {
       _status = 'Não entendi. Tente de novo.';
     });
     await TTSService.instance.falar(
-      'Não entendi seu comando. Você pode pedir para ver os remédios de hoje, confirmar que tomou um remédio ou pedir socorro.',
+      'Desculpe, não entendi. Você pode falar: ver remédios de hoje, avisar que tomou o remédio, ou pedir socorro.',
       caller: this,
     );
     if (mounted) {
@@ -135,11 +135,11 @@ class _AlexAssistantSheetState extends State<AlexAssistantSheet> {
     
     if (pendentes.isEmpty) {
       await TTSService.instance.falar(
-        'Você não tem nenhum lembrete pendente para hoje. Bom trabalho!',
+        'Muito bem! Você já terminou todas as suas tarefas de hoje.',
         caller: this,
       );
     } else {
-      String desc = 'Você tem ${pendentes.length} lembretes pendentes: ';
+      String desc = 'Você tem ${pendentes.length} tarefas para fazer: ';
       for (int i = 0; i < pendentes.length; i++) {
         final l = pendentes[i];
         final spokenTime = PeriodHelper.getSpokenTime(l.horarioHour, l.horarioMinute);
@@ -166,7 +166,7 @@ class _AlexAssistantSheetState extends State<AlexAssistantSheet> {
     if (match != null) {
       await LembreteService.instance.concluir(match.id);
       await TTSService.instance.falar(
-        'Tudo certo! Marquei o lembrete ${match.titulo} como concluído.',
+        'Tudo certo! Marquei que você terminou a tarefa ${match.titulo}.',
         caller: this,
       );
     } else {
@@ -176,12 +176,12 @@ class _AlexAssistantSheetState extends State<AlexAssistantSheet> {
         final first = meds.first;
         await LembreteService.instance.concluir(first.id);
         await TTSService.instance.falar(
-          'Marquei o lembrete ${first.titulo} como concluído.',
+          'Marquei que você terminou de tomar o remédio ${first.titulo}.',
           caller: this,
         );
       } else {
         await TTSService.instance.falar(
-          'Não encontrei nenhum lembrete pendente correspondente para concluir.',
+          'Não achei nenhuma tarefa com esse nome na lista de hoje.',
           caller: this,
         );
       }
@@ -211,7 +211,7 @@ class _AlexAssistantSheetState extends State<AlexAssistantSheet> {
       });
 
       await TTSService.instance.falar(
-        'Estou ativando o alerta de emergência e avisando seu supervisor imediatamente.',
+        'Estou pedindo socorro e avisando quem cuida de você agora mesmo.',
         caller: this,
       );
     } catch (e) {
@@ -225,16 +225,18 @@ class _AlexAssistantSheetState extends State<AlexAssistantSheet> {
     return BackdropFilter(
       filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
         decoration: BoxDecoration(
           color: Colors.black.withValues(alpha: 0.85),
           borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
           border: Border.all(color: Colors.white10),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
               width: 48,
               height: 4,
               decoration: BoxDecoration(
@@ -345,6 +347,7 @@ class _AlexAssistantSheetState extends State<AlexAssistantSheet> {
           ],
         ),
       ),
+    ),
     );
   }
 

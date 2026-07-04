@@ -10,3 +10,4 @@ export 'reminder_with_audio.dart';
 export 'alex_assistant_sheet.dart';
 export 'me_explica_button.dart';
 export 'supervisor_bottom_nav.dart';
+export 'elderly_profile_avatar.dart';

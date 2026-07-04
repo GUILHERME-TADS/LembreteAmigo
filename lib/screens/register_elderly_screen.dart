@@ -1,6 +1,6 @@
 import 'dart:convert';
-import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -20,6 +20,7 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
   final TextEditingController _birthDateController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
+  final TextEditingController _codeController = TextEditingController();
   
   final List<String> _selectedConditions = [];
   bool _isLoading = false;
@@ -38,6 +39,7 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
     _birthDateController.dispose();
     _phoneController.dispose();
     _addressController.dispose();
+    _codeController.dispose();
     super.dispose();
   }
 
@@ -56,6 +58,7 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
     final dataNasc = _birthDateController.text.trim();
     final telefone = _phoneController.text.trim();
     final endereco = _addressController.text.trim();
+    final code = _codeController.text.trim();
 
     if (nome.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -64,72 +67,92 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
       return;
     }
 
+    if (code.length != 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Por favor, digite o código de 6 dígitos exibido no celular do idoso.')),
+      );
+      return;
+    }
+
+    if (!_useFirebase) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('O Firebase não está ativo. Conecte-se à internet para realizar o vínculo.')),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
-    final pairingCode = (100000 + Random().nextInt(900000)).toString();
-
-    final perfil = {
-      'nome': nome,
-      'dataNascimento': dataNasc,
-      'telefone': telefone,
-      'endereco': endereco,
-      'condicoes': _selectedConditions,
-      'pairingCode': pairingCode,
-      'pairingCodeExpires': DateTime.now().add(const Duration(hours: 24)).toIso8601String(),
-      'supervisorId': FirebaseAuth.instance.currentUser?.uid,
-      'status': 'pending',
-    };
-
     try {
-      String displayedCode = pairingCode;
-      if (_useFirebase) {
-        final docRef = await FirebaseFirestore.instance
-            .collection('idoso_perfil')
-            .add(perfil);
-        
-        final idosoId = docRef.id;
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('selected_idoso_id', idosoId);
-      } else {
-        // Fallback local simulação
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('idoso_perfil', jsonEncode(perfil));
-        await prefs.setString('selected_idoso_id', 'joao');
-        displayedCode = "123456 (Simulado)";
+      final query = await FirebaseFirestore.instance
+          .collection('idoso_perfil')
+          .where('pairingCode', isEqualTo: code)
+          .where('status', isEqualTo: 'pending')
+          .limit(1)
+          .get();
+
+      if (query.docs.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Código inválido ou já utilizado. Verifique no celular do idoso.')),
+        );
+        setState(() => _isLoading = false);
+        return;
       }
+
+      final doc = query.docs.first;
+      final docId = doc.id;
+
+      final data = doc.data();
+      final expiresStr = data['pairingCodeExpires'] as String?;
+      if (expiresStr != null) {
+        final expires = DateTime.parse(expiresStr);
+        if (DateTime.now().isAfter(expires)) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Este código expirou. Gere um novo código no celular do idoso.')),
+          );
+          setState(() => _isLoading = false);
+          return;
+        }
+      }
+
+      final updateData = {
+        'nome': nome,
+        'dataNascimento': dataNasc,
+        'telefone': telefone,
+        'endereco': endereco,
+        'condicoes': _selectedConditions,
+        'supervisorId': FirebaseAuth.instance.currentUser?.uid,
+        'status': 'active',
+      };
+
+      await FirebaseFirestore.instance
+          .collection('idoso_perfil')
+          .doc(docId)
+          .update(updateData);
+
+      await FirebaseFirestore.instance
+          .collection('idosos')
+          .doc(docId)
+          .set(updateData, SetOptions(merge: true));
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('selected_idoso_id', docId);
 
       if (!mounted) return;
       showDialog(
         context: context,
         barrierDismissible: false,
         builder: (ctx) => AlertDialog(
-          title: const Text('Cadastro Concluído', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-          content: Column(
+          title: const Text('Vínculo Realizado!', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primary)),
+          content: const Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Perfil do idoso cadastrado com sucesso!', style: TextStyle(fontSize: 18)),
-              const SizedBox(height: 20),
-              const Text('Código de Pareamento:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.onSurfaceVariant)),
-              const SizedBox(height: 8),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                decoration: BoxDecoration(
-                  color: AppColors.secondaryContainer.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.secondaryContainer, width: 2),
-                ),
-                child: Text(
-                  displayedCode,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w800, letterSpacing: 4, color: AppColors.onSecondaryContainer),
-                ),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Digite este código no aparelho do idoso para vincular os dois dispositivos.',
-                style: TextStyle(fontSize: 14, color: AppColors.onSurfaceVariant),
+              Icon(Icons.check_circle, size: 64, color: Colors.green),
+              SizedBox(height: 16),
+              Text(
+                'O dispositivo do idoso foi vinculado com sucesso ao seu painel de controle.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16),
               ),
             ],
           ),
@@ -139,7 +162,7 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
                 Navigator.pop(ctx);
                 Navigator.pop(context);
               },
-              child: const Text('Entendi', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              child: const Text('Concluir', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -223,6 +246,18 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
                 placeholder: 'Rua, número, bairro',
                 prefixIcon: Icons.location_on,
                 controller: _addressController,
+              ),
+              const SizedBox(height: 24),
+              SeniorInputField(
+                label: 'Código de Conexão do Idoso (6 dígitos)',
+                placeholder: 'Código que aparece na tela do idoso',
+                prefixIcon: Icons.vpn_key,
+                controller: _codeController,
+                keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(6),
+                ],
               ),
               const SizedBox(height: 24),
               const Text(

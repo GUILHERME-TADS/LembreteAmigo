@@ -65,49 +65,55 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       String endereco = '';
       List<String> condicoes = [];
 
+      // 1. Sempre carrega os dados locais como fallback/inicialização
+      final jsonStr = prefs.getString('idoso_perfil');
+      if (jsonStr != null) {
+        final data = jsonDecode(jsonStr) as Map<String, dynamic>;
+        nome = data['nome'] as String? ?? nome;
+        dataNasc = data['dataNascimento'] as String? ?? dataNasc;
+        telefone = data['telefone'] as String? ?? telefone;
+        endereco = data['endereco'] as String? ?? endereco;
+        if (data['condicoes'] != null) {
+          condicoes = List<String>.from(data['condicoes'] as List);
+        }
+      }
+
+      // 2. Se o Firebase estiver ativo, tenta sincronizar e atualizar com o banco remoto
       if (_useFirebase) {
-        final idosoId = prefs.getString('selected_idoso_id') ?? prefs.getString('paired_idoso_id') ?? 'joao';
-        final docPerfil = await FirebaseFirestore.instance
-            .collection('idoso_perfil')
-            .doc(idosoId)
-            .get();
-        final docIdoso = await FirebaseFirestore.instance
-            .collection('idosos')
-            .doc(idosoId)
-            .get();
+        try {
+          final idosoId = prefs.getString('selected_idoso_id') ?? prefs.getString('paired_idoso_id') ?? 'joao';
+          final docPerfil = await FirebaseFirestore.instance
+              .collection('idoso_perfil')
+              .doc(idosoId)
+              .get();
+          final docIdoso = await FirebaseFirestore.instance
+              .collection('idosos')
+              .doc(idosoId)
+              .get();
 
-        if (docIdoso.exists && docIdoso.data() != null) {
-          final data = docIdoso.data()!;
-          nome = data['nome'] as String? ?? nome;
-          dataNasc = data['dataNascimento'] as String? ?? dataNasc;
-          telefone = data['telefone'] as String? ?? telefone;
-          endereco = data['endereco'] as String? ?? endereco;
-          if (data['condicoes'] != null) {
-            condicoes = List<String>.from(data['condicoes'] as List);
+          if (docIdoso.exists && docIdoso.data() != null) {
+            final data = docIdoso.data()!;
+            nome = data['nome'] as String? ?? nome;
+            dataNasc = data['dataNascimento'] as String? ?? dataNasc;
+            telefone = data['telefone'] as String? ?? telefone;
+            endereco = data['endereco'] as String? ?? endereco;
+            if (data['condicoes'] != null) {
+              condicoes = List<String>.from(data['condicoes'] as List);
+            }
           }
-        }
 
-        if (docPerfil.exists && docPerfil.data() != null) {
-          final data = docPerfil.data()!;
-          nome = data['nome'] as String? ?? nome;
-          dataNasc = data['dataNascimento'] as String? ?? dataNasc;
-          telefone = data['telefone'] as String? ?? telefone;
-          endereco = data['endereco'] as String? ?? endereco;
-          if (data['condicoes'] != null) {
-            condicoes = List<String>.from(data['condicoes'] as List);
+          if (docPerfil.exists && docPerfil.data() != null) {
+            final data = docPerfil.data()!;
+            nome = data['nome'] as String? ?? nome;
+            dataNasc = data['dataNascimento'] as String? ?? dataNasc;
+            telefone = data['telefone'] as String? ?? telefone;
+            endereco = data['endereco'] as String? ?? endereco;
+            if (data['condicoes'] != null) {
+              condicoes = List<String>.from(data['condicoes'] as List);
+            }
           }
-        }
-      } else {
-        final jsonStr = prefs.getString('idoso_perfil');
-        if (jsonStr != null) {
-          final data = jsonDecode(jsonStr) as Map<String, dynamic>;
-          nome = data['nome'] as String? ?? nome;
-          dataNasc = data['dataNascimento'] as String? ?? dataNasc;
-          telefone = data['telefone'] as String? ?? telefone;
-          endereco = data['endereco'] as String? ?? endereco;
-          if (data['condicoes'] != null) {
-            condicoes = List<String>.from(data['condicoes'] as List);
-          }
+        } catch (firebaseError) {
+          debugPrint('Erro ao carregar perfil do Firebase (usando dados locais): $firebaseError');
         }
       }
 
@@ -154,6 +160,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       return;
     }
 
+    TTSService.instance.falar('Salvando suas informações, por favor aguarde...', caller: this);
     setState(() => _isSaving = true);
 
     final prefs = await SharedPreferences.getInstance();
@@ -169,23 +176,30 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     };
 
     try {
-      // Save locally
+      // Salva localmente primeiro
       await prefs.setString('idoso_perfil', jsonEncode(perfil));
 
-      // Save to Firebase if active
+      // Salva no Firebase se estiver ativo em background
       if (_useFirebase) {
-        await FirebaseFirestore.instance
-            .collection('idoso_perfil')
-            .doc(idosoId)
-            .set(perfil, SetOptions(merge: true));
-        await FirebaseFirestore.instance
-            .collection('idosos')
-            .doc(idosoId)
-            .set(perfil, SetOptions(merge: true));
+        Future(() async {
+          try {
+            await FirebaseFirestore.instance
+                .collection('idoso_perfil')
+                .doc(idosoId)
+                .set(perfil, SetOptions(merge: true));
+            await FirebaseFirestore.instance
+                .collection('idosos')
+                .doc(idosoId)
+                .set(perfil, SetOptions(merge: true));
+            debugPrint('Perfil sincronizado com o Firebase em background com sucesso!');
+          } catch (firebaseError) {
+            debugPrint('Erro ao sincronizar perfil no Firebase em background: $firebaseError');
+          }
+        });
       }
 
       TTSService.instance.parar(caller: this);
-      await TTSService.instance.falar('Perfil atualizado com sucesso!', caller: this);
+      TTSService.instance.falar('Perfil atualizado com sucesso!', caller: this);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -255,6 +269,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             placeholder: 'Nome do idoso',
                             prefixIcon: Icons.person,
                             controller: _nameController,
+                            onTapAudio: () => TTSService.instance.falar('Digite o seu nome completo nesta caixa.', caller: this),
                           ),
                           const SizedBox(height: 24),
                           SeniorInputField(
@@ -264,6 +279,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             controller: _birthDateController,
                             keyboardType: TextInputType.number,
                             inputFormatters: [DateInputFormatter()],
+                            onTapAudio: () => TTSService.instance.falar('Digite o dia, o mês e o ano em que você nasceu.', caller: this),
                           ),
                           const SizedBox(height: 24),
                           SeniorInputField(
@@ -273,6 +289,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             controller: _phoneController,
                             keyboardType: TextInputType.phone,
                             inputFormatters: [PhoneInputFormatter()],
+                            onTapAudio: () => TTSService.instance.falar('Digite o número do seu celular com o D D D.', caller: this),
                           ),
                     const SizedBox(height: 24),
                     SeniorInputField(
@@ -280,6 +297,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       placeholder: 'Rua, número, bairro',
                       prefixIcon: Icons.location_on,
                       controller: _addressController,
+                      onTapAudio: () => TTSService.instance.falar('Digite o nome da sua rua e o número da sua casa.', caller: this),
                     ),
                     const SizedBox(height: 24),
                     const Text(
@@ -339,10 +357,24 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   Widget _healthChip(String label) {
     final selected = _selectedConditions.contains(label);
+    IconData icon = Icons.health_and_safety;
+    if (label.contains('Diabetes')) {
+      icon = Icons.bloodtype;
+    } else if (label.contains('Hipertensão')) {
+      icon = Icons.favorite;
+    } else if (label.contains('Colesterol')) {
+      icon = Icons.speed;
+    } else if (label.contains('Outros')) {
+      icon = Icons.add_moderator;
+    }
+
     return GestureDetector(
-      onTap: () => _toggleCondition(label),
+      onTap: () {
+        TTSService.instance.falar('Condição de saúde: $label. ${selected ? "Removida" : "Adicionada"}', caller: this);
+        _toggleCondition(label);
+      },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
           color: selected ? AppColors.secondaryContainer : AppColors.surfaceContainerLowest,
           borderRadius: BorderRadius.circular(9999),
@@ -351,13 +383,24 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             width: selected ? 2 : 1,
           ),
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: selected ? AppColors.onSecondaryContainer : AppColors.onSurface,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 20,
+              color: selected ? AppColors.onSecondaryContainer : AppColors.onSurfaceVariant,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: selected ? AppColors.onSecondaryContainer : AppColors.onSurface,
+              ),
+            ),
+          ],
         ),
       ),
     );

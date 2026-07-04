@@ -138,6 +138,8 @@ class SeniorInputField extends StatelessWidget {
   final List<TextInputFormatter>? inputFormatters;
   final TextInputType? keyboardType;
 
+  final VoidCallback? onTapAudio;
+
   const SeniorInputField({
     super.key,
     required this.label,
@@ -147,6 +149,7 @@ class SeniorInputField extends StatelessWidget {
     this.controller,
     this.inputFormatters,
     this.keyboardType,
+    this.onTapAudio,
   });
 
   @override
@@ -154,14 +157,35 @@ class SeniorInputField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.05,
-            color: AppColors.onSurfaceVariant,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.05,
+                color: AppColors.onSurfaceVariant,
+              ),
+            ),
+            if (onTapAudio != null)
+              GestureDetector(
+                onTap: onTapAudio,
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.volume_up,
+                    size: 16,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+          ],
         ),
         const SizedBox(height: 8),
         Container(

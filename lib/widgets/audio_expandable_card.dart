@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/tts_service.dart';
 import 'audio_manager.dart';
+import 'alex_avatar.dart';
 
 class AudioExpandableCard extends StatefulWidget {
   final Widget Function(BuildContext context, VoidCallback onPlay, bool isPlaying) cardBuilder;
@@ -190,16 +191,9 @@ class _AudioExpandableCardState extends State<AudioExpandableCard>
               ),
             ),
             const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: Text(
-                'Falando...',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: widget.accentColor,
-                ),
-              ),
+            const Padding(
+              padding: EdgeInsets.only(bottom: 16),
+              child: AlexAvatar(size: 60, animate: true),
             ),
           ],
         ],

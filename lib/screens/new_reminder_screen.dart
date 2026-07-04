@@ -1013,7 +1013,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
           : null,
     );
 
-    await LembreteService.instance.adicionar(lembrete);
+    LembreteService.instance.adicionar(lembrete);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

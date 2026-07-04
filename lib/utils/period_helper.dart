@@ -21,7 +21,7 @@ class PeriodHelper {
     } else if (hour >= 18 && hour < 24) {
       return Icons.bedtime;
     } else {
-      return Icons.brightness_4;
+      return Icons.nightlight_round;
     }
   }
 

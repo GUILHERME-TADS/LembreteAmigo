@@ -12,8 +12,11 @@ class TTSService {
   Completer<void>? _completer;
   bool _cancelSpeech = false;
   Object? _activeCaller;
+  String? _activeText;
 
   bool get isSpeaking => speakingNotifier.value;
+  Object? get activeCaller => _activeCaller;
+  String? get activeText => _activeText;
 
   Future<void> init() async {
     await _tts.setLanguage('pt-BR');
@@ -22,6 +25,8 @@ class TTSService {
     await _tts.setPitch(1.0);
     _tts.setCompletionHandler(() {
       speakingNotifier.value = false;
+      _activeText = null;
+      _activeCaller = null;
       if (_completer != null && !_completer!.isCompleted) {
         _completer!.complete();
       }
@@ -37,6 +42,7 @@ class TTSService {
     await _tts.stop();
     _cancelSpeech = false;
     _activeCaller = caller;
+    _activeText = texto;
     _completer = Completer<void>();
     speakingNotifier.value = true;
     await _tts.speak(texto);
@@ -50,6 +56,8 @@ class TTSService {
     _cancelSpeech = true;
     await _tts.stop();
     speakingNotifier.value = false;
+    _activeText = null;
+    _activeCaller = null;
     if (_completer != null && !_completer!.isCompleted) {
       _completer!.complete();
     }

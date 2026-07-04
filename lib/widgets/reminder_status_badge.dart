@@ -25,7 +25,7 @@ class ReminderStatusBadge extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: data.background,
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: data.foreground.withValues(alpha: 0.35)),
       ),
       child: Row(
@@ -55,15 +55,15 @@ _StatusBadgeData _statusData(LembreteStatus status, {Color? accentColor}) {
   switch (status) {
     case LembreteStatus.adiado:
       return const _StatusBadgeData(
-        label: 'ADIADO',
+        label: 'MAIS TARDE',
         icon: Icons.schedule,
         foreground: AppColors.onSecondaryFixedVariant,
         background: AppColors.secondaryFixed,
       );
     case LembreteStatus.perdido:
       return const _StatusBadgeData(
-        label: 'NAO FEITO',
-        icon: Icons.support_agent,
+        label: 'NÃO DEU',
+        icon: Icons.cancel_outlined,
         foreground: AppColors.onError,
         background: AppColors.error,
       );
@@ -71,7 +71,7 @@ _StatusBadgeData _statusData(LembreteStatus status, {Color? accentColor}) {
     case LembreteStatus.concluidoComFoto:
     case LembreteStatus.confirmadoPeloCuidador:
       return const _StatusBadgeData(
-        label: 'CONCLUIDO',
+        label: 'PRONTO!',
         icon: Icons.check_circle,
         foreground: AppColors.onTertiaryFixedVariant,
         background: AppColors.tertiaryFixedDim,
@@ -79,10 +79,10 @@ _StatusBadgeData _statusData(LembreteStatus status, {Color? accentColor}) {
     case LembreteStatus.pendente:
       final color = accentColor ?? AppColors.primary;
       return _StatusBadgeData(
-        label: 'PENDENTE',
+        label: 'FALTA FAZER',
         icon: Icons.info_outline,
-        foreground: color,
-        background: color.withValues(alpha: 0.12),
+        foreground: Colors.white,
+        background: color,
       );
   }
 }

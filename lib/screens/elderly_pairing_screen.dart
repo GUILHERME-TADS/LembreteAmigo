@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -16,6 +18,10 @@ class ElderlyPairingScreen extends StatefulWidget {
 
 class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
   bool _showModeSelection = true;
+  String? _pairingCode;
+  StreamSubscription<DocumentSnapshot>? _profileSubscription;
+  bool _isLoading = false;
+  String? _errorMessage;
 
   bool get _useFirebase {
     try {
@@ -41,53 +47,17 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
       );
     } else {
       TTSService.instance.falar(
-        'Por favor, digite o código de seis números fornecido pelo seu supervisor.',
+        'Aguarde enquanto o aplicativo gera o código de conexão para você mostrar ao seu ajudante.',
         caller: this,
       );
     }
   }
 
-  final List<String> _codeDigits = [];
-  bool _isLoading = false;
-  String? _errorMessage;
-
   @override
   void dispose() {
+    _profileSubscription?.cancel();
     TTSService.instance.parar(caller: this);
     super.dispose();
-  }
-
-  void _onNumberTap(String number) {
-    if (_codeDigits.length >= 6) return;
-    setState(() {
-      _codeDigits.add(number);
-      _errorMessage = null;
-    });
-    
-    // Vocalize the number tapped
-    TTSService.instance.falar(number, caller: this);
-
-    if (_codeDigits.length == 6) {
-      _verifyCode();
-    }
-  }
-
-  void _onDeleteTap() {
-    if (_codeDigits.isEmpty) return;
-    setState(() {
-      _codeDigits.removeLast();
-      _errorMessage = null;
-    });
-    TTSService.instance.falar('Apagar', caller: this);
-  }
-
-  void _onClearTap() {
-    if (_codeDigits.isEmpty) return;
-    setState(() {
-      _codeDigits.clear();
-      _errorMessage = null;
-    });
-    TTSService.instance.falar('Limpar', caller: this);
   }
 
   Future<void> _entrarSemSupervisor() async {
@@ -126,85 +96,87 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
     }
   }
 
-  Future<void> _verifyCode() async {
-    final enteredCode = _codeDigits.join();
-    setState(() => _isLoading = true);
+  Future<void> _generatePairingCode() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    if (!_useFirebase) {
+      setState(() {
+        _errorMessage = 'O Firebase não está ativo. Conecte-se à internet para realizar o vínculo.';
+        _isLoading = false;
+      });
+      return;
+    }
+
+    final random = math.Random();
+    final code = (100000 + random.nextInt(900000)).toString();
 
     try {
-      if (_useFirebase) {
-        // Query Firestore for matching pairingCode
-        final query = await FirebaseFirestore.instance
-            .collection('idoso_perfil')
-            .where('pairingCode', isEqualTo: enteredCode)
-            .where('status', isEqualTo: 'pending')
-            .limit(1)
-            .get();
+      final prefs = await SharedPreferences.getInstance();
+      
+      final Map<String, dynamic> localPerfil = {
+        'nome': 'Minha Conta',
+        'dataNascimento': '',
+        'telefone': '',
+        'endereco': '',
+        'condicoes': <String>[],
+        'status': 'pending',
+        'pairingCode': code,
+        'pairingCodeExpires': DateTime.now().add(const Duration(hours: 2)).toIso8601String(),
+        'fotoPath': null,
+      };
 
-        if (query.docs.isEmpty) {
-          _handleFailure('Código inválido ou expirado. Verifique com seu supervisor.');
-          return;
-        }
+      final docRef = await FirebaseFirestore.instance
+          .collection('idoso_perfil')
+          .add(localPerfil);
+      
+      await prefs.setString('paired_idoso_id', docRef.id);
+      await prefs.setString('idoso_perfil', jsonEncode(localPerfil));
 
-        final doc = query.docs.first;
-        final data = doc.data();
+      setState(() {
+        _pairingCode = code;
+        _isLoading = false;
+      });
 
-        // Check expiration
-        final expiresStr = data['pairingCodeExpires'] as String?;
-        if (expiresStr != null) {
-          final expires = DateTime.parse(expiresStr);
-          if (DateTime.now().isAfter(expires)) {
-            _handleFailure('Este código já expirou. Peça ao seu supervisor para gerar outro.');
-            return;
+      // Iniciar escuta das atualizações do documento no Firestore
+      _profileSubscription?.cancel();
+      _profileSubscription = FirebaseFirestore.instance
+          .collection('idoso_perfil')
+          .doc(docRef.id)
+          .snapshots()
+          .listen((snapshot) async {
+        if (snapshot.exists && snapshot.data() != null) {
+          final data = snapshot.data()!;
+          if (data['status'] == 'active') {
+            // Conectado com sucesso pelo supervisor!
+            _profileSubscription?.cancel();
+            final prefsInstance = await SharedPreferences.getInstance();
+            await prefsInstance.setString('idoso_perfil', jsonEncode(data));
+            
+            // Se tiver fotoPath no Firestore, salva também em idoso_foto_path
+            final fotoPath = data['fotoPath'] as String?;
+            if (fotoPath != null && fotoPath.isNotEmpty) {
+              await prefsInstance.setString('idoso_foto_path', fotoPath);
+            }
+            
+            _handleSuccess();
           }
         }
+      });
+      
+      TTSService.instance.falar(
+        'Seu código de conexão é: ${code.split('').join(' ')}. Mostre este código para o seu ajudante.',
+        caller: this,
+      );
 
-        // Successfully found and valid. Update status to active/linked
-        await FirebaseFirestore.instance
-            .collection('idoso_perfil')
-            .doc(doc.id)
-            .update({
-          'status': 'active',
-        });
-
-        // Save local configuration
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('paired_idoso_id', doc.id);
-        await prefs.setString('idoso_perfil', jsonEncode(data));
-
-        _handleSuccess();
-      } else {
-        // Mode Simulation local
-        if (enteredCode == '123456') {
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('paired_idoso_id', 'joao');
-          
-          final existingPerfilStr = prefs.getString('idoso_perfil');
-          if (existingPerfilStr != null) {
-            try {
-              final Map<String, dynamic> data = jsonDecode(existingPerfilStr);
-              data['status'] = 'active';
-              await prefs.setString('idoso_perfil', jsonEncode(data));
-            } catch (_) {}
-            final localPerfil = {
-              'nome': 'Idoso de Teste',
-              'dataNascimento': '01/01/1950',
-              'telefone': 'Não informado',
-              'endereco': 'Não informado',
-              'condicoes': <String>[],
-              'status': 'active',
-            };
-            await prefs.setString('idoso_perfil', jsonEncode(localPerfil));
-          }
-          
-          _handleSuccess();
-        } else {
-          _handleFailure('Código de simulação incorreto. Use o código 1 2 3 4 5 6.');
-        }
-      }
     } catch (e) {
-      _handleFailure('Erro de conexão ao verificar o código. Tente novamente.');
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+      debugPrint('Erro ao gerar código de pareamento: $e');
+      setState(() {
+        _errorMessage = 'Erro ao gerar o código. Verifique sua conexão e tente novamente.';
+        _isLoading = false;
+      });
     }
   }
 
@@ -224,7 +196,6 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
 
   void _handleFailure(String message) {
     setState(() {
-      _codeDigits.clear();
       _errorMessage = message;
     });
     TTSService.instance.falar(message, caller: this);
@@ -320,6 +291,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
                             _errorMessage = null;
                           });
                           _speakWelcome();
+                          _generatePairingCode();
                         },
                       ),
                       const SizedBox(height: 24),
@@ -335,22 +307,50 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
                           color: AppColors.primary,
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
                       const Text(
-                        'Digite o código de 6 números que aparece no celular do seu ajudante ou cuidador.',
+                        'Mostre ou diga este código para o seu ajudante para ele poder te cadastrar no celular dele:',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 18,
                           color: AppColors.onSurfaceVariant,
                         ),
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 32),
                       
-                      // Display of typed code
-                      _buildCodeDisplay(),
-                      
+                      // Código de Pareamento Gerado
+                      if (_isLoading)
+                        const Center(
+                          child: CircularProgressIndicator(color: AppColors.primary),
+                        )
+                      else if (_pairingCode != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: AppColors.primary, width: 3),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Colors.black12,
+                                blurRadius: 8,
+                                offset: Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Text(
+                            _pairingCode!.split('').join('  '),
+                            style: const TextStyle(
+                              fontSize: 48,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 2,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ),
+                        
                       if (_errorMessage != null) ...[
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 16),
                         Text(
                           _errorMessage!,
                           textAlign: TextAlign.center,
@@ -362,17 +362,49 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
                         ),
                       ],
                       
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 40),
                       
-                      // Keypad
-                      if (_isLoading)
+                      if (!_isLoading) ...[
                         const Center(
-                          child: CircularProgressIndicator(color: AppColors.primary),
-                        )
-                      else ...[
-                        _buildKeypad(),
-                        const SizedBox(height: 24),
+                          child: Text(
+                            'Aguardando o ajudante digitar o código...',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        const SizedBox(
+                          width: 32,
+                          height: 32,
+                          child: CircularProgressIndicator(strokeWidth: 3),
+                        ),
                       ],
+
+                      const SizedBox(height: 48),
+                      
+                      SizedBox(
+                        width: double.infinity,
+                        height: 64,
+                        child: OutlinedButton.icon(
+                          onPressed: _generatePairingCode,
+                          icon: const Icon(Icons.refresh, size: 28),
+                          label: const Text(
+                            'GERAR NOVO CÓDIGO',
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: AppColors.primary, width: 2),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
                     ],
                   ],
                 ),
@@ -380,150 +412,6 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
             ),
           ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCodeDisplay() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(6, (index) {
-        String digit = '';
-        if (index < _codeDigits.length) {
-          digit = _codeDigits[index];
-        }
-        return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 6),
-          width: 48,
-          height: 64,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: index == _codeDigits.length
-                  ? AppColors.secondaryContainer
-                  : AppColors.outlineVariant,
-              width: index == _codeDigits.length ? 3 : 2,
-            ),
-            boxShadow: const [
-              BoxShadow(
-                color: Colors.black12,
-                blurRadius: 4,
-                offset: Offset(0, 2),
-              ),
-            ],
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            digit,
-            style: const TextStyle(
-              fontSize: 36,
-              fontWeight: FontWeight.w800,
-              color: AppColors.primary,
-            ),
-          ),
-        );
-      }),
-    );
-  }
-
-  Widget _buildKeypad() {
-    return Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            _buildKeypadButton('1'),
-            _buildKeypadButton('2'),
-            _buildKeypadButton('3'),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            _buildKeypadButton('4'),
-            _buildKeypadButton('5'),
-            _buildKeypadButton('6'),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            _buildKeypadButton('7'),
-            _buildKeypadButton('8'),
-            _buildKeypadButton('9'),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            _buildActionKeypadButton('Limpar', _onClearTap),
-            _buildKeypadButton('0'),
-            _buildActionKeypadButton('Apagar', _onDeleteTap),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildKeypadButton(String number) {
-    return SizedBox(
-      width: 90,
-      height: 72,
-      child: ElevatedButton(
-        onPressed: () => _onNumberTap(number),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.white,
-          foregroundColor: AppColors.primary,
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: const BorderSide(color: AppColors.outlineVariant, width: 2),
-          ),
-          padding: EdgeInsets.zero,
-        ),
-        child: Text(
-          number,
-          style: const TextStyle(
-            fontSize: 32,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActionKeypadButton(String label, VoidCallback onTap) {
-    final isDelete = label == 'Apagar';
-    return SizedBox(
-      width: 90,
-      height: 72,
-      child: ElevatedButton(
-        onPressed: onTap,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: isDelete ? AppColors.errorContainer : AppColors.surfaceContainerHigh,
-          foregroundColor: isDelete ? AppColors.onErrorContainer : AppColors.onSurfaceVariant,
-          elevation: 1,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(
-              color: isDelete ? AppColors.error : AppColors.outlineVariant,
-              width: 1,
-            ),
-          ),
-          padding: EdgeInsets.zero,
-        ),
-        child: Text(
-          label == 'Apagar' ? 'APAGAR' : 'LIMPAR',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w800,
-            color: isDelete ? AppColors.error : AppColors.onSurfaceVariant,
-          ),
         ),
       ),
     );

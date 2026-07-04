@@ -60,6 +60,7 @@ class LembreteService {
             ..clear()
             ..addAll(snapshot.docs.map((doc) => Lembrete.fromJson(doc.data())))
             ..sort((a, b) => b.criadoEm.compareTo(a.criadoEm));
+          await _verificarEFiltrarViradaDoDia();
           await _salvarLembretesLocais();
           await _publicarLembretes();
           await OfflineSyncService.instance.syncPendingWrites();
@@ -78,6 +79,8 @@ class LembreteService {
         );
     }
 
+    await _verificarEFiltrarViradaDoDia();
+
     final eventosData = prefs.getString('lembretes_eventos');
     if (eventosData != null) {
       final list = jsonDecode(eventosData) as List;
@@ -92,6 +95,60 @@ class LembreteService {
 
     eventosNotifier.value = List.from(_eventos);
     await _publicarLembretes();
+  }
+
+  Future<void> _verificarEFiltrarViradaDoDia() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final hoje = DateTime.now().toIso8601String().substring(0, 10);
+      final ultimoDiaVerificado = prefs.getString('ultimo_dia_verificado');
+
+      if (ultimoDiaVerificado != hoje) {
+        bool houveAlteracao = false;
+        
+        for (int i = 0; i < _lembretes.length; i++) {
+          final lembrete = _lembretes[i];
+          
+          final isRecorrente = lembrete.repeteTodosOsDias || 
+                               lembrete.recorrenciaSemanal || 
+                               lembrete.recorrenciaMensal || 
+                               lembrete.recorrenciaIntervalo ||
+                               lembrete.recorrencia == 'diario' ||
+                               lembrete.recorrencia == 'semanal' ||
+                               lembrete.recorrencia == 'mensal';
+
+          if (isRecorrente && (lembrete.concluido || lembrete.concluidoComFoto)) {
+            _lembretes[i] = lembrete.copyWith(
+              concluido: false,
+              concluidoComFoto: false,
+              status: LembreteStatus.pendente,
+            );
+            houveAlteracao = true;
+
+            if (_useFirebase) {
+              await OfflineSyncService.instance.updateOrQueue(
+                'lembretes',
+                lembrete.id,
+                {
+                  'concluido': false,
+                  'concluidoComFoto': false,
+                  'status': 'pendente',
+                },
+              );
+            }
+          }
+        }
+
+        if (houveAlteracao) {
+          await _salvarLembretesLocais();
+          await _publicarLembretes();
+        }
+
+        await prefs.setString('ultimo_dia_verificado', hoje);
+      }
+    } catch (e) {
+      debugPrint('Erro ao verificar virada do dia: $e');
+    }
   }
 
   Future<void> _salvar() async {

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/tts_service.dart';
 import 'audio_manager.dart';
+import 'alex_avatar.dart';
 
 class AudioPlayerCard extends StatefulWidget {
   final Color accentColor;
@@ -44,13 +45,6 @@ class _AudioPlayerCardState extends State<AudioPlayerCard>
       if (mounted) _onAudioComplete();
     });
     AudioManager.activeIdNotifier.addListener(_onActiveIdChanged);
-    TTSService.instance.speakingNotifier.addListener(_onTtsStateChanged);
-  }
-
-  void _onTtsStateChanged() {
-    if (_isPlaying && !TTSService.instance.isSpeaking) {
-      _onAudioComplete();
-    }
   }
 
   void _onAudioComplete() {
@@ -77,7 +71,6 @@ class _AudioPlayerCardState extends State<AudioPlayerCard>
   @override
   void dispose() {
     AudioManager.activeIdNotifier.removeListener(_onActiveIdChanged);
-    TTSService.instance.speakingNotifier.removeListener(_onTtsStateChanged);
     AudioManager.stopPlay(audioId);
     if (_isPlaying) {
       TTSService.instance.parar();
@@ -115,7 +108,7 @@ class _AudioPlayerCardState extends State<AudioPlayerCard>
 
   Future<void> _speakTexts() async {
     try {
-      await TTSService.instance.falarLista(widget.textsToSpeak!);
+      await TTSService.instance.falarLista(widget.textsToSpeak!, caller: this);
     } catch (e) {
       debugPrint('Erro ao falar: $e');
     }
@@ -232,6 +225,10 @@ class _AudioPlayerCardState extends State<AudioPlayerCard>
             if (_isPlaying) ...[
               const SizedBox(height: 16),
               _buildWaveform(),
+              const SizedBox(height: 12),
+              const Center(
+                child: AlexAvatar(size: 60, animate: true),
+              ),
             ],
           ],
         ),

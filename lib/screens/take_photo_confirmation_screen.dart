@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:camera/camera.dart';
 import 'package:image/image.dart' as img;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../theme/app_theme.dart';
 import '../services/tts_service.dart';
@@ -31,6 +33,14 @@ class _TakePhotoConfirmationScreenState extends State<TakePhotoConfirmationScree
   bool _hasSpokenExplanation = false;
   CameraLensDirection _lensDirection = CameraLensDirection.back;
 
+  bool get _useFirebase {
+    try {
+      return Firebase.apps.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -46,7 +56,13 @@ class _TakePhotoConfirmationScreenState extends State<TakePhotoConfirmationScree
     if (!_hasSpokenExplanation) {
       final args = ModalRoute.of(context)?.settings.arguments;
       _isProfilePhoto = args == 'profile_photo';
-      _lembreteId = args is String ? args : null;
+      if (args is Lembrete) {
+        _lembreteId = args.id;
+      } else if (args is String) {
+        _lembreteId = args;
+      } else {
+        _lembreteId = null;
+      }
       if (_isProfilePhoto) {
         TTSService.instance.falar(
           'Olhe para a câmera e aperte na tela para tirar a foto de perfil.',
@@ -548,19 +564,35 @@ class _TakePhotoConfirmationScreenState extends State<TakePhotoConfirmationScree
                     if (_isProfilePhoto || lembreteId == 'profile_photo') {
                       final prefs = await SharedPreferences.getInstance();
                       await prefs.setString('idoso_foto_path', _capturedFile!.path);
-                      final idosoId = prefs.getString('paired_idoso_id') ?? 'joao';
-                      try {
-                        await FirebaseFirestore.instance
-                            .collection('idoso_perfil')
-                            .doc(idosoId)
-                            .set({'fotoPath': _capturedFile!.path}, SetOptions(merge: true));
-                        await FirebaseFirestore.instance
-                            .collection('idosos')
-                            .doc(idosoId)
-                            .set({'fotoPath': _capturedFile!.path}, SetOptions(merge: true));
-                      } catch (e) {
-                        debugPrint('Erro ao salvar foto de perfil: $e');
+                      final idosoId = prefs.getString('selected_idoso_id') ?? prefs.getString('paired_idoso_id') ?? 'joao';
+                      
+                      if (_useFirebase) {
+                        Future(() async {
+                          try {
+                            final file = File(_capturedFile!.path);
+                            final ref = FirebaseStorage.instance
+                                .ref()
+                                .child('profile_photos')
+                                .child('$idosoId.jpg');
+                            final uploadTask = ref.putFile(file);
+                            final snapshot = await uploadTask;
+                            final downloadUrl = await snapshot.ref.getDownloadURL();
+
+                            await FirebaseFirestore.instance
+                                .collection('idoso_perfil')
+                                .doc(idosoId)
+                                .set({'fotoPath': downloadUrl}, SetOptions(merge: true));
+                            await FirebaseFirestore.instance
+                                .collection('idosos')
+                                .doc(idosoId)
+                                .set({'fotoPath': downloadUrl}, SetOptions(merge: true));
+                            debugPrint('Foto de perfil salva com sucesso no Firebase em background!');
+                          } catch (e) {
+                            debugPrint('Erro ao sincronizar foto de perfil em background: $e');
+                          }
+                        });
                       }
+
                       SystemSound.play(SystemSoundType.click);
                       HapticFeedback.vibrate();
                       navigator.pop(_capturedFile!.path);
@@ -577,9 +609,21 @@ class _TakePhotoConfirmationScreenState extends State<TakePhotoConfirmationScree
                     }
                     SystemSound.play(SystemSoundType.click);
                     HapticFeedback.vibrate();
+                    Lembrete? target;
+                    final targetId = lembreteId;
+                    if (targetId != null) {
+                      final idx = LembreteService.instance.lembretes.indexWhere((l) => l.id == targetId);
+                      if (idx != -1) target = LembreteService.instance.lembretes[idx];
+                    } else {
+                      final medicacoes = LembreteService.instance.lembretes
+                          .where((l) => l.categoria == 'medicacao' && !l.concluido)
+                          .toList();
+                      if (medicacoes.isNotEmpty) target = medicacoes.first;
+                    }
                     navigator.pushNamedAndRemoveUntil(
                       '/medication-confirmation',
                       (route) => false,
+                      arguments: target?.titulo ?? 'remédio',
                     );
                   },
                   icon: const Icon(Icons.send, size: 32),

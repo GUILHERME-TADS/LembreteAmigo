@@ -15,7 +15,6 @@ import '../services/tts_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/period_helper.dart';
 import '../widgets/index.dart';
-import '../widgets/reminder_status_badge.dart';
 
 class ElderlyHomeScreen extends StatefulWidget {
   final bool showConnected;
@@ -49,11 +48,15 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
   bool _rotinaDoDiaOnly = false;
   bool _showWelfareCheckin = false;
   String _idosoNomeCheckin = 'João';
+  String? _fotoPath;
+  AnimationController? _pulseController;
+  Animation<double>? _pulseAnimation;
 
   @override
   void initState() {
     super.initState();
     _checkConnection();
+    _loadProfilePhoto();
     if (widget.speakText != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         TTSService.instance.falar(widget.speakText!, caller: this);
@@ -62,6 +65,15 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     _connectivityTimer = Timer.periodic(
       const Duration(seconds: 5),
       (_) => _checkConnection(),
+    );
+
+    // Pulse Controller Setup
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.05).animate(
+      CurvedAnimation(parent: _pulseController!, curve: Curves.easeInOut),
     );
 
     // Confetti Controller Setup
@@ -85,7 +97,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
       final lembretes = LembreteService.instance.lembretes;
       if (mounted) {
         setState(() {
-          _lembretes = List.from(lembretes);
+          _lembretes = lembretes.where((l) => _isReminderActiveToday(l)).toList();
           _atualizarProximoLembrete();
           _checkVictoryConfetti();
           _checkWelfareStatus();
@@ -108,7 +120,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     final lembretes = LembreteService.instance.lembretes;
     if (mounted) {
       setState(() {
-        _lembretes = List.from(lembretes);
+        _lembretes = lembretes.where((l) => _isReminderActiveToday(l)).toList();
         _atualizarProximoLembrete();
         _checkVictoryConfetti();
       });
@@ -116,6 +128,13 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
   }
 
   void _checkVictoryConfetti() async {
+    if (mounted) {
+      final route = ModalRoute.of(context);
+      if (route != null && !route.isCurrent) {
+        return;
+      }
+    }
+
     final allDone =
         _lembretes.isNotEmpty && _lembretes.every((l) => l.concluido);
     if (allDone && !_allCompletedTriggered) {
@@ -123,6 +142,13 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
 
       final prefs = await SharedPreferences.getInstance();
       final today = DateTime.now().toIso8601String().substring(0, 10);
+      
+      // Evita disparar a mensagem de parabéns múltiplas vezes no mesmo dia
+      final lastVictory = prefs.getString('last_victory_shown_date');
+      if (lastVictory == today) {
+        return;
+      }
+
       final lastCompletion = prefs.getString('last_completion_date');
       int streak = prefs.getInt('completion_streak') ?? 0;
 
@@ -140,10 +166,19 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
         await prefs.setString('last_completion_date', today);
       }
 
+      await prefs.setString('last_victory_shown_date', today);
+
       _startConfetti();
       _showVictoryDialog(streak);
     } else if (!allDone) {
       _allCompletedTriggered = false;
+      
+      // Se desmarcar alguma tarefa, permite ganhar os parabéns novamente caso conclua tudo
+      final prefs = await SharedPreferences.getInstance();
+      final today = DateTime.now().toIso8601String().substring(0, 10);
+      if (prefs.getString('last_victory_shown_date') == today) {
+        await prefs.remove('last_victory_shown_date');
+      }
     }
   }
 
@@ -215,6 +250,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
   void dispose() {
     _connectivityTimer?.cancel();
     _confettiController?.dispose();
+    _pulseController?.dispose();
     LembreteService.instance.notifier.removeListener(_onLembretesChanged);
     TTSService.instance.parar(caller: this);
     _audioPlayer.dispose();
@@ -243,15 +279,35 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     }
   }
 
+  Future<void> _loadProfilePhoto() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final localFoto = prefs.getString('idoso_foto_path');
+      if (mounted) {
+        setState(() {
+          _fotoPath = localFoto;
+        });
+      }
+    } catch (e) {
+      debugPrint('Erro ao carregar foto no home: $e');
+    }
+  }
+
   String _tempoRestante(Lembrete lembrete) {
     final now = DateTime.now();
-    final targetTime = DateTime(
+    var targetTime = DateTime(
       now.year,
       now.month,
       now.day,
       lembrete.horarioHour,
       lembrete.horarioMinute,
     );
+
+    // Se o horário programado para hoje já passou E o lembrete foi criado depois disso hoje,
+    // a próxima ocorrência é amanhã (ou próximo dia recorrente).
+    if (targetTime.isBefore(now) && lembrete.criadoEm.isAfter(targetTime)) {
+      targetTime = targetTime.add(const Duration(days: 1));
+    }
 
     var diff = targetTime.difference(now);
     if (diff.isNegative) {
@@ -277,22 +333,67 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     }
   }
 
+  bool _isReminderActiveToday(Lembrete lembrete) {
+    final now = DateTime.now();
+    if (lembrete.recorrencia == 'diario' || lembrete.repeteTodosOsDias) {
+      return true;
+    }
+    if (lembrete.recorrencia == 'semanal' || lembrete.recorrenciaSemanal) {
+      return lembrete.diasSemana.contains(now.weekday);
+    }
+    if (lembrete.recorrencia == 'mensal' || lembrete.recorrenciaMensal) {
+      return (lembrete.diaMes ?? lembrete.criadoEm.day) == now.day;
+    }
+    if (lembrete.recorrencia == 'quinzenal') {
+      final diffDays = DateTime(now.year, now.month, now.day)
+          .difference(
+            DateTime(
+              lembrete.criadoEm.year,
+              lembrete.criadoEm.month,
+              lembrete.criadoEm.day,
+            ),
+          )
+          .inDays;
+      return diffDays >= 0 && diffDays % 15 == 0;
+    }
+    if (lembrete.recorrencia == 'unico' || lembrete.lembreteUnico) {
+      final hojeKey = '${now.year}-${now.month}-${now.day}';
+      final criadoKey = '${lembrete.criadoEm.year}-${lembrete.criadoEm.month}-${lembrete.criadoEm.day}';
+      return hojeKey == criadoKey;
+    }
+    if (lembrete.recorrencia == 'intervalo' || lembrete.recorrenciaIntervalo) {
+      return true;
+    }
+    return true;
+  }
+
   void _ouvirExplicacaoLembrete(Lembrete l) {
     _stopAllAudioAndTts();
     final remaining = _tempoRestante(l);
+    final isLembreteAtrasado = !l.concluido &&
+        l.status != LembreteStatus.adiado &&
+        remaining == 'Atrasado';
+
     final spokenTime = PeriodHelper.getSpokenTime(
       l.horarioHour,
       l.horarioMinute,
     );
 
-    var text =
-        'Seu próximo compromisso é ${l.titulo}, agendado para às $spokenTime. ';
-    if (remaining == 'Agora mesmo') {
-      text += 'Chegou a hora de fazer agora!';
-    } else if (remaining == 'Atrasado') {
-      text += 'Este compromisso está atrasado!';
+    String text = '';
+
+    if (l.concluido) {
+      text = 'O lembrete ${l.titulo}, marcado para às $spokenTime, já está pronto e feito! Muito bem!';
+    } else if (l.status == LembreteStatus.adiado) {
+      text = 'O lembrete ${l.titulo} ficou para mais tarde, às $spokenTime.';
+    } else if (l.status == LembreteStatus.perdido) {
+      text = 'Este lembrete era para às $spokenTime, mas o tempo passou e não deu para fazer.';
+    } else if (remaining == 'Agora mesmo') {
+      text = 'Chegou a hora de fazer ${l.titulo}! O horário marcado é às $spokenTime.';
+    } else if (isLembreteAtrasado) {
+      text = 'O lembrete ${l.titulo} passou da hora! O horário era às $spokenTime.';
     } else {
-      text += 'Faltam $remaining para este compromisso.';
+      final remainingClean = remaining.replaceAll('Daqui a ', '');
+      text = 'O lembrete ${l.titulo} está marcado para às $spokenTime. Ainda falta $remainingClean para dar o horário.';
     }
 
     if (l.categoria == 'medicacao' &&
@@ -306,7 +407,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
           ? 'gotas'
           : 'pomada';
       text +=
-          ' É um medicamento no formato $formaLabel na cor ${l.medicamentoCor}.';
+          ' É um remédio do tipo $formaLabel na cor ${l.medicamentoCor}.';
     }
 
     TTSService.instance.falar(text, caller: this);
@@ -825,22 +926,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
       l.horarioHour,
       l.horarioMinute,
     );
-    var desc = '${l.titulo} às $spokenTime.';
-
-    if (l.categoria == 'medicacao' &&
-        l.medicamentoForma != null &&
-        l.medicamentoCor != null) {
-      final formaLabel = l.medicamentoForma == 'capsula'
-          ? 'cápsula'
-          : l.medicamentoForma == 'comprimido'
-          ? 'comprimido'
-          : l.medicamentoForma == 'gotas'
-          ? 'gotas'
-          : 'pomada';
-      final corLabel = l.medicamentoCor;
-      desc += ' Tomar uma $formaLabel na cor $corLabel.';
-    }
-    return desc;
+    return '${l.titulo} às $spokenTime.';
   }
 
   Widget _buildNode(Lembrete lembrete) {
@@ -942,6 +1028,9 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
   Widget _buildReminderCard(Lembrete lembrete) {
     final isMed = lembrete.categoria == 'medicacao';
     final statusText = _statusText(lembrete);
+    final isAtrasado = !lembrete.concluido &&
+        lembrete.status != LembreteStatus.adiado &&
+        _tempoRestante(lembrete) == 'Atrasado';
     String subtitle = '';
 
     Color accentColor = AppColors.primary;
@@ -975,6 +1064,8 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
         ? const Color(0xFFE8F5E9)
         : lembrete.status == LembreteStatus.adiado
         ? const Color(0xFFFFFDE7)
+        : isAtrasado
+        ? const Color(0xFFFFEBEE)
         : AppColors.surfaceContainerLowest;
 
     final titleColor = lembrete.concluido
@@ -982,6 +1073,42 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
         : lembrete.status == LembreteStatus.adiado
         ? AppColors.onSecondaryFixedVariant
         : accentColor;
+
+    final String barText = lembrete.concluido
+        ? 'PRONTO!'
+        : lembrete.status == LembreteStatus.adiado
+        ? 'MAIS TARDE'
+        : lembrete.status == LembreteStatus.perdido
+        ? 'NÃO DEU'
+        : isAtrasado
+        ? 'PASSOU DA HORA'
+        : 'FALTA FAZER';
+
+    final IconData barIcon = lembrete.concluido
+        ? Icons.check_circle
+        : lembrete.status == LembreteStatus.adiado
+        ? Icons.schedule
+        : lembrete.status == LembreteStatus.perdido
+        ? Icons.cancel_outlined
+        : isAtrasado
+        ? Icons.priority_high
+        : Icons.info_outline;
+
+    final Color barBg = lembrete.concluido
+        ? AppColors.tertiaryFixedDim
+        : lembrete.status == LembreteStatus.adiado
+        ? AppColors.secondaryFixed
+        : (isAtrasado || lembrete.status == LembreteStatus.perdido)
+        ? AppColors.error
+        : accentColor;
+
+    final Color barFg = lembrete.concluido
+        ? AppColors.onTertiaryFixedVariant
+        : lembrete.status == LembreteStatus.adiado
+        ? AppColors.onSecondaryFixedVariant
+        : (isAtrasado || lembrete.status == LembreteStatus.perdido)
+        ? AppColors.onError
+        : Colors.white;
 
     return Card(
       elevation: 2,
@@ -993,6 +1120,8 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
               ? AppColors.tertiaryFixedDim
               : lembrete.status == LembreteStatus.adiado
               ? AppColors.secondaryFixedDim
+              : isAtrasado
+              ? AppColors.error
               : accentColor,
           width: 2,
         ),
@@ -1006,37 +1135,30 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
             _speakReminder(lembrete);
           }
         },
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      lembrete.titulo,
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        color: titleColor,
-                        decoration: lembrete.concluido
-                            ? TextDecoration.lineThrough
-                            : null,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      crossAxisAlignment: WrapCrossAlignment.center,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        ReminderStatusBadge(
-                          status: lembrete.status,
-                          compact: true,
-                          accentColor: accentColor,
+                        Text(
+                          lembrete.titulo,
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                            color: titleColor,
+                            decoration: lembrete.concluido
+                                ? TextDecoration.lineThrough
+                                : null,
+                          ),
                         ),
-                        if (subtitle != statusText)
+                        if (subtitle != statusText) ...[
+                          const SizedBox(height: 6),
                           Text(
                             subtitle,
                             style: TextStyle(
@@ -1047,76 +1169,134 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                   : AppColors.onSurfaceVariant,
                             ),
                           ),
+                        ],
                       ],
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              if (lembrete.audioPath != null)
-                IconButton(
-                  icon: Icon(
-                    _isPlaying && _playingAudioPath == lembrete.audioPath
-                        ? Icons.stop
-                        : Icons.play_arrow,
-                    color: lembrete.status == LembreteStatus.adiado
-                        ? AppColors.onSecondaryFixedVariant
-                        : accentColor,
-                    size: 32,
                   ),
-                  onPressed: () => _playAudio(lembrete.audioPath!),
-                ),
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: () async {
-                  if (isMed && !lembrete.concluido) {
-                    Navigator.pushNamed(
-                      context,
-                      '/take-photo-confirmation',
-                      arguments: lembrete.id,
-                    );
-                  } else {
-                    await LembreteService.instance.alternarConclusao(
-                      lembrete.id,
-                    );
-                  }
-                },
-                child: Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    color: lembrete.concluido
-                        ? AppColors.tertiaryFixedDim
-                        : lembrete.status == LembreteStatus.adiado
-                        ? AppColors.secondaryFixed.withValues(alpha: 0.2)
-                        : Colors.transparent,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: lembrete.concluido
-                          ? AppColors.onTertiaryFixedVariant
-                          : lembrete.status == LembreteStatus.adiado
-                          ? AppColors.onSecondaryFixedVariant
-                          : accentColor,
-                      width: 3,
+                  const SizedBox(width: 8),
+                   if (lembrete.audioPath != null)
+                    GestureDetector(
+                      onTap: () => _playAudio(lembrete.audioPath!),
+                      child: Container(
+                        width: 56,
+                        height: 56,
+                        decoration: BoxDecoration(
+                          color: _isPlaying && _playingAudioPath == lembrete.audioPath
+                              ? (lembrete.status == LembreteStatus.adiado
+                                  ? AppColors.secondaryFixed
+                                  : accentColor.withValues(alpha: 0.2))
+                              : accentColor.withValues(alpha: 0.1),
+                          shape: BoxShape.rectangle,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: lembrete.status == LembreteStatus.adiado
+                                ? AppColors.onSecondaryFixedVariant
+                                : accentColor,
+                            width: 3,
+                          ),
+                        ),
+                        child: Icon(
+                          _isPlaying && _playingAudioPath == lembrete.audioPath
+                              ? Icons.stop
+                              : Icons.play_arrow,
+                          color: lembrete.status == LembreteStatus.adiado
+                              ? AppColors.onSecondaryFixedVariant
+                              : accentColor,
+                          size: 32,
+                        ),
+                      ),
+                    ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () {
+                      if (isMed && !lembrete.concluido) {
+                        Navigator.pushNamed(
+                          context,
+                          '/take-photo-confirmation',
+                          arguments: lembrete.id,
+                        );
+                      } else {
+                        LembreteService.instance.alternarConclusao(
+                          lembrete.id,
+                        );
+                      }
+                    },
+                    child: Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: lembrete.concluido
+                            ? AppColors.tertiaryFixedDim
+                            : lembrete.status == LembreteStatus.adiado
+                            ? AppColors.secondaryFixed
+                            : (isAtrasado || lembrete.status == LembreteStatus.perdido)
+                            ? AppColors.error
+                            : accentColor.withValues(alpha: 0.1),
+                        shape: BoxShape.rectangle,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: lembrete.concluido
+                              ? AppColors.onTertiaryFixedVariant
+                              : lembrete.status == LembreteStatus.adiado
+                              ? AppColors.onSecondaryFixedVariant
+                              : (isAtrasado || lembrete.status == LembreteStatus.perdido)
+                              ? AppColors.onError
+                              : accentColor,
+                          width: 3,
+                        ),
+                      ),
+                      child: lembrete.concluido ||
+                              lembrete.status == LembreteStatus.adiado ||
+                              isAtrasado ||
+                              lembrete.status == LembreteStatus.perdido
+                          ? Icon(
+                              lembrete.concluido
+                                  ? Icons.check
+                                  : lembrete.status == LembreteStatus.adiado
+                                  ? Icons.schedule
+                                  : lembrete.status == LembreteStatus.perdido
+                                      ? Icons.close
+                                      : Icons.priority_high,
+                              color: lembrete.concluido
+                                  ? AppColors.onTertiaryFixedVariant
+                                  : lembrete.status == LembreteStatus.adiado
+                                  ? AppColors.onSecondaryFixedVariant
+                                  : AppColors.onError,
+                              size: 32,
+                            )
+                          : null,
                     ),
                   ),
-                  child: Icon(
-                    lembrete.concluido
-                        ? Icons.check
-                        : lembrete.status == LembreteStatus.adiado
-                        ? Icons.schedule
-                        : Icons.circle_outlined,
-                    color: lembrete.concluido
-                        ? AppColors.onTertiaryFixedVariant
-                        : lembrete.status == LembreteStatus.adiado
-                        ? AppColors.onSecondaryFixedVariant
-                        : accentColor,
-                    size: 32,
-                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              decoration: BoxDecoration(
+                color: barBg,
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(14),
+                  bottomRight: Radius.circular(14),
                 ),
               ),
-            ],
-          ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(barIcon, color: barFg, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    barText,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                      color: barFg,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -1127,13 +1307,13 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
       case LembreteStatus.concluido:
       case LembreteStatus.concluidoComFoto:
       case LembreteStatus.confirmadoPeloCuidador:
-        return 'Confirmado';
+        return 'Pronto!';
       case LembreteStatus.adiado:
-        return 'Pendente';
+        return 'Mais tarde';
       case LembreteStatus.perdido:
-        return 'Nao feito';
+        return 'Não deu';
       case LembreteStatus.pendente:
-        return lembrete.concluido ? 'Confirmado' : 'Falta fazer';
+        return lembrete.concluido ? 'Pronto!' : 'Falta fazer';
     }
   }
 
@@ -1530,68 +1710,21 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                 ),
               ),
               const SizedBox(height: 6),
-              GestureDetector(
-                onTap: () {
-                  _stopAllAudioAndTts();
-                  TTSService.instance.falar(
+              MeExplicaButton(
+                textoExplicacao:
                     'Olá! Esta é a tela do seu dia. Aqui você vê as tarefas de tomar remédios, beber água, comer ou fazer exercícios. Para falar com o ajudante Alex, aperte o grande círculo azul no meio da tela e fale o que precisa.',
-                    caller: this,
-                  );
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(99),
-                    border: Border.all(
-                      color: AppColors.primary.withValues(alpha: 0.15),
-                      width: 1.5,
-                    ),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.record_voice_over,
-                        color: AppColors.primary,
-                        size: 18,
-                      ),
-                      SizedBox(width: 6),
-                      Text(
-                        'Me explica',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                onTapped: _stopAllAudioAndTts,
               ),
             ],
           ),
           const Spacer(),
           GestureDetector(
-            onTap: () {
+            onTap: () async {
               _stopAllAudioAndTts();
-              Navigator.pushNamed(context, '/elderly-profile');
+              await Navigator.pushNamed(context, '/elderly-profile');
+              _loadProfilePhoto();
             },
-            child: Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.primaryContainer, width: 2),
-              ),
-              child: const Icon(
-                Icons.person,
-                color: AppColors.primaryContainer,
-              ),
-            ),
+            child: ElderlyProfileAvatar(fotoPath: _fotoPath, size: 48),
           ),
         ],
       ),
@@ -1679,60 +1812,87 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
 
   Widget _buildNextReminderBanner() {
     final lembrete = _ultimoLembrete;
+    if (lembrete == null) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceContainerLowest,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: AppColors.outlineVariant.withValues(alpha: 0.5),
+            width: 2.5,
+          ),
+        ),
+        child: const Column(
+          children: [
+            Icon(
+              Icons.notifications_off_outlined,
+              size: 48,
+              color: AppColors.onSurfaceVariant,
+            ),
+            SizedBox(height: 12),
+            Text(
+              'Nenhum lembrete para hoje',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                color: AppColors.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     Color categoryColor = AppColors.primary;
     IconData categoryIcon = Icons.notifications;
 
-    if (lembrete != null) {
-      switch (lembrete.categoria) {
-        case 'medicacao':
-          categoryColor = AppColors.medicationsColor;
-          categoryIcon = Icons.medication;
-          break;
-        case 'refeicoes':
-          categoryColor = AppColors.mealsColor;
-          categoryIcon = Icons.restaurant;
-          break;
-        case 'exercicio':
-          categoryColor = AppColors.tertiaryContainer;
-          categoryIcon = Icons.directions_walk;
-          break;
-        case 'hidratacao':
-          categoryColor = AppColors.voiceFeedbackBlue;
-          categoryIcon = Icons.water_drop;
-          break;
-        default:
-          categoryColor = AppColors.customColor;
-          categoryIcon = Icons.notifications;
-      }
+    switch (lembrete.categoria) {
+      case 'medicacao':
+        categoryColor = AppColors.medicationsColor;
+        categoryIcon = Icons.medication;
+        break;
+      case 'refeicoes':
+        categoryColor = AppColors.mealsColor;
+        categoryIcon = Icons.restaurant;
+        break;
+      case 'exercicio':
+        categoryColor = AppColors.tertiaryContainer;
+        categoryIcon = Icons.directions_walk;
+        break;
+      case 'hidratacao':
+        categoryColor = AppColors.voiceFeedbackBlue;
+        categoryIcon = Icons.water_drop;
+        break;
+      default:
+        categoryColor = AppColors.customColor;
+        categoryIcon = Icons.notifications;
     }
 
-    final bannerBg = AppColors.surfaceContainerLowest;
-    final remainingTime = lembrete != null ? _tempoRestante(lembrete) : '';
+    final remainingTime = _tempoRestante(lembrete);
 
-    return GestureDetector(
-      onTap: () {
-        _stopAllAudioAndTts();
-        Navigator.pushNamed(context, '/all-reminders');
-      },
-      child: Container(
+    if (_pulseAnimation == null) {
+      return Container(
         width: double.infinity,
         decoration: BoxDecoration(
-          color: bannerBg,
-          borderRadius: BorderRadius.circular(20),
+          color: AppColors.surfaceContainerLowest,
+          borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: categoryColor.withValues(alpha: 0.4),
-            width: 3,
+            color: categoryColor.withValues(alpha: 0.5),
+            width: 3.5,
           ),
-          boxShadow: const [
+          boxShadow: [
             BoxShadow(
-              color: Colors.black12,
-              blurRadius: 10,
-              offset: Offset(0, 5),
+              color: categoryColor.withValues(alpha: 0.15),
+              blurRadius: 12,
+              spreadRadius: 1,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(17),
+          borderRadius: BorderRadius.circular(20),
           child: IntrinsicHeight(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1753,7 +1913,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                             Container(
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
-                                color: categoryColor.withValues(alpha: 0.1),
+                                color: categoryColor.withValues(alpha: 0.12),
                                 shape: BoxShape.circle,
                               ),
                               child: Icon(
@@ -1768,16 +1928,15 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'PRÓXIMO COMPROMISSO',
+                                    'SUA PRÓXIMA TAREFA',
                                     style: TextStyle(
-                                      fontSize: 14,
+                                      fontSize: 15,
                                       fontWeight: FontWeight.w900,
-                                      letterSpacing: 1.2,
+                                      letterSpacing: 1.3,
                                       color: categoryColor,
                                     ),
                                   ),
-                                  if (lembrete != null &&
-                                      remainingTime.isNotEmpty) ...[
+                                  if (remainingTime.isNotEmpty) ...[
                                     const SizedBox(height: 4),
                                     Text(
                                       remainingTime.toUpperCase(),
@@ -1795,9 +1954,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          lembrete != null
-                              ? '${lembrete.titulo} — ${lembrete.horarioFormatado}'
-                              : 'Nenhum lembrete agendado',
+                          '${lembrete.titulo} — ${lembrete.horarioFormatado}',
                           style: const TextStyle(
                             fontSize: 26,
                             fontWeight: FontWeight.w900,
@@ -1805,7 +1962,162 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                             height: 1.2,
                           ),
                         ),
-                        if (lembrete != null) ...[
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () =>
+                                    _ouvirExplicacaoLembrete(lembrete),
+                                icon: const Icon(Icons.volume_up, size: 24),
+                                label: const Text(
+                                  'OUVIR EXPLICAÇÃO',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            GestureDetector(
+                              onTap: lembrete.audioPath != null
+                                  ? () => _playAudio(lembrete.audioPath!)
+                                  : _toggleSpeak,
+                              child: Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withValues(
+                                    alpha: 0.1,
+                                  ),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  _isPlaying || _isBannerSpeaking
+                                      ? Icons.stop
+                                      : Icons.play_arrow,
+                                  color: AppColors.primary,
+                                  size: 32,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return AnimatedBuilder(
+      animation: _pulseAnimation!,
+      builder: (context, child) {
+        final scale = _pulseAnimation!.value;
+        final glowWidth = (scale - 1.0) * 120; // 0 to 6 pixels
+        final alphaFactor = 0.5 + (scale - 1.0) * 4.0; // 0.5 to 0.7
+
+        return Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                categoryColor.withValues(alpha: 0.08),
+                AppColors.surfaceContainerLowest,
+              ],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+            ),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: categoryColor.withValues(alpha: alphaFactor),
+              width: 3.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: categoryColor.withValues(alpha: 0.15 + (scale - 1.0) * 3.0),
+                blurRadius: 12 + glowWidth,
+                spreadRadius: 1 + glowWidth * 0.5,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(width: 16, color: categoryColor),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 20,
+                        horizontal: 8,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: categoryColor.withValues(alpha: 0.12),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  categoryIcon,
+                                  color: categoryColor,
+                                  size: 32,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'SUA PRÓXIMA TAREFA',
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: 1.3,
+                                        color: categoryColor,
+                                      ),
+                                    ),
+                                    if (remainingTime.isNotEmpty) ...[
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        remainingTime.toUpperCase(),
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w900,
+                                          color: Colors.red[700],
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            '${lembrete.titulo} — ${lembrete.horarioFormatado}',
+                            style: const TextStyle(
+                              fontSize: 26,
+                              fontWeight: FontWeight.w900,
+                              color: AppColors.primary,
+                              height: 1.2,
+                            ),
+                          ),
                           const SizedBox(height: 16),
                           Row(
                             children: [
@@ -1819,15 +2131,6 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                     style: TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.primary
-                                        .withValues(alpha: 0.08),
-                                    foregroundColor: AppColors.primary,
-                                    elevation: 0,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
                                     ),
                                   ),
                                 ),
@@ -1857,16 +2160,16 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                             ],
                           ),
                         ],
-                      ],
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-              ],
+                  const SizedBox(width: 8),
+                ],
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -1905,55 +2208,6 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                 _stopAllAudioAndTts();
                 Navigator.pushNamed(context, '/elderly-help');
               }),
-              Expanded(
-                child: Center(
-                  child: GestureDetector(
-                    onTap: () {
-                      _stopAllAudioAndTts();
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Colors.transparent,
-                        builder: (context) =>
-                            AlexAssistantSheet(lembretes: _lembretes),
-                      );
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primary.withValues(alpha: 0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: const Column(
-                        mainAxisSize: MainAxisSize.min,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          AlexAvatar(size: 40, animate: false),
-                          SizedBox(height: 2),
-                          Text(
-                            'Falar',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
             ],
           ),
         ),

@@ -23,17 +23,68 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
   String? _lastBpmTimeText;
   final AudioRecorder _audioRecorder = AudioRecorder();
   final AudioPlayer _audioPlayer = AudioPlayer();
+  String? _fotoPath;
+  String _caregiverName = 'meu ajudante';
+  String? _caregiverPhone;
+  String? _caregiverFoto;
 
   @override
   void initState() {
     super.initState();
     _loadLastBpm();
+    _loadProfilePhoto();
+    _loadCaregiverInfo();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       TTSService.instance.falar(
-        'Se precisar de ajuda, aperte o botão amarelo de ligar para o seu ajudante.',
+        'Se precisar de ajuda, aperte o botão de ligar para o seu ajudante, ou veja como está o seu coração no botão de baixo.',
         caller: this,
       );
     });
+  }
+
+  Future<void> _loadCaregiverInfo() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final idosoId = prefs.getString('paired_idoso_id') ?? 'joao';
+      final doc = await FirebaseFirestore.instance
+          .collection('idosos')
+          .doc(idosoId)
+          .get();
+
+      if (doc.exists && doc.data() != null) {
+        final data = doc.data()!;
+        final phone = data['telefone'] ?? '';
+        final supervisorId = data['supervisorId'];
+
+        if (mounted) {
+          setState(() {
+            _caregiverPhone = phone;
+          });
+        }
+
+        if (supervisorId != null) {
+          final supDoc = await FirebaseFirestore.instance
+              .collection('supervisores')
+              .doc(supervisorId)
+              .get();
+          if (supDoc.exists && supDoc.data() != null) {
+            final supData = supDoc.data()!;
+            final name = supData['nome'] as String? ?? '';
+            final foto = supData['fotoPath'] as String?;
+            if (mounted) {
+              setState(() {
+                if (name.isNotEmpty) {
+                  _caregiverName = name.split(' ').first;
+                }
+                _caregiverFoto = foto;
+              });
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Erro ao carregar cuidador: $e');
+    }
   }
 
   @override
@@ -46,16 +97,20 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
 
   Future<void> _ligarAjudante() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final idosoId = prefs.getString('paired_idoso_id') ?? 'joao';
-      final doc = await FirebaseFirestore.instance
-          .collection('idosos')
-          .doc(idosoId)
-          .get();
+      TTSService.instance.falar('Ligando para $_caregiverName agora.', caller: this);
+      
+      String phone = _caregiverPhone ?? '';
+      if (phone.isEmpty) {
+        final prefs = await SharedPreferences.getInstance();
+        final idosoId = prefs.getString('paired_idoso_id') ?? 'joao';
+        final doc = await FirebaseFirestore.instance
+            .collection('idosos')
+            .doc(idosoId)
+            .get();
 
-      String phone = '';
-      if (doc.exists) {
-        phone = doc.data()?['telefone'] ?? '';
+        if (doc.exists) {
+          phone = doc.data()?['telefone'] ?? '';
+        }
       }
 
       if (phone.isEmpty) {
@@ -189,7 +244,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                 borderRadius: BorderRadius.circular(24),
               ),
               title: const Text(
-                'Gravar Mensagem de Áudio',
+                'Gravar recado de voz',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 24,
@@ -331,7 +386,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                     ),
                   ),
                   child: const Text(
-                    'CANCELAR',
+                    'VOLTAR',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -384,7 +439,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                       backgroundColor: AppColors.secondaryContainer,
                     ),
                     child: const Text(
-                      'ENVIAR',
+                      'ENVIAR RECADO',
                       style: TextStyle(
                         fontSize: 18,
                         color: AppColors.onSecondaryContainer,
@@ -501,22 +556,12 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
           ),
           const Spacer(),
           GestureDetector(
-            onTap: () {
+            onTap: () async {
               TTSService.instance.parar(caller: this);
-              Navigator.pushNamed(context, '/elderly-profile');
+              await Navigator.pushNamed(context, '/elderly-profile');
+              _loadProfilePhoto();
             },
-            child: Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.primaryContainer, width: 2),
-              ),
-              child: const Icon(
-                Icons.person,
-                color: AppColors.primaryContainer,
-              ),
-            ),
+            child: ElderlyProfileAvatar(fotoPath: _fotoPath, size: 48),
           ),
         ],
       ),
@@ -540,28 +585,71 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
             ),
             child: Column(
               children: [
-                Container(
+                SizedBox(
                   width: 140,
                   height: 140,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2E7D32),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 6),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black12,
-                        blurRadius: 12,
-                        offset: Offset(0, 6),
+                  child: Stack(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryContainer,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 6),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black12,
+                              blurRadius: 12,
+                              offset: Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: _caregiverFoto != null && _caregiverFoto!.isNotEmpty
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(70),
+                                  child: Image.network(
+                                    _caregiverFoto!,
+                                    width: 128,
+                                    height: 128,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => const Icon(
+                                      Icons.person,
+                                      size: 80,
+                                      color: AppColors.onPrimaryContainer,
+                                    ),
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.person,
+                                  size: 80,
+                                  color: AppColors.onPrimaryContainer,
+                                ),
+                        ),
+                      ),
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF2E7D32), // Green
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.call,
+                            color: Colors.white,
+                            size: 28,
+                          ),
+                        ),
                       ),
                     ],
                   ),
-                  child: const Icon(Icons.call, size: 72, color: Colors.white),
                 ),
                 const SizedBox(height: 20),
-                const Text(
-                  'Ligar para meu ajudante',
+                Text(
+                  'Ligar para $_caregiverName',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.w800,
                     height: 1.2,
@@ -583,33 +671,35 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
         children: [
           Expanded(
             child: Material(
-              color: AppColors.surfaceContainerHigh,
-              borderRadius: BorderRadius.circular(12),
+              color: const Color(0xFFE1F5FE), // Soft Blue
+              borderRadius: BorderRadius.circular(16),
               child: InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: _enviarMensagemDialog,
+                borderRadius: BorderRadius.circular(16),
+                onTap: () {
+                  TTSService.instance.falar('Diga o seu recado depois de tocar no botão.', caller: this);
+                  _enviarMensagemDialog();
+                },
                 child: Container(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 12),
                   decoration: BoxDecoration(
                     border: Border.all(
-                      color: AppColors.outlineVariant,
-                      width: 2,
+                      color: const Color(0xFF0288D1),
+                      width: 3,
                     ),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                   child: const Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.message, size: 36, color: AppColors.primary),
+                      Icon(Icons.mic, size: 40, color: Color(0xFF0288D1)),
                       SizedBox(height: 12),
                       Text(
-                        'Mandar Recado',
+                        'Mandar\nRecado',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.05,
-                          color: AppColors.primary,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF0288D1),
                         ),
                       ),
                     ],
@@ -621,40 +711,42 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
           const SizedBox(width: 12),
           Expanded(
             child: Material(
-              color: AppColors.surfaceContainerHigh,
-              borderRadius: BorderRadius.circular(12),
+              color: const Color(0xFFFFEBEE), // Soft Red
+              borderRadius: BorderRadius.circular(16),
               child: InkWell(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
                 onTap: () {
-                  TTSService.instance.parar(caller: this);
+                  TTSService.instance.falar('Chamando ajuda de emergência! Por favor, aguarde.', caller: this);
                   Navigator.pushNamed(context, '/emergency-alert');
                 },
                 child: Container(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 12),
                   decoration: BoxDecoration(
                     border: Border.all(
-                      color: AppColors.outlineVariant,
-                      width: 2,
+                      color: const Color(0xFFC62828),
+                      width: 4,
                     ),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFC62828).withValues(alpha: 0.15),
+                        blurRadius: 10,
+                        spreadRadius: 2,
+                      ),
+                    ],
                   ),
                   child: const Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
-                        Icons.medical_services,
-                        size: 36,
-                        color: AppColors.primary,
-                      ),
+                      Icon(Icons.campaign, size: 40, color: Color(0xFFC62828)),
                       SizedBox(height: 12),
                       Text(
                         'Emergência',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.05,
-                          color: AppColors.primary,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFFC62828),
                         ),
                       ),
                     ],
@@ -666,36 +758,35 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
           const SizedBox(width: 12),
           Expanded(
             child: Material(
-              color: AppColors.surfaceContainerHigh,
-              borderRadius: BorderRadius.circular(12),
+              color: const Color(0xFFE8F5E9), // Soft Green
+              borderRadius: BorderRadius.circular(16),
               child: InkWell(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
                 onTap: () {
-                  TTSService.instance.parar(caller: this);
+                  TTSService.instance.falar('Abrindo seus recados do cuidador.', caller: this);
                   Navigator.pushNamed(context, '/messages');
                 },
                 child: Container(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 12),
                   decoration: BoxDecoration(
                     border: Border.all(
-                      color: AppColors.outlineVariant,
-                      width: 2,
+                      color: const Color(0xFF2E7D32),
+                      width: 3,
                     ),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                   child: const Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.forum, size: 36, color: AppColors.primary),
+                      Icon(Icons.chat_bubble, size: 40, color: Color(0xFF2E7D32)),
                       SizedBox(height: 12),
                       Text(
-                        'Ver Recados',
+                        'Ver\nRecados',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.05,
-                          color: AppColors.primary,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF2E7D32),
                         ),
                       ),
                     ],
@@ -748,54 +839,6 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                 Navigator.pushNamed(context, '/all-reminders');
               }),
               _bottomNavItem(Icons.help_center, 'Ajuda', true, null),
-              Expanded(
-                child: Center(
-                  child: GestureDetector(
-                    onTap: () {
-                      TTSService.instance.parar(caller: this);
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Colors.transparent,
-                        builder: (context) => const AlexAssistantSheet(),
-                      );
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primary.withValues(alpha: 0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: const Column(
-                        mainAxisSize: MainAxisSize.min,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          AlexAvatar(size: 40, animate: false),
-                          SizedBox(height: 2),
-                          Text(
-                            'Falar',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
             ],
           ),
         ),
@@ -858,6 +901,20 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
         });
       }
     } catch (_) {}
+  }
+
+  Future<void> _loadProfilePhoto() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final localFoto = prefs.getString('idoso_foto_path');
+      if (mounted) {
+        setState(() {
+          _fotoPath = localFoto;
+        });
+      }
+    } catch (e) {
+      debugPrint('Erro ao carregar foto no help: $e');
+    }
   }
 
   Widget _buildHeartRateCard(BuildContext context) {

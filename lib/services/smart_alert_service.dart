@@ -48,6 +48,12 @@ class SmartAlertService {
         lembrete.horarioHour,
         lembrete.horarioMinute,
       );
+
+      // Se o lembrete foi criado hoje após o horário programado de hoje, ele não está atrasado hoje.
+      if (scheduled.isBefore(now) && lembrete.criadoEm.isAfter(scheduled)) {
+        continue;
+      }
+
       final minutesLate = now.difference(scheduled).inMinutes;
       if (minutesLate < 0) continue;
 

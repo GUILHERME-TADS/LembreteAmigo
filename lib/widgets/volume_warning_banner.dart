@@ -44,12 +44,6 @@ class _VolumeWarningBannerState extends State<VolumeWarningBanner> {
 
     if (VolumeService.isLow(vol) && !_hasSpokenWarning) {
       _hasSpokenWarning = true;
-      unawaited(
-        TTSService.instance.falar(
-          'O som do celular esta baixo. Toque em aumentar som ou use os botoes laterais do aparelho.',
-          caller: this,
-        ),
-      );
     } else if (!VolumeService.isLow(vol)) {
       _hasSpokenWarning = false;
     }
@@ -158,29 +152,6 @@ class _VolumeWarningBannerState extends State<VolumeWarningBanner> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.onErrorContainer,
                     foregroundColor: AppColors.errorContainer,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    textStyle: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w900,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _testSound,
-                  icon: const Icon(Icons.record_voice_over),
-                  label: const Text('TESTAR SOM'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.onErrorContainer,
-                    side: const BorderSide(
-                      color: AppColors.onErrorContainer,
-                      width: 2,
-                    ),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     textStyle: const TextStyle(
                       fontSize: 15,

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -21,6 +22,9 @@ class LembreteService {
   final ValueNotifier<List<Lembrete>> notifier = ValueNotifier([]);
   final ValueNotifier<List<LembreteEvento>> eventosNotifier = ValueNotifier([]);
   bool _loaded = false;
+  String? _loadedIdosoId;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
+      _lembretesSubscription;
 
   List<Lembrete> get lembretes => List.unmodifiable(_lembretes);
   List<LembreteEvento> get eventos => List.unmodifiable(_eventos);
@@ -41,17 +45,27 @@ class LembreteService {
   }
 
   Future<void> carregar() async {
-    if (_loaded) return;
-    _loaded = true;
+    final idosoId = await _getActiveIdosoId();
+    if (_loaded && _loadedIdosoId == idosoId) return;
 
-    await _carregarCacheLocal();
+    if (_loadedIdosoId != null && _loadedIdosoId != idosoId) {
+      await _lembretesSubscription?.cancel();
+      await _cancelarNotificacoesLocais();
+      _lembretes.clear();
+      await _salvarLembretesLocais();
+      notifier.value = const [];
+    }
+
+    _loaded = true;
+    _loadedIdosoId = idosoId;
+
+    await _carregarCacheLocal(activeIdosoId: idosoId);
     await OfflineSyncService.instance.loadQueue();
     await OfflineSyncService.instance.syncPendingWrites();
 
     if (!_useFirebase) return;
 
-    final idosoId = await _getActiveIdosoId();
-    FirebaseFirestore.instance
+    _lembretesSubscription = FirebaseFirestore.instance
         .collection('lembretes')
         .where('idosoId', isEqualTo: idosoId)
         .snapshots()
@@ -67,16 +81,22 @@ class LembreteService {
         });
   }
 
-  Future<void> _carregarCacheLocal() async {
+  Future<void> _carregarCacheLocal({String? activeIdosoId}) async {
     final prefs = await SharedPreferences.getInstance();
     final data = prefs.getString('lembretes');
     if (data != null) {
       final list = jsonDecode(data) as List;
+      final lembretes = list
+          .map((item) => Lembrete.fromJson(item as Map<String, dynamic>))
+          .where(
+            (lembrete) =>
+                activeIdosoId == null ||
+                lembrete.idosoId == null ||
+                lembrete.idosoId == activeIdosoId,
+          );
       _lembretes
         ..clear()
-        ..addAll(
-          list.map((item) => Lembrete.fromJson(item as Map<String, dynamic>)),
-        );
+        ..addAll(lembretes);
     }
 
     await _verificarEFiltrarViradaDoDia();
@@ -109,15 +129,18 @@ class LembreteService {
         for (int i = 0; i < _lembretes.length; i++) {
           final lembrete = _lembretes[i];
           
-          final isRecorrente = lembrete.repeteTodosOsDias || 
-                               lembrete.recorrenciaSemanal || 
-                               lembrete.recorrenciaMensal || 
-                               lembrete.recorrenciaIntervalo ||
-                               lembrete.recorrencia == 'diario' ||
-                               lembrete.recorrencia == 'semanal' ||
-                               lembrete.recorrencia == 'mensal';
+          final isRecorrente =
+              lembrete.repeteTodosOsDias ||
+              lembrete.recorrenciaSemanal ||
+              lembrete.recorrenciaMensal ||
+              lembrete.recorrenciaIntervalo ||
+              lembrete.recorrencia == 'diario' ||
+              lembrete.recorrencia == 'semanal' ||
+              lembrete.recorrencia == 'mensal' ||
+              lembrete.recorrencia == 'quinzenal';
 
-          if (isRecorrente && (lembrete.concluido || lembrete.concluidoComFoto)) {
+          if (isRecorrente &&
+              (lembrete.concluido || lembrete.concluidoComFoto)) {
             _lembretes[i] = lembrete.copyWith(
               concluido: false,
               concluidoComFoto: false,
@@ -171,8 +194,18 @@ class LembreteService {
 
   Future<void> _publicarLembretes() async {
     notifier.value = List.from(_lembretes);
-    NotificationService.instance.agendarTodos(_lembretes);
+    try {
+      await NotificationService.instance.agendarTodos(_lembretes);
+    } catch (e) {
+      debugPrint('Erro ao reagendar notificacoes: $e');
+    }
     await SmartAlertService.instance.atualizar(_lembretes);
+  }
+
+  Future<void> _cancelarNotificacoesLocais() async {
+    for (final lembrete in _lembretes) {
+      await NotificationService.instance.cancelar(lembrete.id);
+    }
   }
 
   void _upsertLocal(Lembrete lembrete) {
@@ -336,6 +369,7 @@ class LembreteService {
   }
 
   Future<void> remover(String id) async {
+    await NotificationService.instance.cancelar(id);
     _lembretes.removeWhere((item) => item.id == id);
     await _salvar();
 

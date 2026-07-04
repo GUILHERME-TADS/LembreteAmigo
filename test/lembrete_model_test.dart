@@ -5,6 +5,7 @@ import 'package:lembretes_app/models/offline_write.dart';
 import 'package:lembretes_app/models/smart_alert.dart';
 import 'package:lembretes_app/services/offline_sync_service.dart';
 import 'package:lembretes_app/services/smart_alert_service.dart';
+import 'package:lembretes_app/utils/voice_reminder_parser.dart';
 import 'package:lembretes_app/widgets/reminder_with_audio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -251,4 +252,34 @@ void main() {
       expect(queue.first.data['texto'], 'oi');
     },
   );
+
+  group('parser de lembrete por voz', () {
+    void expectTime(String phrase, int hour, int minute) {
+      final parsed = VoiceReminderParser.parse(phrase);
+      expect(parsed, isNotNull, reason: phrase);
+      expect(parsed!.hour, hour, reason: phrase);
+      expect(parsed.minute, minute, reason: phrase);
+    }
+
+    test('entende horas, minutos e turnos comuns', () {
+      expectTime('Tomar remedio as oito e cinco da manha', 8, 5);
+      expectTime('Tomar remedio as duas da tarde', 14, 0);
+      expectTime('Beber agua as oito da noite', 20, 0);
+      expectTime('Medir pressao as doze da noite', 0, 0);
+      expectTime('Caminhar as doze da tarde', 12, 0);
+    });
+
+    test('entende meia, meio-dia e meia-noite com minutos', () {
+      expectTime('Almocar meio-dia e meia', 12, 30);
+      expectTime('Tomar remedio meia-noite e quinze', 0, 15);
+      expectTime('Tomar cha as oito e meia', 8, 30);
+    });
+
+    test('entende frases relativas como para as e menos', () {
+      expectTime('Tomar remedio cinco para as oito da noite', 19, 55);
+      expectTime('Tomar remedio quinze pras duas da tarde', 13, 45);
+      expectTime('Medir glicose dez para as seis da manha', 5, 50);
+      expectTime('Tomar agua oito menos cinco da noite', 19, 55);
+    });
+  });
 }

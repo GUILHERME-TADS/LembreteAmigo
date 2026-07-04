@@ -227,7 +227,7 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
               lembrete.horarioHour * 60 + lembrete.horarioMinute;
           if (lembrete.recorrenciaIntervalo ||
               lembrete.recorrencia == 'intervalo') {
-            final interval = lembrete.intervaloHoras ?? 4;
+            final interval = _safeIntervalHours(lembrete);
             final diff = nowMinutes - reminderMinutes;
             return diff >= 0 && diff % (interval * 60) <= 1;
           }
@@ -278,7 +278,25 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
 
   String _reminderOpenKey(Lembrete lembrete, DateTime now) {
     final date = '${now.year}-${now.month}-${now.day}';
-    return '$date:${lembrete.id}:${lembrete.horarioHour}:${lembrete.horarioMinute}';
+    final nowMinutes = now.hour * 60 + now.minute;
+    final reminderMinutes = lembrete.horarioHour * 60 + lembrete.horarioMinute;
+    var occurrenceMinutes = reminderMinutes;
+    if (lembrete.recorrenciaIntervalo || lembrete.recorrencia == 'intervalo') {
+      final intervalMinutes = _safeIntervalHours(lembrete) * 60;
+      final diff = nowMinutes - reminderMinutes;
+      if (diff >= 0) {
+        occurrenceMinutes =
+            reminderMinutes + (diff ~/ intervalMinutes) * intervalMinutes;
+      }
+    }
+    return '$date:${lembrete.id}:$occurrenceMinutes';
+  }
+
+  int _safeIntervalHours(Lembrete lembrete) {
+    final interval = lembrete.intervaloHoras ?? 4;
+    if (interval < 1) return 1;
+    if (interval > 24) return 24;
+    return interval;
   }
 
   @override

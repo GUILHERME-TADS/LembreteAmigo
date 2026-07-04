@@ -50,7 +50,9 @@ class SmartAlertService {
       );
 
       // Se o lembrete foi criado hoje após o horário programado de hoje, ele não está atrasado hoje.
-      if (scheduled.isBefore(now) && lembrete.criadoEm.isAfter(scheduled)) {
+      if (scheduled.isBefore(now) &&
+          _isSameDay(lembrete.criadoEm, now) &&
+          lembrete.criadoEm.isAfter(scheduled)) {
         continue;
       }
 
@@ -297,4 +299,8 @@ class SmartAlertService {
 
   String _dateKey(DateTime date) =>
       '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+
+  bool _isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
 }

@@ -31,8 +31,44 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
     LembreteService.instance.notifier.addListener(_onLembretesChanged);
   }
 
+  bool _isReminderActiveToday(Lembrete lembrete) {
+    final now = DateTime.now();
+    if (lembrete.recorrencia == 'diario' || lembrete.repeteTodosOsDias) {
+      return true;
+    }
+    if (lembrete.recorrencia == 'semanal' || lembrete.recorrenciaSemanal) {
+      return lembrete.diasSemana.contains(now.weekday);
+    }
+    if (lembrete.recorrencia == 'mensal' || lembrete.recorrenciaMensal) {
+      return (lembrete.diaMes ?? lembrete.criadoEm.day) == now.day;
+    }
+    if (lembrete.recorrencia == 'quinzenal') {
+      final diffDays = DateTime(now.year, now.month, now.day)
+          .difference(
+            DateTime(
+              lembrete.criadoEm.year,
+              lembrete.criadoEm.month,
+              lembrete.criadoEm.day,
+            ),
+          )
+          .inDays;
+      return diffDays >= 0 && diffDays % 15 == 0;
+    }
+    if (lembrete.recorrencia == 'unico' || lembrete.lembreteUnico) {
+      final hojeKey = '${now.year}-${now.month}-${now.day}';
+      final criadoKey = '${lembrete.criadoEm.year}-${lembrete.criadoEm.month}-${lembrete.criadoEm.day}';
+      return hojeKey == criadoKey;
+    }
+    if (lembrete.recorrencia == 'intervalo' || lembrete.recorrenciaIntervalo) {
+      return true;
+    }
+    return true;
+  }
+
   void _loadReminders() {
-    final list = LembreteService.instance.lembretes.toList();
+    final list = LembreteService.instance.lembretes
+        .where((l) => _isReminderActiveToday(l))
+        .toList();
     list.sort((a, b) {
       final aMin = a.horarioHour * 60 + a.horarioMinute;
       final bMin = b.horarioHour * 60 + b.horarioMinute;
@@ -197,11 +233,19 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
               status: reminderStatusFromLembrete(r),
               onTap: () {
                 _stopAllAudioAndTts();
-                if (!r.concluido) {
-                  SystemSound.play(SystemSoundType.click);
-                  HapticFeedback.vibrate();
+                if (r.categoria == 'medicacao' && !r.concluido) {
+                  Navigator.pushNamed(
+                    context,
+                    '/take-photo-confirmation',
+                    arguments: r.id,
+                  );
+                } else {
+                  if (!r.concluido) {
+                    SystemSound.play(SystemSoundType.click);
+                    HapticFeedback.vibrate();
+                  }
+                  LembreteService.instance.alternarConclusao(r.id);
                 }
-                LembreteService.instance.alternarConclusao(r.id);
               },
             ),
           );
@@ -638,8 +682,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
 
   Widget _buildTopBar(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      height: 100,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: const BoxDecoration(
         color: AppColors.surface,
         border: Border(bottom: BorderSide(color: AppColors.outlineVariant)),
@@ -649,7 +692,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
           const SizedBox(width: 48),
           const Spacer(),
           Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
                 'Todos os Lembretes',
@@ -660,41 +703,10 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                 ),
               ),
               const SizedBox(height: 6),
-              GestureDetector(
-                onTap: () {
-                  _stopAllAudioAndTts();
-                  TTSService.instance.falar(
+              MeExplicaButton(
+                textoExplicacao:
                     'Olá! Esta é a tela com todas as suas tarefas de hoje, organizadas do horário mais cedo para o mais tarde.',
-                    caller: this,
-                  );
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(99),
-                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.15), width: 1.5),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.record_voice_over,
-                        color: AppColors.primary,
-                        size: 18,
-                      ),
-                      SizedBox(width: 6),
-                      Text(
-                        'Me explica',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                onTapped: _stopAllAudioAndTts,
               ),
             ],
           ),

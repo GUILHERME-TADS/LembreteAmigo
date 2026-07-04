@@ -6,6 +6,7 @@ import '../services/lembrete_service.dart';
 import '../services/tts_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/period_helper.dart';
+import '../utils/voice_reminder_parser.dart';
 import '../widgets/index.dart';
 
 class RecordingAudioScreen extends StatefulWidget {
@@ -187,6 +188,9 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
   }
 
   (int, int, String)? _extrairHorario(String texto) {
+    final parsed = VoiceReminderParser.parse(texto);
+    if (parsed != null) return parsed.toRecord();
+
     final textoNormalizado = _normalizarPalavrasParaNumeros(texto);
     final textoLower = textoNormalizado.toLowerCase().trim();
 

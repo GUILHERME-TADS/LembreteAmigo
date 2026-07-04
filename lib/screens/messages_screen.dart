@@ -5,8 +5,7 @@ import '../services/message_service.dart';
 import '../services/session_role_service.dart';
 import '../services/tts_service.dart';
 import '../theme/app_theme.dart';
-import '../widgets/audio_player_card.dart';
-import '../widgets/supervisor_bottom_nav.dart';
+import '../widgets/index.dart';
 
 class MessagesScreen extends StatefulWidget {
   const MessagesScreen({super.key});
@@ -89,8 +88,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
   Widget _buildTopBar() {
     return Container(
-      height: 72,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: const BoxDecoration(
         color: AppColors.surface,
         border: Border(bottom: BorderSide(color: AppColors.outlineVariant)),
@@ -109,13 +107,26 @@ class _MessagesScreenState extends State<MessagesScreen> {
           const Icon(Icons.forum, color: AppColors.primary, size: 32),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(
-              _isSupervisor ? 'Recados do idoso' : 'Recados do cuidador',
-              style: const TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.w800,
-                color: AppColors.primary,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _isSupervisor ? 'Recados do idoso' : 'Recados do cuidador',
+                  style: const TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.primary,
+                  ),
+                ),
+                if (!_isSupervisor) ...[
+                  const SizedBox(height: 6),
+                  const MeExplicaButton(
+                    textoExplicacao:
+                        'Olá! Esta é a tela de recados. Aqui você pode ler as mensagens enviadas pelo seu cuidador e também mandar mensagens para ele tocando no campo de texto na parte inferior ou usando o botão de gravar áudio.',
+                  ),
+                ],
+              ],
             ),
           ),
         ],

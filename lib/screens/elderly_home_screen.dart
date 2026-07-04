@@ -1918,8 +1918,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
 
   Widget _buildTopBar() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      height: 100,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: const BoxDecoration(
         color: AppColors.surface,
         border: Border(bottom: BorderSide(color: AppColors.outlineVariant)),
@@ -1929,7 +1928,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
           const SizedBox(width: 48),
           const Spacer(),
           Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
                 'Lembrete Amigo',

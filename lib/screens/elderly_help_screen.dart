@@ -489,8 +489,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
 
   Widget _buildTopBar(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      height: 100,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: const BoxDecoration(
         color: AppColors.surface,
         border: Border(bottom: BorderSide(color: AppColors.outlineVariant)),
@@ -500,7 +499,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
           const SizedBox(width: 48),
           const Spacer(),
           Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
                 'Pedir ajuda',
@@ -511,46 +510,9 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                 ),
               ),
               const SizedBox(height: 6),
-              GestureDetector(
-                onTap: () {
-                  TTSService.instance.falar(
+              const MeExplicaButton(
+                textoExplicacao:
                     'Olá! Esta é a tela para pedir ajuda. Aqui você pode ligar para quem cuida de você apertando o grande botão verde, ver como está seu coração apertando o botão vermelho com o desenho de um coração, ou enviar um recado por áudio ou texto se precisar de qualquer outra coisa.',
-                    caller: this,
-                  );
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(99),
-                    border: Border.all(
-                      color: AppColors.primary.withValues(alpha: 0.15),
-                      width: 1.5,
-                    ),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.record_voice_over,
-                        color: AppColors.primary,
-                        size: 18,
-                      ),
-                      SizedBox(width: 6),
-                      Text(
-                        'Me explica',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               ),
             ],
           ),

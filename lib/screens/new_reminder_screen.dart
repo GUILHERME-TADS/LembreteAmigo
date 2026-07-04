@@ -984,6 +984,16 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
       return;
     }
 
+    if (_selectedRecorrencia == 'semanal' && _selectedDiasSemana.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Selecione pelo menos um dia da semana'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
     final now = DateTime.now();
     final lembrete = Lembrete(
       id: now.millisecondsSinceEpoch.toString(),
@@ -1013,8 +1023,9 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
           : null,
     );
 
-    LembreteService.instance.adicionar(lembrete);
-    if (mounted) {
+    try {
+      await LembreteService.instance.adicionar(lembrete);
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Lembrete criado com sucesso!'),
@@ -1022,6 +1033,14 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
         ),
       );
       Navigator.pop(context, lembrete);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Nao foi possivel salvar o lembrete: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
     }
   }
 }

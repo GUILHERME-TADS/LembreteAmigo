@@ -508,6 +508,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                           const MeExplicaButton(
                             textoExplicacao: 'Olá! Esta é a tela com as suas informações. Aqui você vê o seu nome e telefone. Para mudar sua foto, aperte em cima do círculo da foto. Para mudar seu nome ou se conectar com um ajudante, use os botões da lista abaixo.',
                           ),
+                          const SizedBox(height: 20),
                           Container(
                             width: double.infinity,
                             padding: const EdgeInsets.all(24),

@@ -430,6 +430,147 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     );
   }
 
+  void _confirmarAcaoSOSComContagem(
+    String acaoTitulo,
+    String ttsMensagem,
+    VoidCallback acaoConfirmada,
+  ) {
+    _stopAllAudioAndTts();
+    
+    int segundosRestantes = 5;
+    Timer? countdownTimer;
+    
+    TTSService.instance.falar(
+      '$ttsMensagem em $segundosRestantes segundos. Aperte no botão para cancelar.',
+      caller: this,
+    );
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        final isHighContrast = Theme.of(context).colorScheme.primary == Colors.black;
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            countdownTimer ??= Timer.periodic(const Duration(seconds: 1), (timer) {
+              if (segundosRestantes > 1) {
+                if (mounted) {
+                  setDialogState(() {
+                    segundosRestantes--;
+                  });
+                  TTSService.instance.falar('$segundosRestantes', caller: this);
+                }
+              } else {
+                timer.cancel();
+                Navigator.pop(context); // Fechar o diálogo
+                acaoConfirmada(); // Executar a ação
+              }
+            });
+
+            return AlertDialog(
+              backgroundColor: isHighContrast ? Colors.white : AppColors.background,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+                side: isHighContrast ? const BorderSide(color: Colors.black, width: 4) : BorderSide.none,
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      Icon(Icons.warning, color: AppColors.error, size: 36),
+                      SizedBox(width: 12),
+                      Text(
+                        'ATENÇÃO',
+                        style: TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.error,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    acaoTitulo.toUpperCase(),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                      color: isHighContrast ? Colors.black : AppColors.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Container(
+                    width: 120,
+                    height: 120,
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.error, width: 4),
+                    ),
+                    child: Center(
+                      child: Text(
+                        '$segundosRestantes',
+                        style: const TextStyle(
+                          fontSize: 54,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.error,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                  const Text(
+                    'O telefone fará a ação automaticamente.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 88,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        countdownTimer?.cancel();
+                        TTSService.instance.parar(caller: this);
+                        Navigator.pop(context);
+                      },
+                      icon: const Icon(Icons.cancel, size: 36),
+                      label: const Text(
+                        'CANCELAR',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: isHighContrast ? Colors.black : AppColors.error,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          side: isHighContrast ? const BorderSide(color: Colors.white, width: 2) : BorderSide.none,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    ).then((_) {
+      countdownTimer?.cancel();
+    });
+  }
+
   void _showSOSModal() async {
     final prefs = await SharedPreferences.getInstance();
     final idosoId = prefs.getString('paired_idoso_id') ?? 'joao';
@@ -457,51 +598,60 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) {
+        final isHighContrast = Theme.of(context).colorScheme.primary == Colors.black;
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.only(
+            borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(32),
               topRight: Radius.circular(32),
             ),
+            border: isHighContrast
+                ? const Border(
+                    top: BorderSide(color: Colors.black, width: 4),
+                    left: BorderSide(color: Colors.black, width: 4),
+                    right: BorderSide(color: Colors.black, width: 4),
+                  )
+                : null,
           ),
           child: SafeArea(
             top: false,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  width: 60,
-                  height: 6,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(3),
+                if (!isHighContrast)
+                  Container(
+                    width: 60,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(3),
+                    ),
                   ),
-                ),
                 const SizedBox(height: 20),
-                const Row(
+                Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.warning, color: AppColors.error, size: 32),
-                    SizedBox(width: 12),
+                    const Icon(Icons.warning, color: AppColors.error, size: 32),
+                    const SizedBox(width: 12),
                     Text(
                       'SOS - EMERGÊNCIA',
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.w900,
-                        color: AppColors.error,
+                        color: isHighContrast ? Colors.black : AppColors.error,
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 8),
-                const Text(
+                Text(
                   'Selecione uma opção de socorro imediato:',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 16,
-                    color: AppColors.onSurfaceVariant,
+                    color: isHighContrast ? Colors.black : AppColors.onSurfaceVariant,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -513,7 +663,11 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                   child: ElevatedButton.icon(
                     onPressed: () {
                       Navigator.pop(context);
-                      _ligar(phone);
+                      _confirmarAcaoSOSComContagem(
+                        'Ligar para Ajudante',
+                        'Iniciando ligação para o ajudante',
+                        () => _ligar(phone),
+                      );
                     },
                     icon: const Icon(Icons.person, size: 28),
                     label: const Text(
@@ -524,10 +678,11 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange,
+                      backgroundColor: isHighContrast ? Colors.black : Colors.orange,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
+                        side: isHighContrast ? const BorderSide(color: Colors.black, width: 2) : BorderSide.none,
                       ),
                     ),
                   ),
@@ -540,7 +695,11 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                   child: ElevatedButton.icon(
                     onPressed: () {
                       Navigator.pop(context);
-                      _ligar('192');
+                      _confirmarAcaoSOSComContagem(
+                        'Ligar para SAMU',
+                        'Iniciando ligação para o SAMU no 1 9 2',
+                        () => _ligar('192'),
+                      );
                     },
                     icon: const Icon(Icons.local_hospital, size: 28),
                     label: const Text(
@@ -551,10 +710,11 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.error,
+                      backgroundColor: isHighContrast ? Colors.black : AppColors.error,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
+                        side: isHighContrast ? const BorderSide(color: Colors.black, width: 2) : BorderSide.none,
                       ),
                     ),
                   ),
@@ -564,10 +724,14 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                 SizedBox(
                   width: double.infinity,
                   height: 72,
-                  child: OutlinedButton.icon(
+                  child: ElevatedButton.icon(
                     onPressed: () {
                       Navigator.pop(context);
-                      _enviarSMSLocalizacao(phone);
+                      _confirmarAcaoSOSComContagem(
+                        'Enviar Localização',
+                        'Enviando sua localização para o ajudante',
+                        () => _enviarSMSLocalizacao(phone),
+                      );
                     },
                     icon: const Icon(Icons.location_on, size: 28),
                     label: const Text(
@@ -577,14 +741,15 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.primary,
-                      side: const BorderSide(
-                        color: AppColors.primary,
-                        width: 2,
-                      ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isHighContrast ? Colors.black : Colors.white,
+                      foregroundColor: isHighContrast ? Colors.white : AppColors.primary,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
+                        side: BorderSide(
+                          color: isHighContrast ? Colors.black : AppColors.primary,
+                          width: 2,
+                        ),
                       ),
                     ),
                   ),
@@ -930,29 +1095,35 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
   }
 
   Widget _buildNode(Lembrete lembrete) {
+    final isHighContrast = Theme.of(context).colorScheme.primary == Colors.black;
     final bool isMed = lembrete.categoria == 'medicacao';
     Color bg;
     IconData? icon;
-    Color iconColor = Colors.white;
+    Color iconColor = isHighContrast ? Colors.black : Colors.white;
 
     if (lembrete.concluido) {
-      bg = AppColors.tertiaryFixedDim;
+      bg = isHighContrast ? Colors.black : AppColors.tertiaryFixedDim;
+      iconColor = Colors.white;
     } else {
-      switch (lembrete.categoria) {
-        case 'medicacao':
-          bg = AppColors.medicationsColor;
-          break;
-        case 'refeicoes':
-          bg = AppColors.mealsColor;
-          break;
-        case 'exercicio':
-          bg = AppColors.tertiaryContainer;
-          break;
-        case 'hidratacao':
-          bg = AppColors.voiceFeedbackBlue;
-          break;
-        default:
-          bg = AppColors.customColor;
+      if (isHighContrast) {
+        bg = Colors.white;
+      } else {
+        switch (lembrete.categoria) {
+          case 'medicacao':
+            bg = AppColors.medicationsColor;
+            break;
+          case 'refeicoes':
+            bg = AppColors.mealsColor;
+            break;
+          case 'exercicio':
+            bg = AppColors.tertiaryContainer;
+            break;
+          case 'hidratacao':
+            bg = AppColors.voiceFeedbackBlue;
+            break;
+          default:
+            bg = AppColors.customColor;
+        }
       }
     }
 
@@ -994,12 +1165,14 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
         shape: BoxShape.circle,
         color: bg,
         border: Border.all(
-          color: lembrete.concluido
-              ? AppColors.onTertiaryFixedVariant
-              : Colors.white,
+          color: isHighContrast
+              ? Colors.black
+              : (lembrete.concluido
+                  ? AppColors.onTertiaryFixedVariant
+                  : Colors.white),
           width: 3,
         ),
-        boxShadow: const [
+        boxShadow: isHighContrast ? null : const [
           BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
         ],
       ),
@@ -1013,9 +1186,10 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
               bottom: 0,
               child: Container(
                 padding: const EdgeInsets.all(2),
-                decoration: const BoxDecoration(
-                  color: Color(0xFF005312),
+                decoration: BoxDecoration(
+                  color: isHighContrast ? Colors.black : const Color(0xFF005312),
                   shape: BoxShape.circle,
+                  border: isHighContrast ? Border.all(color: Colors.white, width: 2) : null,
                 ),
                 child: const Icon(Icons.check, color: Colors.white, size: 16),
               ),
@@ -1026,6 +1200,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
   }
 
   Widget _buildReminderCard(Lembrete lembrete) {
+    final isHighContrast = Theme.of(context).colorScheme.primary == Colors.black;
     final isMed = lembrete.categoria == 'medicacao';
     final statusText = _statusText(lembrete);
     final isAtrasado = !lembrete.concluido &&
@@ -1060,19 +1235,23 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
       subtitle = statusText;
     }
 
-    final cardBg = lembrete.concluido
-        ? const Color(0xFFE8F5E9)
-        : lembrete.status == LembreteStatus.adiado
-        ? const Color(0xFFFFFDE7)
-        : isAtrasado
-        ? const Color(0xFFFFEBEE)
-        : AppColors.surfaceContainerLowest;
+    final cardBg = isHighContrast
+        ? Colors.white
+        : (lembrete.concluido
+            ? const Color(0xFFE8F5E9)
+            : lembrete.status == LembreteStatus.adiado
+            ? const Color(0xFFFFFDE7)
+            : isAtrasado
+            ? const Color(0xFFFFEBEE)
+            : AppColors.surfaceContainerLowest);
 
-    final titleColor = lembrete.concluido
-        ? AppColors.onTertiaryFixedVariant
-        : lembrete.status == LembreteStatus.adiado
-        ? AppColors.onSecondaryFixedVariant
-        : accentColor;
+    final titleColor = isHighContrast
+        ? Colors.black
+        : (lembrete.concluido
+            ? AppColors.onTertiaryFixedVariant
+            : lembrete.status == LembreteStatus.adiado
+            ? AppColors.onSecondaryFixedVariant
+            : accentColor);
 
     final String barText = lembrete.concluido
         ? 'PRONTO!'
@@ -1094,36 +1273,48 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
         ? Icons.priority_high
         : Icons.info_outline;
 
-    final Color barBg = lembrete.concluido
-        ? AppColors.tertiaryFixedDim
-        : lembrete.status == LembreteStatus.adiado
-        ? AppColors.secondaryFixed
-        : (isAtrasado || lembrete.status == LembreteStatus.perdido)
-        ? AppColors.error
-        : accentColor;
+    final Color barBg = isHighContrast
+        ? (lembrete.concluido
+            ? Colors.black
+            : lembrete.status == LembreteStatus.adiado
+            ? Colors.yellow
+            : (isAtrasado || lembrete.status == LembreteStatus.perdido)
+            ? Colors.red
+            : Colors.black)
+        : (lembrete.concluido
+            ? AppColors.tertiaryFixedDim
+            : lembrete.status == LembreteStatus.adiado
+            ? AppColors.secondaryFixed
+            : (isAtrasado || lembrete.status == LembreteStatus.perdido)
+            ? AppColors.error
+            : accentColor);
 
-    final Color barFg = lembrete.concluido
-        ? AppColors.onTertiaryFixedVariant
-        : lembrete.status == LembreteStatus.adiado
-        ? AppColors.onSecondaryFixedVariant
-        : (isAtrasado || lembrete.status == LembreteStatus.perdido)
-        ? AppColors.onError
-        : Colors.white;
+    final Color barFg = isHighContrast
+        ? (lembrete.status == LembreteStatus.adiado ? Colors.black : Colors.white)
+        : (lembrete.concluido
+            ? AppColors.onTertiaryFixedVariant
+            : lembrete.status == LembreteStatus.adiado
+            ? AppColors.onSecondaryFixedVariant
+            : (isAtrasado || lembrete.status == LembreteStatus.perdido)
+            ? AppColors.onError
+            : Colors.white);
 
     return Card(
-      elevation: 2,
+      elevation: isHighContrast ? 0 : 2,
       color: cardBg,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
-          color: lembrete.concluido
-              ? AppColors.tertiaryFixedDim
-              : lembrete.status == LembreteStatus.adiado
-              ? AppColors.secondaryFixedDim
-              : isAtrasado
-              ? AppColors.error
-              : accentColor,
-          width: 2,
+          color: isHighContrast
+              ? (isAtrasado ? Colors.red : Colors.black)
+              : (lembrete.concluido
+                  ? AppColors.tertiaryFixedDim
+                  : lembrete.status == LembreteStatus.adiado
+                  ? AppColors.secondaryFixedDim
+                  : isAtrasado
+                  ? AppColors.error
+                  : accentColor),
+          width: isHighContrast ? (isAtrasado ? 4 : 3) : 2,
         ),
       ),
       child: InkWell(
@@ -1164,9 +1355,11 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w500,
-                              color: lembrete.status == LembreteStatus.adiado
-                                  ? AppColors.onSecondaryFixedVariant
-                                  : AppColors.onSurfaceVariant,
+                              color: isHighContrast
+                                  ? Colors.black
+                                  : (lembrete.status == LembreteStatus.adiado
+                                      ? AppColors.onSecondaryFixedVariant
+                                      : AppColors.onSurfaceVariant),
                             ),
                           ),
                         ],
@@ -1182,16 +1375,22 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                         height: 56,
                         decoration: BoxDecoration(
                           color: _isPlaying && _playingAudioPath == lembrete.audioPath
-                              ? (lembrete.status == LembreteStatus.adiado
-                                  ? AppColors.secondaryFixed
-                                  : accentColor.withValues(alpha: 0.2))
-                              : accentColor.withValues(alpha: 0.1),
+                              ? (isHighContrast
+                                  ? Colors.yellow
+                                  : (lembrete.status == LembreteStatus.adiado
+                                      ? AppColors.secondaryFixed
+                                      : accentColor.withValues(alpha: 0.2)))
+                              : (isHighContrast
+                                  ? Colors.white
+                                  : accentColor.withValues(alpha: 0.1)),
                           shape: BoxShape.rectangle,
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(
-                            color: lembrete.status == LembreteStatus.adiado
-                                ? AppColors.onSecondaryFixedVariant
-                                : accentColor,
+                            color: isHighContrast
+                                ? Colors.black
+                                : (lembrete.status == LembreteStatus.adiado
+                                    ? AppColors.onSecondaryFixedVariant
+                                    : accentColor),
                             width: 3,
                           ),
                         ),
@@ -1199,9 +1398,11 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                           _isPlaying && _playingAudioPath == lembrete.audioPath
                               ? Icons.stop
                               : Icons.play_arrow,
-                          color: lembrete.status == LembreteStatus.adiado
-                              ? AppColors.onSecondaryFixedVariant
-                              : accentColor,
+                          color: isHighContrast
+                              ? Colors.black
+                              : (lembrete.status == LembreteStatus.adiado
+                                  ? AppColors.onSecondaryFixedVariant
+                                  : accentColor),
                           size: 32,
                         ),
                       ),
@@ -1226,22 +1427,24 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                       height: 56,
                       decoration: BoxDecoration(
                         color: lembrete.concluido
-                            ? AppColors.tertiaryFixedDim
+                            ? (isHighContrast ? Colors.black : AppColors.tertiaryFixedDim)
                             : lembrete.status == LembreteStatus.adiado
-                            ? AppColors.secondaryFixed
+                            ? (isHighContrast ? Colors.yellow : AppColors.secondaryFixed)
                             : (isAtrasado || lembrete.status == LembreteStatus.perdido)
-                            ? AppColors.error
-                            : accentColor.withValues(alpha: 0.1),
+                            ? (isHighContrast ? Colors.red : AppColors.error)
+                            : (isHighContrast ? Colors.white : accentColor.withValues(alpha: 0.1)),
                         shape: BoxShape.rectangle,
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(
-                          color: lembrete.concluido
-                              ? AppColors.onTertiaryFixedVariant
-                              : lembrete.status == LembreteStatus.adiado
-                              ? AppColors.onSecondaryFixedVariant
-                              : (isAtrasado || lembrete.status == LembreteStatus.perdido)
-                              ? AppColors.onError
-                              : accentColor,
+                          color: isHighContrast
+                              ? Colors.black
+                              : (lembrete.concluido
+                                  ? AppColors.onTertiaryFixedVariant
+                                  : lembrete.status == LembreteStatus.adiado
+                                  ? AppColors.onSecondaryFixedVariant
+                                  : (isAtrasado || lembrete.status == LembreteStatus.perdido)
+                                  ? AppColors.onError
+                                  : accentColor),
                           width: 3,
                         ),
                       ),
@@ -1258,10 +1461,10 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                       ? Icons.close
                                       : Icons.priority_high,
                               color: lembrete.concluido
-                                  ? AppColors.onTertiaryFixedVariant
+                                  ? (isHighContrast ? Colors.white : AppColors.onTertiaryFixedVariant)
                                   : lembrete.status == LembreteStatus.adiado
-                                  ? AppColors.onSecondaryFixedVariant
-                                  : AppColors.onError,
+                                  ? (isHighContrast ? Colors.black : AppColors.onSecondaryFixedVariant)
+                                  : Colors.white,
                               size: 32,
                             )
                           : null,
@@ -1412,6 +1615,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     _PeriodSection section,
     List<Lembrete> allSorted,
   ) {
+    final isHighContrast = Theme.of(context).colorScheme.primary == Colors.black;
     final total = section.reminders.length;
     final done = section.reminders.where((l) => l.concluido).length;
 
@@ -1434,18 +1638,24 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
       decoration: BoxDecoration(
         color: AppColors.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.outlineVariant, width: 1.5),
+        border: Border.all(
+          color: isHighContrast ? Colors.black : AppColors.outlineVariant,
+          width: isHighContrast ? 3.0 : 1.5,
+        ),
       ),
       child: Column(
         children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
-              color: section.color.withValues(alpha: 0.12),
+              color: isHighContrast ? Colors.black : section.color.withValues(alpha: 0.12),
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(18),
                 topRight: Radius.circular(18),
               ),
+              border: isHighContrast
+                  ? const Border(bottom: BorderSide(color: Colors.black, width: 2))
+                  : null,
             ),
             child: Row(
               children: [
@@ -1453,10 +1663,14 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    color: section.color,
+                    color: isHighContrast ? Colors.white : section.color,
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(section.icon, color: Colors.white, size: 28),
+                  child: Icon(
+                    section.icon,
+                    color: isHighContrast ? Colors.black : Colors.white,
+                    size: 28,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -1468,15 +1682,15 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                         style: TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.w900,
-                          color: section.color,
+                          color: isHighContrast ? Colors.white : section.color,
                         ),
                       ),
                       Text(
                         section.subtitle,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.onSurfaceVariant,
+                          color: isHighContrast ? Colors.white70 : AppColors.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -1488,10 +1702,11 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceContainerLowest,
+                    color: isHighContrast ? Colors.black : AppColors.surfaceContainerLowest,
                     borderRadius: BorderRadius.circular(999),
                     border: Border.all(
-                      color: section.color.withValues(alpha: 0.3),
+                      color: isHighContrast ? Colors.white : section.color.withValues(alpha: 0.3),
+                      width: isHighContrast ? 2.0 : 1.0,
                     ),
                   ),
                   child: Text(
@@ -1501,7 +1716,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w900,
-                      color: section.color,
+                      color: isHighContrast ? Colors.white : section.color,
                     ),
                   ),
                 ),
@@ -1517,7 +1732,9 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                     totalOriginal > 0
                         ? Icons.check_circle
                         : Icons.check_circle_outline,
-                    color: totalOriginal > 0 ? Colors.green : AppColors.outline,
+                    color: totalOriginal > 0
+                        ? (isHighContrast ? Colors.black : Colors.green)
+                        : (isHighContrast ? Colors.black54 : AppColors.outline),
                     size: totalOriginal > 0 ? 28 : 24,
                   ),
                   const SizedBox(width: 10),
@@ -1530,8 +1747,8 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
                         color: totalOriginal > 0
-                            ? Colors.green[800]
-                            : AppColors.onSurfaceVariant,
+                            ? (isHighContrast ? Colors.black : Colors.green[800])
+                            : (isHighContrast ? Colors.black54 : AppColors.onSurfaceVariant),
                       ),
                     ),
                   ),
@@ -1560,20 +1777,29 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            Icon(section.icon, color: section.color, size: 28),
+                            Icon(
+                              section.icon,
+                              color: isHighContrast ? Colors.black : section.color,
+                              size: 28,
+                            ),
                             const SizedBox(height: 6),
                             Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: section.color.withValues(alpha: 0.12),
+                                color: isHighContrast
+                                    ? Colors.black
+                                    : section.color.withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(12),
+                                border: isHighContrast
+                                    ? Border.all(color: Colors.white, width: 1.5)
+                                    : null,
                               ),
                               child: Text(
                                 lembrete.horarioFormatado,
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w800,
-                                  color: section.color,
+                                  color: isHighContrast ? Colors.white : section.color,
                                 ),
                               ),
                             ),
@@ -1589,7 +1815,9 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                 width: 4,
                                 color: isFirst
                                     ? Colors.transparent
-                                    : section.color.withValues(alpha: 0.35),
+                                    : (isHighContrast
+                                        ? Colors.black
+                                        : section.color.withValues(alpha: 0.35)),
                               ),
                             ),
                             _buildNode(lembrete),
@@ -1598,7 +1826,9 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                 width: 4,
                                 color: isLast
                                     ? Colors.transparent
-                                    : section.color.withValues(alpha: 0.35),
+                                    : (isHighContrast
+                                        ? Colors.black
+                                        : section.color.withValues(alpha: 0.35)),
                               ),
                             ),
                           ],
@@ -1732,6 +1962,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
   }
 
   Widget _buildVoiceButton() {
+    final isHighContrast = Theme.of(context).colorScheme.primary == Colors.black;
     return GestureDetector(
       onTap: _abrirGravacao,
       child: Container(
@@ -1739,30 +1970,35 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
         height: 176,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: AppColors.secondaryContainer,
-          border: Border.all(color: Colors.white, width: 8),
-          boxShadow: const [
-            BoxShadow(
-              color: Colors.black26,
-              blurRadius: 16,
-              offset: Offset(0, 8),
-            ),
-          ],
+          color: isHighContrast ? Colors.yellow : AppColors.secondaryContainer,
+          border: Border.all(
+            color: isHighContrast ? Colors.black : Colors.white,
+            width: 8,
+          ),
+          boxShadow: isHighContrast
+              ? null
+              : const [
+                  BoxShadow(
+                    color: Colors.black26,
+                    blurRadius: 16,
+                    offset: Offset(0, 8),
+                  ),
+                ],
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
+            Icon(
               Icons.mic,
               size: 64,
-              color: AppColors.onSecondaryContainer,
+              color: isHighContrast ? Colors.black : AppColors.onSecondaryContainer,
             ),
             Text(
               'Falar',
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.w700,
-                color: AppColors.onSecondaryContainer,
+                color: isHighContrast ? Colors.black : AppColors.onSecondaryContainer,
               ),
             ),
           ],
@@ -1772,16 +2008,21 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
   }
 
   Widget _buildConnectedBadge() {
+    final isHighContrast = Theme.of(context).colorScheme.primary == Colors.black;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: _isOnline
-            ? AppColors.tertiaryFixedDim.withValues(alpha: 0.2)
-            : AppColors.errorContainer.withValues(alpha: 0.2),
+        color: isHighContrast
+            ? Colors.white
+            : (_isOnline
+                ? AppColors.tertiaryFixedDim.withValues(alpha: 0.2)
+                : AppColors.errorContainer.withValues(alpha: 0.2)),
         borderRadius: BorderRadius.circular(9999),
         border: Border.all(
-          color: _isOnline ? Colors.transparent : AppColors.error,
-          width: 1,
+          color: isHighContrast
+              ? Colors.black
+              : (_isOnline ? Colors.transparent : AppColors.error),
+          width: isHighContrast ? 2.5 : 1,
         ),
       ),
       child: Row(
@@ -1790,9 +2031,11 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
           Icon(
             _isOnline ? Icons.wifi : Icons.wifi_off,
             size: 16,
-            color: _isOnline
-                ? AppColors.onTertiaryFixedVariant
-                : AppColors.error,
+            color: isHighContrast
+                ? Colors.black
+                : (_isOnline
+                    ? AppColors.onTertiaryFixedVariant
+                    : AppColors.error),
           ),
           const SizedBox(width: 8),
           Text(
@@ -1800,9 +2043,11 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w700,
-              color: _isOnline
-                  ? AppColors.onTertiaryFixedVariant
-                  : AppColors.error,
+              color: isHighContrast
+                  ? Colors.black
+                  : (_isOnline
+                      ? AppColors.onTertiaryFixedVariant
+                      : AppColors.error),
             ),
           ),
         ],
@@ -1811,6 +2056,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
   }
 
   Widget _buildNextReminderBanner() {
+    final isHighContrast = Theme.of(context).colorScheme.primary == Colors.black;
     final lembrete = _ultimoLembrete;
     if (lembrete == null) {
       return Container(
@@ -1820,8 +2066,8 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
           color: AppColors.surfaceContainerLowest,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: AppColors.outlineVariant.withValues(alpha: 0.5),
-            width: 2.5,
+            color: isHighContrast ? Colors.black : AppColors.outlineVariant.withValues(alpha: 0.5),
+            width: isHighContrast ? 4.0 : 2.5,
           ),
         ),
         child: const Column(
@@ -1845,29 +2091,48 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
       );
     }
 
-    Color categoryColor = AppColors.primary;
+    Color categoryColor = isHighContrast ? Colors.black : AppColors.primary;
     IconData categoryIcon = Icons.notifications;
 
-    switch (lembrete.categoria) {
-      case 'medicacao':
-        categoryColor = AppColors.medicationsColor;
-        categoryIcon = Icons.medication;
-        break;
-      case 'refeicoes':
-        categoryColor = AppColors.mealsColor;
-        categoryIcon = Icons.restaurant;
-        break;
-      case 'exercicio':
-        categoryColor = AppColors.tertiaryContainer;
-        categoryIcon = Icons.directions_walk;
-        break;
-      case 'hidratacao':
-        categoryColor = AppColors.voiceFeedbackBlue;
-        categoryIcon = Icons.water_drop;
-        break;
-      default:
-        categoryColor = AppColors.customColor;
-        categoryIcon = Icons.notifications;
+    if (!isHighContrast) {
+      switch (lembrete.categoria) {
+        case 'medicacao':
+          categoryColor = AppColors.medicationsColor;
+          categoryIcon = Icons.medication;
+          break;
+        case 'refeicoes':
+          categoryColor = AppColors.mealsColor;
+          categoryIcon = Icons.restaurant;
+          break;
+        case 'exercicio':
+          categoryColor = AppColors.tertiaryContainer;
+          categoryIcon = Icons.directions_walk;
+          break;
+        case 'hidratacao':
+          categoryColor = AppColors.voiceFeedbackBlue;
+          categoryIcon = Icons.water_drop;
+          break;
+        default:
+          categoryColor = AppColors.customColor;
+          categoryIcon = Icons.notifications;
+      }
+    } else {
+      switch (lembrete.categoria) {
+        case 'medicacao':
+          categoryIcon = Icons.medication;
+          break;
+        case 'refeicoes':
+          categoryIcon = Icons.restaurant;
+          break;
+        case 'exercicio':
+          categoryIcon = Icons.directions_walk;
+          break;
+        case 'hidratacao':
+          categoryIcon = Icons.water_drop;
+          break;
+        default:
+          categoryIcon = Icons.notifications;
+      }
     }
 
     final remainingTime = _tempoRestante(lembrete);
@@ -1879,10 +2144,10 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
           color: AppColors.surfaceContainerLowest,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: categoryColor.withValues(alpha: 0.5),
-            width: 3.5,
+            color: isHighContrast ? Colors.black : categoryColor.withValues(alpha: 0.5),
+            width: isHighContrast ? 4.0 : 3.5,
           ),
-          boxShadow: [
+          boxShadow: isHighContrast ? null : [
             BoxShadow(
               color: categoryColor.withValues(alpha: 0.15),
               blurRadius: 12,
@@ -1913,12 +2178,12 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                             Container(
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
-                                color: categoryColor.withValues(alpha: 0.12),
+                                color: isHighContrast ? Colors.black : categoryColor.withValues(alpha: 0.12),
                                 shape: BoxShape.circle,
                               ),
                               child: Icon(
                                 categoryIcon,
-                                color: categoryColor,
+                                color: isHighContrast ? Colors.white : categoryColor,
                                 size: 32,
                               ),
                             ),
@@ -1933,7 +2198,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                       fontSize: 15,
                                       fontWeight: FontWeight.w900,
                                       letterSpacing: 1.3,
-                                      color: categoryColor,
+                                      color: isHighContrast ? Colors.black : categoryColor,
                                     ),
                                   ),
                                   if (remainingTime.isNotEmpty) ...[
@@ -1943,7 +2208,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                       style: TextStyle(
                                         fontSize: 14,
                                         fontWeight: FontWeight.w900,
-                                        color: Colors.red[700],
+                                        color: isHighContrast ? Colors.black : Colors.red[700],
                                       ),
                                     ),
                                   ],
@@ -1955,10 +2220,10 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                         const SizedBox(height: 16),
                         Text(
                           '${lembrete.titulo} — ${lembrete.horarioFormatado}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 26,
                             fontWeight: FontWeight.w900,
-                            color: AppColors.primary,
+                            color: isHighContrast ? Colors.black : AppColors.primary,
                             height: 1.2,
                           ),
                         ),
@@ -1977,6 +2242,13 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
+                                style: isHighContrast
+                                    ? ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.black,
+                                        foregroundColor: Colors.white,
+                                        side: const BorderSide(color: Colors.black, width: 2),
+                                      )
+                                    : null,
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -1987,16 +2259,21 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                               child: Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color: AppColors.primary.withValues(
-                                    alpha: 0.1,
-                                  ),
+                                  color: isHighContrast
+                                      ? Colors.white
+                                      : AppColors.primary.withValues(
+                                          alpha: 0.1,
+                                        ),
                                   shape: BoxShape.circle,
+                                  border: isHighContrast
+                                      ? Border.all(color: Colors.black, width: 3)
+                                      : null,
                                 ),
                                 child: Icon(
                                   _isPlaying || _isBannerSpeaking
                                       ? Icons.stop
                                       : Icons.play_arrow,
-                                  color: AppColors.primary,
+                                  color: isHighContrast ? Colors.black : AppColors.primary,
                                   size: 32,
                                 ),
                               ),
@@ -2025,7 +2302,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
         return Container(
           width: double.infinity,
           decoration: BoxDecoration(
-            gradient: LinearGradient(
+            gradient: isHighContrast ? null : LinearGradient(
               colors: [
                 categoryColor.withValues(alpha: 0.08),
                 AppColors.surfaceContainerLowest,
@@ -2033,12 +2310,13 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
               begin: Alignment.centerLeft,
               end: Alignment.centerRight,
             ),
+            color: isHighContrast ? Colors.white : null,
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
-              color: categoryColor.withValues(alpha: alphaFactor),
-              width: 3.5,
+              color: isHighContrast ? Colors.black : categoryColor.withValues(alpha: alphaFactor),
+              width: isHighContrast ? 4.0 : 3.5,
             ),
-            boxShadow: [
+            boxShadow: isHighContrast ? null : [
               BoxShadow(
                 color: categoryColor.withValues(alpha: 0.15 + (scale - 1.0) * 3.0),
                 blurRadius: 12 + glowWidth,
@@ -2069,12 +2347,12 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                               Container(
                                 padding: const EdgeInsets.all(10),
                                 decoration: BoxDecoration(
-                                  color: categoryColor.withValues(alpha: 0.12),
+                                  color: isHighContrast ? Colors.black : categoryColor.withValues(alpha: 0.12),
                                   shape: BoxShape.circle,
                                 ),
                                 child: Icon(
                                   categoryIcon,
-                                  color: categoryColor,
+                                  color: isHighContrast ? Colors.white : categoryColor,
                                   size: 32,
                                 ),
                               ),
@@ -2089,7 +2367,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                         fontSize: 15,
                                         fontWeight: FontWeight.w900,
                                         letterSpacing: 1.3,
-                                        color: categoryColor,
+                                        color: isHighContrast ? Colors.black : categoryColor,
                                       ),
                                     ),
                                     if (remainingTime.isNotEmpty) ...[
@@ -2099,7 +2377,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                         style: TextStyle(
                                           fontSize: 14,
                                           fontWeight: FontWeight.w900,
-                                          color: Colors.red[700],
+                                          color: isHighContrast ? Colors.black : Colors.red[700],
                                         ),
                                       ),
                                     ],
@@ -2111,10 +2389,10 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                           const SizedBox(height: 16),
                           Text(
                             '${lembrete.titulo} — ${lembrete.horarioFormatado}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 26,
                               fontWeight: FontWeight.w900,
-                              color: AppColors.primary,
+                              color: isHighContrast ? Colors.black : AppColors.primary,
                               height: 1.2,
                             ),
                           ),
@@ -2133,6 +2411,13 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
+                                  style: isHighContrast
+                                      ? ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.black,
+                                          foregroundColor: Colors.white,
+                                          side: const BorderSide(color: Colors.black, width: 2),
+                                        )
+                                      : null,
                                 ),
                               ),
                               const SizedBox(width: 12),
@@ -2143,16 +2428,21 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                 child: Container(
                                   padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
-                                    color: AppColors.primary.withValues(
-                                      alpha: 0.1,
-                                    ),
+                                    color: isHighContrast
+                                        ? Colors.white
+                                        : AppColors.primary.withValues(
+                                            alpha: 0.1,
+                                          ),
                                     shape: BoxShape.circle,
+                                    border: isHighContrast
+                                        ? Border.all(color: Colors.black, width: 3)
+                                        : null,
                                   ),
                                   child: Icon(
                                     _isPlaying || _isBannerSpeaking
                                         ? Icons.stop
                                         : Icons.play_arrow,
-                                    color: AppColors.primary,
+                                    color: isHighContrast ? Colors.black : AppColors.primary,
                                     size: 32,
                                   ),
                                 ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../models/lembrete.dart';
 import '../services/lembrete_service.dart';
@@ -36,6 +37,7 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
   Future<void> _toggleListening() async {
     if (_isListening) {
       await _speech.stop();
+      SystemSound.play(SystemSoundType.click);
       if (mounted) {
         setState(() {
           _isListening = false;
@@ -61,6 +63,7 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
         _transcricao = '';
         _hasRecorded = false;
       });
+      SystemSound.play(SystemSoundType.click);
       _speech.listen(
         onResult: (result) {
           final words = result.recognizedWords;
@@ -68,6 +71,9 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
             _transcricao = words;
             _detectarCategoriaAutomaticamente(words);
           });
+          if (result.finalResult) {
+            SystemSound.play(SystemSoundType.click);
+          }
         },
         listenOptions: stt.SpeechListenOptions(
           listenFor: const Duration(minutes: 5),
@@ -638,6 +644,10 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
                                 ),
                               ),
                             ),
+                            if (_isListening) ...[
+                              const SizedBox(height: 16),
+                              AudioWaveformIndicator(isListening: _isListening),
+                            ],
                           ],
                         ),
                       ),

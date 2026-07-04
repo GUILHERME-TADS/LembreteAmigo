@@ -277,6 +277,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
       if (!mounted) return;
       _voiceCommandHandled = false;
       setState(() => _isListeningForCommand = true);
+      SystemSound.play(SystemSoundType.click);
       _speech.listen(
         listenOptions: stt.SpeechListenOptions(
           listenFor: const Duration(seconds: 8),
@@ -307,6 +308,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
     if (!mounted || !_isListeningForCommand || _voiceCommandHandled) return;
     _voiceCommandHandled = true;
     await _speech.stop();
+    SystemSound.play(SystemSoundType.click);
     if (!mounted) return;
     setState(() {
       _isListeningForCommand = false;
@@ -344,6 +346,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
     if (!mounted) return;
     setState(() => _isListeningForCommand = false);
     await _speech.stop();
+    SystemSound.play(SystemSoundType.click);
 
     final isDifficulty =
         _hasAnyPhrase(lower, const [
@@ -561,6 +564,8 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
       confirmButtonText = 'ENTENDI, VOU TOMAR!';
     }
 
+    final isHighContrast = Theme.of(context).colorScheme.primary == Colors.black;
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
@@ -569,7 +574,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
         SystemNavigator.pop();
       },
       child: Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: isHighContrast ? Colors.white : AppColors.background,
         body: SafeArea(
           child: Column(
             children: [
@@ -588,12 +593,12 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                             Text(
                               titleText,
                               textAlign: TextAlign.center,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 26,
                                 fontWeight: FontWeight.w700,
                                 height: 1.2,
                                 letterSpacing: 2,
-                                color: AppColors.onSurfaceVariant,
+                                color: isHighContrast ? Colors.black : AppColors.onSurfaceVariant,
                               ),
                             ),
                             const SizedBox(height: 16),
@@ -604,7 +609,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                             const SizedBox(height: 24),
                             _buildPulsingMedication(
                               categoryIcon,
-                              iconColor,
+                              isHighContrast ? Colors.black : iconColor,
                               lembrete,
                             ),
                             const SizedBox(height: 32),
@@ -614,45 +619,52 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                 final isImp =
                                     lembrete?.urgencia == 'importante';
 
-                                final border = Border.all(
-                                  color: isCrit
-                                      ? Colors.red
-                                      : isImp
-                                      ? Colors.orange
-                                      : iconColor.withValues(alpha: 0.3),
-                                  width: isCrit ? 6 : (isImp ? 4 : 3),
-                                );
+                                final border = isHighContrast
+                                    ? Border.all(
+                                        color: isCrit ? Colors.red : Colors.black,
+                                        width: 4,
+                                      )
+                                    : Border.all(
+                                        color: isCrit
+                                            ? Colors.red
+                                            : isImp
+                                            ? Colors.orange
+                                            : iconColor.withValues(alpha: 0.3),
+                                        width: isCrit ? 6 : (isImp ? 4 : 3),
+                                      );
 
-                                final shadow = [
-                                  BoxShadow(
-                                    color: isCrit
-                                        ? Colors.red.withValues(alpha: 0.25)
-                                        : isImp
-                                        ? Colors.orange.withValues(alpha: 0.18)
-                                        : iconColor.withValues(alpha: 0.1),
-                                    blurRadius: isCrit ? 24 : 16,
-                                    offset: const Offset(0, 8),
-                                  ),
-                                ];
+                                final shadow = isHighContrast
+                                    ? null
+                                    : [
+                                        BoxShadow(
+                                          color: isCrit
+                                              ? Colors.red.withValues(alpha: 0.25)
+                                              : isImp
+                                              ? Colors.orange.withValues(alpha: 0.18)
+                                              : iconColor.withValues(alpha: 0.1),
+                                          blurRadius: isCrit ? 24 : 16,
+                                          offset: const Offset(0, 8),
+                                        ),
+                                      ];
 
                                 return Container(
                                   width: double.infinity,
                                   padding: const EdgeInsets.all(24),
                                   decoration: BoxDecoration(
-                                    color: AppColors.surfaceContainerLowest,
+                                    color: Colors.white,
                                     borderRadius: BorderRadius.circular(24),
                                     border: border,
                                     boxShadow: shadow,
                                   ),
                                   child: Column(
                                     children: [
-                                      const Text(
+                                      Text(
                                         'ATIVIDADE A FAZER:',
                                         style: TextStyle(
                                           fontSize: 16,
                                           fontWeight: FontWeight.w800,
                                           letterSpacing: 1.5,
-                                          color: AppColors.outline,
+                                          color: isHighContrast ? Colors.black : AppColors.outline,
                                         ),
                                       ),
                                       const SizedBox(height: 12),
@@ -660,10 +672,10 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                         lembrete?.titulo ??
                                             'Carregando lembrete...',
                                         textAlign: TextAlign.center,
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 32,
                                           fontWeight: FontWeight.w900,
-                                          color: AppColors.primary,
+                                          color: isHighContrast ? Colors.black : AppColors.primary,
                                           height: 1.3,
                                         ),
                                       ),
@@ -671,10 +683,10 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                       Text(
                                         subtitleText,
                                         textAlign: TextAlign.center,
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 20,
                                           fontWeight: FontWeight.w500,
-                                          color: AppColors.onSurfaceVariant,
+                                          color: isHighContrast ? Colors.black : AppColors.onSurfaceVariant,
                                         ),
                                       ),
 
@@ -686,13 +698,13 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                         const SizedBox(height: 24),
                                         const Divider(),
                                         const SizedBox(height: 12),
-                                        const Text(
+                                        Text(
                                           'APARÊNCIA DO REMÉDIO:',
                                           style: TextStyle(
                                             fontSize: 14,
                                             fontWeight: FontWeight.w800,
                                             letterSpacing: 1.2,
-                                            color: AppColors.outline,
+                                            color: isHighContrast ? Colors.black : AppColors.outline,
                                           ),
                                         ),
                                         const SizedBox(height: 16),
@@ -715,20 +727,20 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                                 Text(
                                                   'Formato: ${lembrete?.medicamentoForma ?? "Padrão"}'
                                                       .toUpperCase(),
-                                                  style: const TextStyle(
+                                                  style: TextStyle(
                                                     fontSize: 16,
                                                     fontWeight: FontWeight.bold,
-                                                    color: AppColors.primary,
+                                                    color: isHighContrast ? Colors.black : AppColors.primary,
                                                   ),
                                                 ),
                                                 const SizedBox(height: 4),
                                                 Text(
                                                   'Cor: ${lembrete?.medicamentoCor ?? "Padrão"}'
                                                       .toUpperCase(),
-                                                  style: const TextStyle(
+                                                  style: TextStyle(
                                                     fontSize: 16,
                                                     fontWeight: FontWeight.bold,
-                                                    color: AppColors.primary,
+                                                    color: isHighContrast ? Colors.black : AppColors.primary,
                                                   ),
                                                 ),
                                               ],
@@ -752,7 +764,10 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                               const SizedBox(height: 24),
                             ],
 
-                            const SizedBox(height: 16),
+                            if (_isListeningForCommand) ...[
+                              AudioWaveformIndicator(isListening: _isListeningForCommand),
+                              const SizedBox(height: 16),
+                            ],
 
                             SizedBox(
                               width: double.infinity,
@@ -777,10 +792,10 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                   ),
                                 ),
                                 style: OutlinedButton.styleFrom(
-                                  foregroundColor: AppColors.primary,
-                                  side: const BorderSide(
-                                    color: AppColors.primary,
-                                    width: 2,
+                                  foregroundColor: isHighContrast ? Colors.black : AppColors.primary,
+                                  side: BorderSide(
+                                    color: isHighContrast ? Colors.black : AppColors.primary,
+                                    width: isHighContrast ? 4 : 2,
                                   ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(16),
@@ -857,12 +872,13 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                   ),
                                 ),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.tertiaryFixedDim,
-                                  foregroundColor: AppColors.onTertiaryFixed,
+                                  backgroundColor: isHighContrast ? Colors.black : AppColors.tertiaryFixedDim,
+                                  foregroundColor: isHighContrast ? Colors.white : AppColors.onTertiaryFixed,
                                   elevation: 4,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(16),
                                   ),
+                                  side: isHighContrast ? const BorderSide(color: Colors.black, width: 2) : null,
                                 ),
                               ),
                             ),
@@ -913,13 +929,13 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                   ),
                                 ),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.secondaryContainer,
-                                  foregroundColor:
-                                      AppColors.onSecondaryContainer,
+                                  backgroundColor: isHighContrast ? Colors.yellow : AppColors.secondaryContainer,
+                                  foregroundColor: isHighContrast ? Colors.black : AppColors.onSecondaryContainer,
                                   elevation: 2,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(16),
                                   ),
+                                  side: isHighContrast ? const BorderSide(color: Colors.black, width: 3) : null,
                                 ),
                               ),
                             ),
@@ -971,12 +987,13 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                   ),
                                 ),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.error,
-                                  foregroundColor: AppColors.onError,
+                                  backgroundColor: isHighContrast ? Colors.red : AppColors.error,
+                                  foregroundColor: isHighContrast ? Colors.white : AppColors.onError,
                                   elevation: 2,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(16),
                                   ),
+                                  side: isHighContrast ? const BorderSide(color: Colors.black, width: 2) : null,
                                 ),
                               ),
                             ),
@@ -996,17 +1013,21 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
   }
 
   Widget _buildTopBar(BuildContext context) {
+    final isHighContrast = Theme.of(context).colorScheme.primary == Colors.black;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       height: 64,
-      decoration: const BoxDecoration(color: AppColors.surface),
-      child: const Center(
+      decoration: BoxDecoration(
+        color: isHighContrast ? Colors.white : AppColors.surface,
+        border: isHighContrast ? const Border(bottom: BorderSide(color: Colors.black, width: 2)) : null,
+      ),
+      child: Center(
         child: Text(
           'Lembrete Amigo',
           style: TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.w700,
-            color: AppColors.primary,
+            color: isHighContrast ? Colors.black : AppColors.primary,
           ),
         ),
       ),

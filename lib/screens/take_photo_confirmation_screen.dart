@@ -11,6 +11,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../theme/app_theme.dart';
 import '../services/tts_service.dart';
 import '../services/lembrete_service.dart';
+import '../services/session_role_service.dart';
 import '../models/lembrete.dart';
 import '../widgets/index.dart';
 
@@ -18,10 +19,12 @@ class TakePhotoConfirmationScreen extends StatefulWidget {
   const TakePhotoConfirmationScreen({super.key});
 
   @override
-  State<TakePhotoConfirmationScreen> createState() => _TakePhotoConfirmationScreenState();
+  State<TakePhotoConfirmationScreen> createState() =>
+      _TakePhotoConfirmationScreenState();
 }
 
-class _TakePhotoConfirmationScreenState extends State<TakePhotoConfirmationScreen> {
+class _TakePhotoConfirmationScreenState
+    extends State<TakePhotoConfirmationScreen> {
   CameraController? _cameraController;
   bool _isCameraInitialized = false;
   bool _isCaptured = false;
@@ -130,7 +133,8 @@ class _TakePhotoConfirmationScreenState extends State<TakePhotoConfirmationScree
   }
 
   Future<void> _capturePhoto(String? lembreteId) async {
-    if (_cameraController == null || !_cameraController!.value.isInitialized) return;
+    if (_cameraController == null || !_cameraController!.value.isInitialized)
+      return;
     try {
       setState(() {
         _isFlashActive = true;
@@ -144,7 +148,7 @@ class _TakePhotoConfirmationScreenState extends State<TakePhotoConfirmationScree
       });
 
       TTSService.instance.falar('Foto tirada.', caller: this);
-      
+
       // Analyze color in the background
       _analyzePhotoColor(file, lembreteId);
     } catch (e) {
@@ -166,10 +170,16 @@ class _TakePhotoConfirmationScreenState extends State<TakePhotoConfirmationScree
       final bytes = await File(file.path).readAsBytes();
       final decoded = img.decodeImage(bytes);
       if (decoded == null) return;
-      
-      final int startX = (decoded.width / 2 - 40).toInt().clamp(0, decoded.width);
-      final int startY = (decoded.height / 2 - 40).toInt().clamp(0, decoded.height);
-      
+
+      final int startX = (decoded.width / 2 - 40).toInt().clamp(
+        0,
+        decoded.width,
+      );
+      final int startY = (decoded.height / 2 - 40).toInt().clamp(
+        0,
+        decoded.height,
+      );
+
       int rSum = 0, gSum = 0, bSum = 0, count = 0;
       for (int y = startY; y < startY + 80 && y < decoded.height; y++) {
         for (int x = startX; x < startX + 80 && x < decoded.width; x++) {
@@ -180,18 +190,20 @@ class _TakePhotoConfirmationScreenState extends State<TakePhotoConfirmationScree
           count++;
         }
       }
-      
+
       if (count > 0) {
         final r = rSum ~/ count;
         final g = gSum ~/ count;
         final b = bSum ~/ count;
-        
+
         final detected = _detectColorName(r, g, b);
         debugPrint('Cor detectada no centro: $detected (RGB: $r, $g, $b)');
-        
+
         Lembrete? target;
         if (lembreteId != null) {
-          final idx = LembreteService.instance.lembretes.indexWhere((l) => l.id == lembreteId);
+          final idx = LembreteService.instance.lembretes.indexWhere(
+            (l) => l.id == lembreteId,
+          );
           if (idx != -1) target = LembreteService.instance.lembretes[idx];
         } else {
           final meds = LembreteService.instance.lembretes
@@ -199,10 +211,12 @@ class _TakePhotoConfirmationScreenState extends State<TakePhotoConfirmationScree
               .toList();
           if (meds.isNotEmpty) target = meds.first;
         }
-        
+
         if (target != null && target.medicamentoCor != null) {
           final targetColor = target.medicamentoCor!.toLowerCase();
-          if (targetColor.isNotEmpty && !targetColor.contains(detected) && !detected.contains(targetColor)) {
+          if (targetColor.isNotEmpty &&
+              !targetColor.contains(detected) &&
+              !detected.contains(targetColor)) {
             Future.delayed(const Duration(milliseconds: 800), () {
               if (mounted) {
                 TTSService.instance.falar(
@@ -277,11 +291,14 @@ class _TakePhotoConfirmationScreenState extends State<TakePhotoConfirmationScree
                   _buildTopBar(context),
                   const VolumeWarningBanner(),
                   const MeExplicaButton(
-                    textoExplicacao: 'Olá! Esta é a tela para tirar foto. Mostre a tarefa que você fez para a câmera e aperte o botão redondo no meio para tirar a foto. Se a foto ficar boa, aperte o botão de Confirmar.',
+                    textoExplicacao:
+                        'Olá! Esta é a tela para tirar foto. Mostre a tarefa que você fez para a câmera e aperte o botão redondo no meio para tirar a foto. Se a foto ficar boa, aperte o botão de Confirmar.',
                   ),
                   Expanded(
                     child: GestureDetector(
-                      onTap: !_isCaptured ? () => _capturePhoto(lembreteId) : null,
+                      onTap: !_isCaptured
+                          ? () => _capturePhoto(lembreteId)
+                          : null,
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
@@ -290,13 +307,9 @@ class _TakePhotoConfirmationScreenState extends State<TakePhotoConfirmationScree
                           else
                             _buildPhotoPreview(),
 
-                          if (!_isCaptured)
-                            _buildSilhouetteOverlay(lembreteId),
+                          if (!_isCaptured) _buildSilhouetteOverlay(lembreteId),
 
-                          if (_isFlashActive)
-                            Container(
-                              color: Colors.white,
-                            ),
+                          if (_isFlashActive) Container(color: Colors.white),
                         ],
                       ),
                     ),
@@ -363,7 +376,7 @@ class _TakePhotoConfirmationScreenState extends State<TakePhotoConfirmationScree
 
   Widget _buildSilhouetteOverlay(String? lembreteId) {
     final isProfilePhoto = _isProfilePhoto || lembreteId == 'profile_photo';
-    
+
     if (isProfilePhoto) {
       return Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -389,7 +402,10 @@ class _TakePhotoConfirmationScreenState extends State<TakePhotoConfirmationScree
                 ),
                 const SizedBox(height: 12),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.black54,
                     borderRadius: BorderRadius.circular(8),
@@ -433,14 +449,13 @@ class _TakePhotoConfirmationScreenState extends State<TakePhotoConfirmationScree
                 size: 72,
               ),
               const SizedBox(height: 12),
-              const Icon(
-                Icons.circle,
-                color: Colors.redAccent,
-                size: 32,
-              ),
+              const Icon(Icons.circle, color: Colors.redAccent, size: 32),
               const SizedBox(height: 12),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.black54,
                   borderRadius: BorderRadius.circular(8),
@@ -464,10 +479,7 @@ class _TakePhotoConfirmationScreenState extends State<TakePhotoConfirmationScree
   Widget _buildPhotoPreview() {
     if (_capturedFile == null) return const SizedBox();
     return SizedBox.expand(
-      child: Image.file(
-        File(_capturedFile!.path),
-        fit: BoxFit.cover,
-      ),
+      child: Image.file(File(_capturedFile!.path), fit: BoxFit.cover),
     );
   }
 
@@ -500,7 +512,11 @@ class _TakePhotoConfirmationScreenState extends State<TakePhotoConfirmationScree
                       shape: BoxShape.circle,
                       color: AppColors.secondaryContainer,
                     ),
-                    child: const Icon(Icons.camera_alt, color: AppColors.onSecondaryContainer, size: 36),
+                    child: const Icon(
+                      Icons.camera_alt,
+                      color: AppColors.onSecondaryContainer,
+                      size: 36,
+                    ),
                   ),
                 ),
               ),
@@ -536,7 +552,10 @@ class _TakePhotoConfirmationScreenState extends State<TakePhotoConfirmationScree
                       _isCaptured = false;
                       _capturedFile = null;
                     });
-                    TTSService.instance.falar('Câmera aberta novamente.', caller: this);
+                    TTSService.instance.falar(
+                      'Câmera aberta novamente.',
+                      caller: this,
+                    );
                   },
                   icon: const Icon(Icons.refresh, size: 32),
                   label: const Text(
@@ -563,9 +582,13 @@ class _TakePhotoConfirmationScreenState extends State<TakePhotoConfirmationScree
                     TTSService.instance.parar(caller: this);
                     if (_isProfilePhoto || lembreteId == 'profile_photo') {
                       final prefs = await SharedPreferences.getInstance();
-                      await prefs.setString('idoso_foto_path', _capturedFile!.path);
-                      final idosoId = prefs.getString('selected_idoso_id') ?? prefs.getString('paired_idoso_id') ?? 'joao';
-                      
+                      await prefs.setString(
+                        'idoso_foto_path',
+                        _capturedFile!.path,
+                      );
+                      final idosoId =
+                          await SessionRoleService.getActiveIdosoId();
+
                       if (_useFirebase) {
                         Future(() async {
                           try {
@@ -576,19 +599,28 @@ class _TakePhotoConfirmationScreenState extends State<TakePhotoConfirmationScree
                                 .child('$idosoId.jpg');
                             final uploadTask = ref.putFile(file);
                             final snapshot = await uploadTask;
-                            final downloadUrl = await snapshot.ref.getDownloadURL();
+                            final downloadUrl = await snapshot.ref
+                                .getDownloadURL();
 
                             await FirebaseFirestore.instance
                                 .collection('idoso_perfil')
                                 .doc(idosoId)
-                                .set({'fotoPath': downloadUrl}, SetOptions(merge: true));
+                                .set({
+                                  'fotoPath': downloadUrl,
+                                }, SetOptions(merge: true));
                             await FirebaseFirestore.instance
                                 .collection('idosos')
                                 .doc(idosoId)
-                                .set({'fotoPath': downloadUrl}, SetOptions(merge: true));
-                            debugPrint('Foto de perfil salva com sucesso no Firebase em background!');
+                                .set({
+                                  'fotoPath': downloadUrl,
+                                }, SetOptions(merge: true));
+                            debugPrint(
+                              'Foto de perfil salva com sucesso no Firebase em background!',
+                            );
                           } catch (e) {
-                            debugPrint('Erro ao sincronizar foto de perfil em background: $e');
+                            debugPrint(
+                              'Erro ao sincronizar foto de perfil em background: $e',
+                            );
                           }
                         });
                       }
@@ -598,13 +630,19 @@ class _TakePhotoConfirmationScreenState extends State<TakePhotoConfirmationScree
                       navigator.pop(_capturedFile!.path);
                       return;
                     } else if (lembreteId != null) {
-                      await LembreteService.instance.concluirComFoto(lembreteId);
+                      await LembreteService.instance.concluirComFoto(
+                        lembreteId,
+                      );
                     } else {
                       final medicacoes = LembreteService.instance.lembretes
-                          .where((l) => l.categoria == 'medicacao' && !l.concluido)
+                          .where(
+                            (l) => l.categoria == 'medicacao' && !l.concluido,
+                          )
                           .toList();
                       if (medicacoes.isNotEmpty) {
-                        await LembreteService.instance.concluirComFoto(medicacoes.first.id);
+                        await LembreteService.instance.concluirComFoto(
+                          medicacoes.first.id,
+                        );
                       }
                     }
                     SystemSound.play(SystemSoundType.click);
@@ -612,11 +650,16 @@ class _TakePhotoConfirmationScreenState extends State<TakePhotoConfirmationScree
                     Lembrete? target;
                     final targetId = lembreteId;
                     if (targetId != null) {
-                      final idx = LembreteService.instance.lembretes.indexWhere((l) => l.id == targetId);
-                      if (idx != -1) target = LembreteService.instance.lembretes[idx];
+                      final idx = LembreteService.instance.lembretes.indexWhere(
+                        (l) => l.id == targetId,
+                      );
+                      if (idx != -1)
+                        target = LembreteService.instance.lembretes[idx];
                     } else {
                       final medicacoes = LembreteService.instance.lembretes
-                          .where((l) => l.categoria == 'medicacao' && !l.concluido)
+                          .where(
+                            (l) => l.categoria == 'medicacao' && !l.concluido,
+                          )
                           .toList();
                       if (medicacoes.isNotEmpty) target = medicacoes.first;
                     }

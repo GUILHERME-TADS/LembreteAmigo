@@ -56,7 +56,8 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
     }
     if (lembrete.recorrencia == 'unico' || lembrete.lembreteUnico) {
       final hojeKey = '${now.year}-${now.month}-${now.day}';
-      final criadoKey = '${lembrete.criadoEm.year}-${lembrete.criadoEm.month}-${lembrete.criadoEm.day}';
+      final criadoKey =
+          '${lembrete.criadoEm.year}-${lembrete.criadoEm.month}-${lembrete.criadoEm.day}';
       return hojeKey == criadoKey;
     }
     if (lembrete.recorrencia == 'intervalo' || lembrete.recorrenciaIntervalo) {
@@ -102,15 +103,31 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
   (IconData, Color, Color) _categoriaIcon(String categoria) {
     switch (categoria) {
       case 'medicacao':
-        return (Icons.medication, AppColors.medicationsColor, AppColors.medicationsColor);
+        return (
+          Icons.medication,
+          AppColors.medicationsColor,
+          AppColors.medicationsColor,
+        );
       case 'refeicoes':
         return (Icons.restaurant, AppColors.mealsColor, AppColors.mealsColor);
       case 'exercicio':
-        return (Icons.directions_walk, AppColors.tertiaryContainer, AppColors.tertiaryContainer);
+        return (
+          Icons.directions_walk,
+          AppColors.tertiaryContainer,
+          AppColors.tertiaryContainer,
+        );
       case 'hidratacao':
-        return (Icons.water_drop, AppColors.voiceFeedbackBlue, AppColors.voiceFeedbackBlue);
+        return (
+          Icons.water_drop,
+          AppColors.voiceFeedbackBlue,
+          AppColors.voiceFeedbackBlue,
+        );
       default:
-        return (Icons.notifications, AppColors.customColor, AppColors.customColor);
+        return (
+          Icons.notifications,
+          AppColors.customColor,
+          AppColors.customColor,
+        );
     }
   }
 
@@ -151,9 +168,14 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
     }).toList();
   }
 
-  Widget _buildPeriodSection(String title, IconData icon, Color color, List<Lembrete> list) {
+  Widget _buildPeriodSection(
+    String title,
+    IconData icon,
+    Color color,
+    List<Lembrete> list,
+  ) {
     if (list.isEmpty) return const SizedBox.shrink();
-    
+
     final countText = list.length == 1 ? '1 tarefa' : '${list.length} tarefas';
 
     return Column(
@@ -166,24 +188,14 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
           decoration: BoxDecoration(
             color: color.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: color.withValues(alpha: 0.25),
-              width: 2,
-            ),
+            border: Border.all(color: color.withValues(alpha: 0.25), width: 2),
           ),
           child: Row(
             children: [
               Container(
                 padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: color,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  icon,
-                  color: Colors.white,
-                  size: 24,
-                ),
+                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                child: Icon(icon, color: Colors.white, size: 24),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -200,7 +212,10 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
               ),
               const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: color,
                   borderRadius: BorderRadius.circular(12),
@@ -230,7 +245,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
               title: r.titulo,
               time: r.horarioFormatado,
               audioPath: r.audioPath,
-              status: reminderStatusFromLembrete(r),
+              status: reminderVisualStatusFromLembrete(r),
               onTap: () {
                 _stopAllAudioAndTts();
                 if (r.categoria == 'medicacao' && !r.concluido) {
@@ -271,10 +286,14 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
 
     final filteredList = _selectedCategory == 'todos'
         ? _voiceReminders
-        : _voiceReminders.where((r) => r.categoria == _selectedCategory).toList();
+        : _voiceReminders
+              .where((r) => r.categoria == _selectedCategory)
+              .toList();
 
     final pending = filteredList.where((r) => !r.concluido).toList();
-    final completedList = _showOnlyPending ? <Lembrete>[] : filteredList.where((r) => r.concluido).toList();
+    final completedList = _showOnlyPending
+        ? <Lembrete>[]
+        : filteredList.where((r) => r.concluido).toList();
 
     final madrugadaList = _getByPeriod(pending, 'madrugada');
     final manhaList = _getByPeriod(pending, 'manha');
@@ -344,7 +363,9 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                               children: [
                                 Icon(
                                   isAllDone ? Icons.stars : Icons.emoji_events,
-                                  color: isAllDone ? AppColors.tertiaryFixed : AppColors.secondaryContainer,
+                                  color: isAllDone
+                                      ? AppColors.tertiaryFixed
+                                      : AppColors.secondaryContainer,
                                   size: 32,
                                 ),
                                 const SizedBox(width: 12),
@@ -383,15 +404,25 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                                     height: 28,
                                     child: LinearProgressIndicator(
                                       value: progress,
-                                      backgroundColor: Colors.white.withValues(alpha: 0.2),
+                                      backgroundColor: Colors.white.withValues(
+                                        alpha: 0.2,
+                                      ),
                                       valueColor: AlwaysStoppedAnimation<Color>(
-                                        isAllDone ? AppColors.tertiaryFixedDim : AppColors.secondaryContainer,
+                                        isAllDone
+                                            ? AppColors.tertiaryFixedDim
+                                            : AppColors.secondaryContainer,
                                       ),
                                     ),
                                   ),
                                 ),
                                 Text(
-                                  '${(progress * 100).toInt()}% COMPLETO  ${progress >= 1.0 ? "🥳 🎉" : progress >= 0.7 ? "😎" : progress >= 0.3 ? "🙂" : "💪"}',
+                                  '${(progress * 100).toInt()}% COMPLETO  ${progress >= 1.0
+                                      ? "🥳 🎉"
+                                      : progress >= 0.7
+                                      ? "😎"
+                                      : progress >= 0.3
+                                      ? "🙂"
+                                      : "💪"}',
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 13,
@@ -404,44 +435,55 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                           ],
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      // Option 2 Toggle Button
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: AppColors.surfaceContainerHigh,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.5)),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Row(
-                              children: [
-                                Icon(Icons.visibility_off, color: AppColors.primary, size: 24),
-                                SizedBox(width: 12),
-                                Text(
-                                  'Mostrar apenas o que falta',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.primary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Switch(
-                              value: _showOnlyPending,
-                              onChanged: (val) {
-                                setState(() {
-                                  _showOnlyPending = val;
-                                });
-                              },
-                              activeColor: AppColors.primary,
-                            ),
-                          ],
+                    const SizedBox(height: 16),
+                    // Option 2 Toggle Button
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceContainerHigh,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: AppColors.outlineVariant.withValues(
+                            alpha: 0.5,
+                          ),
                         ),
                       ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(
+                                Icons.visibility_off,
+                                color: AppColors.primary,
+                                size: 24,
+                              ),
+                              SizedBox(width: 12),
+                              Text(
+                                'Mostrar apenas o que falta',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Switch(
+                            value: _showOnlyPending,
+                            onChanged: (val) {
+                              setState(() {
+                                _showOnlyPending = val;
+                              });
+                            },
+                            activeColor: AppColors.primary,
+                          ),
+                        ],
+                      ),
+                    ),
 
                     // Chips de Filtro por Categoria
                     if (_voiceReminders.isNotEmpty)
@@ -456,13 +498,17 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                             final isSelected = _selectedCategory == cat['id'];
                             final icon = cat['icon'] as IconData;
                             final label = cat['label'] as String;
-                            final catColor = _getCategoryColor(cat['id'] as String);
-                            
+                            final catColor = _getCategoryColor(
+                              cat['id'] as String,
+                            );
+
                             return Padding(
                               padding: const EdgeInsets.only(right: 8),
                               child: ChoiceChip(
                                 iconTheme: IconThemeData(
-                                  color: isSelected ? Colors.white : AppColors.onSurfaceVariant,
+                                  color: isSelected
+                                      ? Colors.white
+                                      : AppColors.onSurfaceVariant,
                                 ),
                                 avatar: Icon(icon, size: 20),
                                 label: Text(
@@ -470,7 +516,9 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
-                                    color: isSelected ? Colors.white : AppColors.onSurfaceVariant,
+                                    color: isSelected
+                                        ? Colors.white
+                                        : AppColors.onSurfaceVariant,
                                   ),
                                 ),
                                 selected: isSelected,
@@ -486,7 +534,9 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16),
                                   side: BorderSide(
-                                    color: isSelected ? catColor : AppColors.outlineVariant,
+                                    color: isSelected
+                                        ? catColor
+                                        : AppColors.outlineVariant,
                                     width: 1.5,
                                   ),
                                 ),
@@ -501,7 +551,13 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                       AudioPlayerCard(
                         subtitle: _selectedCategory == 'todos'
                             ? 'Ouça todas as tarefas de hoje'
-                            : 'Ouça tarefas de ${_selectedCategory == 'medicacao' ? 'remédios' : _selectedCategory == 'refeicoes' ? 'refeições' : _selectedCategory == 'exercicio' ? 'exercícios' : 'água'}',
+                            : 'Ouça tarefas de ${_selectedCategory == 'medicacao'
+                                  ? 'remédios'
+                                  : _selectedCategory == 'refeicoes'
+                                  ? 'refeições'
+                                  : _selectedCategory == 'exercicio'
+                                  ? 'exercícios'
+                                  : 'água'}',
                         audioPath: filteredList.isNotEmpty
                             ? filteredList.last.audioPath
                             : null,
@@ -537,22 +593,53 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                     // Listas por Período (Pendentes)
                     if (pending.isNotEmpty) ...[
                       const SizedBox(height: 16),
-                      _buildPeriodSection('Madrugada', Icons.nightlight_round, const Color(0xFF455A64), madrugadaList),
-                      _buildPeriodSection('Manhã', Icons.wb_sunny, Colors.orange, manhaList),
-                      _buildPeriodSection('Tarde', Icons.wb_twilight, AppColors.mealsColor, tardeList),
-                      _buildPeriodSection('Noite', Icons.bedtime, Colors.indigo, noiteList),
+                      _buildPeriodSection(
+                        'Madrugada',
+                        Icons.nightlight_round,
+                        const Color(0xFF455A64),
+                        madrugadaList,
+                      ),
+                      _buildPeriodSection(
+                        'Manhã',
+                        Icons.wb_sunny,
+                        Colors.orange,
+                        manhaList,
+                      ),
+                      _buildPeriodSection(
+                        'Tarde',
+                        Icons.wb_twilight,
+                        AppColors.mealsColor,
+                        tardeList,
+                      ),
+                      _buildPeriodSection(
+                        'Noite',
+                        Icons.bedtime,
+                        Colors.indigo,
+                        noiteList,
+                      ),
                     ] else if (filteredList.isNotEmpty && pending.isEmpty) ...[
                       // Se tem itens mas nenhum pendente
                       Center(
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 32,
+                            horizontal: 16,
+                          ),
                           child: Column(
                             children: [
-                              const Icon(Icons.done_all, size: 64, color: Colors.green),
+                              const Icon(
+                                Icons.done_all,
+                                size: 64,
+                                color: Colors.green,
+                              ),
                               const SizedBox(height: 16),
                               const Text(
                                 'Todas as tarefas feitas!',
-                                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.primary),
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.primary,
+                                ),
                               ),
                               const SizedBox(height: 8),
                               Text(
@@ -560,7 +647,10 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                                     ? 'Você concluiu todas as tarefas de hoje.'
                                     : 'Você concluiu todas as tarefas nesta categoria.',
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(fontSize: 16, color: AppColors.onSurfaceVariant),
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  color: AppColors.onSurfaceVariant,
+                                ),
                               ),
                             ],
                           ),
@@ -583,7 +673,9 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                           child: Row(
                             children: [
                               Icon(
-                                _showCompleted ? Icons.expand_more : Icons.navigate_next,
+                                _showCompleted
+                                    ? Icons.expand_more
+                                    : Icons.navigate_next,
                                 color: AppColors.onSurfaceVariant,
                               ),
                               const SizedBox(width: 8),
@@ -597,7 +689,10 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                               ),
                               const SizedBox(width: 8),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2,
+                                ),
                                 decoration: BoxDecoration(
                                   color: AppColors.surfaceContainerHigh,
                                   borderRadius: BorderRadius.circular(12),
@@ -618,7 +713,9 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                       if (_showCompleted) ...[
                         const SizedBox(height: 8),
                         ...completedList.map((r) {
-                          final (icon, iconBg, accentColor) = _categoriaIcon(r.categoria);
+                          final (icon, iconBg, accentColor) = _categoriaIcon(
+                            r.categoria,
+                          );
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 12),
                             child: Opacity(
@@ -631,10 +728,12 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                                 title: r.titulo,
                                 time: r.horarioFormatado,
                                 audioPath: r.audioPath,
-                                status: reminderStatusFromLembrete(r),
+                                status: reminderVisualStatusFromLembrete(r),
                                 onTap: () {
                                   _stopAllAudioAndTts();
-                                  LembreteService.instance.alternarConclusao(r.id);
+                                  LembreteService.instance.alternarConclusao(
+                                    r.id,
+                                  );
                                 },
                               ),
                             ),
@@ -649,13 +748,21 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                       Center(
                         child: Column(
                           children: [
-                            Icon(Icons.notifications_none, size: 64, color: AppColors.outlineVariant),
+                            Icon(
+                              Icons.notifications_none,
+                              size: 64,
+                              color: AppColors.outlineVariant,
+                            ),
                             const SizedBox(height: 16),
                             Text(
                               _selectedCategory == 'todos'
                                   ? 'Nenhum lembrete criado'
                                   : 'Nenhum lembrete nesta categoria',
-                              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.onSurfaceVariant),
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.onSurfaceVariant,
+                              ),
                             ),
                             const SizedBox(height: 8),
                             Text(
@@ -663,7 +770,10 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                                   ? 'Use o botão de voz na tela inicial para criar lembretes.'
                                   : 'Você não tem tarefas registradas nesta categoria.',
                               textAlign: TextAlign.center,
-                              style: const TextStyle(fontSize: 16, color: AppColors.onSurfaceVariant),
+                              style: const TextStyle(
+                                fontSize: 16,
+                                color: AppColors.onSurfaceVariant,
+                              ),
                             ),
                           ],
                         ),
@@ -752,7 +862,11 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
             children: [
               _bottomNavItem(Icons.home, 'Início', false, () {
                 _stopAllAudioAndTts();
-                Navigator.pushNamedAndRemoveUntil(context, '/elderly-home', (route) => false);
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  '/elderly-home',
+                  (route) => false,
+                );
               }),
               _bottomNavItem(Icons.list_alt, 'Lembretes', true, null),
               _bottomNavItem(Icons.help_center, 'Ajuda', false, () {
@@ -766,10 +880,13 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
     );
   }
 
-  Widget _bottomNavItem(IconData icon, String label, bool selected, VoidCallback? onTap) {
-    final itemColor = selected 
-        ? AppColors.primary 
-        : AppColors.onSurfaceVariant;
+  Widget _bottomNavItem(
+    IconData icon,
+    String label,
+    bool selected,
+    VoidCallback? onTap,
+  ) {
+    final itemColor = selected ? AppColors.primary : AppColors.onSurfaceVariant;
 
     return Expanded(
       child: GestureDetector(

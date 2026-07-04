@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_theme.dart';
 import 'package:firebase_core/firebase_core.dart';
+import '../services/session_role_service.dart';
 
 class EmergencyAlertScreen extends StatefulWidget {
   const EmergencyAlertScreen({super.key});
@@ -26,16 +27,14 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
   Future<void> _loadActiveIdosoData() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final idosoId =
-          prefs.getString('selected_idoso_id') ??
-          prefs.getString('paired_idoso_id');
+      final idosoId = await SessionRoleService.getActiveIdosoId();
 
       bool useFirebase = false;
       try {
         useFirebase = Firebase.apps.isNotEmpty;
       } catch (_) {}
 
-      if (useFirebase && idosoId != null) {
+      if (useFirebase) {
         final doc = await FirebaseFirestore.instance
             .collection('idosos')
             .doc(idosoId)

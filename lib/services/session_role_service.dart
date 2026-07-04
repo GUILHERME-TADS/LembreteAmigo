@@ -20,6 +20,24 @@ class SessionRoleService {
 
   static Future<void> setSupervisor() => _setRole(supervisor);
 
+  static Future<String> getActiveIdosoId({String fallback = 'joao'}) async {
+    if (_activeRole == null) {
+      await load();
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final supervisorActive = prefs.getString('selected_idoso_id');
+    final elderlyActive = prefs.getString('paired_idoso_id');
+
+    if (isElderly) {
+      return elderlyActive ?? supervisorActive ?? fallback;
+    }
+    if (isSupervisor) {
+      return supervisorActive ?? elderlyActive ?? fallback;
+    }
+    return supervisorActive ?? elderlyActive ?? fallback;
+  }
+
   static Future<void> _setRole(String role) async {
     _activeRole = role;
     final prefs = await SharedPreferences.getInstance();

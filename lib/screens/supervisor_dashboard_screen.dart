@@ -11,6 +11,7 @@ import '../models/lembrete_evento.dart';
 import '../models/smart_alert.dart';
 import '../services/health_service.dart';
 import '../services/lembrete_service.dart';
+import '../services/session_role_service.dart';
 import '../services/smart_alert_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/audio_player_card.dart';
@@ -103,7 +104,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final bpm = prefs.getInt('last_bpm_value');
-      final idosoId = prefs.getString('selected_idoso_id') ?? 'joao';
+      final idosoId = await SessionRoleService.getActiveIdosoId();
 
       String nome = 'Idoso';
       if (_useFirebase) {
@@ -764,7 +765,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                 categoryLabel = 'Água';
                 break;
             }
-            final status = reminderStatusFromLembrete(lembrete);
+            final status = reminderVisualStatusFromLembrete(lembrete);
 
             return Padding(
               padding: const EdgeInsets.only(bottom: 12),

@@ -5,6 +5,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'offline_sync_service.dart';
+import 'session_role_service.dart';
 
 class HealthService {
   HealthService._();
@@ -23,10 +24,7 @@ class HealthService {
   }
 
   Future<String> _getActiveIdosoId() async {
-    final prefs = await SharedPreferences.getInstance();
-    final supervisorActive = prefs.getString('selected_idoso_id');
-    final elderlyActive = prefs.getString('paired_idoso_id');
-    return supervisorActive ?? elderlyActive ?? 'joao';
+    return SessionRoleService.getActiveIdosoId();
   }
 
   Future<void> enviarMetricas(int bpm) async {

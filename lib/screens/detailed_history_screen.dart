@@ -37,8 +37,18 @@ class _DetailedHistoryScreenState extends State<DetailedHistoryScreen> {
   String _getCurrentDateFormatted() {
     final now = DateTime.now();
     const meses = [
-      'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+      'Janeiro',
+      'Fevereiro',
+      'Março',
+      'Abril',
+      'Maio',
+      'Junho',
+      'Julho',
+      'Agosto',
+      'Setembro',
+      'Outubro',
+      'Novembro',
+      'Dezembro',
     ];
     return 'Hoje, ${now.day} de ${meses[now.month - 1]}';
   }
@@ -52,7 +62,9 @@ class _DetailedHistoryScreenState extends State<DetailedHistoryScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      bottomNavigationBar: const SupervisorBottomNav(selected: SupervisorNavDestination.history),
+      bottomNavigationBar: const SupervisorBottomNav(
+        selected: SupervisorNavDestination.history,
+      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -66,7 +78,11 @@ class _DetailedHistoryScreenState extends State<DetailedHistoryScreen> {
                     const SizedBox(height: 24),
                     const Text(
                       'Histórico Detalhado',
-                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.onSurface),
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.onSurface,
+                      ),
                     ),
                     const SizedBox(height: 24),
                     _dateSection(_getCurrentDateFormatted(), percentage),
@@ -76,7 +92,13 @@ class _DetailedHistoryScreenState extends State<DetailedHistoryScreen> {
                       subtitle: 'Ouça o resumo do dia',
                       textsToSpeak: list.isEmpty
                           ? ['Nenhum lembrete cadastrado para hoje.']
-                          : ['Resumo das atividades de hoje:', ...list.map((l) => '${l.titulo} às ${l.horarioFormatado}. Status: ${l.concluido ? "Concluído" : "Pendente"}.')],
+                          : [
+                              'Resumo das atividades de hoje:',
+                              ...list.map(
+                                (l) =>
+                                    '${l.titulo} às ${l.horarioFormatado}. Status: ${l.concluido ? "Concluído" : "Pendente"}.',
+                              ),
+                            ],
                     ),
                     const SizedBox(height: 16),
                     if (list.isEmpty)
@@ -86,7 +108,10 @@ class _DetailedHistoryScreenState extends State<DetailedHistoryScreen> {
                         decoration: BoxDecoration(
                           color: AppColors.surfaceContainerLowest,
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppColors.outlineVariant, width: 2),
+                          border: Border.all(
+                            color: AppColors.outlineVariant,
+                            width: 2,
+                          ),
                         ),
                         child: const Column(
                           children: [
@@ -120,7 +145,9 @@ class _DetailedHistoryScreenState extends State<DetailedHistoryScreen> {
                     else
                       ...list.map((lembrete) {
                         IconData icon = Icons.notifications;
-                        Color iconBg = AppColors.customColor.withValues(alpha: 0.15);
+                        Color iconBg = AppColors.customColor.withValues(
+                          alpha: 0.15,
+                        );
                         Color iconColor = AppColors.customColor;
                         Color accentColor = AppColors.customColor;
                         String categoryLabel = 'Personalizado';
@@ -128,34 +155,44 @@ class _DetailedHistoryScreenState extends State<DetailedHistoryScreen> {
                         switch (lembrete.categoria) {
                           case 'medicacao':
                             icon = Icons.medication;
-                            iconBg = AppColors.medicationsColor.withValues(alpha: 0.15);
+                            iconBg = AppColors.medicationsColor.withValues(
+                              alpha: 0.15,
+                            );
                             iconColor = AppColors.medicationsColor;
                             accentColor = AppColors.medicationsColor;
                             categoryLabel = 'Remédio';
                             break;
                           case 'refeicoes':
                             icon = Icons.restaurant;
-                            iconBg = AppColors.mealsColor.withValues(alpha: 0.15);
+                            iconBg = AppColors.mealsColor.withValues(
+                              alpha: 0.15,
+                            );
                             iconColor = AppColors.mealsColor;
                             accentColor = AppColors.mealsColor;
                             categoryLabel = 'Refeição';
                             break;
                           case 'exercicio':
                             icon = Icons.directions_walk;
-                            iconBg = AppColors.tertiaryContainer.withValues(alpha: 0.15);
+                            iconBg = AppColors.tertiaryContainer.withValues(
+                              alpha: 0.15,
+                            );
                             iconColor = AppColors.tertiaryContainer;
                             accentColor = AppColors.tertiaryContainer;
                             categoryLabel = 'Exercício';
                             break;
                           case 'hidratacao':
                             icon = Icons.water_drop;
-                            iconBg = AppColors.voiceFeedbackBlue.withValues(alpha: 0.15);
+                            iconBg = AppColors.voiceFeedbackBlue.withValues(
+                              alpha: 0.15,
+                            );
                             iconColor = AppColors.voiceFeedbackBlue;
                             accentColor = AppColors.voiceFeedbackBlue;
                             categoryLabel = 'Água';
                             break;
                         }
-                        final status = reminderStatusFromLembrete(lembrete);
+                        final status = reminderVisualStatusFromLembrete(
+                          lembrete,
+                        );
 
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 12.0),
@@ -195,19 +232,25 @@ class _DetailedHistoryScreenState extends State<DetailedHistoryScreen> {
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton.icon(
-                  onPressed: () => Navigator.pushNamed(context, '/monthly-reports'),
+                  onPressed: () =>
+                      Navigator.pushNamed(context, '/monthly-reports'),
                   icon: const Icon(Icons.assessment, size: 24),
                   label: const FittedBox(
                     fit: BoxFit.scaleDown,
                     child: Text(
                       'VER RELATÓRIOS MENSAIS',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryContainer,
                     foregroundColor: AppColors.onPrimaryContainer,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
               ),
@@ -237,7 +280,11 @@ class _DetailedHistoryScreenState extends State<DetailedHistoryScreen> {
             child: Text(
               'Lembrete Amigo',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.primary),
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w700,
+                color: AppColors.primary,
+              ),
             ),
           ),
           const SizedBox(width: 48),
@@ -258,14 +305,28 @@ class _DetailedHistoryScreenState extends State<DetailedHistoryScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(date, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.onSurfaceVariant)),
+          Text(
+            date,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: AppColors.onSurfaceVariant,
+            ),
+          ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               color: AppColors.tertiaryFixedDim,
               borderRadius: BorderRadius.circular(4),
             ),
-            child: Text('$pct% Concluído', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.onTertiaryFixedVariant)),
+            child: Text(
+              '$pct% Concluído',
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: AppColors.onTertiaryFixedVariant,
+              ),
+            ),
           ),
         ],
       ),

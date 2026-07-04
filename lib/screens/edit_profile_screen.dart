@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../theme/app_theme.dart';
+import '../services/session_role_service.dart';
 import '../services/tts_service.dart';
 import '../widgets/senior_button.dart';
 import '../widgets/volume_warning_banner.dart';
@@ -22,7 +23,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final TextEditingController _birthDateController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
-  
+
   final List<String> _selectedConditions = [];
   bool _isLoading = true;
   bool _isSaving = false;
@@ -81,7 +82,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       // 2. Se o Firebase estiver ativo, tenta sincronizar e atualizar com o banco remoto
       if (_useFirebase) {
         try {
-          final idosoId = prefs.getString('selected_idoso_id') ?? prefs.getString('paired_idoso_id') ?? 'joao';
+          final idosoId = await SessionRoleService.getActiveIdosoId();
           final docPerfil = await FirebaseFirestore.instance
               .collection('idoso_perfil')
               .doc(idosoId)
@@ -113,7 +114,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             }
           }
         } catch (firebaseError) {
-          debugPrint('Erro ao carregar perfil do Firebase (usando dados locais): $firebaseError');
+          debugPrint(
+            'Erro ao carregar perfil do Firebase (usando dados locais): $firebaseError',
+          );
         }
       }
 
@@ -154,17 +157,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     if (nome.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Por favor, digite o nome completo do idoso.')),
+        const SnackBar(
+          content: Text('Por favor, digite o nome completo do idoso.'),
+        ),
       );
-      TTSService.instance.falar('Por favor, digite o nome completo do idoso.', caller: this);
+      TTSService.instance.falar(
+        'Por favor, digite o nome completo do idoso.',
+        caller: this,
+      );
       return;
     }
 
-    TTSService.instance.falar('Salvando suas informações, por favor aguarde...', caller: this);
+    TTSService.instance.falar(
+      'Salvando suas informações, por favor aguarde...',
+      caller: this,
+    );
     setState(() => _isSaving = true);
 
     final prefs = await SharedPreferences.getInstance();
-    final idosoId = prefs.getString('selected_idoso_id') ?? prefs.getString('paired_idoso_id') ?? 'joao';
+    final idosoId = await SessionRoleService.getActiveIdosoId();
 
     final perfil = {
       'nome': nome,
@@ -191,9 +202,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 .collection('idosos')
                 .doc(idosoId)
                 .set(perfil, SetOptions(merge: true));
-            debugPrint('Perfil sincronizado com o Firebase em background com sucesso!');
+            debugPrint(
+              'Perfil sincronizado com o Firebase em background com sucesso!',
+            );
           } catch (firebaseError) {
-            debugPrint('Erro ao sincronizar perfil no Firebase em background: $firebaseError');
+            debugPrint(
+              'Erro ao sincronizar perfil no Firebase em background: $firebaseError',
+            );
           }
         });
       }
@@ -209,9 +224,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     } catch (e) {
       debugPrint('Erro ao salvar alterações do perfil: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao salvar: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erro ao salvar: $e')));
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -244,7 +259,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                     TTSService.instance.parar(caller: this);
                                     Navigator.pop(context);
                                   },
-                                  icon: const Icon(Icons.arrow_back, color: AppColors.primary),
+                                  icon: const Icon(
+                                    Icons.arrow_back,
+                                    color: AppColors.primary,
+                                  ),
                                 ),
                               ),
                               const Text(
@@ -257,19 +275,23 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               ),
                             ],
                           ),
-                           const SizedBox(height: 12),
-                           const Center(
-                             child: MeExplicaButton(
-                               textoExplicacao: 'Olá! Aqui você altera as suas informações, como seu nome completo, sua data de nascimento, seu telefone e seu endereço. Quando terminar, aperte o botão salvar perfil no final.',
-                             ),
-                           ),
-                           const SizedBox(height: 24),
+                          const SizedBox(height: 12),
+                          const Center(
+                            child: MeExplicaButton(
+                              textoExplicacao:
+                                  'Olá! Aqui você altera as suas informações, como seu nome completo, sua data de nascimento, seu telefone e seu endereço. Quando terminar, aperte o botão salvar perfil no final.',
+                            ),
+                          ),
+                          const SizedBox(height: 24),
                           SeniorInputField(
                             label: 'Nome Completo',
                             placeholder: 'Nome do idoso',
                             prefixIcon: Icons.person,
                             controller: _nameController,
-                            onTapAudio: () => TTSService.instance.falar('Digite o seu nome completo nesta caixa.', caller: this),
+                            onTapAudio: () => TTSService.instance.falar(
+                              'Digite o seu nome completo nesta caixa.',
+                              caller: this,
+                            ),
                           ),
                           const SizedBox(height: 24),
                           SeniorInputField(
@@ -279,7 +301,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             controller: _birthDateController,
                             keyboardType: TextInputType.number,
                             inputFormatters: [DateInputFormatter()],
-                            onTapAudio: () => TTSService.instance.falar('Digite o dia, o mês e o ano em que você nasceu.', caller: this),
+                            onTapAudio: () => TTSService.instance.falar(
+                              'Digite o dia, o mês e o ano em que você nasceu.',
+                              caller: this,
+                            ),
                           ),
                           const SizedBox(height: 24),
                           SeniorInputField(
@@ -289,65 +314,79 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             controller: _phoneController,
                             keyboardType: TextInputType.phone,
                             inputFormatters: [PhoneInputFormatter()],
-                            onTapAudio: () => TTSService.instance.falar('Digite o número do seu celular com o D D D.', caller: this),
+                            onTapAudio: () => TTSService.instance.falar(
+                              'Digite o número do seu celular com o D D D.',
+                              caller: this,
+                            ),
                           ),
-                    const SizedBox(height: 24),
-                    SeniorInputField(
-                      label: 'Endereço',
-                      placeholder: 'Rua, número, bairro',
-                      prefixIcon: Icons.location_on,
-                      controller: _addressController,
-                      onTapAudio: () => TTSService.instance.falar('Digite o nome da sua rua e o número da sua casa.', caller: this),
-                    ),
-                    const SizedBox(height: 24),
-                    const Text(
-                      'CONDIÇÕES DE SAÚDE',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.05,
-                        color: AppColors.onSurfaceVariant,
+                          const SizedBox(height: 24),
+                          SeniorInputField(
+                            label: 'Endereço',
+                            placeholder: 'Rua, número, bairro',
+                            prefixIcon: Icons.location_on,
+                            controller: _addressController,
+                            onTapAudio: () => TTSService.instance.falar(
+                              'Digite o nome da sua rua e o número da sua casa.',
+                              caller: this,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          const Text(
+                            'CONDIÇÕES DE SAÚDE',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.05,
+                              color: AppColors.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              _healthChip('Hipertensão'),
+                              _healthChip('Diabetes'),
+                              _healthChip('Colesterol'),
+                              _healthChip('Outros'),
+                            ],
+                          ),
+                          const SizedBox(height: 40),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 64,
+                            child: ElevatedButton.icon(
+                              onPressed: _isSaving ? null : _salvar,
+                              icon: _isSaving
+                                  ? const SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Icon(Icons.save),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.secondaryContainer,
+                                foregroundColor: AppColors.onSecondaryFixed,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              label: Text(
+                                _isSaving ? 'SALVANDO...' : 'SALVAR PERFIL',
+                                style: const TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _healthChip('Hipertensão'),
-                        _healthChip('Diabetes'),
-                        _healthChip('Colesterol'),
-                        _healthChip('Outros'),
-                      ],
-                    ),
-                    const SizedBox(height: 40),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 64,
-                      child: ElevatedButton.icon(
-                        onPressed: _isSaving ? null : _salvar,
-                        icon: _isSaving
-                            ? const SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                              )
-                            : const Icon(Icons.save),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.secondaryContainer,
-                          foregroundColor: AppColors.onSecondaryFixed,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        label: Text(
-                          _isSaving ? 'SALVANDO...' : 'SALVAR PERFIL',
-                          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-                ),
-              ),
             ),
           ],
         ),
@@ -370,13 +409,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     return GestureDetector(
       onTap: () {
-        TTSService.instance.falar('Condição de saúde: $label. ${selected ? "Removida" : "Adicionada"}', caller: this);
+        TTSService.instance.falar(
+          'Condição de saúde: $label. ${selected ? "Removida" : "Adicionada"}',
+          caller: this,
+        );
         _toggleCondition(label);
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: selected ? AppColors.secondaryContainer : AppColors.surfaceContainerLowest,
+          color: selected
+              ? AppColors.secondaryContainer
+              : AppColors.surfaceContainerLowest,
           borderRadius: BorderRadius.circular(9999),
           border: Border.all(
             color: selected ? AppColors.secondary : AppColors.outlineVariant,
@@ -389,7 +433,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             Icon(
               icon,
               size: 20,
-              color: selected ? AppColors.onSecondaryContainer : AppColors.onSurfaceVariant,
+              color: selected
+                  ? AppColors.onSecondaryContainer
+                  : AppColors.onSurfaceVariant,
             ),
             const SizedBox(width: 8),
             Text(
@@ -397,7 +443,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w800,
-                color: selected ? AppColors.onSecondaryContainer : AppColors.onSurface,
+                color: selected
+                    ? AppColors.onSecondaryContainer
+                    : AppColors.onSurface,
               ),
             ),
           ],
@@ -409,7 +457,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
 class DateInputFormatter extends TextInputFormatter {
   @override
-  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
     final text = newValue.text;
     if (text.length < oldValue.text.length) {
       return newValue;
@@ -434,7 +485,10 @@ class DateInputFormatter extends TextInputFormatter {
 
 class PhoneInputFormatter extends TextInputFormatter {
   @override
-  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
     final text = newValue.text;
     if (text.length < oldValue.text.length) {
       return newValue;

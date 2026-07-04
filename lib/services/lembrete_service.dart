@@ -10,6 +10,7 @@ import '../models/lembrete.dart';
 import '../models/lembrete_evento.dart';
 import 'notification_service.dart';
 import 'offline_sync_service.dart';
+import 'session_role_service.dart';
 import 'smart_alert_service.dart';
 
 class LembreteService {
@@ -24,7 +25,7 @@ class LembreteService {
   bool _loaded = false;
   String? _loadedIdosoId;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
-      _lembretesSubscription;
+  _lembretesSubscription;
 
   List<Lembrete> get lembretes => List.unmodifiable(_lembretes);
   List<LembreteEvento> get eventos => List.unmodifiable(_eventos);
@@ -38,10 +39,7 @@ class LembreteService {
   }
 
   Future<String> _getActiveIdosoId() async {
-    final prefs = await SharedPreferences.getInstance();
-    final supervisorActive = prefs.getString('selected_idoso_id');
-    final elderlyActive = prefs.getString('paired_idoso_id');
-    return supervisorActive ?? elderlyActive ?? 'joao';
+    return SessionRoleService.getActiveIdosoId();
   }
 
   Future<void> carregar() async {
@@ -125,10 +123,10 @@ class LembreteService {
 
       if (ultimoDiaVerificado != hoje) {
         bool houveAlteracao = false;
-        
+
         for (int i = 0; i < _lembretes.length; i++) {
           final lembrete = _lembretes[i];
-          
+
           final isRecorrente =
               lembrete.repeteTodosOsDias ||
               lembrete.recorrenciaSemanal ||

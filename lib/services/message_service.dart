@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -13,10 +14,14 @@ class MessageService {
   MessageService._();
   static final MessageService instance = MessageService._();
 
-  static const _cacheKey = 'app_messages';
+  static const _legacyCacheKey = 'app_messages';
+  static const _cachePrefix = 'app_messages_';
   final ValueNotifier<List<AppMessage>> notifier = ValueNotifier([]);
   final List<AppMessage> _messages = [];
   bool _loaded = false;
+  String? _loadedIdosoId;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
+  _messagesSubscription;
 
   List<AppMessage> get messages => List.unmodifiable(_messages);
 
@@ -29,10 +34,7 @@ class MessageService {
   }
 
   Future<String> getActiveIdosoId() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('selected_idoso_id') ??
-        prefs.getString('paired_idoso_id') ??
-        'joao';
+    return SessionRoleService.getActiveIdosoId();
   }
 
   Future<String> getActiveIdosoName() async {
@@ -49,13 +51,21 @@ class MessageService {
   }
 
   Future<void> load() async {
-    if (_loaded) return;
+    final idosoId = await getActiveIdosoId();
+    if (_loaded && _loadedIdosoId == idosoId) return;
+
+    if (_loadedIdosoId != null && _loadedIdosoId != idosoId) {
+      await _messagesSubscription?.cancel();
+      _messages.clear();
+      notifier.value = const [];
+    }
+
     _loaded = true;
-    await _loadLocal();
+    _loadedIdosoId = idosoId;
+    await _loadLocal(idosoId);
 
     if (!_useFirebase) return;
-    final idosoId = await getActiveIdosoId();
-    FirebaseFirestore.instance
+    _messagesSubscription = FirebaseFirestore.instance
         .collection('mensagens')
         .where('idosoId', isEqualTo: idosoId)
         .snapshots()
@@ -69,7 +79,7 @@ class MessageService {
               }),
             )
             ..sort((a, b) => b.criadoEm.compareTo(a.criadoEm));
-          await _saveLocal();
+          await _saveLocal(idosoId);
           notifier.value = List.from(_messages);
           await OfflineSyncService.instance.syncPendingWrites();
         });
@@ -113,7 +123,7 @@ class MessageService {
 
   Future<void> saveOutgoing(AppMessage message) async {
     _upsert(message);
-    await _saveLocal();
+    await _saveLocal(message.idosoId);
     notifier.value = List.from(_messages);
 
     if (_useFirebase) {
@@ -129,7 +139,7 @@ class MessageService {
     final idx = _messages.indexWhere((message) => message.id == id);
     if (idx == -1) return;
     _messages[idx] = _messages[idx].copyWith(lido: true);
-    await _saveLocal();
+    await _saveLocal(_messages[idx].idosoId);
     notifier.value = List.from(_messages);
 
     if (_useFirebase) {
@@ -139,26 +149,37 @@ class MessageService {
     }
   }
 
-  Future<void> _loadLocal() async {
+  String _cacheKeyFor(String idosoId) => '$_cachePrefix$idosoId';
+
+  Future<void> _loadLocal(String idosoId) async {
     final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_cacheKey);
+    final raw =
+        prefs.getString(_cacheKeyFor(idosoId)) ??
+        prefs.getString(_legacyCacheKey);
     if (raw != null) {
       final list = jsonDecode(raw) as List;
       _messages
         ..clear()
         ..addAll(
-          list.map((item) => AppMessage.fromJson(item as Map<String, dynamic>)),
+          list
+              .map((item) => AppMessage.fromJson(item as Map<String, dynamic>))
+              .where((message) => message.idosoId == idosoId),
         )
         ..sort((a, b) => b.criadoEm.compareTo(a.criadoEm));
     }
     notifier.value = List.from(_messages);
   }
 
-  Future<void> _saveLocal() async {
+  Future<void> _saveLocal(String idosoId) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
-      _cacheKey,
-      jsonEncode(_messages.map((message) => message.toJson()).toList()),
+      _cacheKeyFor(idosoId),
+      jsonEncode(
+        _messages
+            .where((message) => message.idosoId == idosoId)
+            .map((message) => message.toJson())
+            .toList(),
+      ),
     );
   }
 

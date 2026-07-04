@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/lembrete.dart';
 import '../services/lembrete_service.dart';
+import '../services/session_role_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/me_explica_button.dart';
 import '../widgets/supervisor_bottom_nav.dart';
@@ -47,23 +48,19 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
   Future<void> _loadData() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final idosoId =
-          prefs.getString('selected_idoso_id') ??
-          prefs.getString('paired_idoso_id');
-      if (idosoId != null) {
-        try {
-          final doc = await FirebaseFirestore.instance
-              .collection('idosos')
-              .doc(idosoId)
-              .get();
-          if (doc.exists) {
-            _idosoName = doc.data()?['nome'] ?? 'Idoso';
-          }
-        } catch (_) {
-          final json = prefs.getString('idoso_perfil');
-          if (json != null && json.contains('nome')) {
-            _idosoName = 'Idoso';
-          }
+      final idosoId = await SessionRoleService.getActiveIdosoId();
+      try {
+        final doc = await FirebaseFirestore.instance
+            .collection('idosos')
+            .doc(idosoId)
+            .get();
+        if (doc.exists) {
+          _idosoName = doc.data()?['nome'] ?? 'Idoso';
+        }
+      } catch (_) {
+        final json = prefs.getString('idoso_perfil');
+        if (json != null && json.contains('nome')) {
+          _idosoName = 'Idoso';
         }
       }
 

@@ -28,6 +28,37 @@ ReminderStatus reminderStatusFromLembrete(Lembrete lembrete) {
   }
 }
 
+ReminderStatus reminderVisualStatusFromLembrete(
+  Lembrete lembrete, {
+  DateTime? now,
+}) {
+  final storedStatus = reminderStatusFromLembrete(lembrete);
+  if (storedStatus != ReminderStatus.scheduled || lembrete.concluido) {
+    return storedStatus;
+  }
+
+  final currentTime = now ?? DateTime.now();
+  var targetTime = DateTime(
+    currentTime.year,
+    currentTime.month,
+    currentTime.day,
+    lembrete.horarioHour,
+    lembrete.horarioMinute,
+  );
+
+  if (targetTime.isBefore(currentTime) &&
+      lembrete.criadoEm.isAfter(targetTime)) {
+    targetTime = targetTime.add(const Duration(days: 1));
+  }
+
+  final diff = targetTime.difference(currentTime);
+  if (diff.isNegative && diff.inMinutes.abs() >= 5) {
+    return ReminderStatus.late;
+  }
+
+  return storedStatus;
+}
+
 LembreteStatus _getLembreteStatus(ReminderStatus status) {
   switch (status) {
     case ReminderStatus.done:
@@ -252,10 +283,7 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(
-                width: 12,
-                color: sideBarColor,
-              ),
+              Container(width: 12, color: sideBarColor),
               Expanded(
                 child: Column(
                   children: [
@@ -267,11 +295,15 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
                               color: widget.status == ReminderStatus.done
-                                  ? AppColors.tertiaryFixedDim.withValues(alpha: 0.3)
+                                  ? AppColors.tertiaryFixedDim.withValues(
+                                      alpha: 0.3,
+                                    )
                                   : widget.status == ReminderStatus.late
                                   ? AppColors.error.withValues(alpha: 0.15)
                                   : widget.status == ReminderStatus.postponed
-                                  ? AppColors.secondaryFixed.withValues(alpha: 0.3)
+                                  ? AppColors.secondaryFixed.withValues(
+                                      alpha: 0.3,
+                                    )
                                   : widget.iconBg,
                               shape: BoxShape.circle,
                             ),
@@ -301,74 +333,72 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
                                       fontSize: 28,
                                       fontWeight: FontWeight.w700,
                                       height: 1.3,
-                                      color: widget.status == ReminderStatus.done
+                                      color:
+                                          widget.status == ReminderStatus.done
                                           ? AppColors.onSurfaceVariant
-                                          : widget.status == ReminderStatus.postponed
+                                          : widget.status ==
+                                                ReminderStatus.postponed
                                           ? AppColors.onSecondaryFixedVariant
                                           : widget.accentColor,
                                     ),
                                   ),
                                   const SizedBox(height: 8),
                                   Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      Row(
+                                      Column(
                                         mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.center,
                                         children: [
                                           Icon(
-                                            PeriodHelper.getPeriodIconFromStr(widget.time),
-                                            size: 22,
-                                            color: PeriodHelper.getPeriodColorFromStr(
+                                            PeriodHelper.getPeriodIconFromStr(
                                               widget.time,
-                                              widget.accentColor,
                                             ),
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Flexible(
-                                            child: Text(
-                                              PeriodHelper.getPeriodLabelFromStr(widget.time),
-                                              style: TextStyle(
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.w800,
-                                                height: 1.3,
-                                                color: PeriodHelper.getPeriodColorFromStr(
+                                            size: 32,
+                                            color:
+                                                PeriodHelper.getPeriodColorFromStr(
                                                   widget.time,
                                                   widget.accentColor,
                                                 ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                              vertical: 4,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color:
+                                                  PeriodHelper.getPeriodColorFromStr(
+                                                    widget.time,
+                                                    widget.accentColor,
+                                                  ).withValues(alpha: 0.12),
+                                              borderRadius: BorderRadius.circular(
+                                                8,
                                               ),
-                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            child: Text(
+                                              widget.time,
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w700,
+                                                color:
+                                                    PeriodHelper.getPeriodColorFromStr(
+                                                      widget.time,
+                                                      widget.accentColor,
+                                                    ),
+                                              ),
                                             ),
                                           ),
                                         ],
                                       ),
                                       const SizedBox(height: 8),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                          vertical: 4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: PeriodHelper.getPeriodColorFromStr(
-                                            widget.time,
-                                            widget.accentColor,
-                                          ).withValues(alpha: 0.12),
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                        child: Text(
-                                          widget.time,
-                                          style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w700,
-                                            color: PeriodHelper.getPeriodColorFromStr(
-                                              widget.time,
-                                              widget.accentColor,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
                                       ReminderStatusBadge(
-                                        status: _getLembreteStatus(widget.status),
+                                        status: _getLembreteStatus(
+                                          widget.status,
+                                        ),
                                         compact: true,
                                         accentColor: widget.accentColor,
                                       ),
@@ -386,24 +416,30 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
                               decoration: BoxDecoration(
                                 color: _isPlaying || _isSpeaking
                                     ? (widget.status == ReminderStatus.done
-                                        ? AppColors.tertiaryFixedDim
-                                        : widget.status == ReminderStatus.postponed
-                                        ? AppColors.secondaryFixed
-                                        : widget.accentColor.withValues(alpha: 0.2))
+                                          ? AppColors.tertiaryFixedDim
+                                          : widget.status ==
+                                                ReminderStatus.postponed
+                                          ? AppColors.secondaryFixed
+                                          : widget.accentColor.withValues(
+                                              alpha: 0.2,
+                                            ))
                                     : widget.accentColor.withValues(alpha: 0.1),
                                 shape: BoxShape.rectangle,
                                 borderRadius: BorderRadius.circular(14),
                                 border: Border.all(
                                   color: widget.status == ReminderStatus.done
                                       ? AppColors.onTertiaryFixedVariant
-                                      : widget.status == ReminderStatus.postponed
+                                      : widget.status ==
+                                            ReminderStatus.postponed
                                       ? AppColors.onSecondaryFixedVariant
                                       : widget.accentColor,
                                   width: 3,
                                 ),
                               ),
                               child: Icon(
-                                _isPlaying || _isSpeaking ? Icons.stop : Icons.play_arrow,
+                                _isPlaying || _isSpeaking
+                                    ? Icons.stop
+                                    : Icons.play_arrow,
                                 color: widget.status == ReminderStatus.done
                                     ? AppColors.onTertiaryFixedVariant
                                     : widget.status == ReminderStatus.postponed
@@ -425,38 +461,47 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
                                     : widget.status == ReminderStatus.postponed
                                     ? AppColors.secondaryFixed
                                     : (widget.status == ReminderStatus.late ||
-                                            widget.status == ReminderStatus.missed)
-                                        ? AppColors.error
-                                        : widget.accentColor.withValues(alpha: 0.1),
+                                          widget.status ==
+                                              ReminderStatus.missed)
+                                    ? AppColors.error
+                                    : widget.accentColor.withValues(alpha: 0.1),
                                 shape: BoxShape.rectangle,
                                 borderRadius: BorderRadius.circular(14),
                                 border: Border.all(
                                   color: widget.status == ReminderStatus.done
                                       ? AppColors.onTertiaryFixedVariant
-                                      : widget.status == ReminderStatus.postponed
+                                      : widget.status ==
+                                            ReminderStatus.postponed
                                       ? AppColors.onSecondaryFixedVariant
                                       : (widget.status == ReminderStatus.late ||
-                                              widget.status == ReminderStatus.missed)
-                                          ? AppColors.onError
-                                          : widget.accentColor,
+                                            widget.status ==
+                                                ReminderStatus.missed)
+                                      ? AppColors.onError
+                                      : widget.accentColor,
                                   width: 3,
                                 ),
                               ),
-                              child: widget.status == ReminderStatus.done ||
-                                      widget.status == ReminderStatus.postponed ||
+                              child:
+                                  widget.status == ReminderStatus.done ||
+                                      widget.status ==
+                                          ReminderStatus.postponed ||
                                       widget.status == ReminderStatus.late ||
                                       widget.status == ReminderStatus.missed
                                   ? Icon(
                                       widget.status == ReminderStatus.done
                                           ? Icons.check
-                                          : widget.status == ReminderStatus.postponed
+                                          : widget.status ==
+                                                ReminderStatus.postponed
                                           ? Icons.schedule
-                                          : widget.status == ReminderStatus.missed
-                                              ? Icons.close
-                                              : Icons.priority_high,
-                                      color: widget.status == ReminderStatus.done
+                                          : widget.status ==
+                                                ReminderStatus.missed
+                                          ? Icons.close
+                                          : Icons.priority_high,
+                                      color:
+                                          widget.status == ReminderStatus.done
                                           ? AppColors.onTertiaryFixedVariant
-                                          : widget.status == ReminderStatus.postponed
+                                          : widget.status ==
+                                                ReminderStatus.postponed
                                           ? AppColors.onSecondaryFixedVariant
                                           : AppColors.onError,
                                       size: 32,
@@ -480,23 +525,29 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: List.generate(24, (i) {
                                   final seed = (i * 0.7 + i % 3 * 1.3);
-                                  final baseHeight = 0.15 + (sin(seed) * 0.5 + 0.5) * 0.7;
+                                  final baseHeight =
+                                      0.15 + (sin(seed) * 0.5 + 0.5) * 0.7;
                                   final animOffset =
-                                      sin(_waveController.value * pi * 2 + seed) * 0.3;
-                                  final heightFactor = (baseHeight + animOffset).clamp(
-                                    0.1,
-                                    1.0,
-                                  );
+                                      sin(
+                                        _waveController.value * pi * 2 + seed,
+                                      ) *
+                                      0.3;
+                                  final heightFactor = (baseHeight + animOffset)
+                                      .clamp(0.1, 1.0);
                                   return Expanded(
                                     child: Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 1),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 1,
+                                      ),
                                       child: Container(
                                         height: 32 * heightFactor,
                                         decoration: BoxDecoration(
                                           color: widget.accentColor.withValues(
                                             alpha: 0.4 + heightFactor * 0.6,
                                           ),
-                                          borderRadius: BorderRadius.circular(2),
+                                          borderRadius: BorderRadius.circular(
+                                            2,
+                                          ),
                                         ),
                                       ),
                                     ),

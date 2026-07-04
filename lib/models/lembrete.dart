@@ -57,8 +57,8 @@ class Lembrete {
     required this.horarioMinute,
     this.categoria = 'personalizado',
     this.audioPath,
-    this.concluido = false,
-    this.concluidoComFoto = false,
+    bool concluido = false,
+    bool concluidoComFoto = false,
     DateTime? criadoEm,
     this.medicamentoForma,
     this.medicamentoCor,
@@ -82,7 +82,11 @@ class Lembrete {
                ? LembreteStatus.concluidoComFoto
                : concluido
                ? LembreteStatus.concluido
-               : LembreteStatus.pendente);
+               : LembreteStatus.pendente),
+       concluido = status?.isConcluido ?? concluidoComFoto || concluido,
+       concluidoComFoto = status != null
+           ? status == LembreteStatus.concluidoComFoto
+           : concluidoComFoto;
 
   TimeOfDay get horario => TimeOfDay(hour: horarioHour, minute: horarioMinute);
 
@@ -118,7 +122,15 @@ class Lembrete {
     String? recorrencia,
     String? urgencia,
   }) {
-    final newStatus = status ?? this.status;
+    final newStatus =
+        status ??
+        (concluidoComFoto == true
+            ? LembreteStatus.concluidoComFoto
+            : concluido == true
+            ? LembreteStatus.concluido
+            : concluido == false || concluidoComFoto == false
+            ? LembreteStatus.pendente
+            : this.status);
     return Lembrete(
       id: id ?? this.id,
       titulo: titulo ?? this.titulo,

@@ -9,6 +9,7 @@ import 'package:image_picker/image_picker.dart';
 import '../theme/app_theme.dart';
 import '../services/tts_service.dart';
 import '../services/lembrete_service.dart';
+import '../services/session_role_service.dart';
 import '../widgets/index.dart';
 import '../widgets/custom_time_picker.dart';
 import '../models/lembrete.dart';
@@ -89,7 +90,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
       String telefone = 'Não informado';
       String endereco = 'Não informado';
       List<String> condicoes = [];
-      
+
       final jsonStr = prefs.getString('idoso_perfil');
       final localFoto = prefs.getString('idoso_foto_path');
 
@@ -115,8 +116,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
       // 2. Se o Firebase estiver ativo, tenta sincronizar no background com try-catch
       if (_useFirebase) {
         try {
-          final idosoId =
-              prefs.getString('selected_idoso_id') ?? pairedId ?? 'joao';
+          final idosoId = await SessionRoleService.getActiveIdosoId();
           final docPerfil = await FirebaseFirestore.instance
               .collection('idoso_perfil')
               .doc(idosoId)
@@ -158,7 +158,8 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
 
           if (reloadPhoto) {
             // Smart local-first photo path sync
-            bool isLocalFile = localFoto != null && !localFoto.startsWith('avatar_');
+            bool isLocalFile =
+                localFoto != null && !localFoto.startsWith('avatar_');
             bool localFileExists = isLocalFile && File(localFoto).existsSync();
 
             if (!localFileExists) {
@@ -173,14 +174,17 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
               }
               if (firestoreFoto != null && firestoreFoto.isNotEmpty) {
                 fotoPath = firestoreFoto;
-                if (firestoreFoto.startsWith('avatar_') || File(firestoreFoto).existsSync()) {
+                if (firestoreFoto.startsWith('avatar_') ||
+                    File(firestoreFoto).existsSync()) {
                   await prefs.setString('idoso_foto_path', firestoreFoto);
                 }
               }
             }
           }
         } catch (firebaseError) {
-          debugPrint('Erro ao sincronizar perfil do Firebase (usando dados locais): $firebaseError');
+          debugPrint(
+            'Erro ao sincronizar perfil do Firebase (usando dados locais): $firebaseError',
+          );
         }
       }
 
@@ -226,9 +230,14 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
           titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 24,
+            vertical: 12,
+          ),
           title: Text(
             lembrete.titulo,
             textAlign: TextAlign.center,
@@ -240,7 +249,10 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
               const Text(
                 'O que você deseja fazer?',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 18, color: AppColors.onSurfaceVariant),
+                style: TextStyle(
+                  fontSize: 18,
+                  color: AppColors.onSurfaceVariant,
+                ),
               ),
               const SizedBox(height: 24),
               // Button 1: Mudar Horário
@@ -264,7 +276,10 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                     foregroundColor: AppColors.onSecondaryContainer,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
-                      side: const BorderSide(color: AppColors.secondary, width: 2),
+                      side: const BorderSide(
+                        color: AppColors.secondary,
+                        width: 2,
+                      ),
                     ),
                   ),
                 ),
@@ -291,7 +306,10 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                     foregroundColor: AppColors.primary,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
-                      side: const BorderSide(color: AppColors.outlineVariant, width: 2),
+                      side: const BorderSide(
+                        color: AppColors.outlineVariant,
+                        width: 2,
+                      ),
                     ),
                   ),
                 ),
@@ -331,7 +349,11 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                   onPressed: () => Navigator.pop(context),
                   child: const Text(
                     'VOLTAR',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.error),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.error,
+                    ),
                   ),
                 ),
               ),
@@ -374,11 +396,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.outlineVariant, width: 1.5),
         boxShadow: const [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 6,
-            offset: Offset(0, 3),
-          ),
+          BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 3)),
         ],
       ),
       child: Column(
@@ -506,7 +524,8 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                           ),
                           const SizedBox(height: 12),
                           const MeExplicaButton(
-                            textoExplicacao: 'Olá! Esta é a tela com as suas informações. Aqui você vê o seu nome e telefone. Para mudar sua foto, aperte em cima do círculo da foto. Para mudar seu nome ou se conectar com um ajudante, use os botões da lista abaixo.',
+                            textoExplicacao:
+                                'Olá! Esta é a tela com as suas informações. Aqui você vê o seu nome e telefone. Para mudar sua foto, aperte em cima do círculo da foto. Para mudar seu nome ou se conectar com um ajudante, use os botões da lista abaixo.',
                           ),
                           const SizedBox(height: 20),
                           Container(
@@ -524,7 +543,9 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                               borderRadius: BorderRadius.circular(24),
                               boxShadow: [
                                 BoxShadow(
-                                  color: AppColors.primary.withValues(alpha: 0.15),
+                                  color: AppColors.primary.withValues(
+                                    alpha: 0.15,
+                                  ),
                                   blurRadius: 16,
                                   offset: const Offset(0, 8),
                                 ),
@@ -540,7 +561,10 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                                     decoration: BoxDecoration(
                                       color: Colors.white,
                                       shape: BoxShape.circle,
-                                      border: Border.all(color: Colors.white, width: 4),
+                                      border: Border.all(
+                                        color: Colors.white,
+                                        width: 4,
+                                      ),
                                       boxShadow: const [
                                         BoxShadow(
                                           color: Colors.black12,
@@ -548,23 +572,31 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                                           offset: Offset(0, 4),
                                         ),
                                       ],
-                                      image: _fotoPath != null && !_fotoPath!.startsWith('avatar_')
-                                        ? (_fotoPath!.startsWith('http')
-                                            ? DecorationImage(
-                                                image: NetworkImage(_fotoPath!),
-                                                fit: BoxFit.cover,
-                                              )
-                                            : (File(_fotoPath!).existsSync()
+                                      image:
+                                          _fotoPath != null &&
+                                              !_fotoPath!.startsWith('avatar_')
+                                          ? (_fotoPath!.startsWith('http')
                                                 ? DecorationImage(
-                                                    image: FileImage(File(_fotoPath!)),
+                                                    image: NetworkImage(
+                                                      _fotoPath!,
+                                                    ),
                                                     fit: BoxFit.cover,
                                                   )
-                                                : null))
-                                        : null,
+                                                : (File(_fotoPath!).existsSync()
+                                                      ? DecorationImage(
+                                                          image: FileImage(
+                                                            File(_fotoPath!),
+                                                          ),
+                                                          fit: BoxFit.cover,
+                                                        )
+                                                      : null))
+                                          : null,
                                     ),
-                                    child: _fotoPath == null ||
+                                    child:
+                                        _fotoPath == null ||
                                             _fotoPath!.startsWith('avatar_') ||
-                                            (!_fotoPath!.startsWith('http') && !File(_fotoPath!).existsSync())
+                                            (!_fotoPath!.startsWith('http') &&
+                                                !File(_fotoPath!).existsSync())
                                         ? _buildAvatarIconChild()
                                         : null,
                                   ),
@@ -572,7 +604,11 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                                 const SizedBox(height: 12),
                                 ElevatedButton.icon(
                                   onPressed: _selectProfilePhotoOptions,
-                                  icon: const Icon(Icons.edit, size: 16, color: AppColors.primary),
+                                  icon: const Icon(
+                                    Icons.edit,
+                                    size: 16,
+                                    color: AppColors.primary,
+                                  ),
                                   label: const Text(
                                     'Alterar Foto',
                                     style: TextStyle(
@@ -584,7 +620,10 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                                     backgroundColor: Colors.white,
                                     foregroundColor: AppColors.primary,
                                     elevation: 0,
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 6,
+                                    ),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(16),
                                     ),
@@ -592,7 +631,8 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                                 ),
                                 const SizedBox(height: 16),
                                 GestureDetector(
-                                  onTap: () => _falarInfo('Nome completo', _nome),
+                                  onTap: () =>
+                                      _falarInfo('Nome completo', _nome),
                                   child: Text(
                                     _nome.toUpperCase(),
                                     textAlign: TextAlign.center,
@@ -606,18 +646,30 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                                 ),
                                 const SizedBox(height: 8),
                                 InkWell(
-                                  onTap: () => _falarInfo('Data de nascimento', _dataNasc),
+                                  onTap: () => _falarInfo(
+                                    'Data de nascimento',
+                                    _dataNasc,
+                                  ),
                                   borderRadius: BorderRadius.circular(8),
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 4,
+                                    ),
                                     decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.15),
+                                      color: Colors.white.withValues(
+                                        alpha: 0.15,
+                                      ),
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        const Icon(Icons.cake, size: 18, color: Colors.white70),
+                                        const Icon(
+                                          Icons.cake,
+                                          size: 18,
+                                          color: Colors.white70,
+                                        ),
                                         const SizedBox(width: 8),
                                         Text(
                                           _dataNasc,
@@ -637,8 +689,16 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                           const SizedBox(height: 32),
                           _sectionTitle('Informações de Contato'),
                           const SizedBox(height: 12),
-                          _infoRow(Icons.phone, 'Telefone de Contato', _telefone),
-                          _infoRow(Icons.location_on, 'Seu Endereço', _endereco),
+                          _infoRow(
+                            Icons.phone,
+                            'Telefone de Contato',
+                            _telefone,
+                          ),
+                          _infoRow(
+                            Icons.location_on,
+                            'Seu Endereço',
+                            _endereco,
+                          ),
                           const SizedBox(height: 24),
                           _sectionTitle('Condições de Saúde'),
                           const SizedBox(height: 12),
@@ -669,7 +729,9 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                               ),
                             ),
                           const SizedBox(height: 24),
-                          _sectionTitle('Medicamentos em Uso (Remédios cadastrados)'),
+                          _sectionTitle(
+                            'Medicamentos em Uso (Remédios cadastrados)',
+                          ),
                           const SizedBox(height: 12),
                           if (medicamentosReais.isEmpty)
                             _buildEmptyState(
@@ -698,7 +760,9 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                             decoration: BoxDecoration(
                               color: AppColors.surfaceContainerLowest,
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: AppColors.outlineVariant),
+                              border: Border.all(
+                                color: AppColors.outlineVariant,
+                              ),
                             ),
                             child: Column(
                               children: [
@@ -719,12 +783,15 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                                         backgroundColor: AppColors.primary,
                                         foregroundColor: Colors.white,
                                         shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(12),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
                                         ),
                                         elevation: 4,
                                       ),
                                       child: const Row(
-                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
                                         children: [
                                           Icon(Icons.link, size: 28),
                                           SizedBox(width: 12),
@@ -759,14 +826,17 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                                       }
                                     },
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppColors.secondaryContainer,
-                                      foregroundColor: AppColors.onSecondaryFixed,
+                                      backgroundColor:
+                                          AppColors.secondaryContainer,
+                                      foregroundColor:
+                                          AppColors.onSecondaryFixed,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                     ),
                                     child: const Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
                                       children: [
                                         Icon(Icons.edit, size: 28),
                                         SizedBox(width: 12),
@@ -819,19 +889,27 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
 
   IconData _getConditionIcon(String condition) {
     final lower = condition.toLowerCase();
-    if (lower.contains('diabet') || lower.contains('açúcar') || lower.contains('glic')) {
+    if (lower.contains('diabet') ||
+        lower.contains('açúcar') ||
+        lower.contains('glic')) {
       return Icons.bloodtype;
     }
-    if (lower.contains('press') || lower.contains('hiperten') || lower.contains('coraç')) {
+    if (lower.contains('press') ||
+        lower.contains('hiperten') ||
+        lower.contains('coraç')) {
       return Icons.favorite;
     }
     if (lower.contains('colesterol')) {
       return Icons.speed;
     }
-    if (lower.contains('artrite') || lower.contains('osso') || lower.contains('coluna')) {
+    if (lower.contains('artrite') ||
+        lower.contains('osso') ||
+        lower.contains('coluna')) {
       return Icons.accessibility_new;
     }
-    if (lower.contains('alzheimer') || lower.contains('memór') || lower.contains('demên')) {
+    if (lower.contains('alzheimer') ||
+        lower.contains('memór') ||
+        lower.contains('demên')) {
       return Icons.psychology;
     }
     return Icons.health_and_safety;
@@ -889,7 +967,11 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                     color: AppColors.primary.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.volume_up, size: 16, color: AppColors.primary),
+                  child: const Icon(
+                    Icons.volume_up,
+                    size: 16,
+                    color: AppColors.primary,
+                  ),
                 ),
               ],
             ),
@@ -911,7 +993,10 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(9999),
-          onTap: () => TTSService.instance.falar('Condição de saúde: $label', caller: this),
+          onTap: () => TTSService.instance.falar(
+            'Condição de saúde: $label',
+            caller: this,
+          ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             child: Row(
@@ -921,7 +1006,11 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                 const SizedBox(width: 8),
                 Text(
                   label,
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: fg),
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: fg,
+                  ),
                 ),
               ],
             ),
@@ -951,10 +1040,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Container(
-                    width: 10,
-                    color: color,
-                  ),
+                  Container(width: 10, color: color),
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.all(16),
@@ -966,7 +1052,11 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                               color: color.withValues(alpha: 0.12),
                               shape: BoxShape.circle,
                             ),
-                            child: Icon(Icons.medication, color: color, size: 28),
+                            child: Icon(
+                              Icons.medication,
+                              color: color,
+                              size: 28,
+                            ),
                           ),
                           const SizedBox(width: 16),
                           Expanded(
@@ -985,7 +1075,11 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                                 const SizedBox(height: 6),
                                 Row(
                                   children: [
-                                    Icon(Icons.schedule, size: 16, color: color),
+                                    Icon(
+                                      Icons.schedule,
+                                      size: 16,
+                                      color: color,
+                                    ),
                                     const SizedBox(width: 6),
                                     Text(
                                       med.horarioFormatado,
@@ -1002,8 +1096,13 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                           ),
                           GestureDetector(
                             onTap: () {
-                              final spoken = PeriodHelper.getSpokenTimeFromStr(med.horarioFormatado);
-                              TTSService.instance.falar('Remédio: ${med.titulo} às $spoken', caller: this);
+                              final spoken = PeriodHelper.getSpokenTimeFromStr(
+                                med.horarioFormatado,
+                              );
+                              TTSService.instance.falar(
+                                'Remédio: ${med.titulo} às $spoken',
+                                caller: this,
+                              );
                             },
                             child: Container(
                               padding: const EdgeInsets.all(8),
@@ -1011,11 +1110,19 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                                 color: color.withValues(alpha: 0.12),
                                 shape: BoxShape.circle,
                               ),
-                              child: Icon(Icons.volume_up, color: color, size: 20),
+                              child: Icon(
+                                Icons.volume_up,
+                                color: color,
+                                size: 20,
+                              ),
                             ),
                           ),
                           const SizedBox(width: 8),
-                          const Icon(Icons.chevron_right, color: AppColors.outline, size: 28),
+                          const Icon(
+                            Icons.chevron_right,
+                            color: AppColors.outline,
+                            size: 28,
+                          ),
                         ],
                       ),
                     ),
@@ -1069,10 +1176,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Container(
-                    width: 10,
-                    color: color,
-                  ),
+                  Container(width: 10, color: color),
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.all(16),
@@ -1103,7 +1207,11 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                                 const SizedBox(height: 6),
                                 Row(
                                   children: [
-                                    Icon(Icons.schedule, size: 16, color: color),
+                                    Icon(
+                                      Icons.schedule,
+                                      size: 16,
+                                      color: color,
+                                    ),
                                     const SizedBox(width: 6),
                                     Text(
                                       lembrete.horarioFormatado,
@@ -1120,8 +1228,13 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                           ),
                           GestureDetector(
                             onTap: () {
-                              final spoken = PeriodHelper.getSpokenTimeFromStr(lembrete.horarioFormatado);
-                              TTSService.instance.falar('Lembrete de $catName: ${lembrete.titulo} às $spoken', caller: this);
+                              final spoken = PeriodHelper.getSpokenTimeFromStr(
+                                lembrete.horarioFormatado,
+                              );
+                              TTSService.instance.falar(
+                                'Lembrete de $catName: ${lembrete.titulo} às $spoken',
+                                caller: this,
+                              );
                             },
                             child: Container(
                               padding: const EdgeInsets.all(8),
@@ -1129,11 +1242,19 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                                 color: color.withValues(alpha: 0.12),
                                 shape: BoxShape.circle,
                               ),
-                              child: Icon(Icons.volume_up, color: color, size: 20),
+                              child: Icon(
+                                Icons.volume_up,
+                                color: color,
+                                size: 20,
+                              ),
                             ),
                           ),
                           const SizedBox(width: 8),
-                          const Icon(Icons.chevron_right, color: AppColors.outline, size: 28),
+                          const Icon(
+                            Icons.chevron_right,
+                            color: AppColors.outline,
+                            size: 28,
+                          ),
                         ],
                       ),
                     ),
@@ -1186,12 +1307,23 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
               const SizedBox(height: 16),
               const Text(
                 'Foto de Perfil',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.primary),
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                ),
               ),
               const SizedBox(height: 16),
               ListTile(
-                leading: const Icon(Icons.camera_alt, color: AppColors.primary, size: 28),
-                title: const Text('Tirar foto (Câmera)', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                leading: const Icon(
+                  Icons.camera_alt,
+                  color: AppColors.primary,
+                  size: 28,
+                ),
+                title: const Text(
+                  'Tirar foto (Câmera)',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
                 onTap: () async {
                   Navigator.pop(context);
                   final result = await Navigator.pushNamed(
@@ -1209,8 +1341,15 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
               ),
               const Divider(),
               ListTile(
-                leading: const Icon(Icons.photo_library, color: AppColors.primary, size: 28),
-                title: const Text('Escolher da galeria', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                leading: const Icon(
+                  Icons.photo_library,
+                  color: AppColors.primary,
+                  size: 28,
+                ),
+                title: const Text(
+                  'Escolher da galeria',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
                 onTap: () async {
                   Navigator.pop(context);
                   await _pickFromGallery();
@@ -1219,8 +1358,19 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
               if (_fotoPath != null && _fotoPath!.isNotEmpty) ...[
                 const Divider(),
                 ListTile(
-                  leading: const Icon(Icons.delete, color: AppColors.error, size: 28),
-                  title: const Text('Remover foto de perfil', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.error)),
+                  leading: const Icon(
+                    Icons.delete,
+                    color: AppColors.error,
+                    size: 28,
+                  ),
+                  title: const Text(
+                    'Remover foto de perfil',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.error,
+                    ),
+                  ),
                   onTap: () async {
                     Navigator.pop(context);
                     await _removerFotoPerfil();
@@ -1249,17 +1399,18 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
       });
 
       if (_useFirebase) {
-        final pairedId = prefs.getString('paired_idoso_id') ?? 'joao';
-        final idosoId = prefs.getString('selected_idoso_id') ?? pairedId;
+        final idosoId = await SessionRoleService.getActiveIdosoId();
 
         // Atualiza Firestore para remover a referência da foto
         try {
-          await FirebaseFirestore.instance.collection('idosos').doc(idosoId).set({
-            'fotoPath': FieldValue.delete(),
-          }, SetOptions(merge: true));
-          await FirebaseFirestore.instance.collection('idoso_perfil').doc(idosoId).set({
-            'fotoPath': FieldValue.delete(),
-          }, SetOptions(merge: true));
+          await FirebaseFirestore.instance
+              .collection('idosos')
+              .doc(idosoId)
+              .set({'fotoPath': FieldValue.delete()}, SetOptions(merge: true));
+          await FirebaseFirestore.instance
+              .collection('idoso_perfil')
+              .doc(idosoId)
+              .set({'fotoPath': FieldValue.delete()}, SetOptions(merge: true));
         } catch (firestoreError) {
           debugPrint('Erro ao remover URL do Firestore: $firestoreError');
         }
@@ -1273,7 +1424,9 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
           await ref.delete();
         } catch (storageError) {
           // Ignora se o arquivo já não existir
-          debugPrint('Erro ao excluir arquivo físico no Storage: $storageError');
+          debugPrint(
+            'Erro ao excluir arquivo físico no Storage: $storageError',
+          );
         }
       }
 
@@ -1309,7 +1462,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
       try {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('idoso_foto_path', selectedImage.path);
-        
+
         setState(() {
           _fotoPath = selectedImage.path;
         });
@@ -1320,11 +1473,10 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
             const SnackBar(content: Text('Foto de perfil atualizada!')),
           );
         }
-        
+
         if (_useFirebase) {
-          final pairedId = prefs.getString('paired_idoso_id') ?? 'joao';
-          final idosoId = prefs.getString('selected_idoso_id') ?? pairedId;
-          
+          final idosoId = await SessionRoleService.getActiveIdosoId();
+
           // Executa o upload e salvamento no Firebase em background
           Future(() async {
             try {
@@ -1337,19 +1489,25 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
               final snapshot = await uploadTask;
               final downloadUrl = await snapshot.ref.getDownloadURL();
 
-              await FirebaseFirestore.instance.collection('idosos').doc(idosoId).set({
-                'fotoPath': downloadUrl,
-              }, SetOptions(merge: true));
-              await FirebaseFirestore.instance.collection('idoso_perfil').doc(idosoId).set({
-                'fotoPath': downloadUrl,
-              }, SetOptions(merge: true));
-              debugPrint('Foto da galeria sincronizada no Firebase em background com sucesso!');
+              await FirebaseFirestore.instance
+                  .collection('idosos')
+                  .doc(idosoId)
+                  .set({'fotoPath': downloadUrl}, SetOptions(merge: true));
+              await FirebaseFirestore.instance
+                  .collection('idoso_perfil')
+                  .doc(idosoId)
+                  .set({'fotoPath': downloadUrl}, SetOptions(merge: true));
+              debugPrint(
+                'Foto da galeria sincronizada no Firebase em background com sucesso!',
+              );
             } catch (e) {
-              debugPrint('Erro ao sincronizar foto de perfil no Firebase em background: $e');
+              debugPrint(
+                'Erro ao sincronizar foto de perfil no Firebase em background: $e',
+              );
             }
           });
         }
-        
+
         _loadProfile(reloadPhoto: false);
       } catch (e) {
         debugPrint('Erro local ao salvar foto de perfil: $e');
@@ -1376,7 +1534,11 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                     child: CircleAvatar(
                       radius: 36,
                       backgroundColor: Colors.blue[100],
-                      child: const Icon(Icons.person, size: 40, color: Colors.blue),
+                      child: const Icon(
+                        Icons.person,
+                        size: 40,
+                        color: Colors.blue,
+                      ),
                     ),
                   ),
                   GestureDetector(
@@ -1384,7 +1546,11 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                     child: CircleAvatar(
                       radius: 36,
                       backgroundColor: Colors.green[100],
-                      child: const Icon(Icons.face, size: 40, color: Colors.green),
+                      child: const Icon(
+                        Icons.face,
+                        size: 40,
+                        color: Colors.green,
+                      ),
                     ),
                   ),
                   GestureDetector(
@@ -1392,7 +1558,11 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                     child: CircleAvatar(
                       radius: 36,
                       backgroundColor: Colors.orange[100],
-                      child: const Icon(Icons.portrait, size: 40, color: Colors.orange),
+                      child: const Icon(
+                        Icons.portrait,
+                        size: 40,
+                        color: Colors.orange,
+                      ),
                     ),
                   ),
                 ],
@@ -1417,18 +1587,18 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
     setState(() {
       _fotoPath = avatarName;
     });
-    
+
     if (_useFirebase) {
-      final pairedId = prefs.getString('paired_idoso_id') ?? 'joao';
-      final idosoId = prefs.getString('selected_idoso_id') ?? pairedId;
+      final idosoId = await SessionRoleService.getActiveIdosoId();
       await FirebaseFirestore.instance.collection('idosos').doc(idosoId).set({
         'fotoPath': avatarName,
       }, SetOptions(merge: true));
-      await FirebaseFirestore.instance.collection('idoso_perfil').doc(idosoId).set({
-        'fotoPath': avatarName,
-      }, SetOptions(merge: true));
+      await FirebaseFirestore.instance
+          .collection('idoso_perfil')
+          .doc(idosoId)
+          .set({'fotoPath': avatarName}, SetOptions(merge: true));
     }
-    
+
     _loadProfile(reloadPhoto: false);
   }
 }

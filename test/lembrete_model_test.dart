@@ -4,6 +4,7 @@ import 'package:lembretes_app/models/lembrete.dart';
 import 'package:lembretes_app/models/offline_write.dart';
 import 'package:lembretes_app/models/smart_alert.dart';
 import 'package:lembretes_app/services/offline_sync_service.dart';
+import 'package:lembretes_app/services/session_role_service.dart';
 import 'package:lembretes_app/services/smart_alert_service.dart';
 import 'package:lembretes_app/utils/voice_reminder_parser.dart';
 import 'package:lembretes_app/widgets/reminder_with_audio.dart';
@@ -24,6 +25,38 @@ void main() {
     expect(lembrete.status, LembreteStatus.concluidoComFoto);
     expect(lembrete.concluido, isTrue);
     expect(lembrete.concluidoComFoto, isTrue);
+  });
+
+  test('usa status como fonte de verdade quando campos divergem', () {
+    final pendente = Lembrete.fromJson({
+      'id': '1',
+      'titulo': 'Tomar remedio',
+      'horarioHour': 8,
+      'horarioMinute': 30,
+      'status': 'pendente',
+      'concluido': true,
+      'concluidoComFoto': true,
+      'criadoEm': DateTime(2026, 7, 1).toIso8601String(),
+    });
+
+    expect(pendente.status, LembreteStatus.pendente);
+    expect(pendente.concluido, isFalse);
+    expect(pendente.concluidoComFoto, isFalse);
+
+    final concluido = Lembrete.fromJson({
+      'id': '2',
+      'titulo': 'Beber agua',
+      'horarioHour': 9,
+      'horarioMinute': 0,
+      'status': 'concluido',
+      'concluido': false,
+      'concluidoComFoto': false,
+      'criadoEm': DateTime(2026, 7, 1).toIso8601String(),
+    });
+
+    expect(concluido.status, LembreteStatus.concluido);
+    expect(concluido.concluido, isTrue);
+    expect(concluido.concluidoComFoto, isFalse);
   });
 
   test('serializa status e recorrencia semanal', () {
@@ -61,6 +94,24 @@ void main() {
     expect(atualizado.concluido, isTrue);
   });
 
+  test('copyWith sincroniza booleanos de conclusao com status', () {
+    final lembrete = Lembrete(
+      id: '3',
+      titulo: 'Beber agua',
+      horarioHour: 10,
+      horarioMinute: 15,
+    );
+
+    final concluido = lembrete.copyWith(concluido: true);
+    expect(concluido.status, LembreteStatus.concluido);
+    expect(concluido.concluido, isTrue);
+
+    final pendente = concluido.copyWith(concluido: false);
+    expect(pendente.status, LembreteStatus.pendente);
+    expect(pendente.concluido, isFalse);
+    expect(pendente.concluidoComFoto, isFalse);
+  });
+
   test('mapeia status para marcacao visual dos cards', () {
     Lembrete lembreteComStatus(LembreteStatus status) => Lembrete(
       id: '1',
@@ -89,6 +140,57 @@ void main() {
     expect(
       reminderStatusFromLembrete(
         lembreteComStatus(LembreteStatus.concluidoComFoto),
+      ),
+      ReminderStatus.done,
+    );
+  });
+
+  test('mapeia lembrete pendente atrasado para alerta visual', () {
+    final lembrete = Lembrete(
+      id: '1',
+      titulo: 'Tomar agua',
+      horarioHour: 9,
+      horarioMinute: 0,
+      criadoEm: DateTime(2026, 7, 2, 8),
+    );
+
+    expect(
+      reminderVisualStatusFromLembrete(
+        lembrete,
+        now: DateTime(2026, 7, 2, 9, 10),
+      ),
+      ReminderStatus.late,
+    );
+  });
+
+  test('nao sobrescreve status salvo ao calcular alerta visual', () {
+    Lembrete lembreteComStatus(LembreteStatus status) => Lembrete(
+      id: status.storageValue,
+      titulo: 'Tomar agua',
+      horarioHour: 9,
+      horarioMinute: 0,
+      criadoEm: DateTime(2026, 7, 2, 8),
+      status: status,
+    );
+
+    expect(
+      reminderVisualStatusFromLembrete(
+        lembreteComStatus(LembreteStatus.adiado),
+        now: DateTime(2026, 7, 2, 9, 10),
+      ),
+      ReminderStatus.postponed,
+    );
+    expect(
+      reminderVisualStatusFromLembrete(
+        lembreteComStatus(LembreteStatus.perdido),
+        now: DateTime(2026, 7, 2, 9, 10),
+      ),
+      ReminderStatus.missed,
+    );
+    expect(
+      reminderVisualStatusFromLembrete(
+        lembreteComStatus(LembreteStatus.concluido),
+        now: DateTime(2026, 7, 2, 9, 10),
       ),
       ReminderStatus.done,
     );
@@ -231,6 +333,19 @@ void main() {
     expect(restored.senderRole, 'supervisor');
     expect(restored.texto, 'Tudo bem por ai?');
     expect(restored.nomeIdoso, 'Maria');
+  });
+
+  test('seleciona idoso ativo de acordo com o papel da sessao', () async {
+    SharedPreferences.setMockInitialValues({
+      'selected_idoso_id': 'idoso_supervisor',
+      'paired_idoso_id': 'idoso_pareado',
+    });
+
+    await SessionRoleService.setSupervisor();
+    expect(await SessionRoleService.getActiveIdosoId(), 'idoso_supervisor');
+
+    await SessionRoleService.setElderly();
+    expect(await SessionRoleService.getActiveIdosoId(), 'idoso_pareado');
   });
 
   test(

@@ -12,8 +12,10 @@ class HealthService {
   static final HealthService _instance = HealthService._();
   static HealthService get instance => _instance;
 
-  final StreamController<int> _localBpmController =
-      StreamController<int>.broadcast();
+  final StreamController<int?> _localBpmController =
+      StreamController<int?>.broadcast();
+
+  static bool isValidBpm(int? bpm) => bpm != null && bpm >= 40 && bpm <= 180;
 
   bool get _useFirebase {
     try {
@@ -28,6 +30,11 @@ class HealthService {
   }
 
   Future<void> enviarMetricas(int bpm) async {
+    if (!isValidBpm(bpm)) {
+      debugPrint('BPM invalido ignorado: $bpm');
+      return;
+    }
+
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt('last_bpm_value', bpm);
@@ -50,28 +57,22 @@ class HealthService {
     }
   }
 
-  Stream<int> obterMetricasStream() {
+  Stream<int?> obterMetricasStream() {
     if (_useFirebase) {
-      final controller = StreamController<int>.broadcast();
-      _getActiveIdosoId().then((idosoId) {
-        FirebaseFirestore.instance
+      return (() async* {
+        final idosoId = await _getActiveIdosoId();
+        yield* FirebaseFirestore.instance
             .collection('health_metrics')
             .doc(idosoId)
             .snapshots()
-            .listen(
-              (snapshot) {
-                if (snapshot.exists && snapshot.data() != null) {
-                  controller.add(snapshot.data()!['bpm'] as int? ?? 72);
-                } else {
-                  controller.add(72);
-                }
-              },
-              onError: (err) {
-                controller.addError(err);
-              },
-            );
-      });
-      return controller.stream;
+            .map((snapshot) {
+              if (snapshot.exists && snapshot.data() != null) {
+                final bpm = snapshot.data()!['bpm'] as int?;
+                return isValidBpm(bpm) ? bpm : null;
+              }
+              return null;
+            });
+      })();
     } else {
       return _localBpmController.stream;
     }

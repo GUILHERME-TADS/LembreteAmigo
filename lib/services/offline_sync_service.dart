@@ -14,9 +14,14 @@ class OfflineSyncService {
 
   static const _queueKey = 'offline_write_queue';
   static const _writeTimeout = Duration(seconds: 6);
+  static const _autoSyncInterval = Duration(seconds: 30);
+  static const _syncSoonDelay = Duration(seconds: 5);
 
   final ValueNotifier<int> pendingCount = ValueNotifier(0);
   bool _syncing = false;
+  bool _autoSyncStarted = false;
+  Timer? _autoSyncTimer;
+  Timer? _syncSoonTimer;
 
   bool get _useFirebase {
     try {
@@ -58,6 +63,24 @@ class OfflineSyncService {
     );
     queue.add(write);
     await _saveQueue(_compact(queue));
+    _scheduleSyncSoon();
+  }
+
+  Future<void> startAutoSync() async {
+    if (_autoSyncStarted) return;
+    _autoSyncStarted = true;
+    await loadQueue();
+    unawaited(syncPendingWrites());
+    _autoSyncTimer = Timer.periodic(
+      _autoSyncInterval,
+      (_) => syncPendingWrites(),
+    );
+  }
+
+  void stopAutoSync() {
+    _autoSyncTimer?.cancel();
+    _syncSoonTimer?.cancel();
+    _autoSyncStarted = false;
   }
 
   Future<bool> setOrQueue(
@@ -149,6 +172,14 @@ class OfflineSyncService {
     } finally {
       _syncing = false;
     }
+  }
+
+  void _scheduleSyncSoon() {
+    if (!_useFirebase) return;
+    if (_syncSoonTimer?.isActive ?? false) return;
+    _syncSoonTimer = Timer(_syncSoonDelay, () {
+      unawaited(syncPendingWrites());
+    });
   }
 
   Future<void> _apply(OfflineWrite write) {

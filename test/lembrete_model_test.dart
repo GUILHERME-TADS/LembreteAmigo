@@ -4,6 +4,7 @@ import 'package:lembretes_app/models/lembrete.dart';
 import 'package:lembretes_app/models/offline_write.dart';
 import 'package:lembretes_app/models/smart_alert.dart';
 import 'package:lembretes_app/services/offline_sync_service.dart';
+import 'package:lembretes_app/services/health_service.dart';
 import 'package:lembretes_app/services/session_role_service.dart';
 import 'package:lembretes_app/services/smart_alert_service.dart';
 import 'package:lembretes_app/utils/voice_reminder_parser.dart';
@@ -281,6 +282,15 @@ void main() {
     expect(alerts.first.lembreteId, isEmpty);
     expect(alerts.first.severity, SmartAlertSeverity.critical);
     expect(alerts.first.message, contains('124 BPM'));
+  });
+
+  test('valida bpm antes de salvar metricas de saude', () {
+    expect(HealthService.isValidBpm(39), isFalse);
+    expect(HealthService.isValidBpm(40), isTrue);
+    expect(HealthService.isValidBpm(72), isTrue);
+    expect(HealthService.isValidBpm(180), isTrue);
+    expect(HealthService.isValidBpm(181), isFalse);
+    expect(HealthService.isValidBpm(null), isFalse);
   });
 
   test(

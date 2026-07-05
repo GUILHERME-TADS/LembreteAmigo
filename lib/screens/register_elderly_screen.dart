@@ -1,4 +1,4 @@
-import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -6,7 +6,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../theme/app_theme.dart';
-import '../widgets/senior_button.dart';
 
 class RegisterElderlyScreen extends StatefulWidget {
   const RegisterElderlyScreen({super.key});
@@ -16,14 +15,15 @@ class RegisterElderlyScreen extends StatefulWidget {
 }
 
 class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _birthDateController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _addressController = TextEditingController();
   final TextEditingController _codeController = TextEditingController();
-  
-  final List<String> _selectedConditions = [];
+  final FocusNode _pinFocusNode = FocusNode();
   bool _isLoading = false;
+  String? _pairedIdosoId;
+  String? _pairedIdosoName;
+
+  // Blinking cursor state
+  Timer? _cursorTimer;
+  bool _cursorVisible = true;
 
   bool get _useFirebase {
     try {
@@ -34,38 +34,144 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
   }
 
   @override
-  void dispose() {
-    _nameController.dispose();
-    _birthDateController.dispose();
-    _phoneController.dispose();
-    _addressController.dispose();
-    _codeController.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    _loadPairedIdoso();
+    _pinFocusNode.addListener(_onFocusChange);
   }
 
-  void _toggleCondition(String condition) {
-    setState(() {
-      if (_selectedConditions.contains(condition)) {
-        _selectedConditions.remove(condition);
-      } else {
-        _selectedConditions.add(condition);
+  void _onFocusChange() {
+    if (_pinFocusNode.hasFocus) {
+      _startCursorTimer();
+    } else {
+      _stopCursorTimer();
+    }
+  }
+
+  void _startCursorTimer() {
+    _cursorTimer?.cancel();
+    _cursorTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
+      if (mounted) {
+        setState(() {
+          _cursorVisible = !_cursorVisible;
+        });
       }
     });
   }
 
-  void _cadastrar() async {
-    final nome = _nameController.text.trim();
-    final dataNasc = _birthDateController.text.trim();
-    final telefone = _phoneController.text.trim();
-    final endereco = _addressController.text.trim();
-    final code = _codeController.text.trim();
-
-    if (nome.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Por favor, digite o nome completo do idoso.')),
-      );
-      return;
+  void _stopCursorTimer() {
+    _cursorTimer?.cancel();
+    _cursorTimer = null;
+    if (mounted) {
+      setState(() {
+        _cursorVisible = false;
+      });
     }
+  }
+
+  Future<void> _loadPairedIdoso() async {
+    final prefs = await SharedPreferences.getInstance();
+    final docId = prefs.getString('selected_idoso_id');
+    if (docId != null) {
+      String? name;
+      if (_useFirebase) {
+        try {
+          final doc = await FirebaseFirestore.instance
+              .collection('idoso_perfil')
+              .doc(docId)
+              .get();
+          if (doc.exists) {
+            name = doc.data()?['nome'] as String?;
+          }
+        } catch (_) {}
+      }
+      if (mounted) {
+        setState(() {
+          _pairedIdosoId = docId;
+          _pairedIdosoName = name ?? 'Idoso Conectado';
+        });
+      }
+    } else {
+      if (mounted) {
+        setState(() {
+          _pairedIdosoId = null;
+          _pairedIdosoName = null;
+        });
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _codeController.dispose();
+    _pinFocusNode.removeListener(_onFocusChange);
+    _pinFocusNode.dispose();
+    _cursorTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _desvincular() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Desconectar Aparelho?', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.error)),
+        content: Text(
+          'Deseja realmente desconectar o dispositivo de ${_pairedIdosoName ?? 'Idoso Conectado'} do seu painel?',
+          style: const TextStyle(fontSize: 16),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('NÃO', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('SIM, DESCONECTAR', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      if (_pairedIdosoId != null) {
+        if (_useFirebase) {
+          await FirebaseFirestore.instance
+              .collection('idoso_perfil')
+              .doc(_pairedIdosoId)
+              .update({
+                'supervisorId': null,
+                'status': 'pending',
+              });
+        }
+      }
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('selected_idoso_id');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Dispositivo desconectado com sucesso.')),
+        );
+      }
+      _codeController.clear();
+      await _loadPairedIdoso();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao desconectar: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _cadastrar() async {
+    final code = _codeController.text.trim();
 
     if (code.length != 6) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -90,6 +196,8 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
           .where('status', isEqualTo: 'pending')
           .limit(1)
           .get();
+
+      if (!mounted) return;
 
       if (query.docs.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -116,11 +224,6 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
       }
 
       final updateData = {
-        'nome': nome,
-        'dataNascimento': dataNasc,
-        'telefone': telefone,
-        'endereco': endereco,
-        'condicoes': _selectedConditions,
         'supervisorId': FirebaseAuth.instance.currentUser?.uid,
         'status': 'active',
       };
@@ -138,11 +241,14 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('selected_idoso_id', docId);
 
+      await _loadPairedIdoso();
+
       if (!mounted) return;
       showDialog(
         context: context,
         barrierDismissible: false,
         builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: const Text('Vínculo Realizado!', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primary)),
           content: const Column(
             mainAxisSize: MainAxisSize.min,
@@ -160,7 +266,6 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
             TextButton(
               onPressed: () {
                 Navigator.pop(ctx);
-                Navigator.pop(context);
               },
               child: const Text('Concluir', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             ),
@@ -168,12 +273,110 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
         ),
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao salvar cadastro: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao salvar cadastro: $e')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  Widget _buildPinInput() {
+    return Stack(
+      children: [
+        // Hidden TextField that captures input
+        Opacity(
+          opacity: 0.0,
+          child: SizedBox(
+            height: 60,
+            child: TextField(
+              controller: _codeController,
+              focusNode: _pinFocusNode,
+              keyboardType: TextInputType.number,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(6),
+              ],
+              onChanged: (val) {
+                setState(() {});
+              },
+            ),
+          ),
+        ),
+        // Row of 6 styled squares
+        GestureDetector(
+          onTap: () {
+            _pinFocusNode.requestFocus();
+          },
+          behavior: HitTestBehavior.opaque,
+          child: Container(
+            width: double.infinity,
+            height: 60,
+            color: Colors.transparent,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: List.generate(6, (index) {
+                final text = _codeController.text;
+                final hasDigit = index < text.length;
+                final digit = hasDigit ? text[index] : '';
+                final isFocused = _pinFocusNode.hasFocus && index == text.length;
+
+                Widget childWidget;
+                if (hasDigit) {
+                  childWidget = Text(
+                    digit,
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                    ),
+                  );
+                } else if (isFocused && _cursorVisible) {
+                  childWidget = Container(
+                    width: 2.5,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  );
+                } else {
+                  childWidget = const SizedBox.shrink();
+                }
+
+                return Container(
+                  width: 48,
+                  height: 58,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceContainerLowest,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isFocused
+                          ? AppColors.primary
+                          : (hasDigit ? AppColors.secondary : AppColors.outlineVariant),
+                      width: isFocused ? 2.5 : 1.5,
+                    ),
+                    boxShadow: isFocused
+                        ? [
+                            BoxShadow(
+                              color: AppColors.primary.withValues(alpha: 0.15),
+                              blurRadius: 6,
+                              spreadRadius: 1,
+                            )
+                          ]
+                        : null,
+                  ),
+                  child: childWidget,
+                );
+              }),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   @override
@@ -209,123 +412,93 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
-              const Text(
-                'Cadastrar Novo Idoso',
-                style: TextStyle(fontSize: 32, fontWeight: FontWeight.w800, height: 1.2, color: AppColors.primary),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Adicione um novo idoso para começar a monitorar.',
-                style: TextStyle(fontSize: 18, color: AppColors.onSurfaceVariant),
-              ),
               const SizedBox(height: 32),
-              SeniorInputField(
-                label: 'Nome Completo',
-                placeholder: 'Nome do idoso',
-                prefixIcon: Icons.person,
-                controller: _nameController,
-              ),
-              const SizedBox(height: 24),
-              SeniorInputField(
-                label: 'Data de Nascimento',
-                placeholder: 'DD/MM/AAAA',
-                prefixIcon: Icons.calendar_today,
-                controller: _birthDateController,
-              ),
-              const SizedBox(height: 24),
-              SeniorInputField(
-                label: 'Telefone de Contato',
-                placeholder: '(11) 99999-9999',
-                prefixIcon: Icons.phone,
-                controller: _phoneController,
-              ),
-              const SizedBox(height: 24),
-              SeniorInputField(
-                label: 'Endereço',
-                placeholder: 'Rua, número, bairro',
-                prefixIcon: Icons.location_on,
-                controller: _addressController,
-              ),
-              const SizedBox(height: 24),
-              SeniorInputField(
-                label: 'Código de Conexão do Idoso (6 dígitos)',
-                placeholder: 'Código que aparece na tela do idoso',
-                prefixIcon: Icons.vpn_key,
-                controller: _codeController,
-                keyboardType: TextInputType.number,
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                  LengthLimitingTextInputFormatter(6),
-                ],
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'CONDIÇÕES DE SAÚDE',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: AppColors.onSurfaceVariant),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _healthChip('Hipertensão'),
-                  _healthChip('Diabetes'),
-                  _healthChip('Colesterol'),
-                  _healthChip('Outros'),
-                ],
-              ),
-              const SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                height: 64,
-                child: ElevatedButton.icon(
-                  onPressed: _isLoading ? null : _cadastrar,
-                  icon: _isLoading
-                      ? const SizedBox(
-                          width: 24, height: 24,
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                        )
-                      : const Icon(Icons.check),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.secondaryContainer,
-                    foregroundColor: AppColors.onSecondaryFixed,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              if (_pairedIdosoId != null) ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceContainerLowest,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.primaryContainer, width: 2),
+                    boxShadow: const [
+                      BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 4))
+                    ],
                   ),
-                  label: Text(
-                    _isLoading ? 'CADASTRANDO...' : 'CADASTRAR',
-                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
+                  child: Column(
+                    children: [
+                      const Icon(Icons.link, size: 64, color: Colors.green),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Celular Conectado',
+                        style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.primary),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _pairedIdosoName ?? 'Idoso Conectado',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 18, color: AppColors.onSurface, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 56,
+                        child: ElevatedButton.icon(
+                          onPressed: _isLoading ? null : _desvincular,
+                          icon: const Icon(Icons.link_off, size: 24, color: Colors.white),
+                          label: const Text(
+                            'DESCONECTAR APARELHO',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.error,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 24),
+                const SizedBox(height: 24),
+              ] else ...[
+                const Text(
+                  'Conectar Celular do Idoso',
+                  style: TextStyle(fontSize: 32, fontWeight: FontWeight.w800, height: 1.2, color: AppColors.primary),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Insira o código de conexão de 6 dígitos que está sendo exibido na tela do idoso para vincular o dispositivo ao seu painel.',
+                  style: TextStyle(fontSize: 18, height: 1.5, color: AppColors.onSurfaceVariant),
+                ),
+                const SizedBox(height: 32),
+                _buildPinInput(),
+                const SizedBox(height: 48),
+                SizedBox(
+                  width: double.infinity,
+                  height: 64,
+                  child: ElevatedButton.icon(
+                    onPressed: _isLoading ? null : _cadastrar,
+                    icon: _isLoading
+                        ? const SizedBox(
+                            width: 24, height: 24,
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                          )
+                        : const Icon(Icons.link, size: 28),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    label: Text(
+                      _isLoading ? 'CONECTANDO...' : 'VINCULAR DISPOSITIVO',
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ],
             ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _healthChip(String label) {
-    final selected = _selectedConditions.contains(label);
-    return GestureDetector(
-      onTap: () => _toggleCondition(label),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.secondaryContainer : AppColors.surfaceContainerLowest,
-          borderRadius: BorderRadius.circular(9999),
-          border: Border.all(
-            color: selected ? AppColors.secondary : AppColors.outlineVariant,
-            width: selected ? 2 : 1,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: selected ? AppColors.onSecondaryContainer : AppColors.onSurface,
           ),
         ),
       ),

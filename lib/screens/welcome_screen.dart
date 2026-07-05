@@ -88,11 +88,15 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                               color: AppColors.onSurfaceVariant,
                             ),
                           ),
-                          const SizedBox(height: 12),
-                          const MeExplicaButton(
-                            textoExplicacao: 'Olá! Esta é a tela para começar a usar o aplicativo. Por favor, aperte no botão amarelo de cima se você for o idoso, ou no botão de baixo se você for o supervisor ou ajudante.',
-                          ),
-                          const SizedBox(height: 32),
+                          if (!SessionRoleService.isSupervisor) ...[
+                            const SizedBox(height: 12),
+                            const MeExplicaButton(
+                              textoExplicacao: 'Olá! Esta é a tela para começar a usar o aplicativo. Por favor, aperte no botão amarelo de cima se você for o idoso, ou no botão de baixo se você for o supervisor ou ajudante.',
+                            ),
+                            const SizedBox(height: 32),
+                          ] else ...[
+                            const SizedBox(height: 20),
+                          ],
                           _buildProfileButton(
                             icon: Icons.elderly,
                             title: 'Sou o Idoso',

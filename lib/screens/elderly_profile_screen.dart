@@ -224,6 +224,66 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
     });
   }
 
+  Future<void> _desvincularAjudante(BuildContext context) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Desconectar Ajudante?', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.error)),
+        content: const Text(
+          'Deseja realmente desconectar o aplicativo do celular do seu ajudante? Você voltará ao modo autônomo.',
+          style: TextStyle(fontSize: 16),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('NÃO', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('SIM, DESCONECTAR', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final docId = prefs.getString('paired_idoso_id');
+      if (docId != null && docId != 'idoso_autonomo') {
+        if (_useFirebase) {
+          await FirebaseFirestore.instance
+              .collection('idoso_perfil')
+              .doc(docId)
+              .update({
+                'supervisorId': null,
+                'status': 'pending',
+                'pairingCode': null,
+              });
+        }
+      }
+      await prefs.setString('paired_idoso_id', 'idoso_autonomo');
+      
+      final jsonStr = prefs.getString('idoso_perfil');
+      if (jsonStr != null) {
+        final Map<String, dynamic> data = jsonDecode(jsonStr) as Map<String, dynamic>;
+        data['status'] = 'pending';
+        await prefs.setString('idoso_perfil', jsonEncode(data));
+      }
+
+      await TTSService.instance.falar('Aplicativo desconectado com sucesso.', caller: this);
+      await _loadProfile();
+    } catch (e) {
+      debugPrint('Erro ao desvincular: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
   Future<void> _showEditDeleteDialog(Lembrete lembrete) async {
     TTSService.instance.parar(caller: this);
     showDialog(
@@ -806,6 +866,27 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                                             ),
                                           ),
                                         ],
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                ] else ...[
+                                  SizedBox(
+                                    width: double.infinity,
+                                    height: 64,
+                                    child: ElevatedButton.icon(
+                                      onPressed: () => _desvincularAjudante(context),
+                                      icon: const Icon(Icons.link_off, size: 28, color: Colors.white),
+                                      label: const Text(
+                                        'DESCONECTAR AJUDANTE',
+                                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                                      ),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppColors.error,
+                                        foregroundColor: Colors.white,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
                                       ),
                                     ),
                                   ),

@@ -12,7 +12,7 @@ import '../models/lembrete.dart';
 import '../services/lembrete_service.dart';
 import '../services/session_role_service.dart';
 import '../theme/app_theme.dart';
-import '../widgets/me_explica_button.dart';
+
 import '../widgets/supervisor_bottom_nav.dart';
 
 class MonthlyReportsScreen extends StatefulWidget {
@@ -247,11 +247,6 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
                   children: [
                     const SizedBox(height: 24),
                     _buildHeader(),
-                    const SizedBox(height: 12),
-                    const MeExplicaButton(
-                      textoExplicacao:
-                          'Esta tela mostra um resumo da semana para a familia. Ela indica quantos lembretes foram feitos, o que ficou pendente, como foi o bem-estar e se existe algum ponto que merece atencao.',
-                    ),
                     const SizedBox(height: 12),
                     _buildExportButton(),
                     const SizedBox(height: 24),

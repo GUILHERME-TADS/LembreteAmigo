@@ -53,6 +53,33 @@ import 'theme/app_theme.dart';
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 final _RouteTracker _routeTracker = _RouteTracker();
 
+bool isElderlyOnlyRoute(String routeName) {
+  const elderlyRoutes = {
+    '/elderly-onboarding',
+    '/elderly-home',
+    '/elderly-pairing',
+    '/elderly-help',
+    '/heart-rate',
+    '/all-reminders',
+    '/medication-list',
+    '/active-reminder',
+    '/meal-detail',
+    '/exercise-detail',
+    '/reinforcement-alert',
+    '/medication-confirmation',
+    '/take-photo-confirmation',
+    '/elderly-profile',
+    '/edit-profile',
+    '/recording-audio',
+    '/meals',
+    '/exercise',
+    '/water',
+    '/custom',
+  };
+
+  return elderlyRoutes.contains(routeName);
+}
+
 class _RouteTracker extends NavigatorObserver {
   String? currentRouteName;
 
@@ -126,12 +153,12 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    unawaited(OfflineSyncService.instance.startAutoSync());
     _loadAccessibilityPreferences();
     LembreteService.instance.carregar().then((_) => _openDueReminderIfNeeded());
     LembreteService.instance.notifier.addListener(_openDueReminderIfNeeded);
     _unlockedReminderTimer = Timer.periodic(const Duration(seconds: 15), (_) {
       _loadAccessibilityPreferences();
-      OfflineSyncService.instance.syncPendingWrites();
       _openDueReminderIfNeeded();
     });
   }
@@ -174,6 +201,7 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
   @override
   void dispose() {
     _unlockedReminderTimer?.cancel();
+    OfflineSyncService.instance.stopAutoSync();
     LembreteService.instance.notifier.removeListener(_openDueReminderIfNeeded);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -182,7 +210,7 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
   void _openDueReminderIfNeeded() {
     if (_lifecycleState != AppLifecycleState.resumed) return;
     if (SessionRoleService.isSupervisor) return;
-    
+
     final currentRoute = _routeTracker.currentRouteName;
     if (currentRoute == '/active-reminder' ||
         currentRoute == '/take-photo-confirmation' ||
@@ -352,7 +380,7 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
       onGenerateRoute: (settings) {
         Widget page;
         final routeName = settings.name ?? '/';
-        if (_isElderlyRoute(routeName) && SessionRoleService.isSupervisor) {
+        if (isElderlyOnlyRoute(routeName) && SessionRoleService.isSupervisor) {
           return MaterialPageRoute(
             builder: (_) => const SupervisorDashboardScreen(),
             settings: const RouteSettings(name: '/supervisor-dashboard'),
@@ -492,30 +520,6 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
         return MaterialPageRoute(builder: (_) => page, settings: settings);
       },
     );
-  }
-
-  bool _isElderlyRoute(String routeName) {
-    const elderlyRoutes = {
-      '/elderly-onboarding',
-      '/elderly-home',
-      '/elderly-pairing',
-      '/elderly-help',
-      '/heart-rate',
-      '/all-reminders',
-      '/medication-list',
-      '/active-reminder',
-      '/meal-detail',
-      '/exercise-detail',
-      '/reinforcement-alert',
-      '/medication-confirmation',
-      '/elderly-profile',
-      '/meals',
-      '/exercise',
-      '/water',
-      '/custom',
-    };
-
-    return elderlyRoutes.contains(routeName);
   }
 }
 

@@ -3,6 +3,7 @@ export 'senior_button.dart';
 export 'pill_visualizer.dart';
 export 'alex_avatar.dart';
 export 'volume_warning_banner.dart';
+export 'device_barrier_banner.dart';
 export 'audio_expandable_card.dart';
 export 'audio_player_card.dart';
 export 'audio_manager.dart';

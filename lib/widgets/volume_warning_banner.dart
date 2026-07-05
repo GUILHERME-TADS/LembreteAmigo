@@ -71,6 +71,13 @@ class _VolumeWarningBannerState extends State<VolumeWarningBanner> {
     );
   }
 
+  Future<void> _speakWarning() async {
+    await TTSService.instance.falar(
+      'Som do celular baixo. Aumente o som para não perder lembretes importantes. Se o botão não mudar o volume, use os botões na lateral do seu celular.',
+      caller: this,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!VolumeService.isLow(_volumePercentage)) {
@@ -161,6 +168,23 @@ class _VolumeWarningBannerState extends State<VolumeWarningBanner> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              SizedBox(
+                height: 52,
+                width: 58,
+                child: OutlinedButton(
+                  onPressed: _speakWarning,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.onErrorContainer,
+                    side: const BorderSide(color: AppColors.onErrorContainer, width: 2),
+                    padding: EdgeInsets.zero,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Icon(Icons.volume_up, size: 28),
                 ),
               ),
             ],

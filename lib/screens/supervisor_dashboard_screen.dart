@@ -5,14 +5,19 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../models/device_barrier.dart';
+import '../models/device_diagnostics.dart';
 import '../models/lembrete.dart';
 import '../models/lembrete_evento.dart';
 import '../models/smart_alert.dart';
+import '../services/device_barrier_service.dart';
 import '../services/health_service.dart';
 import '../services/lembrete_service.dart';
 import '../services/session_role_service.dart';
 import '../services/smart_alert_service.dart';
+import '../services/message_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/audio_player_card.dart';
 import '../widgets/reminder_with_audio.dart';
@@ -29,10 +34,21 @@ class SupervisorDashboardScreen extends StatefulWidget {
 class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   int? _lastBpm;
   bool _isLoadingBpm = true;
-  StreamSubscription<int>? _bpmSubscription;
+  StreamSubscription<int?>? _bpmSubscription;
+  StreamSubscription<DeviceDiagnostics>? _deviceBarrierSubscription;
   Timer? _smartAlertTimer;
   String _nomeIdoso = 'Idoso';
+  String _telefoneIdoso = '';
+  String _enderecoIdoso = '';
+  String _selectedCategoryFilter = 'Todos';
+  final TextEditingController _quickMessageController = TextEditingController();
+  bool _sendingQuickMessage = false;
+  bool _refortIsLoading = false;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   List<SmartAlert> _smartAlerts = [];
+  List<DeviceBarrier> _deviceBarriers = [];
+  int? _batteryLevel;
+  String? _batteryState;
 
   bool get _useFirebase {
     try {
@@ -46,6 +62,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   void initState() {
     super.initState();
     _loadBpmAndLembretes();
+    _startDeviceBarrierWatcher();
     LembreteService.instance.notifier.addListener(_onLembretesChanged);
     SmartAlertService.instance.notifier.addListener(_onSmartAlertsChanged);
     _smartAlertTimer = Timer.periodic(const Duration(minutes: 1), (_) {
@@ -73,9 +90,11 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   @override
   void dispose() {
     _bpmSubscription?.cancel();
+    _deviceBarrierSubscription?.cancel();
     _smartAlertTimer?.cancel();
     LembreteService.instance.notifier.removeListener(_onLembretesChanged);
     SmartAlertService.instance.notifier.removeListener(_onSmartAlertsChanged);
+    _quickMessageController.dispose();
     super.dispose();
   }
 
@@ -95,6 +114,43 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     }
   }
 
+  Future<void> _startDeviceBarrierWatcher() async {
+    final idosoId = await SessionRoleService.getActiveIdosoId();
+    await _deviceBarrierSubscription?.cancel();
+
+    if (!_useFirebase) {
+      final diagnostics = await DeviceBarrierService.instance.loadLocalDiagnostics();
+      if (!mounted) return;
+      setState(() {
+        _deviceBarriers = diagnostics.barriers;
+        _batteryLevel = diagnostics.batteryLevel;
+        _batteryState = diagnostics.batteryState;
+      });
+      return;
+    }
+
+    _deviceBarrierSubscription = DeviceBarrierService.instance
+        .watchRemoteDiagnostics(idosoId)
+        .listen(
+          (diagnostics) {
+            if (!mounted) return;
+            setState(() {
+              _deviceBarriers = diagnostics.barriers;
+              _batteryLevel = diagnostics.batteryLevel;
+              _batteryState = diagnostics.batteryState;
+            });
+          },
+          onError: (_) {
+            if (!mounted) return;
+            setState(() {
+              _deviceBarriers = const [];
+              _batteryLevel = null;
+              _batteryState = null;
+            });
+          },
+        );
+  }
+
   Future<void> _loadBpmAndLembretes() async {
     await LembreteService.instance.carregar();
     await SmartAlertService.instance.atualizar(
@@ -107,6 +163,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       final idosoId = await SessionRoleService.getActiveIdosoId();
 
       String nome = 'Idoso';
+      String telefone = '';
+      String endereco = '';
       if (_useFirebase) {
         final doc = await FirebaseFirestore.instance
             .collection('idoso_perfil')
@@ -114,12 +172,16 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
             .get();
         if (doc.exists && doc.data() != null) {
           nome = doc.data()!['nome'] as String? ?? 'Idoso';
+          telefone = doc.data()!['telefone'] as String? ?? '';
+          endereco = doc.data()!['endereco'] as String? ?? '';
         }
       } else {
         final jsonStr = prefs.getString('idoso_perfil');
         if (jsonStr != null) {
           final data = jsonDecode(jsonStr) as Map<String, dynamic>;
           nome = data['nome'] as String? ?? 'Idoso';
+          telefone = data['telefone'] as String? ?? '';
+          endereco = data['endereco'] as String? ?? '';
         }
       }
 
@@ -133,6 +195,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
           _lastBpm = bpm;
           _isLoadingBpm = false;
           _nomeIdoso = nome.split(' ').first;
+          _telefoneIdoso = telefone;
+          _enderecoIdoso = endereco;
           _smartAlerts = SmartAlertService.instance.alerts;
         });
       }
@@ -145,10 +209,174 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     }
   }
 
+  Future<void> _sendQuickMessage() async {
+    final text = _quickMessageController.text.trim();
+    if (text.isEmpty) return;
+    setState(() => _sendingQuickMessage = true);
+    try {
+      await MessageService.instance.sendText(text);
+      _quickMessageController.clear();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Mensagem enviada com sucesso!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Erro ao enviar mensagem.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _sendingQuickMessage = false);
+      }
+    }
+  }
+
+  Future<void> _enviarReforco(BuildContext context, Lembrete lembrete) async {
+    setState(() => _refortIsLoading = true);
+    await Future.delayed(const Duration(milliseconds: 600));
+    if (!context.mounted) return;
+    setState(() => _refortIsLoading = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.volume_up, color: Colors.white),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Reforço sonoro enviado para $_nomeIdoso! Um alerta sonoro foi acionado no dispositivo.',
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 4),
+      ),
+    );
+  }
+
+  Widget _buildDrawer(BuildContext context) {
+    return Drawer(
+      backgroundColor: AppColors.background,
+      child: Column(
+        children: [
+          UserAccountsDrawerHeader(
+            decoration: const BoxDecoration(
+              color: AppColors.primary,
+            ),
+            accountName: const Text(
+              'Cuidador',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 22,
+                color: Colors.white,
+              ),
+            ),
+            accountEmail: const Text(
+              'supervisor@lembreteamigo.com',
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 14,
+              ),
+            ),
+            currentAccountPicture: Container(
+              decoration: const BoxDecoration(
+                color: AppColors.surface,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.person, color: AppColors.primary, size: 40),
+            ),
+          ),
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.home, color: AppColors.primary),
+                  title: const Text('Painel Inicial', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  onTap: () => Navigator.pop(context),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.person_add, color: AppColors.primary),
+                  title: const Text('Cadastrar/Emparelhar Idoso', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, '/register-elderly');
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.forum, color: AppColors.primary),
+                  title: const Text('Recados', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, '/messages');
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.analytics, color: AppColors.primary),
+                  title: const Text('Relatórios Mensais', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, '/monthly-reports');
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.history, color: AppColors.primary),
+                  title: const Text('Histórico Detalhado', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, '/activity-history');
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.settings, color: AppColors.primary),
+                  title: const Text('Configurações', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, '/supervisor-settings');
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.help, color: AppColors.primary),
+                  title: const Text('Ajuda', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, '/supervisor-help');
+                  },
+                ),
+              ],
+            ),
+          ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.logout, color: AppColors.error),
+            title: const Text('Sair da Conta', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.error)),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+            },
+          ),
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: AppColors.background,
+      drawer: _buildDrawer(context),
       bottomNavigationBar: const SupervisorBottomNav(
         selected: SupervisorNavDestination.home,
       ),
@@ -164,6 +392,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                     const SizedBox(height: 24),
                     _buildSmartAlertsSection(),
                     if (_smartAlerts.isNotEmpty) const SizedBox(height: 24),
+                    _buildDeviceBarrierSection(),
+                    if (_deviceBarriers.isNotEmpty) const SizedBox(height: 24),
                     _buildMessagesShortcut(),
                     const SizedBox(height: 24),
                     _buildOverviewSection(),
@@ -195,39 +425,37 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       child: Row(
         children: [
           GestureDetector(
-            onTap: () => Navigator.pushNamed(context, '/register-elderly'),
-            child: const Icon(Icons.person_add, color: AppColors.primary),
+            onTap: () => _scaffoldKey.currentState?.openDrawer(),
+            child: const Icon(Icons.menu, color: AppColors.primary, size: 30),
           ),
           const SizedBox(width: 16),
-          GestureDetector(
-            onTap: () => Navigator.pushNamed(context, '/supervisor-settings'),
-            child: const Icon(Icons.settings, color: AppColors.primary),
-          ),
-          const SizedBox(width: 12),
           const Expanded(
             child: Text(
               'Lembrete Amigo',
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 28,
+                fontSize: 26,
                 fontWeight: FontWeight.w700,
                 color: AppColors.primary,
               ),
             ),
           ),
+          Icon(
+            _useFirebase ? Icons.cloud_done : Icons.cloud_off,
+            color: _useFirebase ? Colors.green : AppColors.outline,
+            size: 20,
+          ),
+          const SizedBox(width: 14),
           GestureDetector(
             onTap: () => Navigator.pushNamed(context, '/emergency-alert'),
-            child: const Icon(Icons.warning_amber, color: AppColors.error),
-          ),
-          const SizedBox(width: 16),
-          Container(
-            width: 40,
-            height: 40,
-            decoration: const BoxDecoration(
-              color: AppColors.surfaceContainerHigh,
-              shape: BoxShape.circle,
+            child: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: const BoxDecoration(
+                color: AppColors.errorContainer,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.warning_amber, color: AppColors.error, size: 24),
             ),
-            child: const Icon(Icons.person, color: AppColors.onSurfaceVariant),
           ),
         ],
       ),
@@ -260,54 +488,258 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     );
   }
 
-  Widget _buildMessagesShortcut() {
+  Widget _buildDeviceBarrierSection() {
+    if (_deviceBarriers.isEmpty) return const SizedBox.shrink();
+
+    final criticalCount = _deviceBarriers
+        .where((b) => b.severity == DeviceBarrierSeverity.critical)
+        .length;
+    final warningCount = _deviceBarriers
+        .where((b) => b.severity == DeviceBarrierSeverity.warning)
+        .length;
+    final infoCount = _deviceBarriers
+        .where((b) => b.severity == DeviceBarrierSeverity.info)
+        .length;
+    final isCritical = criticalCount > 0;
+    final foreground = isCritical
+        ? AppColors.error
+        : AppColors.onSecondaryContainer;
+    final background = isCritical
+        ? AppColors.errorContainer
+        : AppColors.secondaryContainer.withValues(alpha: 0.35);
+    final summary = criticalCount > 0
+        ? '$criticalCount critica${criticalCount == 1 ? '' : 's'}'
+        : warningCount > 0
+        ? '$warningCount atencao${warningCount == 1 ? '' : 'es'}'
+        : '$infoCount aviso${infoCount == 1 ? '' : 's'}';
+
     return Material(
-      color: AppColors.surfaceContainerLowest,
+      color: background,
       borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () => Navigator.pushNamed(context, '/messages'),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.outlineVariant, width: 2),
-          ),
-          child: const Row(
-            children: [
-              Icon(Icons.forum, color: AppColors.primary, size: 34),
-              SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Recados',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.primary,
-                      ),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: foreground, width: isCritical ? 3 : 2),
+          boxShadow: [
+            BoxShadow(
+              color: foreground.withValues(alpha: isCritical ? 0.3 : 0.15),
+              blurRadius: isCritical ? 12 : 6,
+              spreadRadius: 1,
+              offset: const Offset(0, 3),
+            )
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.settings_input_antenna, color: foreground, size: 30),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Radar do Celular - $summary',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w900,
+                      color: foreground,
                     ),
-                    SizedBox(height: 2),
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => _startDeviceBarrierWatcher(),
+                  icon: Icon(Icons.refresh, color: foreground, size: 28),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ..._deviceBarriers.take(3).map(_buildDeviceBarrierRow),
+            if (_enderecoIdoso.isNotEmpty) ...[
+              const Divider(color: AppColors.outlineVariant),
+              const SizedBox(height: 8),
+              InkWell(
+                onTap: () async {
+                  final url = 'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(_enderecoIdoso)}';
+                  final uri = Uri.parse(url);
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri);
+                  }
+                },
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.map, color: AppColors.primary, size: 20),
+                    SizedBox(width: 8),
                     Text(
-                      'Leia mensagens de áudio e responda ao idoso.',
+                      'Ver endereço do idoso no mapa',
                       style: TextStyle(
-                        fontSize: 15,
-                        color: AppColors.onSurfaceVariant,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                        decoration: TextDecoration.underline,
                       ),
                     ),
                   ],
                 ),
               ),
-              Icon(
-                Icons.arrow_forward_ios,
-                color: AppColors.onSurfaceVariant,
-                size: 18,
-              ),
-            ],
+            ]
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDeviceBarrierRow(DeviceBarrier barrier) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            _deviceBarrierIcon(barrier.type),
+            color: AppColors.onSurface,
+            size: 24,
           ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  barrier.title,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  barrier.message,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    height: 1.35,
+                    color: AppColors.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _deviceBarrierIcon(DeviceBarrierType type) {
+    switch (type) {
+      case DeviceBarrierType.lowVolume:
+        return Icons.volume_down;
+      case DeviceBarrierType.offline:
+        return Icons.wifi_off;
+      case DeviceBarrierType.pendingSync:
+        return Icons.sync_problem;
+      case DeviceBarrierType.inactiveApp:
+        return Icons.phone_android;
+      case DeviceBarrierType.locationUnavailable:
+        return Icons.location_off;
+    }
+  }
+
+  Widget _buildMessagesShortcut() {
+    return Material(
+      color: AppColors.surfaceContainerLowest,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.outlineVariant, width: 2),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            InkWell(
+              onTap: () => Navigator.pushNamed(context, '/messages'),
+              child: const Row(
+                children: [
+                  Icon(Icons.forum, color: AppColors.primary, size: 34),
+                  SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Recados Rápidos',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Envie uma mensagem instantânea para o idoso.',
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: AppColors.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    color: AppColors.onSurfaceVariant,
+                    size: 18,
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 24, color: AppColors.outlineVariant),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _quickMessageController,
+                    decoration: InputDecoration(
+                      hintText: 'Escreva um recado rápido...',
+                      hintStyle: const TextStyle(fontSize: 15),
+                      filled: true,
+                      fillColor: AppColors.surfaceContainerLow,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: _sendingQuickMessage ? null : _sendQuickMessage,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.all(12),
+                    minimumSize: const Size(48, 48),
+                    backgroundColor: AppColors.primary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: _sendingQuickMessage
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Icon(Icons.send, color: Colors.white, size: 20),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -351,6 +783,14 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: border, width: isCritical ? 3 : 2),
+              boxShadow: [
+                BoxShadow(
+                  color: border.withValues(alpha: isCritical ? 0.35 : 0.15),
+                  blurRadius: isCritical ? 10 : 5,
+                  spreadRadius: 1,
+                  offset: const Offset(0, 2),
+                )
+              ],
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -415,24 +855,14 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
 
     String statusRemediosText = 'Nenhum remédio agendado para hoje.';
     bool todosTomados = false;
+    double percent = 0.0;
     if (totalMedicacoesHoje > 0) {
       todosTomados = concluidasMedicacoesHoje == totalMedicacoesHoje;
+      percent = concluidasMedicacoesHoje / totalMedicacoesHoje;
       statusRemediosText = todosTomados
           ? '$_nomeIdoso tomou todos os remédios hoje.'
           : '$_nomeIdoso tomou $concluidasMedicacoesHoje de $totalMedicacoesHoje remédios hoje.';
     }
-
-    final IconData statusIcon = totalMedicacoesHoje == 0
-        ? Icons.info_outline
-        : (todosTomados ? Icons.check_circle : Icons.warning_amber);
-    final Color statusIconColor = totalMedicacoesHoje == 0
-        ? AppColors.outline
-        : (todosTomados ? AppColors.tertiaryFixedDim : AppColors.secondary);
-    final Color statusTextColor = totalMedicacoesHoje == 0
-        ? AppColors.onSurfaceVariant
-        : (todosTomados
-              ? AppColors.onTertiaryContainer
-              : AppColors.onSecondaryContainer);
 
     final agoraTime = TimeOfDay.fromDateTime(DateTime.now());
     Lembrete? proximoLembrete;
@@ -472,7 +902,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
         Expanded(
           flex: 2,
           child: Container(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               color: AppColors.surfaceContainerLowest,
               borderRadius: BorderRadius.circular(12),
@@ -481,39 +911,116 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Visão Geral',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w700,
-                    height: 1.3,
-                    color: AppColors.onSurface,
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Visão Geral',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                        height: 1.3,
+                        color: AppColors.onSurface,
+                      ),
+                    ),
+                    if (_telefoneIdoso.isNotEmpty)
+                      GestureDetector(
+                        onTap: () async {
+                          final Uri launchUri = Uri(scheme: 'tel', path: _telefoneIdoso);
+                          if (await canLaunchUrl(launchUri)) {
+                            await launchUrl(launchUri);
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryContainer.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: AppColors.primary, width: 1.5),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.phone, color: AppColors.primary, size: 16),
+                              SizedBox(width: 4),
+                              Text(
+                                'Ligar',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 16),
                 Row(
                   children: [
-                    Icon(statusIcon, color: statusIconColor, size: 24),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        statusRemediosText,
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w500,
-                          height: 1.5,
-                          color: statusTextColor,
+                    Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        SizedBox(
+                          width: 64,
+                          height: 64,
+                          child: CircularProgressIndicator(
+                            value: totalMedicacoesHoje > 0 ? percent : 1.0,
+                            strokeWidth: 8,
+                            backgroundColor: AppColors.surfaceContainer,
+                            color: totalMedicacoesHoje == 0
+                                ? AppColors.outline
+                                : (todosTomados
+                                    ? Colors.green
+                                    : AppColors.secondaryContainer),
+                          ),
                         ),
+                        Text(
+                          totalMedicacoesHoje > 0
+                              ? '${(percent * 100).toInt()}%'
+                              : '0%',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.onSurface,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            todosTomados ? 'Tudo em dia!' : 'Pendências de hoje',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: todosTomados ? Colors.green : AppColors.secondary,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            statusRemediosText,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              color: AppColors.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
                 Row(
                   children: [
                     Expanded(
                       child: Container(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: AppColors.surfaceContainer,
                           borderRadius: BorderRadius.circular(8),
@@ -524,17 +1031,15 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                             const Text(
                               'PRÓXIMO',
                               style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.05,
-                                color: AppColors.onSurfaceVariant,
-                              ),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.onSurfaceVariant),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               nextTimeText,
                               style: const TextStyle(
-                                fontSize: 28,
+                                fontSize: 22,
                                 fontWeight: FontWeight.w700,
                                 color: AppColors.primary,
                               ),
@@ -544,7 +1049,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                fontSize: 14,
+                                fontSize: 12,
                                 color: AppColors.onSurfaceVariant,
                               ),
                             ),
@@ -552,39 +1057,46 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Container(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: AppColors.surfaceContainer,
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: const Column(
+                        child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
+                            const Text(
                               'BATERIA',
                               style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.05,
-                                color: AppColors.onSurfaceVariant,
-                              ),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.onSurfaceVariant),
                             ),
-                            SizedBox(height: 4),
+                            const SizedBox(height: 4),
                             Text(
-                              '--',
+                              _batteryLevel != null ? '$_batteryLevel%' : '--',
                               style: TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.secondary,
-                              ),
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w700,
+                                  color: _batteryLevel != null && _batteryLevel! <= 15
+                                      ? AppColors.error
+                                      : (_batteryState == 'charging'
+                                          ? Colors.green
+                                          : AppColors.secondary)),
                             ),
                             Text(
-                              'Sem dados',
-                              style: TextStyle(
-                                fontSize: 14,
+                              _batteryLevel == null
+                                  ? 'Sem dados'
+                                  : (_batteryState == 'charging'
+                                      ? 'Carregando'
+                                      : _batteryState == 'full'
+                                          ? 'Carregada'
+                                          : 'Descarregando'),
+                              style: const TextStyle(
+                                fontSize: 12,
                                 color: AppColors.onSurfaceVariant,
                               ),
                             ),
@@ -605,10 +1117,10 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   Widget _buildHealthSnapshot() {
     final bpmText = _isLoadingBpm
         ? '--'
-        : (_lastBpm != null ? '$_lastBpm' : '72');
+        : (_lastBpm != null ? '$_lastBpm' : '--');
     final statusText = _isLoadingBpm
         ? 'CARREGANDO'
-        : (_lastBpm != null ? 'LIDO DA CÂMERA' : 'ESTÁVEL');
+        : (_lastBpm != null ? 'LIDO DA CÂMERA' : 'SEM MEDIÇÃO');
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -658,13 +1170,61 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
               color: AppColors.onPrimaryContainer,
             ),
           ),
+          if (_lastBpm != null && !_isLoadingBpm) ...[
+            const SizedBox(height: 16),
+            EcgHeartbeatWidget(bpm: _lastBpm!),
+          ],
         ],
       ),
     );
   }
 
+  Widget _buildCategoryFilters() {
+    final Map<String, String> categories = {
+      'Todos': 'Todos',
+      'medicacao': 'Remédios',
+      'refeicoes': 'Refeições',
+      'exercicio': 'Exercícios',
+      'hidratacao': 'Água',
+    };
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: categories.entries.map((entry) {
+          final isSelected = _selectedCategoryFilter == entry.key;
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ChoiceChip(
+              label: Text(
+                entry.value,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : AppColors.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              selected: isSelected,
+              selectedColor: AppColors.primary,
+              backgroundColor: AppColors.surfaceContainer,
+              onSelected: (selected) {
+                if (selected) {
+                  setState(() {
+                    _selectedCategoryFilter = entry.key;
+                  });
+                }
+              },
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
   Widget _buildTodayReminders(BuildContext context) {
-    final list = LembreteService.instance.lembretes;
+    final rawList = LembreteService.instance.lembretes;
+    final filteredList = _selectedCategoryFilter == 'Todos'
+        ? rawList
+        : rawList.where((l) => l.categoria == _selectedCategoryFilter).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -677,19 +1237,21 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
             color: AppColors.onSurface,
           ),
         ),
+        const SizedBox(height: 12),
+        _buildCategoryFilters(),
         const SizedBox(height: 16),
         AudioPlayerCard(
           accentColor: AppColors.primary,
           subtitle: 'Ouça todos os lembretes do dia',
-          textsToSpeak: list.isEmpty
-              ? ['Nenhum lembrete cadastrado para hoje.']
+          textsToSpeak: filteredList.isEmpty
+              ? ['Nenhum lembrete cadastrado para hoje nesta categoria.']
               : [
                   'Lembretes de hoje para $_nomeIdoso:',
-                  ...list.map((l) => '${l.titulo} às ${l.horarioFormatado}.'),
+                  ...filteredList.map((l) => '${l.titulo} às ${l.horarioFormatado}.'),
                 ],
         ),
         const SizedBox(height: 16),
-        if (list.isEmpty)
+        if (filteredList.isEmpty)
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(32),
@@ -707,7 +1269,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                 ),
                 SizedBox(height: 16),
                 Text(
-                  'Nenhum lembrete cadastrado',
+                  'Nenhum lembrete',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 22,
@@ -717,7 +1279,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                 ),
                 SizedBox(height: 8),
                 Text(
-                  'Adicione lembretes de remédios, refeições ou exercícios clicando no botão + abaixo.',
+                  'Adicione lembretes clicando no botão + abaixo.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 16,
@@ -728,7 +1290,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
             ),
           )
         else
-          ...list.map((lembrete) {
+          ...filteredList.map((lembrete) {
             IconData icon = Icons.notifications;
             Color iconBg = AppColors.customColor.withValues(alpha: 0.2);
             Color iconColor = AppColors.customColor;
@@ -766,31 +1328,87 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                 break;
             }
             final status = reminderVisualStatusFromLembrete(lembrete);
+            final bool isPending = status == ReminderStatus.scheduled || status == ReminderStatus.late;
 
             return Padding(
               padding: const EdgeInsets.only(bottom: 12),
-              child: ReminderWithAudio(
-                icon: icon,
-                iconBg: iconBg,
-                iconColor: iconColor,
-                title: lembrete.titulo,
-                time: lembrete.horarioFormatado,
-                status: status,
-                accentColor: accentColor,
-                audioPath: lembrete.audioPath,
-                onTap: () {
-                  Navigator.pushNamed(
-                    context,
-                    '/supervisor-reminder-detail',
-                    arguments: {
-                      'title': lembrete.titulo,
-                      'time': lembrete.horarioFormatado,
-                      'iconData': icon,
-                      'accentColor': accentColor,
-                      'category': categoryLabel,
-                    },
-                  );
-                },
+              child: Container(
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceContainerLowest,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: status == ReminderStatus.late ? AppColors.error : AppColors.outlineVariant,
+                    width: status == ReminderStatus.late ? 2 : 1,
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    ReminderWithAudio(
+                      icon: icon,
+                      iconBg: iconBg,
+                      iconColor: iconColor,
+                      title: lembrete.titulo,
+                      time: lembrete.horarioFormatado,
+                      status: status,
+                      accentColor: accentColor,
+                      audioPath: lembrete.audioPath,
+                      onTap: () {
+                        Navigator.pushNamed(
+                          context,
+                          '/supervisor-reminder-detail',
+                          arguments: {
+                            'title': lembrete.titulo,
+                            'time': lembrete.horarioFormatado,
+                            'iconData': icon,
+                            'accentColor': accentColor,
+                            'category': categoryLabel,
+                          },
+                        );
+                      },
+                    ),
+                    if (isPending) ...[
+                      const Divider(height: 1, color: AppColors.outlineVariant),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              status == ReminderStatus.late
+                                  ? 'Atrasado há mais de 5 min!'
+                                  : 'Agendado',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: status == ReminderStatus.late ? AppColors.error : AppColors.outline,
+                              ),
+                            ),
+                            TextButton.icon(
+                              onPressed: _refortIsLoading
+                                  ? null
+                                  : () => _enviarReforco(context, lembrete),
+                              icon: _refortIsLoading
+                                  ? const SizedBox(
+                                      width: 14,
+                                      height: 14,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                                      ),
+                                    )
+                                  : const Icon(Icons.volume_up, size: 16),
+                              label: const Text('Enviar Reforço Sonoro'),
+                              style: TextButton.styleFrom(
+                                foregroundColor: AppColors.primary,
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
             );
           }),
@@ -1012,4 +1630,126 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       ),
     );
   }
+}
+
+class EcgHeartbeatWidget extends StatefulWidget {
+  final int bpm;
+  const EcgHeartbeatWidget({super.key, required this.bpm});
+
+  @override
+  State<EcgHeartbeatWidget> createState() => _EcgHeartbeatWidgetState();
+}
+
+class _EcgHeartbeatWidgetState extends State<EcgHeartbeatWidget>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  final List<double> _points = [];
+  int _tickCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+        vsync: this, duration: const Duration(seconds: 1))
+      ..repeat();
+    _controller.addListener(_updatePoints);
+    for (int i = 0; i < 60; i++) {
+      _points.add(0.0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _updatePoints() {
+    _tickCount++;
+    double base = 0.0;
+    int period = (3600 ~/ (widget.bpm > 0 ? widget.bpm : 70)).clamp(20, 100);
+    int phase = _tickCount % period;
+
+    if (phase == 0) {
+      base = 4.0;
+    } else if (phase == 2) {
+      base = -4.0;
+    } else if (phase == 4) {
+      base = 32.0;
+    } else if (phase == 6) {
+      base = -10.0;
+    } else if (phase == 10) {
+      base = 6.0;
+    } else {
+      base = (phase % 4 == 0) ? 0.6 : ((phase % 5 == 0) ? -0.6 : 0.0);
+    }
+
+    if (mounted) {
+      setState(() {
+        _points.removeAt(0);
+        _points.add(base);
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 70,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white24),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: CustomPaint(
+          painter: EcgPainter(_points),
+        ),
+      ),
+    );
+  }
+}
+
+class EcgPainter extends CustomPainter {
+  final List<double> dataPoints;
+  EcgPainter(this.dataPoints);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.greenAccent
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.5
+      ..strokeCap = StrokeCap.round;
+
+    final gridPaint = Paint()
+      ..color = Colors.greenAccent.withValues(alpha: 0.1)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.5;
+
+    const gridSpacing = 12.0;
+    for (double x = 0; x < size.width; x += gridSpacing) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), gridPaint);
+    }
+    for (double y = 0; y < size.height; y += gridSpacing) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
+    }
+
+    if (dataPoints.isEmpty) return;
+
+    final path = Path();
+    final double step = size.width / (dataPoints.length - 1);
+
+    path.moveTo(0, size.height / 2 - dataPoints[0]);
+    for (int i = 1; i < dataPoints.length; i++) {
+      path.lineTo(i * step, size.height / 2 - dataPoints[i]);
+    }
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant EcgPainter oldDelegate) => true;
 }

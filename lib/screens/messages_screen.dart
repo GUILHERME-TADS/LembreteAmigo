@@ -1,4 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:record/record.dart';
 
 import '../models/app_message.dart';
 import '../services/message_service.dart';
@@ -15,48 +19,120 @@ class MessagesScreen extends StatefulWidget {
 }
 
 class _MessagesScreenState extends State<MessagesScreen> {
-  final TextEditingController _controller = TextEditingController();
   bool _sending = false;
+  bool _isLoadingRole = true;
+
+  // Voice recording state
+  final AudioRecorder _voiceRecorder = AudioRecorder();
+  bool _isRecordingVoice = false;
+  int _recordingSeconds = 0;
+  Timer? _recordingTimer;
 
   bool get _isSupervisor => SessionRoleService.isSupervisor;
 
   @override
   void initState() {
     super.initState();
-    MessageService.instance.load();
+    _loadSessionAndMessages();
+  }
+
+  Future<void> _loadSessionAndMessages() async {
+    await SessionRoleService.load();
+    await MessageService.instance.load();
+    if (mounted) {
+      setState(() {
+        _isLoadingRole = false;
+      });
+    }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _voiceRecorder.dispose();
+    _recordingTimer?.cancel();
     super.dispose();
   }
 
-  Future<void> _sendText() async {
-    final text = _controller.text.trim();
-    if (text.isEmpty || _sending) return;
-    setState(() => _sending = true);
+  Future<void> _startVoiceRecording() async {
     try {
-      await MessageService.instance.sendText(text);
-      _controller.clear();
-      if (!_isSupervisor) {
-        TTSService.instance.falar(
-          'Recado enviado para o seu cuidador.',
-          caller: this,
+      if (await _voiceRecorder.hasPermission()) {
+        final tempDir = await getTemporaryDirectory();
+        final path = '${tempDir.path}/msg_voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+        await _voiceRecorder.start(
+          const RecordConfig(encoder: AudioEncoder.aacLc),
+          path: path,
+        );
+        setState(() {
+          _isRecordingVoice = true;
+          _recordingSeconds = 0;
+        });
+        _recordingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+          setState(() {
+            _recordingSeconds++;
+          });
+        });
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Permissão de microfone negada.'),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
-    } finally {
-      if (mounted) setState(() => _sending = false);
+    } catch (e) {
+      debugPrint('Erro ao iniciar gravacao: $e');
+    }
+  }
+
+  Future<void> _cancelVoiceRecording() async {
+    await _voiceRecorder.stop();
+    _recordingTimer?.cancel();
+    setState(() {
+      _isRecordingVoice = false;
+      _recordingSeconds = 0;
+    });
+  }
+
+  Future<void> _stopAndSendVoiceRecording() async {
+    final path = await _voiceRecorder.stop();
+    _recordingTimer?.cancel();
+    if (path != null) {
+      setState(() => _sending = true);
+      try {
+        await MessageService.instance.sendAudio(
+          audioPath: path,
+          fallbackText: 'Mensagem de voz',
+        );
+        if (mounted && !_isSupervisor) {
+          TTSService.instance.falar('Mensagem de voz enviada.', caller: this);
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isRecordingVoice = false;
+            _recordingSeconds = 0;
+            _sending = false;
+          });
+        }
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoadingRole) {
+      return const Scaffold(
+        backgroundColor: AppColors.background,
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
-      bottomNavigationBar: _isSupervisor
-          ? const SupervisorBottomNav(selected: SupervisorNavDestination.help)
-          : null,
+      bottomNavigationBar: null, // Always null for both supervisor and elderly
       body: SafeArea(
         child: Column(
           children: [
@@ -123,7 +199,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   const SizedBox(height: 6),
                   const MeExplicaButton(
                     textoExplicacao:
-                        'Olá! Esta é a tela de recados. Aqui você pode ler as mensagens enviadas pelo seu cuidador e também mandar mensagens para ele tocando no campo de texto na parte inferior ou usando o botão de gravar áudio.',
+                        'Olá! Esta é a tela de recados. Aqui você pode escutar os recados do seu cuidador e responder enviando recados de voz tocando no botão gigante de gravar.',
                   ),
                 ],
               ],
@@ -183,6 +259,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
         : CrossAxisAlignment.start;
     final time =
         '${message.criadoEm.hour.toString().padLeft(2, '0')}:${message.criadoEm.minute.toString().padLeft(2, '0')}';
+    
+    // Scale text and bubbles for elderly
+    final double textFontSize = _isSupervisor ? 18.0 : 22.0;
 
     return Align(
       alignment: sentByMe ? Alignment.centerRight : Alignment.centerLeft,
@@ -236,14 +315,26 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   subtitle: message.texto,
                 )
               else
-                Text(
-                  message.texto,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    height: 1.35,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.onSurface,
-                  ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        message.texto,
+                        style: TextStyle(
+                          fontSize: textFontSize,
+                          height: 1.35,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.onSurface,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: const Icon(Icons.volume_up, color: AppColors.primary, size: 28),
+                      onPressed: () => TTSService.instance.falar(message.texto, caller: this),
+                    ),
+                  ],
                 ),
             ],
           ),
@@ -259,52 +350,54 @@ class _MessagesScreenState extends State<MessagesScreen> {
         color: AppColors.surface,
         border: Border(top: BorderSide(color: AppColors.outlineVariant)),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _controller,
-              minLines: 1,
-              maxLines: 3,
-              textInputAction: TextInputAction.send,
-              onSubmitted: (_) => _sendText(),
-              decoration: InputDecoration(
-                hintText: _isSupervisor
-                    ? 'Responder ao idoso'
-                    : 'Escrever um recado',
-                filled: true,
-                fillColor: AppColors.surfaceContainerLowest,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppColors.outlineVariant),
-                ),
-              ),
-            ),
+      child: _isRecordingVoice ? _buildVoiceRecordingComposer() : _buildStandardComposer(),
+    );
+  }
+
+  Widget _buildVoiceRecordingComposer() {
+    final minutes = (_recordingSeconds ~/ 60).toString().padLeft(2, '0');
+    final seconds = (_recordingSeconds % 60).toString().padLeft(2, '0');
+
+    return Row(
+      children: [
+        const Icon(Icons.fiber_manual_record, color: Colors.red, size: 24),
+        const SizedBox(width: 8),
+        Text(
+          'Gravando: $minutes:$seconds',
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red),
+        ),
+        const Spacer(),
+        IconButton(
+          icon: const Icon(Icons.delete, color: AppColors.error, size: 28),
+          onPressed: _cancelVoiceRecording,
+        ),
+        const SizedBox(width: 8),
+        IconButton(
+          icon: const Icon(Icons.send, color: Colors.green, size: 28),
+          onPressed: _stopAndSendVoiceRecording,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStandardComposer() {
+    return SizedBox(
+      width: double.infinity,
+      height: 72,
+      child: ElevatedButton.icon(
+        onPressed: _sending ? null : _startVoiceRecording,
+        icon: const Icon(Icons.mic, size: 32, color: Colors.white),
+        label: const Text(
+          'GRAVAR RECADO DE VOZ',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
-          const SizedBox(width: 10),
-          SizedBox(
-            height: 56,
-            width: 56,
-            child: ElevatedButton(
-              onPressed: _sending ? null : _sendText,
-              style: ElevatedButton.styleFrom(
-                padding: EdgeInsets.zero,
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: _sending
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.send, size: 26),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

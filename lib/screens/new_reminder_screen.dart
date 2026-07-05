@@ -3,7 +3,6 @@ import '../theme/app_theme.dart';
 import '../models/lembrete.dart';
 import '../services/lembrete_service.dart';
 import '../widgets/supervisor_bottom_nav.dart';
-import '../widgets/me_explica_button.dart';
 
 class NewReminderScreen extends StatefulWidget {
   const NewReminderScreen({super.key});
@@ -25,11 +24,45 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
   List<int> _selectedDiasSemana = [];
   int? _selectedIntervaloHoras = 4;
   int? _selectedDiaMes = 1;
+  bool _validationAttempted = false;
 
   @override
   void dispose() {
     _titleController.dispose();
     super.dispose();
+  }
+
+  String _getRecurrenceDescription() {
+    final timeStr = '${_selectedTime.hour.toString().padLeft(2, '0')}:${_selectedTime.minute.toString().padLeft(2, '0')}';
+    switch (_selectedRecorrencia) {
+      case 'diario':
+        return 'Toca diariamente às $timeStr.';
+      case 'semanal':
+        if (_selectedDiasSemana.isEmpty) {
+          return 'Selecione pelo menos um dia da semana.';
+        }
+        final Map<int, String> dayNames = {
+          1: 'Segunda',
+          2: 'Terça',
+          3: 'Quarta',
+          4: 'Quinta',
+          5: 'Sexta',
+          6: 'Sábado',
+          7: 'Domingo',
+        };
+        final days = _selectedDiasSemana.map((d) => dayNames[d] ?? '').toList()..sort();
+        return 'Toca toda(o) ${days.join(", ")} às $timeStr.';
+      case 'intervalo':
+        return 'Toca a cada $_selectedIntervaloHoras horas a partir de $timeStr.';
+      case 'quinzenal':
+        return 'Toca a cada 15 dias às $timeStr.';
+      case 'mensal':
+        return 'Toca no dia $_selectedDiaMes de cada mês às $timeStr.';
+      case 'unico':
+        return 'Toca apenas uma vez às $timeStr.';
+      default:
+        return 'Toca diariamente.';
+    }
   }
 
   @override
@@ -65,11 +98,6 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                         fontSize: 18,
                         color: AppColors.onSurfaceVariant,
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    const MeExplicaButton(
-                      textoExplicacao:
-                          'Nesta tela voce cria um lembrete para o idoso. Escolha a categoria, o horario e, se quiser, grave sua propria voz. Essa voz sera tocada automaticamente quando o lembrete aparecer.',
                     ),
                     const SizedBox(height: 24),
                     _buildCategorySelector(),
@@ -109,6 +137,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                         ),
                       ),
                     ),
+                    _buildTitleSuggestions(),
                     const SizedBox(height: 24),
                     const Text(
                       'HORÁRIO',
@@ -127,44 +156,50 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: AppColors.outlineVariant),
                       ),
-                      child: InkWell(
-                        onTap: () async {
-                          final time = await showTimePicker(
-                            context: context,
-                            initialTime: _selectedTime,
-                          );
-                          if (time != null)
-                            setState(() => _selectedTime = time);
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 24),
-                          decoration: BoxDecoration(
-                            color: AppColors.surfaceContainerLowest,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: AppColors.outlineVariant),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                '${_selectedTime.hour.toString().padLeft(2, '0')}:${_selectedTime.minute.toString().padLeft(2, '0')}',
-                                style: const TextStyle(
-                                  fontSize: 40,
-                                  fontWeight: FontWeight.w800,
-                                  height: 1.2,
-                                  letterSpacing: -0.01,
-                                  color: AppColors.primary,
-                                ),
+                      child: Column(
+                        children: [
+                          InkWell(
+                            onTap: () async {
+                              final time = await showTimePicker(
+                                context: context,
+                                initialTime: _selectedTime,
+                              );
+                              if (time != null) {
+                                setState(() => _selectedTime = time);
+                              }
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 24),
+                              decoration: BoxDecoration(
+                                color: AppColors.surfaceContainerLowest,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: AppColors.outlineVariant),
                               ),
-                              const SizedBox(width: 16),
-                              const Icon(
-                                Icons.schedule,
-                                size: 32,
-                                color: AppColors.onSurfaceVariant,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    '${_selectedTime.hour.toString().padLeft(2, '0')}:${_selectedTime.minute.toString().padLeft(2, '0')}',
+                                    style: const TextStyle(
+                                      fontSize: 40,
+                                      fontWeight: FontWeight.w800,
+                                      height: 1.2,
+                                      letterSpacing: -0.01,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  const Icon(
+                                    Icons.schedule,
+                                    size: 32,
+                                    color: AppColors.onSurfaceVariant,
+                                  ),
+                                ],
                               ),
-                            ],
+                            ),
                           ),
-                        ),
+                          _buildTimeShortcuts(),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 24),
@@ -344,6 +379,95 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTitleSuggestions() {
+    final category = _selectedCategory ?? 'personalizado';
+    final Map<String, List<String>> suggestions = {
+      'medicacao': ['Dipirona', 'Losartana', 'Paracetamol', 'Vitamina', 'Omeprazol'],
+      'refeicoes': ['Café da manhã', 'Almoço', 'Café da tarde', 'Jantar', 'Ceia'],
+      'exercicio': ['Alongamento', 'Caminhada', 'Fisioterapia', 'Yoga'],
+      'hidratacao': ['Beber água', "Copo d'água", 'Garrafa de água'],
+      'personalizado': ['Consulta médica', 'Medir Pressão', 'Medir Glicose', 'Lanche'],
+    };
+
+    final list = suggestions[category] ?? suggestions['personalizado']!;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: list.map((title) {
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: ActionChip(
+                label: Text(
+                  title,
+                  style: const TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                backgroundColor: AppColors.surfaceContainerLowest,
+                onPressed: () {
+                  setState(() {
+                    _titleController.text = title;
+                  });
+                },
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTimeShortcuts() {
+    final presets = [
+      const TimeOfDay(hour: 8, minute: 0),
+      const TimeOfDay(hour: 12, minute: 0),
+      const TimeOfDay(hour: 14, minute: 0),
+      const TimeOfDay(hour: 18, minute: 0),
+      const TimeOfDay(hour: 20, minute: 0),
+      const TimeOfDay(hour: 22, minute: 0),
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: presets.map((tod) {
+            final label = '${tod.hour.toString().padLeft(2, '0')}:${tod.minute.toString().padLeft(2, '0')}';
+            final isSelected = _selectedTime.hour == tod.hour && _selectedTime.minute == tod.minute;
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: ChoiceChip(
+                label: Text(
+                  label,
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : AppColors.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                selected: isSelected,
+                selectedColor: AppColors.primary,
+                backgroundColor: AppColors.surfaceContainerLowest,
+                onSelected: (selected) {
+                  if (selected) {
+                    setState(() {
+                      _selectedTime = tod;
+                    });
+                  }
+                },
+              ),
+            );
+          }).toList(),
+        ),
       ),
     );
   }
@@ -647,12 +771,14 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
       {'key': 'unico', 'label': 'Uma vez'},
     ];
 
+    final bool hasWeeklyError = _validationAttempted && _selectedRecorrencia == 'semanal' && _selectedDiasSemana.isEmpty;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surfaceContainerLow,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.outlineVariant),
+        border: Border.all(color: hasWeeklyError ? AppColors.error : AppColors.outlineVariant, width: hasWeeklyError ? 2 : 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -693,9 +819,13 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
 
           if (_selectedRecorrencia == 'semanal') ...[
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'Selecione os dias da semana:',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 14, 
+                fontWeight: FontWeight.bold,
+                color: hasWeeklyError ? AppColors.error : AppColors.onSurface,
+              ),
             ),
             const SizedBox(height: 8),
             Row(
@@ -722,7 +852,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                           ? AppColors.primary
                           : AppColors.surfaceContainerLowest,
                       shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.outlineVariant),
+                      border: Border.all(color: selected ? AppColors.primary : (hasWeeklyError ? AppColors.error : AppColors.outlineVariant)),
                     ),
                     child: Center(
                       child: Text(
@@ -730,7 +860,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
-                          color: selected ? Colors.white : AppColors.onSurface,
+                          color: selected ? Colors.white : (hasWeeklyError ? AppColors.error : AppColors.onSurface),
                         ),
                       ),
                     ),
@@ -804,6 +934,38 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
               },
             ),
           ],
+          const SizedBox(height: 16),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: hasWeeklyError ? AppColors.errorContainer : AppColors.surfaceContainerLowest,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: hasWeeklyError ? AppColors.error : AppColors.outlineVariant,
+                width: 1.5,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  color: hasWeeklyError ? AppColors.error : AppColors.primary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _getRecurrenceDescription(),
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: hasWeeklyError ? AppColors.error : AppColors.primary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -967,8 +1129,90 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
             );
           }).toList(),
         ),
-        const SizedBox(height: 24),
+        _buildPillPreview(),
       ],
+    );
+  }
+
+  Widget _buildPillPreview() {
+    final Map<String, IconData> shapeIcons = {
+      'comprimido': Icons.circle,
+      'capsula': Icons.splitscreen,
+      'gotas': Icons.water_drop,
+      'pomada': Icons.healing,
+    };
+
+    final Map<String, Color> colorMap = {
+      'vermelho': const Color(0xFFE57373),
+      'azul': const Color(0xFF64B5F6),
+      'verde': const Color(0xFF81C784),
+      'amarelo': const Color(0xFFFFD54F),
+      'branco': const Color(0xFFFFFFFF),
+    };
+
+    final icon = shapeIcons[_selectedForma] ?? Icons.circle;
+    final pillColor = colorMap[_selectedCor] ?? const Color(0xFF64B5F6);
+
+    return Container(
+      margin: const EdgeInsets.only(top: 16),
+      padding: const EdgeInsets.all(16),
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.outlineVariant, width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: pillColor.withValues(alpha: 0.25),
+            blurRadius: 10,
+            spreadRadius: 1,
+            offset: const Offset(0, 2),
+          )
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color: pillColor.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+              border: Border.all(color: pillColor, width: 2),
+            ),
+            child: Icon(
+              icon,
+              color: pillColor,
+              size: 36,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Aparência na tela do idoso:',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${_selectedForma.toUpperCase()} ${_selectedCor.toUpperCase()}',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    color: _selectedCor == 'branco' ? AppColors.onSurface : pillColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -985,6 +1229,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
     }
 
     if (_selectedRecorrencia == 'semanal' && _selectedDiasSemana.isEmpty) {
+      setState(() => _validationAttempted = true);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Selecione pelo menos um dia da semana'),

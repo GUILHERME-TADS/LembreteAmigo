@@ -37,7 +37,7 @@ class _HeartRateMeasureScreenState extends State<HeartRateMeasureScreen>
     super.initState();
     _initPulseAnimation();
     _initCamera();
-    
+
     // Instrução inicial de voz
     WidgetsBinding.instance.addPostFrameCallback((_) {
       TTSService.instance.falar(
@@ -52,7 +52,7 @@ class _HeartRateMeasureScreenState extends State<HeartRateMeasureScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1000),
     )..repeat(reverse: true);
-    
+
     _pulseAnimation = Tween<double>(begin: 1.0, end: 1.25).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
@@ -115,7 +115,7 @@ class _HeartRateMeasureScreenState extends State<HeartRateMeasureScreen>
     try {
       // Y plane (luminosidade) em YUV420 é sempre a primeira plane
       final bytes = image.planes[0].bytes;
-      
+
       // Calcular a luminosidade média fazendo sub-amostragem para desempenho (pega 1 de cada 10 bytes)
       int sum = 0;
       int step = 10;
@@ -124,9 +124,9 @@ class _HeartRateMeasureScreenState extends State<HeartRateMeasureScreen>
         sum += bytes[i];
         count++;
       }
-      
+
       final double avgLuminosity = count > 0 ? sum / count : 0.0;
-      
+
       // Sob a luz do flash direta contra a pele do dedo, a luminosidade Y é muito forte.
       // Sem o dedo, a luz se dissipa e o valor Y cai drasticamente (ou oscila).
       // Heurística de dedo posicionado: média de brilho maior que 85.
@@ -187,14 +187,18 @@ class _HeartRateMeasureScreenState extends State<HeartRateMeasureScreen>
     if (_startTime == null || _measurements.length < 20) return;
 
     final elapsedSeconds = DateTime.now().difference(_startTime!).inSeconds;
-    
+
     // Atualiza progresso da medição (queremos 15 segundos estáveis)
     setState(() {
       _progress = (elapsedSeconds / 15.0).clamp(0.0, 1.0);
     });
 
     if (_progress >= 1.0) {
-      _finishMeasurement();
+      if (HealthService.isValidBpm(_bpm)) {
+        _finishMeasurement();
+      } else {
+        _restartMeasurementDueToUnstableSignal();
+      }
       return;
     }
 
@@ -239,14 +243,16 @@ class _HeartRateMeasureScreenState extends State<HeartRateMeasureScreen>
       List<double> bpms = [];
       for (int i = 1; i < peaks.length; i++) {
         final diffMs = peaks[i].difference(peaks[i - 1]).inMilliseconds;
-        if (diffMs > 350 && diffMs < 1500) { // Limita frequências coerentes (40-170 BPM)
+        if (diffMs > 350 && diffMs < 1500) {
+          // Limita frequências coerentes (40-170 BPM)
           bpms.add(60000.0 / diffMs);
         }
       }
 
       if (bpms.isNotEmpty) {
-        final double avgBpmCalculated = bpms.reduce((a, b) => a + b) / bpms.length;
-        
+        final double avgBpmCalculated =
+            bpms.reduce((a, b) => a + b) / bpms.length;
+
         setState(() {
           // Suavização exponencial rápida (EMA)
           if (_bpm == 0) {
@@ -260,8 +266,36 @@ class _HeartRateMeasureScreenState extends State<HeartRateMeasureScreen>
     }
   }
 
+  void _restartMeasurementDueToUnstableSignal() {
+    if (!mounted) return;
+    setState(() {
+      _measurements.clear();
+      _bpm = 0;
+      _progress = 0.0;
+      _startTime = DateTime.now();
+      _pulseController.duration = const Duration(milliseconds: 1000);
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Nao foi possivel medir ainda. Cubra bem a camera e o flash e fique parado.',
+        ),
+      ),
+    );
+    TTSService.instance.falar(
+      'Nao consegui medir ainda. Cubra bem a camera e o flash e fique parado.',
+      caller: this,
+    );
+  }
+
   void _finishMeasurement() async {
     if (_isFinished) return;
+    if (!HealthService.isValidBpm(_bpm)) {
+      _restartMeasurementDueToUnstableSignal();
+      return;
+    }
+
     setState(() {
       _isFinished = true;
       _progress = 1.0;
@@ -289,7 +323,10 @@ class _HeartRateMeasureScreenState extends State<HeartRateMeasureScreen>
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Erro de Câmera', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Erro de Câmera',
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
         content: Text(message, style: const TextStyle(fontSize: 18)),
         actions: [
           TextButton(
@@ -306,7 +343,7 @@ class _HeartRateMeasureScreenState extends State<HeartRateMeasureScreen>
     _timer?.cancel();
     _pulseController.dispose();
     TTSService.instance.parar(caller: this);
-    
+
     // Parar stream e flash se o usuário sair antes de concluir
     if (_controller != null) {
       _controller!.setFlashMode(FlashMode.off).then((_) {
@@ -324,9 +361,18 @@ class _HeartRateMeasureScreenState extends State<HeartRateMeasureScreen>
     double threshold = 128.0;
 
     if (_measurements.isNotEmpty) {
-      minVal = _measurements.map((m) => m.value).reduce((a, b) => a < b ? a : b).toDouble();
-      maxVal = _measurements.map((m) => m.value).reduce((a, b) => a > b ? a : b).toDouble();
-      final double sum = _measurements.map((m) => m.value).reduce((a, b) => a + b).toDouble();
+      minVal = _measurements
+          .map((m) => m.value)
+          .reduce((a, b) => a < b ? a : b)
+          .toDouble();
+      maxVal = _measurements
+          .map((m) => m.value)
+          .reduce((a, b) => a > b ? a : b)
+          .toDouble();
+      final double sum = _measurements
+          .map((m) => m.value)
+          .reduce((a, b) => a + b)
+          .toDouble();
       final double avg = sum / _measurements.length;
       threshold = (maxVal + avg) / 2.0;
     }
@@ -343,12 +389,18 @@ class _HeartRateMeasureScreenState extends State<HeartRateMeasureScreen>
               height: 64,
               decoration: const BoxDecoration(
                 color: AppColors.surface,
-                border: Border(bottom: BorderSide(color: AppColors.outlineVariant)),
+                border: Border(
+                  bottom: BorderSide(color: AppColors.outlineVariant),
+                ),
               ),
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.arrow_back, color: AppColors.primary, size: 32),
+                    icon: const Icon(
+                      Icons.arrow_back,
+                      color: AppColors.primary,
+                      size: 32,
+                    ),
                     onPressed: () {
                       Navigator.pop(context);
                     },
@@ -356,7 +408,11 @@ class _HeartRateMeasureScreenState extends State<HeartRateMeasureScreen>
                   const Spacer(),
                   const Text(
                     'Medir Batimentos',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.primary),
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
+                    ),
                   ),
                   const Spacer(),
                   const SizedBox(width: 48), // Spacer simétrico
@@ -365,10 +421,11 @@ class _HeartRateMeasureScreenState extends State<HeartRateMeasureScreen>
             ),
             const SizedBox(height: 12),
             const MeExplicaButton(
-              textoExplicacao: 'Olá! Esta é a tela para ver como está o seu coração. Coloque a ponta do seu dedo indicador em cima da câmera traseira do celular, cobrindo ela inteira, e segure firme. A medição vai começar sozinha.',
+              textoExplicacao:
+                  'Olá! Esta é a tela para ver como está o seu coração. Coloque a ponta do seu dedo indicador em cima da câmera traseira do celular, cobrindo ela inteira, e segure firme. A medição vai começar sozinha.',
             ),
             const SizedBox(height: 12),
-            
+
             // Corpo Principal
             Expanded(
               child: Padding(
@@ -379,11 +436,15 @@ class _HeartRateMeasureScreenState extends State<HeartRateMeasureScreen>
                     // Instrução visual do topo
                     Card(
                       elevation: 0,
-                      color: _isFingerDetected ? AppColors.tertiaryFixed.withValues(alpha: 0.3) : AppColors.secondaryFixed.withValues(alpha: 0.3),
+                      color: _isFingerDetected
+                          ? AppColors.tertiaryFixed.withValues(alpha: 0.3)
+                          : AppColors.secondaryFixed.withValues(alpha: 0.3),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                         side: BorderSide(
-                          color: _isFingerDetected ? AppColors.onTertiaryFixedVariant : AppColors.onSecondaryFixedVariant,
+                          color: _isFingerDetected
+                              ? AppColors.onTertiaryFixedVariant
+                              : AppColors.onSecondaryFixedVariant,
                           width: 2,
                         ),
                       ),
@@ -392,9 +453,13 @@ class _HeartRateMeasureScreenState extends State<HeartRateMeasureScreen>
                         child: Row(
                           children: [
                             Icon(
-                              _isFingerDetected ? Icons.check_circle : Icons.info,
+                              _isFingerDetected
+                                  ? Icons.check_circle
+                                  : Icons.info,
                               size: 40,
-                              color: _isFingerDetected ? AppColors.onTertiaryFixedVariant : AppColors.onSecondaryFixedVariant,
+                              color: _isFingerDetected
+                                  ? AppColors.onTertiaryFixedVariant
+                                  : AppColors.onSecondaryFixedVariant,
                             ),
                             const SizedBox(width: 16),
                             Expanded(
@@ -405,7 +470,9 @@ class _HeartRateMeasureScreenState extends State<HeartRateMeasureScreen>
                                 style: TextStyle(
                                   fontSize: 20,
                                   fontWeight: FontWeight.w700,
-                                  color: _isFingerDetected ? AppColors.onTertiaryFixedVariant : AppColors.onSecondaryFixedVariant,
+                                  color: _isFingerDetected
+                                      ? AppColors.onTertiaryFixedVariant
+                                      : AppColors.onSecondaryFixedVariant,
                                 ),
                               ),
                             ),
@@ -425,8 +492,11 @@ class _HeartRateMeasureScreenState extends State<HeartRateMeasureScreen>
                           child: CircularProgressIndicator(
                             value: _isCameraInitialized ? _progress : null,
                             strokeWidth: 10,
-                            backgroundColor: AppColors.outlineVariant.withValues(alpha: 0.5),
-                            valueColor: const AlwaysStoppedAnimation<Color>(Colors.redAccent),
+                            backgroundColor: AppColors.outlineVariant
+                                .withValues(alpha: 0.5),
+                            valueColor: const AlwaysStoppedAnimation<Color>(
+                              Colors.redAccent,
+                            ),
                           ),
                         ),
                         // Coração Animado
@@ -449,7 +519,11 @@ class _HeartRateMeasureScreenState extends State<HeartRateMeasureScreen>
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Icon(Icons.favorite, color: Colors.white, size: 48),
+                                const Icon(
+                                  Icons.favorite,
+                                  color: Colors.white,
+                                  size: 48,
+                                ),
                                 const SizedBox(height: 4),
                                 Text(
                                   _bpm > 0 ? '$_bpm' : '--',
@@ -486,7 +560,12 @@ class _HeartRateMeasureScreenState extends State<HeartRateMeasureScreen>
                           border: Border.all(color: AppColors.outlineVariant),
                         ),
                         child: CustomPaint(
-                          painter: PPGPainter(_measurements, threshold, minVal, maxVal),
+                          painter: PPGPainter(
+                            _measurements,
+                            threshold,
+                            minVal,
+                            maxVal,
+                          ),
                         ),
                       )
                     else
@@ -497,11 +576,18 @@ class _HeartRateMeasureScreenState extends State<HeartRateMeasureScreen>
                         decoration: BoxDecoration(
                           color: AppColors.surfaceContainerLow,
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppColors.outlineVariant, style: BorderStyle.solid),
+                          border: Border.all(
+                            color: AppColors.outlineVariant,
+                            style: BorderStyle.solid,
+                          ),
                         ),
                         child: const Text(
                           'Aguardando leitura de sinal...',
-                          style: TextStyle(fontSize: 18, color: AppColors.onSurfaceVariant, fontWeight: FontWeight.w500),
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: AppColors.onSurfaceVariant,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
 
@@ -534,11 +620,19 @@ class _HeartRateMeasureScreenState extends State<HeartRateMeasureScreen>
                         child: ElevatedButton.icon(
                           onPressed: () => Navigator.pop(context),
                           icon: const Icon(Icons.arrow_back),
-                          label: const Text('Voltar para Ajuda', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                          label: const Text(
+                            'Voltar para Ajuda',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
                             foregroundColor: AppColors.onPrimary,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
                           ),
                         ),
                       ),
@@ -606,9 +700,14 @@ class PPGPainter extends CustomPainter {
         ..color = Colors.red.withValues(alpha: 0.2)
         ..strokeWidth = 1.0
         ..style = PaintingStyle.stroke;
-      double threshY = size.height - ((threshold - minVal) / range) * size.height;
+      double threshY =
+          size.height - ((threshold - minVal) / range) * size.height;
       threshY = threshY.clamp(0.0, size.height);
-      canvas.drawLine(Offset(0, threshY), Offset(size.width, threshY), threshPaint);
+      canvas.drawLine(
+        Offset(0, threshY),
+        Offset(size.width, threshY),
+        threshPaint,
+      );
     }
   }
 

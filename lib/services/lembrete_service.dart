@@ -26,6 +26,7 @@ class LembreteService {
   String? _loadedIdosoId;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
   _lembretesSubscription;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _eventosSubscription;
 
   List<Lembrete> get lembretes => List.unmodifiable(_lembretes);
   List<LembreteEvento> get eventos => List.unmodifiable(_eventos);
@@ -48,10 +49,12 @@ class LembreteService {
 
     if (_loadedIdosoId != null && _loadedIdosoId != idosoId) {
       await _lembretesSubscription?.cancel();
+      await _eventosSubscription?.cancel();
       await _cancelarNotificacoesLocais();
       _lembretes.clear();
-      await _salvarLembretesLocais();
+      _eventos.clear();
       notifier.value = const [];
+      eventosNotifier.value = const [];
     }
 
     _loaded = true;
@@ -77,11 +80,37 @@ class LembreteService {
           await _publicarLembretes();
           await OfflineSyncService.instance.syncPendingWrites();
         });
+
+    _eventosSubscription = FirebaseFirestore.instance
+        .collection('lembrete_eventos')
+        .where('idosoId', isEqualTo: idosoId)
+        .snapshots()
+        .listen((snapshot) async {
+          _eventos
+            ..clear()
+            ..addAll(
+              snapshot.docs.map((doc) => LembreteEvento.fromJson(doc.data())),
+            )
+            ..sort((a, b) => b.registradoEm.compareTo(a.registradoEm));
+          await _salvarEventosLocais();
+        });
   }
+
+  String _lembretesCacheKey(String? idosoId) =>
+      idosoId == null ? 'lembretes' : 'lembretes_$idosoId';
+
+  String _eventosCacheKey(String? idosoId) =>
+      idosoId == null ? 'lembretes_eventos' : 'lembretes_eventos_$idosoId';
+
+  String _dayCheckKey(String? idosoId) => idosoId == null
+      ? 'ultimo_dia_verificado'
+      : 'ultimo_dia_verificado_$idosoId';
 
   Future<void> _carregarCacheLocal({String? activeIdosoId}) async {
     final prefs = await SharedPreferences.getInstance();
-    final data = prefs.getString('lembretes');
+    final data =
+        prefs.getString(_lembretesCacheKey(activeIdosoId)) ??
+        prefs.getString('lembretes');
     if (data != null) {
       final list = jsonDecode(data) as List;
       final lembretes = list
@@ -99,15 +128,24 @@ class LembreteService {
 
     await _verificarEFiltrarViradaDoDia();
 
-    final eventosData = prefs.getString('lembretes_eventos');
+    final eventosData =
+        prefs.getString(_eventosCacheKey(activeIdosoId)) ??
+        prefs.getString('lembretes_eventos');
     if (eventosData != null) {
       final list = jsonDecode(eventosData) as List;
       _eventos
         ..clear()
         ..addAll(
-          list.map(
-            (item) => LembreteEvento.fromJson(item as Map<String, dynamic>),
-          ),
+          list
+              .map(
+                (item) => LembreteEvento.fromJson(item as Map<String, dynamic>),
+              )
+              .where(
+                (evento) =>
+                    activeIdosoId == null ||
+                    evento.idosoId == null ||
+                    evento.idosoId == activeIdosoId,
+              ),
         );
     }
 
@@ -119,7 +157,8 @@ class LembreteService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final hoje = DateTime.now().toIso8601String().substring(0, 10);
-      final ultimoDiaVerificado = prefs.getString('ultimo_dia_verificado');
+      final dayCheckKey = _dayCheckKey(_loadedIdosoId);
+      final ultimoDiaVerificado = prefs.getString(dayCheckKey);
 
       if (ultimoDiaVerificado != hoje) {
         bool houveAlteracao = false;
@@ -165,7 +204,7 @@ class LembreteService {
           await _publicarLembretes();
         }
 
-        await prefs.setString('ultimo_dia_verificado', hoje);
+        await prefs.setString(dayCheckKey, hoje);
       }
     } catch (e) {
       debugPrint('Erro ao verificar virada do dia: $e');
@@ -180,13 +219,13 @@ class LembreteService {
   Future<void> _salvarLembretesLocais() async {
     final prefs = await SharedPreferences.getInstance();
     final data = jsonEncode(_lembretes.map((l) => l.toJson()).toList());
-    await prefs.setString('lembretes', data);
+    await prefs.setString(_lembretesCacheKey(_loadedIdosoId), data);
   }
 
   Future<void> _salvarEventosLocais() async {
     final prefs = await SharedPreferences.getInstance();
     final data = jsonEncode(_eventos.map((e) => e.toJson()).toList());
-    await prefs.setString('lembretes_eventos', data);
+    await prefs.setString(_eventosCacheKey(_loadedIdosoId), data);
     eventosNotifier.value = List.from(_eventos);
   }
 
@@ -247,8 +286,11 @@ class LembreteService {
     LembreteStatus status, {
     String? observacao,
   }) async {
+    final source = lembrete.idosoId == null
+        ? lembrete.copyWith(idosoId: await _getActiveIdosoId())
+        : lembrete;
     final evento = LembreteEvento.fromLembrete(
-      lembrete,
+      source,
       status: status,
       observacao: observacao,
     );

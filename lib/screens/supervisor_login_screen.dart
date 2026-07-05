@@ -107,10 +107,9 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
         if (mounted) setState(() => _isLoading = false);
       }
     } else {
-      // Bypass local
-      await SessionRoleService.setSupervisor();
-      if (!mounted) return;
-      Navigator.pushReplacementNamed(context, '/supervisor-dashboard');
+      _showError(
+        'Autenticacao indisponivel. Verifique a configuracao do Firebase e tente novamente.',
+      );
     }
   }
 
@@ -234,18 +233,25 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
                                   color: AppColors.onSurfaceVariant,
                                 ),
                               ),
-                              TextButton(
-                                onPressed: () => Navigator.pushNamed(
-                                  context,
-                                  '/forgot-password',
-                                ),
-                                child: const Text(
-                                  'Esqueci minha senha',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 0.05,
-                                    color: AppColors.primary,
+                              Flexible(
+                                child: Align(
+                                  alignment: Alignment.centerRight,
+                                  child: TextButton(
+                                    onPressed: () => Navigator.pushNamed(
+                                      context,
+                                      '/forgot-password',
+                                    ),
+                                    child: const Text(
+                                      'Esqueci minha senha',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: 0.05,
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
@@ -319,13 +325,17 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
                               activeColor: AppColors.primary,
                             ),
                             const SizedBox(width: 8),
-                            const Text(
-                              'Lembrar neste dispositivo',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w400,
-                                height: 1.6,
-                                color: AppColors.onSurfaceVariant,
+                            const Expanded(
+                              child: Text(
+                                'Lembrar neste dispositivo',
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w400,
+                                  height: 1.6,
+                                  color: AppColors.onSurfaceVariant,
+                                ),
                               ),
                             ),
                           ],
@@ -364,8 +374,9 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
                         ),
                       ),
                       const SizedBox(height: 24),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           const Text(
                             'Não possui acesso?',

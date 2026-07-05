@@ -583,7 +583,10 @@ class _DetailedHistoryScreenState extends State<DetailedHistoryScreen> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Row(
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -593,10 +596,8 @@ class _DetailedHistoryScreenState extends State<DetailedHistoryScreen> {
                       ),
                       child: Text(categoryLabel, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color)),
                     ),
-                    const SizedBox(width: 8),
                     Text(lembrete.horarioFormatado, style: const TextStyle(fontSize: 14, color: AppColors.onSurfaceVariant)),
                     if (concluidoComFoto && lembrete.medicamentoFotoPath != null) ...[
-                      const SizedBox(width: 8),
                       GestureDetector(
                         onTap: () => _showPhotoDialog(context, lembrete),
                         child: Container(

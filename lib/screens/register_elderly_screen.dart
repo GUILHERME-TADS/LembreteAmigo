@@ -115,7 +115,10 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Desconectar Aparelho?', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.error)),
+        title: const Text(
+          'Desconectar Aparelho?',
+          style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.error),
+        ),
         content: Text(
           'Deseja realmente desconectar o dispositivo de ${_pairedIdosoName ?? 'Idoso Conectado'} do seu painel?',
           style: const TextStyle(fontSize: 16),
@@ -123,17 +126,36 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('NÃO', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text(
+              'NÃO',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('SIM, DESCONECTAR', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.error)),
+            child: const Text(
+              'SIM, DESCONECTAR',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: AppColors.error,
+              ),
+            ),
           ),
         ],
       ),
     );
 
     if (confirm != true) return;
+
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Faca login novamente antes de vincular um idoso.'),
+        ),
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
 
@@ -143,27 +165,26 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
           await FirebaseFirestore.instance
               .collection('idoso_perfil')
               .doc(_pairedIdosoId)
-              .update({
-                'supervisorId': null,
-                'status': 'pending',
-              });
+              .update({'supervisorId': null, 'status': 'pending'});
         }
       }
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('selected_idoso_id');
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Dispositivo desconectado com sucesso.')),
+          const SnackBar(
+            content: Text('Dispositivo desconectado com sucesso.'),
+          ),
         );
       }
       _codeController.clear();
       await _loadPairedIdoso();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao desconectar: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erro ao desconectar: $e')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -175,14 +196,32 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
 
     if (code.length != 6) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Por favor, digite o código de 6 dígitos exibido no celular do idoso.')),
+        const SnackBar(
+          content: Text(
+            'Por favor, digite o código de 6 dígitos exibido no celular do idoso.',
+          ),
+        ),
       );
       return;
     }
 
     if (!_useFirebase) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('O Firebase não está ativo. Conecte-se à internet para realizar o vínculo.')),
+        const SnackBar(
+          content: Text(
+            'O Firebase não está ativo. Conecte-se à internet para realizar o vínculo.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Faca login novamente antes de vincular um idoso.'),
+        ),
       );
       return;
     }
@@ -201,7 +240,11 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
 
       if (query.docs.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Código inválido ou já utilizado. Verifique no celular do idoso.')),
+          const SnackBar(
+            content: Text(
+              'Código inválido ou já utilizado. Verifique no celular do idoso.',
+            ),
+          ),
         );
         setState(() => _isLoading = false);
         return;
@@ -216,27 +259,47 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
         final expires = DateTime.parse(expiresStr);
         if (DateTime.now().isAfter(expires)) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Este código expirou. Gere um novo código no celular do idoso.')),
+            const SnackBar(
+              content: Text(
+                'Este código expirou. Gere um novo código no celular do idoso.',
+              ),
+            ),
           );
           setState(() => _isLoading = false);
           return;
         }
       }
 
-      final updateData = {
-        'supervisorId': FirebaseAuth.instance.currentUser?.uid,
-        'status': 'active',
-      };
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        final latest = await transaction.get(doc.reference);
+        final latestData = latest.data();
+        if (!latest.exists || latestData == null) {
+          throw StateError('Codigo nao encontrado.');
+        }
+        if (latestData['status'] != 'pending') {
+          throw StateError('Codigo ja utilizado.');
+        }
 
-      await FirebaseFirestore.instance
-          .collection('idoso_perfil')
-          .doc(docId)
-          .update(updateData);
+        final latestExpiresStr = latestData['pairingCodeExpires'] as String?;
+        final latestExpires = latestExpiresStr == null
+            ? null
+            : DateTime.tryParse(latestExpiresStr);
+        if (latestExpires != null && DateTime.now().isAfter(latestExpires)) {
+          throw StateError('Codigo expirado.');
+        }
 
-      await FirebaseFirestore.instance
-          .collection('idosos')
-          .doc(docId)
-          .set(updateData, SetOptions(merge: true));
+        final updateData = {
+          'supervisorId': currentUser.uid,
+          'status': 'active',
+        };
+
+        transaction.update(doc.reference, updateData);
+        transaction.set(
+          FirebaseFirestore.instance.collection('idosos').doc(docId),
+          updateData,
+          SetOptions(merge: true),
+        );
+      });
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('selected_idoso_id', docId);
@@ -248,8 +311,17 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
         context: context,
         barrierDismissible: false,
         builder: (ctx) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Vínculo Realizado!', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primary)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Text(
+            'Vínculo Realizado!',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: AppColors.primary,
+            ),
+          ),
           content: const Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -267,16 +339,19 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
               onPressed: () {
                 Navigator.pop(ctx);
               },
-              child: const Text('Concluir', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              child: const Text(
+                'Concluir',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
             ),
           ],
         ),
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao salvar cadastro: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erro ao salvar cadastro: $e')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -321,7 +396,8 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
                 final text = _codeController.text;
                 final hasDigit = index < text.length;
                 final digit = hasDigit ? text[index] : '';
-                final isFocused = _pinFocusNode.hasFocus && index == text.length;
+                final isFocused =
+                    _pinFocusNode.hasFocus && index == text.length;
 
                 Widget childWidget;
                 if (hasDigit) {
@@ -356,7 +432,9 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
                     border: Border.all(
                       color: isFocused
                           ? AppColors.primary
-                          : (hasDigit ? AppColors.secondary : AppColors.outlineVariant),
+                          : (hasDigit
+                                ? AppColors.secondary
+                                : AppColors.outlineVariant),
                       width: isFocused ? 2.5 : 1.5,
                     ),
                     boxShadow: isFocused
@@ -365,7 +443,7 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
                               color: AppColors.primary.withValues(alpha: 0.15),
                               blurRadius: 6,
                               spreadRadius: 1,
-                            )
+                            ),
                           ]
                         : null,
                   ),
@@ -393,17 +471,25 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
                 children: [
                   IconButton(
                     onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.arrow_back, color: AppColors.primary),
+                    icon: const Icon(
+                      Icons.arrow_back,
+                      color: AppColors.primary,
+                    ),
                   ),
                   const Expanded(
                     child: Text(
                       'Lembrete Amigo',
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.primary),
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary,
+                      ),
                     ),
                   ),
                   Container(
-                    width: 40, height: 40,
+                    width: 40,
+                    height: 40,
                     decoration: const BoxDecoration(
                       color: AppColors.primaryContainer,
                       shape: BoxShape.circle,
@@ -420,9 +506,16 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
                   decoration: BoxDecoration(
                     color: AppColors.surfaceContainerLowest,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.primaryContainer, width: 2),
+                    border: Border.all(
+                      color: AppColors.primaryContainer,
+                      width: 2,
+                    ),
                     boxShadow: const [
-                      BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 4))
+                      BoxShadow(
+                        color: Colors.black12,
+                        blurRadius: 8,
+                        offset: Offset(0, 4),
+                      ),
                     ],
                   ),
                   child: Column(
@@ -431,13 +524,21 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
                       const SizedBox(height: 12),
                       const Text(
                         'Celular Conectado',
-                        style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.primary),
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         _pairedIdosoName ?? 'Idoso Conectado',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(fontSize: 18, color: AppColors.onSurface, fontWeight: FontWeight.w600),
+                        style: const TextStyle(
+                          fontSize: 18,
+                          color: AppColors.onSurface,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       const SizedBox(height: 24),
                       SizedBox(
@@ -445,15 +546,25 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
                         height: 56,
                         child: ElevatedButton.icon(
                           onPressed: _isLoading ? null : _desvincular,
-                          icon: const Icon(Icons.link_off, size: 24, color: Colors.white),
+                          icon: const Icon(
+                            Icons.link_off,
+                            size: 24,
+                            color: Colors.white,
+                          ),
                           label: const Text(
                             'DESCONECTAR APARELHO',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
                           ),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.error,
                             foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                         ),
                       ),
@@ -464,12 +575,21 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
               ] else ...[
                 const Text(
                   'Conectar Celular do Idoso',
-                  style: TextStyle(fontSize: 32, fontWeight: FontWeight.w800, height: 1.2, color: AppColors.primary),
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w800,
+                    height: 1.2,
+                    color: AppColors.primary,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 const Text(
                   'Insira o código de conexão de 6 dígitos que está sendo exibido na tela do idoso para vincular o dispositivo ao seu painel.',
-                  style: TextStyle(fontSize: 18, height: 1.5, color: AppColors.onSurfaceVariant),
+                  style: TextStyle(
+                    fontSize: 18,
+                    height: 1.5,
+                    color: AppColors.onSurfaceVariant,
+                  ),
                 ),
                 const SizedBox(height: 32),
                 _buildPinInput(),
@@ -481,18 +601,27 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
                     onPressed: _isLoading ? null : _cadastrar,
                     icon: _isLoading
                         ? const SizedBox(
-                            width: 24, height: 24,
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
                           )
                         : const Icon(Icons.link, size: 28),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     label: Text(
                       _isLoading ? 'CONECTANDO...' : 'VINCULAR DISPOSITIVO',
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ),

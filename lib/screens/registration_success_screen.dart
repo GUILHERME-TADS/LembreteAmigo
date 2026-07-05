@@ -80,7 +80,12 @@ class RegistrationSuccessScreen extends StatelessWidget {
                     child: ElevatedButton.icon(
                       onPressed: () => Navigator.pushNamedAndRemoveUntil(context, '/supervisor-dashboard', (route) => false),
                       icon: const Icon(Icons.dashboard),
-                      label: const Text('Ir para o Painel', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
+                      label: const Text(
+                        'Ir para o Painel',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.secondaryContainer,
                         foregroundColor: AppColors.onSecondaryContainer,
@@ -94,9 +99,13 @@ class RegistrationSuccessScreen extends StatelessWidget {
                     children: [
                       Icon(Icons.verified_user, size: 16, color: AppColors.onSurfaceVariant),
                       SizedBox(width: 8),
-                      Text(
-                        'Configuração Finalizada • Lembrete Amigo • Supervisor',
-                        style: TextStyle(fontSize: 14, color: AppColors.onSurfaceVariant),
+                      Flexible(
+                        child: Text(
+                          'Configuração Finalizada • Lembrete Amigo • Supervisor',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 14, color: AppColors.onSurfaceVariant),
+                        ),
                       ),
                     ],
                   ),

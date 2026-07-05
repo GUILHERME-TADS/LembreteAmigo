@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -80,6 +82,33 @@ bool isElderlyOnlyRoute(String routeName) {
   return elderlyRoutes.contains(routeName);
 }
 
+bool isSupervisorProtectedRoute(String routeName) {
+  const supervisorRoutes = {
+    '/supervisor-dashboard',
+    '/supervisor-settings',
+    '/connected-settings',
+    '/supervisor-help',
+    '/register-elderly',
+    '/detailed-history',
+    '/monthly-reports',
+    '/activity-history',
+    '/new-reminder',
+    '/new-reminder-audio',
+    '/supervisor-reminder-detail',
+  };
+
+  return supervisorRoutes.contains(routeName);
+}
+
+bool hasSupervisorAuthSession() {
+  try {
+    return Firebase.apps.isNotEmpty &&
+        FirebaseAuth.instance.currentUser != null;
+  } catch (_) {
+    return false;
+  }
+}
+
 class _RouteTracker extends NavigatorObserver {
   String? currentRouteName;
 
@@ -117,15 +146,26 @@ void main() async {
     );
   }
   await SessionRoleService.load();
-  await TTSService.instance.init();
-  await NotificationService.instance.init(navigatorKey);
+  try {
+    await TTSService.instance.init();
+  } catch (e) {
+    debugPrint('Erro ao inicializar TTS. Continuando sem voz: $e');
+  }
 
-  final launchDetails = await NotificationService.instance.getLaunchDetails();
   String? pendingPayload;
-  if (launchDetails != null &&
-      launchDetails.didNotificationLaunchApp &&
-      launchDetails.notificationResponse?.payload != null) {
-    pendingPayload = launchDetails.notificationResponse!.payload;
+  if (!kIsWeb) {
+    try {
+      await NotificationService.instance.init(navigatorKey);
+      final launchDetails = await NotificationService.instance
+          .getLaunchDetails();
+      if (launchDetails != null &&
+          launchDetails.didNotificationLaunchApp &&
+          launchDetails.notificationResponse?.payload != null) {
+        pendingPayload = launchDetails.notificationResponse!.payload;
+      }
+    } catch (e) {
+      debugPrint('Erro ao inicializar notificacoes. Continuando sem alarmes locais: $e');
+    }
   }
 
   runApp(MeuApp(pendingPayload: pendingPayload));
@@ -380,6 +420,13 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
       onGenerateRoute: (settings) {
         Widget page;
         final routeName = settings.name ?? '/';
+        if (isSupervisorProtectedRoute(routeName) &&
+            !hasSupervisorAuthSession()) {
+          return MaterialPageRoute(
+            builder: (_) => const SupervisorLoginScreen(),
+            settings: const RouteSettings(name: '/supervisor-login'),
+          );
+        }
         if (isElderlyOnlyRoute(routeName) && SessionRoleService.isSupervisor) {
           return MaterialPageRoute(
             builder: (_) => const SupervisorDashboardScreen(),

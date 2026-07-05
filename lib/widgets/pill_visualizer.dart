@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../utils/audio_path_helper.dart';
 
 class PillVisualizer extends StatelessWidget {
   final String? forma;
@@ -35,7 +36,9 @@ class PillVisualizer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (fotoPath != null && fotoPath!.isNotEmpty) {
-      final isAsset = fotoPath!.startsWith('assets/') || fotoPath!.startsWith('images/');
+      final isAsset =
+          fotoPath!.startsWith('assets/') || fotoPath!.startsWith('images/');
+      final isRemote = isRemotePath(fotoPath!);
       return ClipRRect(
         borderRadius: BorderRadius.circular(size),
         child: Container(
@@ -52,6 +55,16 @@ class PillVisualizer extends StatelessWidget {
                     width: size,
                     height: size,
                     fit: BoxFit.cover,
+                  )
+                : isRemote
+                ? Image.network(
+                    fotoPath!,
+                    width: size,
+                    height: size,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return _buildGeometricVisualizer();
+                    },
                   )
                 : Image.file(
                     File(fotoPath!),
@@ -147,11 +160,7 @@ class PillVisualizer extends StatelessWidget {
           size: size,
           color: pillColor,
           shadows: const [
-            Shadow(
-              color: Colors.black12,
-              offset: Offset(0, 2),
-              blurRadius: 4,
-            ),
+            Shadow(color: Colors.black12, offset: Offset(0, 2), blurRadius: 4),
           ],
         );
 
@@ -161,20 +170,12 @@ class PillVisualizer extends StatelessWidget {
           size: size * 0.9,
           color: pillColor,
           shadows: const [
-            Shadow(
-              color: Colors.black12,
-              offset: Offset(0, 2),
-              blurRadius: 4,
-            ),
+            Shadow(color: Colors.black12, offset: Offset(0, 2), blurRadius: 4),
           ],
         );
 
       default:
-        return Icon(
-          Icons.medical_services,
-          size: size * 0.8,
-          color: pillColor,
-        );
+        return Icon(Icons.medical_services, size: size * 0.8, color: pillColor);
     }
   }
 }

@@ -394,6 +394,12 @@ void main() {
       expectTime('Caminhar as doze da tarde', 12, 0);
     });
 
+    test('entende frases com acentos reais', () {
+      expectTime('Tomar remédio às oito e cinco da manhã', 8, 5);
+      expectTime('Beber água às oito da noite', 20, 0);
+      expectTime('Medir pressão às doze da noite', 0, 0);
+    });
+
     test('entende meia, meio-dia e meia-noite com minutos', () {
       expectTime('Almocar meio-dia e meia', 12, 30);
       expectTime('Tomar remedio meia-noite e quinze', 0, 15);

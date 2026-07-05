@@ -1,11 +1,11 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:math';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import '../models/lembrete.dart';
 import '../services/tts_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/audio_path_helper.dart';
 import '../utils/period_helper.dart';
 import 'audio_manager.dart';
 import 'reminder_status_badge.dart';
@@ -206,8 +206,7 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
   }
 
   Future<void> _playAudio() async {
-    final file = File(widget.audioPath!);
-    if (!await file.exists()) {
+    if (!await audioPathExists(widget.audioPath!)) {
       AudioManager.stopPlay(audioId);
       debugPrint('Arquivo de áudio não encontrado: ${widget.audioPath}');
       if (mounted) {
@@ -228,7 +227,10 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
       return;
     }
     try {
-      await _audioPlayer.play(DeviceFileSource(widget.audioPath!), volume: 1.0);
+      await _audioPlayer.play(
+        audioSourceForPath(widget.audioPath!),
+        volume: 1.0,
+      );
     } catch (e) {
       AudioManager.stopPlay(audioId);
       debugPrint('Erro ao reproduzir áudio: $e');
@@ -375,9 +377,8 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
                                                     widget.time,
                                                     widget.accentColor,
                                                   ).withValues(alpha: 0.12),
-                                              borderRadius: BorderRadius.circular(
-                                                8,
-                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
                                             ),
                                             child: Text(
                                               widget.time,

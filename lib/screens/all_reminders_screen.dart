@@ -204,7 +204,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w900,
-                    letterSpacing: 1.2,
+                    letterSpacing: 0,
                     color: color,
                   ),
                   overflow: TextOverflow.ellipsis,
@@ -225,7 +225,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w900,
-                    letterSpacing: 0.5,
+                    letterSpacing: 0,
                     color: Colors.white,
                   ),
                 ),
@@ -427,7 +427,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                                     color: Colors.white,
                                     fontSize: 13,
                                     fontWeight: FontWeight.w900,
-                                    letterSpacing: 1.0,
+                                    letterSpacing: 0,
                                   ),
                                 ),
                               ],
@@ -454,23 +454,29 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Row(
-                            children: [
-                              Icon(
+                          const Expanded(
+                            child: Row(
+                              children: [
+                                Icon(
                                 Icons.visibility_off,
                                 color: AppColors.primary,
                                 size: 24,
-                              ),
-                              SizedBox(width: 12),
-                              Text(
-                                'Mostrar apenas o que falta',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.primary,
                                 ),
-                              ),
-                            ],
+                                SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    'Mostrar apenas o que falta',
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                           Switch(
                             value: _showOnlyPending,
@@ -892,7 +898,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 6),
           decoration: BoxDecoration(
             color: selected ? AppColors.secondaryContainer : null,
             borderRadius: BorderRadius.circular(16),
@@ -901,12 +907,14 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 28, color: itemColor),
-              const SizedBox(height: 4),
+              Icon(icon, size: 24, color: itemColor),
+              const SizedBox(height: 2),
               Text(
                 label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 12,
                   fontWeight: FontWeight.w800,
                   color: itemColor,
                 ),

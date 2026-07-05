@@ -10,6 +10,7 @@ import '../services/lembrete_service.dart';
 import '../services/tts_service.dart';
 import '../services/notification_service.dart';
 import '../services/vibration_service.dart';
+import '../utils/audio_path_helper.dart';
 import '../widgets/index.dart';
 
 class ActiveReminderScreen extends StatefulWidget {
@@ -24,6 +25,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
   Lembrete? lembrete;
   String _speakText = '';
   String? _lembreteId;
+  bool _notFound = false;
   bool _isSpeakingLoopActive = false;
   bool _isLoopPaused = false;
   final stt.SpeechToText _speech = stt.SpeechToText();
@@ -49,9 +51,14 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
       );
       setState(() {
         lembrete = l;
+        _notFound = false;
       });
       _startReminderLoop(l);
-    } catch (_) {}
+    } catch (_) {
+      if (LembreteService.instance.lembretes.isNotEmpty && mounted) {
+        setState(() => _notFound = true);
+      }
+    }
   }
 
   Future<void> _startReminderLoop(Lembrete l) async {
@@ -149,8 +156,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
   Future<void> _playFamilyAudioIfAvailable(Lembrete l) async {
     final path = l.audioPath;
     if (path == null || path.isEmpty) return;
-    final file = File(path);
-    if (!await file.exists()) return;
+    if (!await audioPathExists(path)) return;
 
     try {
       AudioManager.stopAll();
@@ -160,7 +166,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
       final sub = _familyAudioPlayer.onPlayerComplete.listen((_) {
         if (!completed.isCompleted) completed.complete();
       });
-      await _familyAudioPlayer.play(DeviceFileSource(path), volume: 1.0);
+      await _familyAudioPlayer.play(audioSourceForPath(path), volume: 1.0);
       await completed.future.timeout(
         const Duration(seconds: 20),
         onTimeout: () async {
@@ -216,6 +222,8 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
     } else if (args is String) {
       _lembreteId = args;
       _buscarLembrete();
+    } else if (!_notFound) {
+      setState(() => _notFound = true);
     }
   }
 
@@ -453,6 +461,11 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
 
     if (isConfirmation) {
       if (lembrete?.categoria == 'medicacao') {
+        final id = lembrete?.id;
+        if (id == null || id.isEmpty) {
+          if (mounted) setState(() => _notFound = true);
+          return;
+        }
         _isSpeakingLoopActive = false;
         _noResponseTimer?.cancel();
         await _familyAudioPlayer.stop();
@@ -460,7 +473,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
         Navigator.pushNamed(
           context,
           '/take-photo-confirmation',
-          arguments: lembrete?.id,
+          arguments: id,
         );
       } else {
         _isSpeakingLoopActive = false;
@@ -503,8 +516,81 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
     super.dispose();
   }
 
+  Widget _buildMissingReminderScaffold() {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.error_outline,
+                  color: AppColors.error,
+                  size: 72,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Lembrete nao encontrado',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Nao foi possivel abrir este lembrete. Volte para a tela inicial e tente novamente.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: AppColors.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pushNamedAndRemoveUntil(
+                        context,
+                        '/elderly-home',
+                        (route) => false,
+                      );
+                    },
+                    icon: const Icon(Icons.home),
+                    label: const Text(
+                      'VOLTAR AO INICIO',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.secondaryContainer,
+                      foregroundColor: AppColors.onSecondaryContainer,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_notFound) return _buildMissingReminderScaffold();
+
     final String titleText;
     final String subtitleText;
     final IconData categoryIcon;
@@ -597,7 +683,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                 fontSize: 26,
                                 fontWeight: FontWeight.w700,
                                 height: 1.2,
-                                letterSpacing: 2,
+                                letterSpacing: 0,
                                 color: isHighContrast ? Colors.black : AppColors.onSurfaceVariant,
                               ),
                             ),
@@ -663,7 +749,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                         style: TextStyle(
                                           fontSize: 16,
                                           fontWeight: FontWeight.w800,
-                                          letterSpacing: 1.5,
+                                          letterSpacing: 0,
                                           color: isHighContrast ? Colors.black : AppColors.outline,
                                         ),
                                       ),
@@ -703,7 +789,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                           style: TextStyle(
                                             fontSize: 14,
                                             fontWeight: FontWeight.w800,
-                                            letterSpacing: 1.2,
+                                            letterSpacing: 0,
                                             color: isHighContrast ? Colors.black : AppColors.outline,
                                           ),
                                         ),
@@ -782,13 +868,17 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                       : Icons.mic,
                                   size: 30,
                                 ),
-                                label: Text(
-                                  _isListeningForCommand
-                                      ? 'OUVINDO...'
-                                      : 'RESPONDER POR VOZ',
-                                  style: const TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w900,
+                                label: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    _isListeningForCommand
+                                        ? 'OUVINDO...'
+                                        : 'RESPONDER POR VOZ',
+                                    maxLines: 1,
+                                    style: const TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w900,
+                                    ),
                                   ),
                                 ),
                                 style: OutlinedButton.styleFrom(
@@ -828,11 +918,18 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                         });
                                   }
                                   if (requiresPhoto) {
+                                    final id = lembrete?.id;
+                                    if (id == null || id.isEmpty) {
+                                      if (mounted) {
+                                        setState(() => _notFound = true);
+                                      }
+                                      return;
+                                    }
                                     AudioManager.stopAll();
                                     await TTSService.instance.parar();
                                     await navigator.pushNamed(
                                       '/take-photo-confirmation',
-                                      arguments: lembrete?.id,
+                                      arguments: id,
                                     );
                                     if (mounted) {
                                       _isLoopPaused = false;
@@ -864,11 +961,15 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                   }
                                 },
                                 icon: const Icon(Icons.check_circle, size: 36),
-                                label: Text(
-                                  confirmButtonText,
-                                  style: const TextStyle(
-                                    fontSize: 26,
-                                    fontWeight: FontWeight.w900,
+                                label: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    confirmButtonText,
+                                    maxLines: 1,
+                                    style: const TextStyle(
+                                      fontSize: 26,
+                                      fontWeight: FontWeight.w900,
+                                    ),
                                   ),
                                 ),
                                 style: ElevatedButton.styleFrom(
@@ -921,11 +1022,15 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                   );
                                 },
                                 icon: const Icon(Icons.access_time, size: 30),
-                                label: const Text(
-                                  'ME AVISE EM 10 MINUTOS',
-                                  style: TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w800,
+                                label: const FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    'ME AVISE EM 10 MINUTOS',
+                                    maxLines: 1,
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w800,
+                                    ),
                                   ),
                                 ),
                                 style: ElevatedButton.styleFrom(
@@ -979,11 +1084,15 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                   );
                                 },
                                 icon: const Icon(Icons.support_agent, size: 30),
-                                label: const Text(
-                                  'NÃO CONSEGUI FAZER',
-                                  style: TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w800,
+                                label: const FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    'NÃO CONSEGUI FAZER',
+                                    maxLines: 1,
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w800,
+                                    ),
                                   ),
                                 ),
                                 style: ElevatedButton.styleFrom(
@@ -1059,6 +1168,8 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
               image: DecorationImage(
                 image: l.medicamentoFotoPath!.startsWith('assets/')
                     ? AssetImage(l.medicamentoFotoPath!) as ImageProvider
+                    : isRemotePath(l.medicamentoFotoPath!)
+                    ? NetworkImage(l.medicamentoFotoPath!)
                     : FileImage(File(l.medicamentoFotoPath!)),
                 fit: BoxFit.cover,
               ),

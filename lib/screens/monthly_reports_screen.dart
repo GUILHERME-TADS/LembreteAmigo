@@ -303,6 +303,8 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
       children: [
         const Text(
           'Relatorios Familiares',
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
           style: TextStyle(
             fontSize: 32,
             fontWeight: FontWeight.w800,
@@ -313,6 +315,8 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
         const SizedBox(height: 8),
         Text(
           'Resumo semanal e mensal de saude de $_idosoName',
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
           style: const TextStyle(
             fontSize: 18,
             height: 1.5,
@@ -330,9 +334,13 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
       child: ElevatedButton.icon(
         onPressed: _exportarRelatorioPDF,
         icon: const Icon(Icons.ios_share),
-        label: const Text(
-          'COMPARTILHAR PDF COM A FAMILIA',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+        label: const FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            'COMPARTILHAR PDF COM A FAMILIA',
+            maxLines: 1,
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+          ),
         ),
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.secondaryContainer,
@@ -365,12 +373,16 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
             children: [
               Icon(Icons.family_restroom, color: AppColors.primary, size: 30),
               SizedBox(width: 10),
-              Text(
-                'Resumo da Semana',
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.primary,
+              Expanded(
+                child: Text(
+                  'Resumo da Semana',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.primary,
+                  ),
                 ),
               ),
             ],
@@ -505,6 +517,8 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
         children: [
           const Text(
             'Aderencia por Categoria',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               fontSize: 26,
               fontWeight: FontWeight.w800,
@@ -543,13 +557,18 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 18,
-                color: AppColors.primaryFixed,
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 18,
+                  color: AppColors.primaryFixed,
+                ),
               ),
             ),
+            const SizedBox(width: 8),
             Text(
               '$percent%',
               style: const TextStyle(

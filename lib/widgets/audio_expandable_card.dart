@@ -1,14 +1,19 @@
-import 'dart:io';
 import 'dart:math';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/tts_service.dart';
+import '../utils/audio_path_helper.dart';
 import 'audio_manager.dart';
 import 'alex_avatar.dart';
 
 class AudioExpandableCard extends StatefulWidget {
-  final Widget Function(BuildContext context, VoidCallback onPlay, bool isPlaying) cardBuilder;
+  final Widget Function(
+    BuildContext context,
+    VoidCallback onPlay,
+    bool isPlaying,
+  )
+  cardBuilder;
   final Color accentColor;
   final String? textToSpeak;
   final String? audioPath;
@@ -49,7 +54,9 @@ class _AudioExpandableCardState extends State<AudioExpandableCard>
   }
 
   void _onTtsStateChanged() {
-    if (_isPlaying && !TTSService.instance.isSpeaking && widget.audioPath == null) {
+    if (_isPlaying &&
+        !TTSService.instance.isSpeaking &&
+        widget.audioPath == null) {
       _stopAll();
     }
   }
@@ -85,8 +92,10 @@ class _AudioExpandableCardState extends State<AudioExpandableCard>
     super.dispose();
   }
 
-  bool get _hasAudio => widget.audioPath != null && widget.audioPath!.isNotEmpty;
-  bool get _hasTts => widget.textToSpeak != null && widget.textToSpeak!.isNotEmpty;
+  bool get _hasAudio =>
+      widget.audioPath != null && widget.audioPath!.isNotEmpty;
+  bool get _hasTts =>
+      widget.textToSpeak != null && widget.textToSpeak!.isNotEmpty;
   bool get _canPlay => _hasAudio || _hasTts;
 
   void _togglePlay() {
@@ -111,14 +120,15 @@ class _AudioExpandableCardState extends State<AudioExpandableCard>
   }
 
   Future<void> _playAudio() async {
-    final file = File(widget.audioPath!);
-    if (!await file.exists()) {
+    if (!await audioPathExists(widget.audioPath!)) {
       _stopAll();
       debugPrint('Arquivo de áudio não encontrado: ${widget.audioPath}');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Áudio não encontrado. Grave o lembrete novamente.'),
+            content: const Text(
+              'Áudio não encontrado. Grave o lembrete novamente.',
+            ),
             backgroundColor: AppColors.error,
           ),
         );
@@ -127,7 +137,7 @@ class _AudioExpandableCardState extends State<AudioExpandableCard>
     }
     try {
       await _audioPlayer.play(
-        DeviceFileSource(widget.audioPath!),
+        audioSourceForPath(widget.audioPath!),
         volume: 1.0,
       );
     } catch (e) {
@@ -150,7 +160,10 @@ class _AudioExpandableCardState extends State<AudioExpandableCard>
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surfaceContainerLowest,
-        border: Border.all(color: widget.borderColor ?? AppColors.outlineVariant, width: 2),
+        border: Border.all(
+          color: widget.borderColor ?? AppColors.outlineVariant,
+          width: 2,
+        ),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -170,15 +183,21 @@ class _AudioExpandableCardState extends State<AudioExpandableCard>
                       children: List.generate(24, (i) {
                         final seed = (i * 0.7 + i % 3 * 1.3);
                         final baseHeight = 0.15 + (sin(seed) * 0.5 + 0.5) * 0.7;
-                        final animOffset = sin(_waveController.value * pi * 2 + seed) * 0.3;
-                        final heightFactor = (baseHeight + animOffset).clamp(0.1, 1.0);
+                        final animOffset =
+                            sin(_waveController.value * pi * 2 + seed) * 0.3;
+                        final heightFactor = (baseHeight + animOffset).clamp(
+                          0.1,
+                          1.0,
+                        );
                         return Expanded(
                           child: Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 1),
                             child: Container(
                               height: 32 * heightFactor,
                               decoration: BoxDecoration(
-                                color: widget.accentColor.withValues(alpha: 0.4 + heightFactor * 0.6),
+                                color: widget.accentColor.withValues(
+                                  alpha: 0.4 + heightFactor * 0.6,
+                                ),
                                 borderRadius: BorderRadius.circular(2),
                               ),
                             ),

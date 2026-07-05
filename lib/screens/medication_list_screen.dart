@@ -185,6 +185,8 @@ class _MedicationListScreenState extends State<MedicationListScreen> {
             child: Text(
               'Meus Remédios',
               textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.w700,
@@ -382,36 +384,44 @@ class _MedicationListScreenState extends State<MedicationListScreen> {
           const Text(
             'REMEDIOS DO DIA',
             style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1,
-              color: AppColors.medicationsColor,
-            ),
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0,
+            color: AppColors.medicationsColor,
           ),
+        ),
           const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               _buildProgressCircle(concluidos, total),
               const SizedBox(width: 24),
-              Column(
-                children: [
-                  Text(
-                    '$concluidos de $total',
-                    style: const TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.medicationsColor,
+              Expanded(
+                child: Column(
+                  children: [
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        '$concluidos de $total',
+                        maxLines: 1,
+                        style: const TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.medicationsColor,
+                        ),
+                      ),
                     ),
-                  ),
-                  const Text(
-                    'remédios',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: AppColors.onSurfaceVariant,
+                    const Text(
+                      'remédios',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: AppColors.onSurfaceVariant,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ),

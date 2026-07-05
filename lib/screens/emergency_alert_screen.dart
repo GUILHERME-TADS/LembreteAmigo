@@ -117,13 +117,17 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
                             children: [
                               Icon(Icons.error, color: Colors.white, size: 28),
                               SizedBox(width: 12),
-                              Text(
-                                'ALERTA CRÍTICO',
-                                style: TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.white,
-                                  letterSpacing: 0.05,
+                              Expanded(
+                                child: Text(
+                                  'ALERTA CRÍTICO',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white,
+                                    letterSpacing: 0,
+                                  ),
                                 ),
                               ),
                             ],
@@ -147,6 +151,9 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
                         const SizedBox(height: 12),
                         Text(
                           _idosoName,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
                           style: const TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.w700,
@@ -173,6 +180,8 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
                             icon: const Icon(Icons.phone, size: 28),
                             label: Text(
                               'Ligar para $_idosoName',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.w700,
@@ -225,11 +234,15 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
                     color: AppColors.onSurfaceVariant,
                   ),
                   SizedBox(width: 8),
-                  Text(
-                    'Modo Assistido Ativo • V. 1.0',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.onSurfaceVariant,
+                  Flexible(
+                    child: Text(
+                      'Modo Assistido Ativo • V. 1.0',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppColors.onSurfaceVariant,
+                      ),
                     ),
                   ),
                 ],

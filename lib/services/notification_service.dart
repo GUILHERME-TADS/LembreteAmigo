@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
@@ -16,9 +17,11 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
   GlobalKey<NavigatorState>? _navigatorKey;
+  bool _initialized = false;
 
   Future<void> init(GlobalKey<NavigatorState> navigatorKey) async {
     _navigatorKey = navigatorKey;
+    if (kIsWeb) return;
 
     // 1. Initialize Timezones
     tz.initializeTimeZones();
@@ -66,13 +69,16 @@ class NotificationService {
     await androidPlugin?.requestNotificationsPermission();
     await androidPlugin?.requestExactAlarmsPermission();
     await androidPlugin?.requestFullScreenIntentPermission();
+    _initialized = true;
   }
 
   Future<NotificationAppLaunchDetails?> getLaunchDetails() async {
+    if (kIsWeb || !_initialized) return null;
     return _plugin.getNotificationAppLaunchDetails();
   }
 
   Future<void> cancelar(String id) async {
+    if (kIsWeb || !_initialized) return;
     await _plugin.cancel(_notificationIdFor(id));
     for (int slot = 1; slot <= _maxGeneratedSlots; slot++) {
       await _plugin.cancel(_notificationIdFor(id, slot));
@@ -80,6 +86,7 @@ class NotificationService {
   }
 
   Future<void> mostrarAlertaCuidador(SmartAlert alert) async {
+    if (kIsWeb || !_initialized) return;
     final androidDetails = AndroidNotificationDetails(
       'cuidador_alertas_channel',
       'Alertas do Cuidador',
@@ -111,6 +118,7 @@ class NotificationService {
   }
 
   Future<void> agendarTodos(List<Lembrete> lembretes) async {
+    if (kIsWeb || !_initialized) return;
     final now = tz.TZDateTime.now(tz.local);
 
     for (final l in lembretes) {

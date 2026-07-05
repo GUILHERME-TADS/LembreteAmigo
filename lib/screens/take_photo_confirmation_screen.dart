@@ -35,6 +35,7 @@ class _TakePhotoConfirmationScreenState
   String? _lembreteId;
   bool _hasSpokenExplanation = false;
   CameraLensDirection _lensDirection = CameraLensDirection.back;
+  String? _cameraErrorMessage;
 
   bool get _useFirebase {
     try {
@@ -89,12 +90,19 @@ class _TakePhotoConfirmationScreenState
         if (mounted) {
           setState(() {
             _isCameraInitialized = false;
+            _cameraErrorMessage = null;
           });
         }
       }
 
       final cameras = await availableCameras();
       if (cameras.isEmpty) {
+        if (mounted) {
+          setState(() {
+            _cameraErrorMessage =
+                'Nenhuma camera foi encontrada neste aparelho.';
+          });
+        }
         debugPrint('Nenhuma câmera encontrada.');
         return;
       }
@@ -116,9 +124,17 @@ class _TakePhotoConfirmationScreenState
       if (mounted) {
         setState(() {
           _isCameraInitialized = true;
+          _cameraErrorMessage = null;
         });
       }
     } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isCameraInitialized = false;
+          _cameraErrorMessage =
+              'Nao foi possivel abrir a camera. Verifique a permissao e tente novamente.';
+        });
+      }
       debugPrint('Erro ao inicializar câmera: $e');
     }
   }
@@ -133,8 +149,17 @@ class _TakePhotoConfirmationScreenState
   }
 
   Future<void> _capturePhoto(String? lembreteId) async {
-    if (_cameraController == null || !_cameraController!.value.isInitialized)
+    if (_cameraController == null || !_cameraController!.value.isInitialized) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Camera indisponivel. Tente novamente.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
       return;
+    }
     try {
       setState(() {
         _isFlashActive = true;
@@ -205,11 +230,6 @@ class _TakePhotoConfirmationScreenState
             (l) => l.id == lembreteId,
           );
           if (idx != -1) target = LembreteService.instance.lembretes[idx];
-        } else {
-          final meds = LembreteService.instance.lembretes
-              .where((l) => l.categoria == 'medicacao' && !l.concluido)
-              .toList();
-          if (meds.isNotEmpty) target = meds.first;
         }
 
         if (target != null && target.medicamentoCor != null) {
@@ -267,8 +287,7 @@ class _TakePhotoConfirmationScreenState
 
   @override
   Widget build(BuildContext context) {
-    final args = ModalRoute.of(context)?.settings.arguments;
-    final String? lembreteId = args is String ? args : null;
+    final String? lembreteId = _lembreteId;
 
     return KeyboardListener(
       focusNode: _focusNode,
@@ -355,6 +374,35 @@ class _TakePhotoConfirmationScreenState
   }
 
   Widget _buildCameraViewfinder() {
+    if (_cameraErrorMessage != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.no_photography, color: Colors.white, size: 64),
+              const SizedBox(height: 16),
+              Text(
+                _cameraErrorMessage!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white, fontSize: 18),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton.icon(
+                onPressed: _initCamera,
+                icon: const Icon(Icons.refresh),
+                label: const Text('TENTAR NOVAMENTE'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.secondaryContainer,
+                  foregroundColor: AppColors.onSecondaryContainer,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     if (!_isCameraInitialized || _cameraController == null) {
       return const Center(
         child: CircularProgressIndicator(color: AppColors.secondaryContainer),
@@ -634,34 +682,25 @@ class _TakePhotoConfirmationScreenState
                         lembreteId,
                       );
                     } else {
-                      final medicacoes = LembreteService.instance.lembretes
-                          .where(
-                            (l) => l.categoria == 'medicacao' && !l.concluido,
-                          )
-                          .toList();
-                      if (medicacoes.isNotEmpty) {
-                        await LembreteService.instance.concluirComFoto(
-                          medicacoes.first.id,
-                        );
-                      }
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Lembrete invalido. Abra o lembrete novamente.',
+                          ),
+                          backgroundColor: AppColors.error,
+                        ),
+                      );
+                      return;
                     }
                     SystemSound.play(SystemSoundType.click);
                     HapticFeedback.vibrate();
                     Lembrete? target;
                     final targetId = lembreteId;
-                    if (targetId != null) {
-                      final idx = LembreteService.instance.lembretes.indexWhere(
-                        (l) => l.id == targetId,
-                      );
-                      if (idx != -1)
-                        target = LembreteService.instance.lembretes[idx];
-                    } else {
-                      final medicacoes = LembreteService.instance.lembretes
-                          .where(
-                            (l) => l.categoria == 'medicacao' && !l.concluido,
-                          )
-                          .toList();
-                      if (medicacoes.isNotEmpty) target = medicacoes.first;
+                    final idx = LembreteService.instance.lembretes.indexWhere(
+                      (l) => l.id == targetId,
+                    );
+                    if (idx != -1) {
+                      target = LembreteService.instance.lembretes[idx];
                     }
                     navigator.pushNamedAndRemoveUntil(
                       '/medication-confirmation',

@@ -1,15 +1,19 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/lembrete.dart';
 import '../models/lembrete_evento.dart';
+import '../utils/audio_path_helper.dart';
 import 'notification_service.dart';
 import 'offline_sync_service.dart';
+import 'secure_cache_service.dart';
 import 'session_role_service.dart';
 import 'smart_alert_service.dart';
 
@@ -79,6 +83,8 @@ class LembreteService {
           await _salvarLembretesLocais();
           await _publicarLembretes();
           await OfflineSyncService.instance.syncPendingWrites();
+        }, onError: (Object error, StackTrace stackTrace) {
+          debugPrint('Erro ao escutar lembretes no Firestore: $error');
         });
 
     _eventosSubscription = FirebaseFirestore.instance
@@ -93,6 +99,8 @@ class LembreteService {
             )
             ..sort((a, b) => b.registradoEm.compareTo(a.registradoEm));
           await _salvarEventosLocais();
+        }, onError: (Object error, StackTrace stackTrace) {
+          debugPrint('Erro ao escutar eventos no Firestore: $error');
         });
   }
 
@@ -106,21 +114,45 @@ class LembreteService {
       ? 'ultimo_dia_verificado'
       : 'ultimo_dia_verificado_$idosoId';
 
+  Future<List<dynamic>?> _readListCache(
+    List<String> keys,
+    String label,
+  ) async {
+    for (final key in keys) {
+      final raw = await SecureCacheService.instance.read(key);
+      if (raw == null || raw.isEmpty) continue;
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is List) return decoded;
+        debugPrint('Cache $label em $key nao contem uma lista.');
+      } catch (e) {
+        debugPrint('Cache $label corrompido em $key. Removendo: $e');
+      }
+      await SecureCacheService.instance.delete(key);
+    }
+    return null;
+  }
+
   Future<void> _carregarCacheLocal({String? activeIdosoId}) async {
     final prefs = await SharedPreferences.getInstance();
-    final data =
-        prefs.getString(_lembretesCacheKey(activeIdosoId)) ??
-        prefs.getString('lembretes');
-    if (data != null) {
-      final list = jsonDecode(data) as List;
-      final lembretes = list
-          .map((item) => Lembrete.fromJson(item as Map<String, dynamic>))
-          .where(
-            (lembrete) =>
-                activeIdosoId == null ||
-                lembrete.idosoId == null ||
-                lembrete.idosoId == activeIdosoId,
-          );
+    final lembretesCache = await _readListCache([
+      _lembretesCacheKey(activeIdosoId),
+      'lembretes',
+    ], 'lembretes');
+    if (lembretesCache != null) {
+      final lembretes = <Lembrete>[];
+      for (final item in lembretesCache) {
+        try {
+          final lembrete = Lembrete.fromJson(item as Map<String, dynamic>);
+          if (activeIdosoId == null ||
+              lembrete.idosoId == null ||
+              lembrete.idosoId == activeIdosoId) {
+            lembretes.add(lembrete);
+          }
+        } catch (e) {
+          debugPrint('Lembrete local invalido ignorado: $e');
+        }
+      }
       _lembretes
         ..clear()
         ..addAll(lembretes);
@@ -128,25 +160,29 @@ class LembreteService {
 
     await _verificarEFiltrarViradaDoDia();
 
-    final eventosData =
-        prefs.getString(_eventosCacheKey(activeIdosoId)) ??
-        prefs.getString('lembretes_eventos');
-    if (eventosData != null) {
-      final list = jsonDecode(eventosData) as List;
+    final eventosCache = await _readListCache([
+      _eventosCacheKey(activeIdosoId),
+      'lembretes_eventos',
+    ], 'eventos');
+    if (eventosCache != null) {
+      final eventos = <LembreteEvento>[];
+      for (final item in eventosCache) {
+        try {
+          final evento = LembreteEvento.fromJson(
+            item as Map<String, dynamic>,
+          );
+          if (activeIdosoId == null ||
+              evento.idosoId == null ||
+              evento.idosoId == activeIdosoId) {
+            eventos.add(evento);
+          }
+        } catch (e) {
+          debugPrint('Evento local invalido ignorado: $e');
+        }
+      }
       _eventos
         ..clear()
-        ..addAll(
-          list
-              .map(
-                (item) => LembreteEvento.fromJson(item as Map<String, dynamic>),
-              )
-              .where(
-                (evento) =>
-                    activeIdosoId == null ||
-                    evento.idosoId == null ||
-                    evento.idosoId == activeIdosoId,
-              ),
-        );
+        ..addAll(eventos);
     }
 
     eventosNotifier.value = List.from(_eventos);
@@ -217,15 +253,19 @@ class LembreteService {
   }
 
   Future<void> _salvarLembretesLocais() async {
-    final prefs = await SharedPreferences.getInstance();
     final data = jsonEncode(_lembretes.map((l) => l.toJson()).toList());
-    await prefs.setString(_lembretesCacheKey(_loadedIdosoId), data);
+    await SecureCacheService.instance.write(
+      _lembretesCacheKey(_loadedIdosoId),
+      data,
+    );
   }
 
   Future<void> _salvarEventosLocais() async {
-    final prefs = await SharedPreferences.getInstance();
     final data = jsonEncode(_eventos.map((e) => e.toJson()).toList());
-    await prefs.setString(_eventosCacheKey(_loadedIdosoId), data);
+    await SecureCacheService.instance.write(
+      _eventosCacheKey(_loadedIdosoId),
+      data,
+    );
     eventosNotifier.value = List.from(_eventos);
   }
 
@@ -363,7 +403,22 @@ class LembreteService {
     final titulo = lembrete.titulo.isEmpty
         ? lembrete.titulo
         : lembrete.titulo[0].toUpperCase() + lembrete.titulo.substring(1);
-    final novo = lembrete.copyWith(titulo: titulo, idosoId: idosoId);
+    final audioPath = await _uploadAudioIfNeeded(
+      audioPath: lembrete.audioPath,
+      idosoId: idosoId,
+      lembreteId: lembrete.id,
+    );
+    final medicamentoFotoPath = await _uploadMedicationPhotoIfNeeded(
+      photoPath: lembrete.medicamentoFotoPath,
+      idosoId: idosoId,
+      lembreteId: lembrete.id,
+    );
+    final novo = lembrete.copyWith(
+      titulo: titulo,
+      idosoId: idosoId,
+      audioPath: audioPath,
+      medicamentoFotoPath: medicamentoFotoPath,
+    );
 
     _upsertLocal(novo);
     await _salvar();
@@ -375,6 +430,60 @@ class LembreteService {
         novo.toJson(),
       );
     }
+  }
+
+  Future<String?> _uploadAudioIfNeeded({
+    required String? audioPath,
+    required String idosoId,
+    required String lembreteId,
+  }) async {
+    if (audioPath == null || audioPath.isEmpty) return audioPath;
+    if (!_useFirebase || isRemoteAudioPath(audioPath)) return audioPath;
+
+    final file = File(audioPath);
+    if (!await file.exists()) {
+      throw StateError('Arquivo de audio nao encontrado.');
+    }
+
+    final ref = FirebaseStorage.instance
+        .ref()
+        .child('reminder_audio')
+        .child(idosoId)
+        .child('$lembreteId.m4a');
+    final snapshot = await ref.putFile(
+      file,
+      SettableMetadata(contentType: 'audio/mp4'),
+    );
+    return snapshot.ref.getDownloadURL();
+  }
+
+  Future<String?> _uploadMedicationPhotoIfNeeded({
+    required String? photoPath,
+    required String idosoId,
+    required String lembreteId,
+  }) async {
+    if (photoPath == null || photoPath.isEmpty) return photoPath;
+    if (!_useFirebase ||
+        isRemotePath(photoPath) ||
+        photoPath.startsWith('assets/')) {
+      return photoPath;
+    }
+
+    final file = File(photoPath);
+    if (!await file.exists()) {
+      throw StateError('Foto do medicamento nao encontrada.');
+    }
+
+    final ref = FirebaseStorage.instance
+        .ref()
+        .child('reminder_photos')
+        .child(idosoId)
+        .child('$lembreteId.jpg');
+    final snapshot = await ref.putFile(
+      file,
+      SettableMetadata(contentType: 'image/jpeg'),
+    );
+    return snapshot.ref.getDownloadURL();
   }
 
   Future<void> concluir(String id) async {

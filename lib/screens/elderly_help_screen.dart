@@ -8,6 +8,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:path_provider/path_provider.dart';
 import '../theme/app_theme.dart';
 import '../services/message_service.dart';
+import '../services/session_role_service.dart';
 import '../services/tts_service.dart';
 import '../widgets/index.dart';
 
@@ -45,7 +46,9 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
   Future<void> _loadCaregiverInfo() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final idosoId = prefs.getString('paired_idoso_id') ?? 'joao';
+      final idosoId =
+          prefs.getString('paired_idoso_id') ??
+          SessionRoleService.unpairedIdosoId;
       final doc = await FirebaseFirestore.instance
           .collection('idosos')
           .doc(idosoId)
@@ -97,12 +100,17 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
 
   Future<void> _ligarAjudante() async {
     try {
-      TTSService.instance.falar('Ligando para $_caregiverName agora.', caller: this);
-      
+      TTSService.instance.falar(
+        'Ligando para $_caregiverName agora.',
+        caller: this,
+      );
+
       String phone = _caregiverPhone ?? '';
       if (phone.isEmpty) {
         final prefs = await SharedPreferences.getInstance();
-        final idosoId = prefs.getString('paired_idoso_id') ?? 'joao';
+        final idosoId =
+            prefs.getString('paired_idoso_id') ??
+            SessionRoleService.unpairedIdosoId;
         final doc = await FirebaseFirestore.instance
             .collection('idosos')
             .doc(idosoId)
@@ -399,7 +407,8 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                       try {
                         final prefs = await SharedPreferences.getInstance();
                         final idosoId =
-                            prefs.getString('paired_idoso_id') ?? 'joao';
+                            prefs.getString('paired_idoso_id') ??
+                            SessionRoleService.unpairedIdosoId;
 
                         String idosoName = 'Idoso';
                         final doc = await FirebaseFirestore.instance
@@ -566,7 +575,9 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                           ],
                         ),
                         child: Center(
-                          child: _caregiverFoto != null && _caregiverFoto!.isNotEmpty
+                          child:
+                              _caregiverFoto != null &&
+                                  _caregiverFoto!.isNotEmpty
                               ? ClipRRect(
                                   borderRadius: BorderRadius.circular(70),
                                   child: Image.network(
@@ -638,11 +649,17 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
               child: InkWell(
                 borderRadius: BorderRadius.circular(16),
                 onTap: () {
-                  TTSService.instance.falar('Diga o seu recado depois de tocar no botão.', caller: this);
+                  TTSService.instance.falar(
+                    'Diga o seu recado depois de tocar no botão.',
+                    caller: this,
+                  );
                   _enviarMensagemDialog();
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 12),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 24,
+                    horizontal: 12,
+                  ),
                   decoration: BoxDecoration(
                     border: Border.all(
                       color: const Color(0xFF0288D1),
@@ -678,11 +695,17 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
               child: InkWell(
                 borderRadius: BorderRadius.circular(16),
                 onTap: () {
-                  TTSService.instance.falar('Chamando ajuda de emergência! Por favor, aguarde.', caller: this);
+                  TTSService.instance.falar(
+                    'Chamando ajuda de emergência! Por favor, aguarde.',
+                    caller: this,
+                  );
                   Navigator.pushNamed(context, '/emergency-alert');
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 12),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 24,
+                    horizontal: 12,
+                  ),
                   decoration: BoxDecoration(
                     border: Border.all(
                       color: const Color(0xFFC62828),
@@ -725,11 +748,17 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
               child: InkWell(
                 borderRadius: BorderRadius.circular(16),
                 onTap: () {
-                  TTSService.instance.falar('Abrindo seus recados do cuidador.', caller: this);
+                  TTSService.instance.falar(
+                    'Abrindo seus recados do cuidador.',
+                    caller: this,
+                  );
                   Navigator.pushNamed(context, '/messages');
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 12),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 24,
+                    horizontal: 12,
+                  ),
                   decoration: BoxDecoration(
                     border: Border.all(
                       color: const Color(0xFF2E7D32),
@@ -740,7 +769,11 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                   child: const Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.chat_bubble, size: 40, color: Color(0xFF2E7D32)),
+                      Icon(
+                        Icons.chat_bubble,
+                        size: 40,
+                        color: Color(0xFF2E7D32),
+                      ),
                       SizedBox(height: 12),
                       Text(
                         'Ver\nRecados',

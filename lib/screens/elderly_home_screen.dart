@@ -11,8 +11,10 @@ import 'package:flutter/material.dart';
 import '../models/lembrete.dart';
 import '../services/lembrete_service.dart';
 import '../services/location_service.dart';
+import '../services/session_role_service.dart';
 import '../services/tts_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/audio_path_helper.dart';
 import '../utils/period_helper.dart';
 import '../widgets/index.dart';
 
@@ -447,7 +449,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
         style: TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.w900,
-          letterSpacing: 1,
+          letterSpacing: 0,
         ),
       ),
     );
@@ -610,7 +612,9 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
 
   void _showSOSModal() async {
     final prefs = await SharedPreferences.getInstance();
-    final idosoId = prefs.getString('paired_idoso_id') ?? 'joao';
+    final idosoId =
+        prefs.getString('paired_idoso_id') ??
+        SessionRoleService.unpairedIdosoId;
 
     String phone = '';
     try {
@@ -849,9 +853,13 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
 
     if (await canLaunchUrl(smsUri)) {
       await launchUrl(smsUri);
-      final feedback = location.hasLocation
-          ? 'Mensagem de socorro com localizacao enviada para o seu ajudante!'
-          : 'Mensagem de socorro enviada, mas sem localizacao.';
+      const feedback =
+          'O aplicativo de mensagens foi aberto. Toque em enviar para concluir o pedido de ajuda.';
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text(feedback)));
+      }
       TTSService.instance.falar(feedback, caller: this);
     } else {
       if (mounted) {
@@ -1196,7 +1204,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
 
   void _playAudioAsync(String path) async {
     try {
-      await _audioPlayer.play(DeviceFileSource(path));
+      await _audioPlayer.play(audioSourceForPath(path));
     } catch (e) {
       debugPrint('Erro ao reproduzir áudio local: $e');
       if (mounted) {
@@ -1659,21 +1667,28 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                   bottomRight: Radius.circular(14),
                 ),
               ),
-              child: Row(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(barIcon, color: barFg, size: 20),
                   const SizedBox(width: 8),
-                  Text(
-                    barText,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w900,
-                      color: barFg,
-                      letterSpacing: 1.5,
+                    Flexible(
+                      child: Text(
+                        barText,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w900,
+                          color: barFg,
+                          letterSpacing: 0,
+                        ),
+                      ),
                     ),
-                  ),
                 ],
+                ),
               ),
             ),
           ],
@@ -2137,27 +2152,29 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
       child: Row(
         children: [
           const SizedBox(width: 48),
-          const Spacer(),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Lembrete Amigo',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.primary,
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Lembrete Amigo',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primary,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 6),
-              MeExplicaButton(
-                textoExplicacao:
-                    'Olá! Esta é a tela do seu dia. Aqui você vê as tarefas de tomar remédios, beber água, comer ou fazer exercícios. Para falar com o ajudante Alex, aperte o grande círculo azul no meio da tela e fale o que precisa.',
-                onTapped: _stopAllAudioAndTts,
-              ),
-            ],
+                const SizedBox(height: 6),
+                MeExplicaButton(
+                  textoExplicacao:
+                      'Olá! Esta é a tela do seu dia. Aqui você vê as tarefas de tomar remédios, beber água, comer ou fazer exercícios. Para falar com o ajudante Alex, aperte o grande círculo azul no meio da tela e fale o que precisa.',
+                  onTapped: _stopAllAudioAndTts,
+                ),
+              ],
+            ),
           ),
-          const Spacer(),
           GestureDetector(
             onTap: () async {
               _stopAllAudioAndTts();
@@ -2424,7 +2441,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                     style: TextStyle(
                                       fontSize: 15,
                                       fontWeight: FontWeight.w900,
-                                      letterSpacing: 1.3,
+                                      letterSpacing: 0,
                                       color: isHighContrast
                                           ? Colors.black
                                           : categoryColor,
@@ -2619,7 +2636,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                       style: TextStyle(
                                         fontSize: 15,
                                         fontWeight: FontWeight.w900,
-                                        letterSpacing: 1.3,
+                                        letterSpacing: 0,
                                         color: isHighContrast
                                             ? Colors.black
                                             : categoryColor,
@@ -2784,7 +2801,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 6),
           decoration: BoxDecoration(
             color: selected ? AppColors.secondaryContainer : null,
             borderRadius: BorderRadius.circular(16),
@@ -2793,12 +2810,14 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 28, color: itemColor),
-              const SizedBox(height: 4),
+              Icon(icon, size: 24, color: itemColor),
+              const SizedBox(height: 2),
               Text(
                 label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 12,
                   fontWeight: FontWeight.w800,
                   color: itemColor,
                 ),

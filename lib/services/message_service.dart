@@ -1,13 +1,17 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/app_message.dart';
+import '../utils/audio_path_helper.dart';
 import 'offline_sync_service.dart';
+import 'secure_cache_service.dart';
 import 'session_role_service.dart';
 
 class MessageService {
@@ -82,6 +86,8 @@ class MessageService {
           await _saveLocal(idosoId);
           notifier.value = List.from(_messages);
           await OfflineSyncService.instance.syncPendingWrites();
+        }, onError: (Object error, StackTrace stackTrace) {
+          debugPrint('Erro ao escutar mensagens no Firestore: $error');
         });
   }
 
@@ -108,17 +114,47 @@ class MessageService {
     String? nomeIdoso,
   }) async {
     final idosoId = await getActiveIdosoId();
+    final messageId = 'msg_${DateTime.now().microsecondsSinceEpoch}';
+    final storedAudioPath = await _uploadAudioIfNeeded(
+      audioPath: audioPath,
+      idosoId: idosoId,
+      messageId: messageId,
+    );
     final message = AppMessage(
-      id: 'msg_${DateTime.now().microsecondsSinceEpoch}',
+      id: messageId,
       idosoId: idosoId,
       nomeIdoso: nomeIdoso ?? await getActiveIdosoName(),
       senderRole: SessionRoleService.isSupervisor ? 'supervisor' : 'elderly',
       tipo: 'audio',
       texto: fallbackText,
-      audioPath: audioPath,
+      audioPath: storedAudioPath,
       criadoEm: DateTime.now(),
     );
     await saveOutgoing(message);
+  }
+
+  Future<String> _uploadAudioIfNeeded({
+    required String audioPath,
+    required String idosoId,
+    required String messageId,
+  }) async {
+    if (!_useFirebase || isRemoteAudioPath(audioPath)) return audioPath;
+
+    final file = File(audioPath);
+    if (!await file.exists()) {
+      throw StateError('Arquivo de audio nao encontrado.');
+    }
+
+    final ref = FirebaseStorage.instance
+        .ref()
+        .child('message_audio')
+        .child(idosoId)
+        .child('$messageId.m4a');
+    final snapshot = await ref.putFile(
+      file,
+      SettableMetadata(contentType: 'audio/mp4'),
+    );
+    return snapshot.ref.getDownloadURL();
   }
 
   Future<void> saveOutgoing(AppMessage message) async {
@@ -151,28 +187,49 @@ class MessageService {
 
   String _cacheKeyFor(String idosoId) => '$_cachePrefix$idosoId';
 
+  Future<List<dynamic>?> _readListCache(
+    List<String> keys,
+  ) async {
+    for (final key in keys) {
+      final raw = await SecureCacheService.instance.read(key);
+      if (raw == null || raw.isEmpty) continue;
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is List) return decoded;
+        debugPrint('Cache de mensagens em $key nao contem uma lista.');
+      } catch (e) {
+        debugPrint('Cache de mensagens corrompido em $key. Removendo: $e');
+      }
+      await SecureCacheService.instance.delete(key);
+    }
+    return null;
+  }
+
   Future<void> _loadLocal(String idosoId) async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw =
-        prefs.getString(_cacheKeyFor(idosoId)) ??
-        prefs.getString(_legacyCacheKey);
-    if (raw != null) {
-      final list = jsonDecode(raw) as List;
+    final list = await _readListCache([
+      _cacheKeyFor(idosoId),
+      _legacyCacheKey,
+    ]);
+    if (list != null) {
+      final messages = <AppMessage>[];
+      for (final item in list) {
+        try {
+          final message = AppMessage.fromJson(item as Map<String, dynamic>);
+          if (message.idosoId == idosoId) messages.add(message);
+        } catch (e) {
+          debugPrint('Mensagem local invalida ignorada: $e');
+        }
+      }
       _messages
         ..clear()
-        ..addAll(
-          list
-              .map((item) => AppMessage.fromJson(item as Map<String, dynamic>))
-              .where((message) => message.idosoId == idosoId),
-        )
+        ..addAll(messages)
         ..sort((a, b) => b.criadoEm.compareTo(a.criadoEm));
     }
     notifier.value = List.from(_messages);
   }
 
   Future<void> _saveLocal(String idosoId) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
+    await SecureCacheService.instance.write(
       _cacheKeyFor(idosoId),
       jsonEncode(
         _messages

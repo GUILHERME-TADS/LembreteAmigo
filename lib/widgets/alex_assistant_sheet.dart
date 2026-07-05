@@ -4,6 +4,7 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
+import '../services/session_role_service.dart';
 import '../services/tts_service.dart';
 import '../services/lembrete_service.dart';
 import '../models/lembrete.dart';
@@ -299,7 +300,9 @@ class _AlexAssistantSheetState extends State<AlexAssistantSheet> {
   Future<void> _triggerEmergency(String speech) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final idosoId = prefs.getString('paired_idoso_id') ?? 'joao';
+      final idosoId =
+          prefs.getString('paired_idoso_id') ??
+          SessionRoleService.unpairedIdosoId;
 
       String idosoName = 'Idoso';
       final doc = await FirebaseFirestore.instance

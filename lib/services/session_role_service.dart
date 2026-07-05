@@ -4,6 +4,7 @@ class SessionRoleService {
   static const String _roleKey = 'active_user_role';
   static const String elderly = 'elderly';
   static const String supervisor = 'supervisor';
+  static const String unpairedIdosoId = 'idoso_sem_vinculo';
 
   static String? _activeRole;
 
@@ -20,7 +21,9 @@ class SessionRoleService {
 
   static Future<void> setSupervisor() => _setRole(supervisor);
 
-  static Future<String> getActiveIdosoId({String fallback = 'joao'}) async {
+  static Future<String> getActiveIdosoId({
+    String fallback = unpairedIdosoId,
+  }) async {
     if (_activeRole == null) {
       await load();
     }
@@ -36,6 +39,11 @@ class SessionRoleService {
       return supervisorActive ?? elderlyActive ?? fallback;
     }
     return supervisorActive ?? elderlyActive ?? fallback;
+  }
+
+  static Future<String?> getActiveIdosoIdOrNull() async {
+    final idosoId = await getActiveIdosoId(fallback: '');
+    return idosoId.isEmpty ? null : idosoId;
   }
 
   static Future<void> _setRole(String role) async {

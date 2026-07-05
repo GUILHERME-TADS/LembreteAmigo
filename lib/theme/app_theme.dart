@@ -68,7 +68,7 @@ class AppTypography {
     fontSize: 40,
     fontWeight: FontWeight.bold,
     height: 1.2,
-    letterSpacing: -0.01,
+    letterSpacing: 0,
   );
 
   static const headlineLgMobile = TextStyle(
@@ -104,7 +104,7 @@ class AppTypography {
     fontSize: 16,
     fontWeight: FontWeight.bold,
     height: 1.2,
-    letterSpacing: 0.05,
+    letterSpacing: 0,
   );
 
   static const supervisorData = TextStyle(

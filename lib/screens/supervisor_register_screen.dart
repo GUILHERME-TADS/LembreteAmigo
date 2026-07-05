@@ -9,14 +9,16 @@ class SupervisorRegisterScreen extends StatefulWidget {
   const SupervisorRegisterScreen({super.key});
 
   @override
-  State<SupervisorRegisterScreen> createState() => _SupervisorRegisterScreenState();
+  State<SupervisorRegisterScreen> createState() =>
+      _SupervisorRegisterScreenState();
 }
 
 class _SupervisorRegisterScreenState extends State<SupervisorRegisterScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
   bool _isLoading = false;
 
   bool get _useFirebase {
@@ -43,7 +45,10 @@ class _SupervisorRegisterScreenState extends State<SupervisorRegisterScreen> {
     final confirmPassword = _confirmPasswordController.text.trim();
 
     if (_useFirebase) {
-      if (name.isEmpty || email.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
+      if (name.isEmpty ||
+          email.isEmpty ||
+          password.isEmpty ||
+          confirmPassword.isEmpty) {
         _showError('Por favor, preencha todos os campos.');
         return;
       }
@@ -59,19 +64,17 @@ class _SupervisorRegisterScreenState extends State<SupervisorRegisterScreen> {
       setState(() => _isLoading = true);
 
       try {
-        final credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-          email: email,
-          password: password,
-        );
+        final credential = await FirebaseAuth.instance
+            .createUserWithEmailAndPassword(email: email, password: password);
 
         await FirebaseFirestore.instance
             .collection('supervisores')
             .doc(credential.user!.uid)
             .set({
-          'nome': name,
-          'email': email,
-          'criadoEm': DateTime.now().toIso8601String(),
-        });
+              'nome': name,
+              'email': email,
+              'criadoEm': DateTime.now().toIso8601String(),
+            });
 
         if (!mounted) return;
         Navigator.pushReplacementNamed(context, '/registration-success');
@@ -91,8 +94,9 @@ class _SupervisorRegisterScreenState extends State<SupervisorRegisterScreen> {
         if (mounted) setState(() => _isLoading = false);
       }
     } else {
-      // Bypass local
-      Navigator.pushReplacementNamed(context, '/registration-success');
+      _showError(
+        'Cadastro indisponivel. Verifique a configuracao do Firebase e tente novamente.',
+      );
     }
   }
 
@@ -101,7 +105,10 @@ class _SupervisorRegisterScreenState extends State<SupervisorRegisterScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Erro de Cadastro', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Erro de Cadastro',
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
         content: Text(message, style: const TextStyle(fontSize: 18)),
         actions: [
           TextButton(
@@ -127,7 +134,10 @@ class _SupervisorRegisterScreenState extends State<SupervisorRegisterScreen> {
                 children: [
                   IconButton(
                     onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.arrow_back, color: AppColors.primary),
+                    icon: const Icon(
+                      Icons.arrow_back,
+                      color: AppColors.primary,
+                    ),
                   ),
                   const Text(
                     'Cuidador',
@@ -199,34 +209,50 @@ class _SupervisorRegisterScreenState extends State<SupervisorRegisterScreen> {
                       ? const SizedBox(
                           width: 24,
                           height: 24,
-                          child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2),
+                          child: CircularProgressIndicator(
+                            color: AppColors.primary,
+                            strokeWidth: 2,
+                          ),
                         )
                       : const Icon(Icons.person_add),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.secondaryContainer,
                     foregroundColor: AppColors.onSecondaryFixed,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   label: Text(
                     _isLoading ? 'CADASTRANDO...' : 'CRIAR CONTA',
-                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),
               const SizedBox(height: 24),
               Center(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                child: Wrap(
+                  alignment: WrapAlignment.center,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     const Text(
                       'Já possui conta?',
-                      style: TextStyle(fontSize: 18, color: AppColors.onSurfaceVariant),
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: AppColors.onSurfaceVariant,
+                      ),
                     ),
                     TextButton(
                       onPressed: () => Navigator.pop(context),
                       child: const Text(
                         'Fazer login',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.primary),
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        ),
                       ),
                     ),
                   ],

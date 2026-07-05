@@ -373,9 +373,13 @@ class _SupervisorHelpScreenState extends State<SupervisorHelpScreen> {
                                 children: [
                                   Icon(catIcon, color: catColor, size: 28),
                                   const SizedBox(width: 12),
-                                  Text(
-                                    catName,
-                                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: catColor),
+                                  Expanded(
+                                    child: Text(
+                                      catName,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: catColor),
+                                    ),
                                   ),
                                 ],
                               ),
@@ -419,9 +423,13 @@ class _SupervisorHelpScreenState extends State<SupervisorHelpScreen> {
                             children: [
                               Icon(Icons.support_agent, color: AppColors.primary, size: 32),
                               SizedBox(width: 12),
-                              Text(
-                                'Suporte Técnico',
-                                style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.primary),
+                              Expanded(
+                                child: Text(
+                                  'Suporte Técnico',
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.primary),
+                                ),
                               ),
                             ],
                           ),

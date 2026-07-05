@@ -188,6 +188,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       _showError('Por favor, informe seu e-mail corporativo.');
       return;
     }
+    final emailRegex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
+    if (!emailRegex.hasMatch(email)) {
+      _showError('Informe um e-mail válido.');
+      return;
+    }
 
     if (_useFirebase) {
       setState(() => _isLoading = true);
@@ -201,7 +206,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       } on FirebaseAuthException catch (e) {
         String msg = 'Erro ao enviar e-mail de redefinição.';
         if (e.code == 'user-not-found') {
-          msg = 'Este e-mail não está cadastrado em nosso sistema.';
+          msg = 'Se o e-mail estiver cadastrado, você receberá as instruções.';
         } else if (e.code == 'invalid-email') {
           msg = 'E-mail informado é inválido.';
         }
@@ -212,7 +217,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         if (mounted) setState(() => _isLoading = false);
       }
     } else {
-      setState(() => _showSuccess = true);
+      _showError(
+        'Recuperação indisponível. Verifique a configuração do Firebase e tente novamente.',
+      );
     }
   }
 

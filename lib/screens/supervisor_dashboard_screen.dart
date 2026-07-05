@@ -242,26 +242,29 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
 
   Future<void> _enviarReforco(BuildContext context, Lembrete lembrete) async {
     setState(() => _refortIsLoading = true);
-    await Future.delayed(const Duration(milliseconds: 600));
-    if (!context.mounted) return;
-    setState(() => _refortIsLoading = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.volume_up, color: Colors.white),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Reforço sonoro enviado para $_nomeIdoso! Um alerta sonoro foi acionado no dispositivo.',
-              ),
-            ),
-          ],
+    try {
+      await MessageService.instance.sendText(
+        'Reforco do cuidador: $_nomeIdoso, por favor confira agora o lembrete "${lembrete.titulo}".',
+      );
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Reforco enviado como mensagem para o idoso.'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 4),
         ),
-        backgroundColor: Colors.green,
-        duration: const Duration(seconds: 4),
-      ),
-    );
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Nao foi possivel enviar o reforco: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _refortIsLoading = false);
+    }
   }
 
   Widget _buildDrawer(BuildContext context) {
@@ -1373,34 +1376,52 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              status == ReminderStatus.late
-                                  ? 'Atrasado há mais de 5 min!'
-                                  : 'Agendado',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: status == ReminderStatus.late ? AppColors.error : AppColors.outline,
+                            Expanded(
+                              child: Text(
+                                status == ReminderStatus.late
+                                    ? 'Atrasado há mais de 5 min!'
+                                    : 'Agendado',
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: status == ReminderStatus.late
+                                      ? AppColors.error
+                                      : AppColors.outline,
+                                ),
                               ),
                             ),
-                            TextButton.icon(
-                              onPressed: _refortIsLoading
-                                  ? null
-                                  : () => _enviarReforco(context, lembrete),
-                              icon: _refortIsLoading
-                                  ? const SizedBox(
-                                      width: 14,
-                                      height: 14,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
-                                      ),
-                                    )
-                                  : const Icon(Icons.volume_up, size: 16),
-                              label: const Text('Enviar Reforço Sonoro'),
-                              style: TextButton.styleFrom(
-                                foregroundColor: AppColors.primary,
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: TextButton.icon(
+                                onPressed: _refortIsLoading
+                                    ? null
+                                    : () => _enviarReforco(context, lembrete),
+                                icon: _refortIsLoading
+                                    ? const SizedBox(
+                                        width: 14,
+                                        height: 14,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor: AlwaysStoppedAnimation<Color>(
+                                            AppColors.primary,
+                                          ),
+                                        ),
+                                      )
+                                    : const Icon(Icons.volume_up, size: 16),
+                                label: const Text(
+                                  'Enviar Reforço Sonoro',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: AppColors.primary,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                ),
                               ),
                             ),
                           ],
@@ -1523,18 +1544,15 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              'Histórico Recente',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.w700,
-                color: AppColors.onSurface,
-              ),
-            ),
-          ],
+        const Text(
+          'Histórico Recente',
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.w700,
+            color: AppColors.onSurface,
+          ),
         ),
         Container(
           decoration: BoxDecoration(
@@ -1549,14 +1567,19 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      dateHeader,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.onSurfaceVariant,
+                    Expanded(
+                      child: Text(
+                        dateHeader,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.onSurfaceVariant,
+                        ),
                       ),
                     ),
+                    const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 8,

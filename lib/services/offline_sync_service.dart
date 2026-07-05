@@ -4,9 +4,9 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/offline_write.dart';
+import 'secure_cache_service.dart';
 
 class OfflineSyncService {
   OfflineSyncService._();
@@ -32,17 +32,29 @@ class OfflineSyncService {
   }
 
   Future<List<OfflineWrite>> loadQueue() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_queueKey);
+    final raw = await SecureCacheService.instance.read(_queueKey);
     if (raw == null || raw.isEmpty) {
       pendingCount.value = 0;
       return <OfflineWrite>[];
     }
 
-    final list = jsonDecode(raw) as List;
-    final writes = list
-        .map((item) => OfflineWrite.fromJson(item as Map<String, dynamic>))
-        .toList();
+    List<OfflineWrite> writes;
+    try {
+      final list = jsonDecode(raw) as List;
+      writes = <OfflineWrite>[];
+      for (final item in list) {
+        try {
+          writes.add(OfflineWrite.fromJson(item as Map<String, dynamic>));
+        } catch (e) {
+          debugPrint('Escrita offline invalida ignorada: $e');
+        }
+      }
+    } catch (e) {
+      debugPrint('Fila offline corrompida. Removendo cache local: $e');
+      await SecureCacheService.instance.delete(_queueKey);
+      pendingCount.value = 0;
+      return <OfflineWrite>[];
+    }
     pendingCount.value = writes.length;
     return writes;
   }
@@ -198,9 +210,8 @@ class OfflineSyncService {
   }
 
   Future<void> _saveQueue(List<OfflineWrite> queue) async {
-    final prefs = await SharedPreferences.getInstance();
     final raw = jsonEncode(queue.map((write) => write.toJson()).toList());
-    await prefs.setString(_queueKey, raw);
+    await SecureCacheService.instance.write(_queueKey, raw);
     pendingCount.value = queue.length;
   }
 

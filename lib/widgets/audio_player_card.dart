@@ -1,10 +1,10 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:math';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/tts_service.dart';
+import '../utils/audio_path_helper.dart';
 import 'audio_manager.dart';
 import 'alex_avatar.dart';
 
@@ -80,8 +80,10 @@ class _AudioPlayerCardState extends State<AudioPlayerCard>
     super.dispose();
   }
 
-  bool get _hasTts => widget.textsToSpeak != null && widget.textsToSpeak!.isNotEmpty;
-  bool get _hasAudio => widget.audioPath != null;
+  bool get _hasTts =>
+      widget.textsToSpeak != null && widget.textsToSpeak!.isNotEmpty;
+  bool get _hasAudio =>
+      widget.audioPath != null && widget.audioPath!.isNotEmpty;
   bool get _canPlay => _hasTts || _hasAudio;
 
   void _togglePlay() {
@@ -116,8 +118,7 @@ class _AudioPlayerCardState extends State<AudioPlayerCard>
   }
 
   Future<void> _playAudio() async {
-    final file = File(widget.audioPath!);
-    if (!await file.exists()) {
+    if (!await audioPathExists(widget.audioPath!)) {
       AudioManager.stopPlay(audioId);
       debugPrint('Arquivo de áudio não encontrado: ${widget.audioPath}');
       if (mounted) {
@@ -128,7 +129,9 @@ class _AudioPlayerCardState extends State<AudioPlayerCard>
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Áudio não encontrado. Grave o lembrete novamente.'),
+            content: const Text(
+              'Áudio não encontrado. Grave o lembrete novamente.',
+            ),
             backgroundColor: AppColors.error,
           ),
         );
@@ -137,7 +140,7 @@ class _AudioPlayerCardState extends State<AudioPlayerCard>
     }
     try {
       await _audioPlayer.play(
-        DeviceFileSource(widget.audioPath!),
+        audioSourceForPath(widget.audioPath!),
         volume: 1.0,
       );
     } catch (e) {
@@ -216,8 +219,12 @@ class _AudioPlayerCardState extends State<AudioPlayerCard>
                   ),
                 ),
                 Icon(
-                  _isPlaying ? Icons.stop_circle_outlined : Icons.play_circle_fill,
-                  color: _canPlay ? widget.accentColor : AppColors.outlineVariant,
+                  _isPlaying
+                      ? Icons.stop_circle_outlined
+                      : Icons.play_circle_fill,
+                  color: _canPlay
+                      ? widget.accentColor
+                      : AppColors.outlineVariant,
                   size: 40,
                 ),
               ],
@@ -226,9 +233,7 @@ class _AudioPlayerCardState extends State<AudioPlayerCard>
               const SizedBox(height: 16),
               _buildWaveform(),
               const SizedBox(height: 12),
-              const Center(
-                child: AlexAvatar(size: 60, animate: true),
-              ),
+              const Center(child: AlexAvatar(size: 60, animate: true)),
             ],
           ],
         ),
@@ -248,7 +253,8 @@ class _AudioPlayerCardState extends State<AudioPlayerCard>
             children: List.generate(barCount, (i) {
               final seed = (i * 0.7 + i % 3 * 1.3);
               final baseHeight = 0.15 + (sin(seed) * 0.5 + 0.5) * 0.7;
-              final animOffset = sin(_waveController.value * pi * 2 + seed) * 0.3;
+              final animOffset =
+                  sin(_waveController.value * pi * 2 + seed) * 0.3;
               final heightFactor = (baseHeight + animOffset).clamp(0.1, 1.0);
               return Expanded(
                 child: Padding(
@@ -256,7 +262,9 @@ class _AudioPlayerCardState extends State<AudioPlayerCard>
                   child: Container(
                     height: 40 * heightFactor,
                     decoration: BoxDecoration(
-                      color: widget.accentColor.withValues(alpha: 0.4 + heightFactor * 0.6),
+                      color: widget.accentColor.withValues(
+                        alpha: 0.4 + heightFactor * 0.6,
+                      ),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),

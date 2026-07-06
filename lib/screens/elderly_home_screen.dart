@@ -55,8 +55,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
   bool _isProcessingAction = false;
   int _welfareStep = 0;
   String _selectedMood = '';
-  bool _hasSpokenWelfareGreeting = false;
-  String _idosoNomeCheckin = 'João';
+  String _idosoNomeCheckin = '';
   String? _fotoPath;
   AnimationController? _pulseController;
   Animation<double>? _pulseAnimation;
@@ -302,23 +301,56 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
       } catch (_) {}
     }
 
+    if (name.isEmpty) {
+      try {
+        final idosoId = await SessionRoleService.getActiveIdosoId();
+        if (idosoId.isNotEmpty && idosoId != 'idoso_autonomo' && Firebase.apps.isNotEmpty) {
+          final docIdoso = await FirebaseFirestore.instance
+              .collection('idosos')
+              .doc(idosoId)
+              .get();
+          if (docIdoso.exists && docIdoso.data() != null) {
+            final rawName = docIdoso.data()?['nome']?.toString() ?? '';
+            if (rawName.isNotEmpty && rawName != 'Não cadastrado') {
+              name = rawName.split(' ').first;
+              final Map<String, dynamic> localData = jsonStr != null 
+                  ? jsonDecode(jsonStr) 
+                  : <String, dynamic>{};
+              localData['nome'] = rawName;
+              await prefs.setString('idoso_perfil', jsonEncode(localData));
+            }
+          }
+          
+          if (name.isEmpty) {
+            final docPerfil = await FirebaseFirestore.instance
+                .collection('idoso_perfil')
+                .doc(idosoId)
+                .get();
+            if (docPerfil.exists && docPerfil.data() != null) {
+              final rawName = docPerfil.data()?['nome']?.toString() ?? '';
+              if (rawName.isNotEmpty && rawName != 'Não cadastrado') {
+                name = rawName.split(' ').first;
+                final Map<String, dynamic> localData = jsonStr != null 
+                    ? jsonDecode(jsonStr) 
+                    : <String, dynamic>{};
+                localData['nome'] = rawName;
+                await prefs.setString('idoso_perfil', jsonEncode(localData));
+              }
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('Erro ao buscar nome do idoso no Firestore: $e');
+      }
+    }
+
     if (mounted) {
       setState(() {
-        _idosoNomeCheckin = name;
+        if (name.isNotEmpty) {
+          _idosoNomeCheckin = name;
+        }
         _showWelfareCheckin = (lastCheckin != today);
       });
-
-      if (_showWelfareCheckin && !_hasSpokenWelfareGreeting) {
-        _hasSpokenWelfareGreeting = true;
-        final greetingText = _idosoNomeCheckin.trim().isEmpty
-            ? 'Como você está hoje? Selecione uma das opções na tela.'
-            : '$_idosoNomeCheckin, como você está hoje? Selecione uma das opções na tela.';
-        Future.delayed(const Duration(milliseconds: 800), () {
-          if (mounted && _showWelfareCheckin && _welfareStep == 0) {
-            TTSService.instance.falar(greetingText, caller: this);
-          }
-        });
-      }
     }
   }
 
@@ -330,10 +362,6 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
           _welfareStep = 1;
         });
       }
-      final detailQuestion = emotion == 'Preciso de ajuda'
-          ? 'O que está acontecendo? Selecione uma das opções na tela.'
-          : 'O que você está sentindo? Selecione uma das opções na tela.';
-      await TTSService.instance.falar(detailQuestion, caller: this);
       return;
     }
 

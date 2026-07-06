@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_theme.dart';
 import 'package:firebase_core/firebase_core.dart';
 import '../services/session_role_service.dart';
+import '../widgets/index.dart';
 
 class EmergencyAlertScreen extends StatefulWidget {
   const EmergencyAlertScreen({super.key});
@@ -91,6 +92,7 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
           child: Column(
             children: [
+              const VolumeWarningBanner(),
               _buildTopBar(context),
               _buildStatusBar(),
               const SizedBox(height: 24),

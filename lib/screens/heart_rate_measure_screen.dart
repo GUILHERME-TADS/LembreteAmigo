@@ -533,241 +533,245 @@ class _HeartRateMeasureScreenState extends State<HeartRateMeasureScreen>
 
             // Corpo Principal
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    // Instrução visual do topo
-                    Card(
-                      elevation: 0,
-                      color: _isFingerDetected
-                          ? AppColors.tertiaryFixed.withValues(alpha: 0.3)
-                          : AppColors.secondaryFixed.withValues(alpha: 0.3),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        side: BorderSide(
-                          color: _isFingerDetected
-                              ? AppColors.onTertiaryFixedVariant
-                              : AppColors.onSecondaryFixedVariant,
-                          width: 2,
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+                  child: Column(
+                    children: [
+                      // Instrução visual do topo
+                      Card(
+                        elevation: 0,
+                        color: _isFingerDetected
+                            ? AppColors.tertiaryFixed.withValues(alpha: 0.3)
+                            : AppColors.secondaryFixed.withValues(alpha: 0.3),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          side: BorderSide(
+                            color: _isFingerDetected
+                                ? AppColors.onTertiaryFixedVariant
+                                : AppColors.onSecondaryFixedVariant,
+                            width: 2,
+                          ),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(20.0),
+                          child: Row(
+                            children: [
+                              Icon(
+                                _isFingerDetected
+                                    ? Icons.check_circle
+                                    : Icons.info,
+                                size: 40,
+                                color: _isFingerDetected
+                                    ? AppColors.onTertiaryFixedVariant
+                                    : AppColors.onSecondaryFixedVariant,
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Text(
+                                  _isFingerDetected
+                                      ? 'Dedo detectado! Fique firme e silencioso.'
+                                      : 'Coloque a ponta do indicador cobrindo a câmera e o flash.',
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w700,
+                                    color: _isFingerDetected
+                                        ? AppColors.onTertiaryFixedVariant
+                                        : AppColors.onSecondaryFixedVariant,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(20.0),
-                        child: Row(
-                          children: [
-                            Icon(
-                              _isFingerDetected
-                                  ? Icons.check_circle
-                                  : Icons.info,
-                              size: 40,
-                              color: _isFingerDetected
-                                  ? AppColors.onTertiaryFixedVariant
-                                  : AppColors.onSecondaryFixedVariant,
+                      const SizedBox(height: 24),
+
+                      // Área central do coração pulsante
+                      Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          // Círculo de Progresso Externo
+                          SizedBox(
+                            width: 200,
+                            height: 200,
+                            child: CircularProgressIndicator(
+                              value: _isCameraInitialized ? _progress : null,
+                              strokeWidth: 10,
+                              backgroundColor: AppColors.outlineVariant
+                                  .withValues(alpha: 0.5),
+                              valueColor: const AlwaysStoppedAnimation<Color>(
+                                Colors.redAccent,
+                              ),
                             ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Text(
-                                _isFingerDetected
-                                    ? 'Dedo detectado! Fique firme e silencioso.'
-                                    : 'Coloque a ponta do indicador cobrindo a câmera e o flash.',
+                          ),
+                          // Coração Animado
+                          ScaleTransition(
+                            scale: _pulseAnimation,
+                            child: Container(
+                              width: 130,
+                              height: 130,
+                              decoration: const BoxDecoration(
+                                color: Colors.redAccent,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.redAccent,
+                                    blurRadius: 15,
+                                    spreadRadius: 2,
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(
+                                    Icons.favorite,
+                                    color: Colors.white,
+                                    size: 48,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _bpm > 0 ? '$_bpm' : '--',
+                                    style: const TextStyle(
+                                      fontSize: 32,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  const Text(
+                                    'Batimentos',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white70,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Gráfico do sinal PPG
+                      if (_isFingerDetected && _measurements.length >= 2)
+                        Container(
+                          height: 100,
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: AppColors.outlineVariant),
+                          ),
+                          child: CustomPaint(
+                            painter: PPGPainter(
+                              _measurements,
+                              threshold,
+                              minVal,
+                              maxVal,
+                            ),
+                          ),
+                        )
+                      else
+                        Container(
+                          height: 100,
+                          width: double.infinity,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceContainerLow,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: AppColors.outlineVariant,
+                              style: BorderStyle.solid,
+                            ),
+                          ),
+                          child: const Text(
+                            'Esperando colocar o dedo...',
+                            style: TextStyle(
+                              fontSize: 18,
+                              color: AppColors.onSurfaceVariant,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      const SizedBox(height: 24),
+
+                      // Barra de progresso inferior ou resultado
+                      if (_isFinished) ...[
+                        Text(
+                          'Medição concluída: $_bpm batimentos por minuto',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        // Botão voltar final
+                        SizedBox(
+                          width: double.infinity,
+                          height: 64,
+                          child: ElevatedButton.icon(
+                            onPressed: () => Navigator.pop(context),
+                            icon: const Icon(Icons.arrow_back),
+                            label: const Text(
+                              'Voltar para Ajuda',
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: AppColors.onPrimary,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ] else ...[
+                        Text(
+                          'Progresso da Medição: ${(_progress * 100).toInt()}%',
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.onSurfaceVariant,
+                          ),
+                        ),
+                        if (_unstableSignalCount >= 1) ...[
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 72,
+                            child: ElevatedButton.icon(
+                              onPressed: _showManualInputDialog,
+                              icon: const Icon(Icons.keyboard, size: 28),
+                              label: const Text(
+                                'DIGITAR MANUALMENTE',
                                 style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w700,
-                                  color: _isFingerDetected
-                                      ? AppColors.onTertiaryFixedVariant
-                                      : AppColors.onSecondaryFixedVariant,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.secondaryContainer,
+                                foregroundColor: AppColors.onSecondaryContainer,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
                                 ),
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    // Área central do coração pulsante
-                    Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        // Círculo de Progresso Externo
-                        SizedBox(
-                          width: 200,
-                          height: 200,
-                          child: CircularProgressIndicator(
-                            value: _isCameraInitialized ? _progress : null,
-                            strokeWidth: 10,
-                            backgroundColor: AppColors.outlineVariant
-                                .withValues(alpha: 0.5),
-                            valueColor: const AlwaysStoppedAnimation<Color>(
-                              Colors.redAccent,
-                            ),
                           ),
-                        ),
-                        // Coração Animado
-                        ScaleTransition(
-                          scale: _pulseAnimation,
-                          child: Container(
-                            width: 130,
-                            height: 130,
-                            decoration: const BoxDecoration(
-                              color: Colors.redAccent,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.redAccent,
-                                  blurRadius: 15,
-                                  spreadRadius: 2,
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(
-                                  Icons.favorite,
-                                  color: Colors.white,
-                                  size: 48,
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  _bpm > 0 ? '$_bpm' : '--',
-                                  style: const TextStyle(
-                                    fontSize: 32,
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                 const Text(
-                                   'Batimentos',
-                                   style: TextStyle(
-                                     fontSize: 12,
-                                     fontWeight: FontWeight.bold,
-                                     color: Colors.white70,
-                                   ),
-                                 ),
-                              ],
-                            ),
-                          ),
-                        ),
+                        ],
                       ],
-                    ),
-
-                    // Gráfico do sinal PPG
-                    if (_isFingerDetected && _measurements.length >= 2)
-                      Container(
-                        height: 100,
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        decoration: BoxDecoration(
-                          color: AppColors.surface,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppColors.outlineVariant),
-                        ),
-                        child: CustomPaint(
-                          painter: PPGPainter(
-                            _measurements,
-                            threshold,
-                            minVal,
-                            maxVal,
-                          ),
-                        ),
-                      )
-                    else
-                      Container(
-                        height: 100,
-                        width: double.infinity,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: AppColors.surfaceContainerLow,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: AppColors.outlineVariant,
-                            style: BorderStyle.solid,
-                          ),
-                        ),
-                        child: const Text(
-                          'Esperando colocar o dedo...',
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: AppColors.onSurfaceVariant,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-
-                    // Barra de progresso inferior ou resultado
-                    if (_isFinished)
-                       Text(
-                         'Medição concluída: $_bpm batimentos por minuto',
-                         textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.primary,
-                        ),
-                      )
-                     else ...[
-                       Text(
-                         'Progresso da Medição: ${(_progress * 100).toInt()}%',
-                         style: const TextStyle(
-                           fontSize: 22,
-                           fontWeight: FontWeight.w700,
-                           color: AppColors.onSurfaceVariant,
-                         ),
-                       ),
-                       if (_unstableSignalCount >= 1) ...[
-                         const SizedBox(height: 12),
-                         SizedBox(
-                           width: double.infinity,
-                           height: 72,
-                           child: ElevatedButton.icon(
-                             onPressed: _showManualInputDialog,
-                             icon: const Icon(Icons.keyboard, size: 28),
-                             label: const Text(
-                               'DIGITAR MANUALMENTE',
-                               style: TextStyle(
-                                 fontSize: 18,
-                                 fontWeight: FontWeight.w900,
-                               ),
-                             ),
-                             style: ElevatedButton.styleFrom(
-                               backgroundColor: AppColors.secondaryContainer,
-                               foregroundColor: AppColors.onSecondaryContainer,
-                               shape: RoundedRectangleBorder(
-                                 borderRadius: BorderRadius.circular(16),
-                               ),
-                             ),
-                           ),
-                         ),
-                       ],
-                     ],
-
-                    // Botão voltar final
-                    if (_isFinished)
-                      SizedBox(
-                        width: double.infinity,
-                        height: 64,
-                        child: ElevatedButton.icon(
-                          onPressed: () => Navigator.pop(context),
-                          icon: const Icon(Icons.arrow_back),
-                          label: const Text(
-                            'Voltar para Ajuda',
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: AppColors.onPrimary,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

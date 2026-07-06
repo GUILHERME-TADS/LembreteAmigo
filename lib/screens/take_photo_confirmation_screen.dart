@@ -296,8 +296,8 @@ class _TakePhotoConfirmationScreenState
             children: [
               Column(
                 children: [
-                  _buildTopBar(context),
                   const VolumeWarningBanner(),
+                  _buildTopBar(context),
                   const MeExplicaButton(
                     textoExplicacao:
                         'Olá! Esta é a tela para tirar foto. Mostre a tarefa que você fez para a câmera e aperte o botão redondo no meio para tirar a foto. Se a foto ficar boa, aperte o botão de Confirmar.',

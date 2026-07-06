@@ -471,8 +471,8 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            _buildTopBar(context),
             const VolumeWarningBanner(),
+            _buildTopBar(context),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),

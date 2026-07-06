@@ -2366,8 +2366,8 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
           body: SafeArea(
             child: Column(
               children: [
-                _buildTopBar(),
                 const VolumeWarningBanner(),
+                _buildTopBar(),
                 const DeviceBarrierBanner(),
                 Expanded(
                   child: SingleChildScrollView(

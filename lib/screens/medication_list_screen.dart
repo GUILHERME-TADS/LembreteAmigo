@@ -95,8 +95,8 @@ class _MedicationListScreenState extends State<MedicationListScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            _buildTopBar(context),
             const VolumeWarningBanner(),
+            _buildTopBar(context),
             Expanded(
               child: ValueListenableBuilder<List<Lembrete>>(
                 valueListenable: _service.notifier,

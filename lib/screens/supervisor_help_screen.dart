@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_theme.dart';
 import '../widgets/supervisor_bottom_nav.dart';
+import '../widgets/supervisor_drawer.dart';
 
 class FAQItem {
   final String category;
@@ -246,6 +247,7 @@ class _SupervisorHelpScreenState extends State<SupervisorHelpScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      drawer: const SupervisorDrawer(currentRoute: '/supervisor-help'),
       bottomNavigationBar: const SupervisorBottomNav(selected: SupervisorNavDestination.help),
       body: SafeArea(
         child: Column(
@@ -498,42 +500,46 @@ class _SupervisorHelpScreenState extends State<SupervisorHelpScreen> {
   }
 
   Widget _buildTopBar(BuildContext context) {
-    return Container(
-      height: 64,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        border: Border(bottom: BorderSide(color: AppColors.outlineVariant)),
-      ),
-      child: Row(
-        children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back, color: AppColors.primary, size: 32),
-            onPressed: () => Navigator.pop(context),
+    return Builder(
+      builder: (context) {
+        return Container(
+          height: 64,
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          decoration: const BoxDecoration(
+            color: AppColors.surface,
+            border: Border(bottom: BorderSide(color: AppColors.outlineVariant)),
           ),
-          const Expanded(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.health_and_safety, size: 32, color: AppColors.primary),
-                SizedBox(width: 8),
-                Text('Cuidador', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.primary)),
-              ],
-            ),
+          child: Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.menu, color: AppColors.primary, size: 32),
+                onPressed: () => Scaffold.of(context).openDrawer(),
+              ),
+              const Expanded(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.health_and_safety, size: 32, color: AppColors.primary),
+                    SizedBox(width: 8),
+                    Text('Cuidador', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.primary)),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                width: 48,
+                height: 48,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.fromBorderSide(BorderSide(color: AppColors.primaryContainer, width: 2)),
+                ),
+                child: const Icon(Icons.person, color: AppColors.primaryContainer),
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
-          Container(
-            width: 48,
-            height: 48,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.fromBorderSide(BorderSide(color: AppColors.primaryContainer, width: 2)),
-            ),
-            child: const Icon(Icons.person, color: AppColors.primaryContainer),
-          ),
-        ],
-      ),
+        );
+      }
     );
   }
 }

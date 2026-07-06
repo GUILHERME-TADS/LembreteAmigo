@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
 import '../services/session_role_service.dart';
 import '../widgets/senior_button.dart';
@@ -16,40 +15,12 @@ class SupervisorLoginScreen extends StatefulWidget {
 class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
   bool _obscurePassword = true;
   bool _isLoading = false;
-  bool _rememberMe = false;
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _loadRemembered();
-  }
-
-  Future<void> _loadRemembered() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final remember = prefs.getBool('remember_supervisor') ?? false;
-      if (remember) {
-        final email = prefs.getString('remembered_email') ?? '';
-        setState(() {
-          _rememberMe = true;
-          _emailController.text = email;
-        });
-      }
-    } catch (_) {}
-  }
-
-  Future<void> _saveRemembered() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('remember_supervisor', _rememberMe);
-      if (_rememberMe) {
-        await prefs.setString('remembered_email', _emailController.text.trim());
-      } else {
-        await prefs.remove('remembered_email');
-      }
-    } catch (_) {}
   }
 
   bool get _useFirebase {
@@ -82,8 +53,6 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      await _saveRemembered();
-
       if (_useFirebase) {
         await FirebaseAuth.instance.signInWithEmailAndPassword(
           email: email,
@@ -311,42 +280,7 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16),
-                      GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _rememberMe = !_rememberMe;
-                          });
-                        },
-                        child: Row(
-                          children: [
-                            Checkbox(
-                              value: _rememberMe,
-                              onChanged: (val) {
-                                setState(() {
-                                  _rememberMe = val ?? false;
-                                });
-                              },
-                              activeColor: AppColors.primary,
-                            ),
-                            const SizedBox(width: 8),
-                            const Expanded(
-                              child: Text(
-                                'Lembrar neste dispositivo',
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w400,
-                                  height: 1.6,
-                                  color: AppColors.onSurfaceVariant,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 32),
+                      const SizedBox(height: 24),
                       SizedBox(
                         width: double.infinity,
                         height: 64,

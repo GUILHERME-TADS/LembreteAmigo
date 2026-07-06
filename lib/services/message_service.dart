@@ -237,6 +237,7 @@ class MessageService {
   }
 
   Future<void> _loadLocal(String idosoId) async {
+    if (SessionRoleService.isSupervisor) return;
     final list = await _readListCache([
       _cacheKeyFor(idosoId),
       _legacyCacheKey,
@@ -260,6 +261,7 @@ class MessageService {
   }
 
   Future<void> _saveLocal(String idosoId) async {
+    if (SessionRoleService.isSupervisor) return;
     await SecureCacheService.instance.write(
       _cacheKeyFor(idosoId),
       jsonEncode(

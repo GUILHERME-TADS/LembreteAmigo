@@ -186,6 +186,7 @@ class LembreteService {
   }
 
   Future<void> _carregarCacheLocal({String? activeIdosoId}) async {
+    if (SessionRoleService.isSupervisor) return;
     final lembretesCache = await _readListCache([
       _lembretesCacheKey(activeIdosoId),
       'lembretes',
@@ -241,6 +242,7 @@ class LembreteService {
   }
 
   Future<void> _verificarEFiltrarViradaDoDia() async {
+    if (SessionRoleService.isSupervisor) return;
     try {
       final prefs = await SharedPreferences.getInstance();
       final hoje = DateTime.now().toIso8601String().substring(0, 10);
@@ -319,6 +321,7 @@ class LembreteService {
   }
 
   Future<void> _salvarLembretesLocais() async {
+    if (SessionRoleService.isSupervisor) return;
     final data = jsonEncode(_lembretes.map((l) => l.toJson()).toList());
     await SecureCacheService.instance.write(
       _lembretesCacheKey(_loadedIdosoId),
@@ -327,6 +330,7 @@ class LembreteService {
   }
 
   Future<void> _salvarEventosLocais() async {
+    if (SessionRoleService.isSupervisor) return;
     final data = jsonEncode(_eventos.map((e) => e.toJson()).toList());
     await SecureCacheService.instance.write(
       _eventosCacheKey(_loadedIdosoId),
@@ -337,10 +341,18 @@ class LembreteService {
 
   Future<void> _publicarLembretes() async {
     notifier.value = List.from(_lembretes);
-    try {
-      await NotificationService.instance.agendarTodos(_lembretes);
-    } catch (e) {
-      debugPrint('Erro ao reagendar notificacoes: $e');
+    if (!SessionRoleService.isSupervisor) {
+      try {
+        await NotificationService.instance.agendarTodos(_lembretes);
+      } catch (e) {
+        debugPrint('Erro ao reagendar notificacoes: $e');
+      }
+    } else {
+      try {
+        await NotificationService.instance.cancelarTodas();
+      } catch (e) {
+        debugPrint('Erro ao cancelar todas notificacoes: $e');
+      }
     }
     await SmartAlertService.instance.atualizar(_lembretes, eventos: _eventos);
   }

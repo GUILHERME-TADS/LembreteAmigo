@@ -6,6 +6,7 @@ import '../theme/app_theme.dart';
 import '../models/lembrete.dart';
 import '../services/lembrete_service.dart';
 import '../widgets/supervisor_bottom_nav.dart';
+import '../widgets/supervisor_drawer.dart';
 
 class ActivityHistoryScreen extends StatefulWidget {
   const ActivityHistoryScreen({super.key});
@@ -201,6 +202,7 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      drawer: const SupervisorDrawer(currentRoute: '/activity-history'),
       bottomNavigationBar: const SupervisorBottomNav(
         selected: SupervisorNavDestination.history,
       ),
@@ -519,36 +521,40 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
   }
 
   Widget _buildTopBar(BuildContext context) {
-    return Container(
-      height: 64,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        border: Border(bottom: BorderSide(color: AppColors.outlineVariant)),
-      ),
-      child: Row(
-        children: [
-          IconButton(
-            onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.arrow_back, color: AppColors.primary),
+    return Builder(
+      builder: (context) {
+        return Container(
+          height: 64,
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          decoration: const BoxDecoration(
+            color: AppColors.surface,
+            border: Border(bottom: BorderSide(color: AppColors.outlineVariant)),
           ),
-          const Expanded(
-            child: Text(
-              'Lembrete Amigo',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.primary),
-            ),
+          child: Row(
+            children: [
+              IconButton(
+                onPressed: () => Scaffold.of(context).openDrawer(),
+                icon: const Icon(Icons.menu, color: AppColors.primary, size: 32),
+              ),
+              const Expanded(
+                child: Text(
+                  'Lembrete Amigo',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.primary),
+                ),
+              ),
+              Container(
+                width: 40, height: 40,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.surfaceContainerHigh,
+                ),
+                child: const Icon(Icons.person, size: 20),
+              ),
+            ],
           ),
-          Container(
-            width: 40, height: 40,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.surfaceContainerHigh,
-            ),
-            child: const Icon(Icons.person, size: 20),
-          ),
-        ],
-      ),
+        );
+      }
     );
   }
 

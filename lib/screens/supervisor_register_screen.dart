@@ -67,6 +67,10 @@ class _SupervisorRegisterScreenState extends State<SupervisorRegisterScreen> {
         final credential = await FirebaseAuth.instance
             .createUserWithEmailAndPassword(email: email, password: password);
 
+        try {
+          await credential.user!.updateDisplayName(name);
+        } catch (_) {}
+
         await FirebaseFirestore.instance
             .collection('supervisores')
             .doc(credential.user!.uid)
@@ -137,16 +141,32 @@ class _SupervisorRegisterScreenState extends State<SupervisorRegisterScreen> {
                     icon: const Icon(
                       Icons.arrow_back,
                       color: AppColors.primary,
+                      size: 32,
                     ),
                   ),
-                  const Text(
-                    'Cuidador',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
-                    ),
+                  const Spacer(),
+                  const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.health_and_safety,
+                        size: 40,
+                        color: AppColors.primary,
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        'Cuidador',
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.w800,
+                          height: 1.2,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
                   ),
+                  const Spacer(),
+                  const SizedBox(width: 48),
                 ],
               ),
               const SizedBox(height: 24),

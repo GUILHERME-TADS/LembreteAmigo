@@ -37,12 +37,12 @@ class SessionRoleService {
     final elderlyActive = prefs.getString('paired_idoso_id');
 
     if (isElderly) {
-      return elderlyActive ?? supervisorActive ?? fallback;
+      return elderlyActive ?? fallback;
     }
     if (isSupervisor) {
-      return supervisorActive ?? elderlyActive ?? fallback;
+      return supervisorActive ?? fallback;
     }
-    return supervisorActive ?? elderlyActive ?? fallback;
+    return fallback;
   }
 
   static Future<String?> getActiveIdosoIdOrNull() async {
@@ -56,12 +56,6 @@ class SessionRoleService {
     await prefs.remove(_roleKey);
     await prefs.remove('selected_idoso_id');
     await prefs.remove('smart_alert_notified_keys');
-    
-    // Se o aparelho já possuía um idoso pareado, restaura o papel de idoso automaticamente
-    final pairedIdoso = prefs.getString('paired_idoso_id');
-    if (pairedIdoso != null) {
-      await _setRole(elderly);
-    }
   }
 
   static Future<void> exitElderlyModeOnly() async {

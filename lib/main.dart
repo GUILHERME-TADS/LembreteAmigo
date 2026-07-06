@@ -10,7 +10,6 @@ import 'models/lembrete.dart';
 import 'screens/active_reminder_screen.dart';
 import 'screens/activity_history_screen.dart';
 import 'screens/all_reminders_screen.dart';
-import 'screens/detailed_history_screen.dart';
 import 'screens/edit_profile_screen.dart';
 import 'screens/elderly_help_screen.dart';
 import 'screens/elderly_home_screen.dart';
@@ -32,7 +31,6 @@ import 'screens/postpone_confirmation_screen.dart';
 import 'screens/recording_audio_screen.dart';
 import 'screens/register_elderly_screen.dart';
 import 'screens/registration_success_screen.dart';
-import 'screens/connected_settings_screen.dart';
 import 'screens/supervisor_dashboard_screen.dart';
 import 'screens/supervisor_help_screen.dart';
 import 'screens/supervisor_login_screen.dart';
@@ -47,6 +45,7 @@ import 'services/offline_sync_service.dart';
 import 'services/session_role_service.dart';
 import 'services/tts_service.dart';
 import 'theme/app_theme.dart';
+import 'widgets/index.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 final _RouteTracker _routeTracker = _RouteTracker();
@@ -78,7 +77,6 @@ bool isSupervisorProtectedRoute(String routeName) {
   const supervisorRoutes = {
     '/supervisor-dashboard',
     '/supervisor-settings',
-    '/connected-settings',
     '/supervisor-help',
     '/register-elderly',
     '/detailed-history',
@@ -540,9 +538,7 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
           case '/supervisor-settings':
             page = const SupervisorSettingsScreen();
             break;
-          case '/connected-settings':
-            page = const ConnectedSettingsScreen();
-            break;
+
           case '/supervisor-help':
             page = const SupervisorHelpScreen();
             break;
@@ -550,7 +546,7 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
             page = const RegisterElderlyScreen();
             break;
           case '/detailed-history':
-            page = const DetailedHistoryScreen();
+            page = const ActivityHistoryScreen();
             break;
           case '/monthly-reports':
             page = const MonthlyReportsScreen();
@@ -563,6 +559,9 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
             break;
           case '/emergency-alert':
             page = const EmergencyAlertScreen();
+            break;
+          case '/welcome':
+            page = const WelcomeScreen();
             break;
 
           default:
@@ -608,20 +607,51 @@ class _AppStartupState extends State<_AppStartup> {
             (route) => false,
             arguments: {'connected': isPaired},
           );
-          return;
+        } else {
+          navigatorKey.currentState?.pushNamedAndRemoveUntil(
+            '/elderly-onboarding',
+            (route) => false,
+          );
         }
+        return;
       } else if (SessionRoleService.isSupervisor) {
         if (hasSupervisorAuthSession()) {
           navigatorKey.currentState?.pushNamedAndRemoveUntil(
             '/supervisor-dashboard',
             (route) => false,
           );
-          return;
+        } else {
+          navigatorKey.currentState?.pushNamedAndRemoveUntil(
+            '/supervisor-login',
+            (route) => false,
+          );
         }
+        return;
       }
+
+      navigatorKey.currentState?.pushNamedAndRemoveUntil(
+        '/welcome',
+        (route) => false,
+      );
     });
   }
 
   @override
-  Widget build(BuildContext context) => const WelcomeScreen();
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      backgroundColor: AppColors.background,
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AlexAvatar(size: 120),
+            SizedBox(height: 32),
+            CircularProgressIndicator(
+              color: AppColors.primary,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

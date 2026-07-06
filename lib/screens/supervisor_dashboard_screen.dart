@@ -3,7 +3,6 @@ import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -23,6 +22,7 @@ import '../theme/app_theme.dart';
 import '../widgets/audio_player_card.dart';
 import '../widgets/reminder_with_audio.dart';
 import '../widgets/supervisor_bottom_nav.dart';
+import '../widgets/supervisor_drawer.dart';
 import 'photo_gallery_screen.dart';
 
 class SupervisorDashboardScreen extends StatefulWidget {
@@ -128,6 +128,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       });
     }
   }
+
+
 
   @override
   void initState() {
@@ -320,123 +322,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     }
   }
 
-  Widget _buildDrawer(BuildContext context) {
-    return Drawer(
-      backgroundColor: AppColors.background,
-      child: Column(
-        children: [
-          UserAccountsDrawerHeader(
-            decoration: const BoxDecoration(
-              color: AppColors.primary,
-            ),
-            accountName: const Text(
-              'Cuidador',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 22,
-                color: Colors.white,
-              ),
-            ),
-            accountEmail: const Text(
-              'supervisor@lembreteamigo.com',
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: 14,
-              ),
-            ),
-            currentAccountPicture: Container(
-              decoration: const BoxDecoration(
-                color: AppColors.surface,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.person, color: AppColors.primary, size: 40),
-            ),
-          ),
-          Expanded(
-            child: ListView(
-              padding: EdgeInsets.zero,
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.home, color: AppColors.primary),
-                  title: const Text('Painel Inicial', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  onTap: () => Navigator.pop(context),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.person_add, color: AppColors.primary),
-                  title: const Text('Cadastrar/Emparelhar Idoso', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  onTap: () async {
-                    Navigator.pop(context);
-                    await Navigator.pushNamed(context, '/register-elderly');
-                    _checkConnectionAndInit();
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.forum, color: AppColors.primary),
-                  title: const Text('Recados', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.pushNamed(context, '/messages');
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.analytics, color: AppColors.primary),
-                  title: const Text('Relatórios Mensais', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.pushNamed(context, '/monthly-reports');
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.history, color: AppColors.primary),
-                  title: const Text('Histórico Detalhado', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.pushNamed(context, '/activity-history');
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.settings, color: AppColors.primary),
-                  title: const Text('Configurações', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.pushNamed(context, '/supervisor-settings');
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.help, color: AppColors.primary),
-                  title: const Text('Ajuda', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.pushNamed(context, '/supervisor-help');
-                  },
-                ),
-              ],
-            ),
-          ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.logout, color: AppColors.error),
-            title: const Text('Sair da Conta', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.error)),
-            onTap: () async {
-              Navigator.pop(context);
-              try {
-                if (Firebase.apps.isNotEmpty) {
-                  await FirebaseAuth.instance.signOut();
-                }
-              } catch (_) {}
-              await SessionRoleService.logout();
-              await LembreteService.instance.reset();
-              await MessageService.instance.reset();
-              if (context.mounted) {
-                Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
-              }
-            },
-          ),
-          const SizedBox(height: 24),
-        ],
-      ),
-    );
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -452,7 +338,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: AppColors.background,
-      drawer: _buildDrawer(context),
+      drawer: const SupervisorDrawer(currentRoute: '/supervisor-dashboard'),
       bottomNavigationBar: const SupervisorBottomNav(
         selected: SupervisorNavDestination.home,
       ),
@@ -599,11 +485,10 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       ),
       child: Row(
         children: [
-          GestureDetector(
-            onTap: () => _scaffoldKey.currentState?.openDrawer(),
-            child: const Icon(Icons.menu, color: AppColors.primary, size: 30),
+          IconButton(
+            onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+            icon: const Icon(Icons.menu, color: AppColors.primary, size: 32),
           ),
-          const SizedBox(width: 16),
           const Expanded(
             child: Text(
               'Lembrete Amigo',

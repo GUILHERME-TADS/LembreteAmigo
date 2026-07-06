@@ -61,7 +61,7 @@ class SupervisorBottomNav extends StatelessWidget {
                 selected: selected == SupervisorNavDestination.history,
                 onTap: selected == SupervisorNavDestination.history
                     ? null
-                    : () => Navigator.pushNamed(context, '/detailed-history'),
+                    : () => Navigator.pushNamed(context, '/activity-history'),
               ),
               _SupervisorNavItem(
                 icon: Icons.help_center,

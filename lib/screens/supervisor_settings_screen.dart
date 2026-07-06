@@ -1,7 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import '../theme/app_theme.dart';
 import '../services/session_role_service.dart';
 import '../services/lembrete_service.dart';
@@ -15,7 +18,9 @@ class SupervisorSettingsScreen extends StatefulWidget {
 }
 
 class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
-  bool _mockLowVolume = false;
+  String _userName = 'Carregando...';
+  String _userEmail = '';
+  String? _fotoPath;
 
   @override
   void initState() {
@@ -24,18 +29,170 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
   }
 
   Future<void> _loadPreferences() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _mockLowVolume = prefs.getBool('mock_low_volume') ?? false;
-    });
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      setState(() {
+        _userEmail = user.email ?? '';
+        _userName = user.displayName ?? 'Supervisor';
+      });
+      try {
+        if (Firebase.apps.isNotEmpty) {
+          final doc = await FirebaseFirestore.instance
+              .collection('supervisores')
+              .doc(user.uid)
+              .get();
+          if (doc.exists && doc.data() != null) {
+            final data = doc.data()!;
+            setState(() {
+              _userName = data['nome'] ?? _userName;
+              _fotoPath = data['fotoPath'] as String?;
+            });
+          }
+        }
+      } catch (e) {
+        debugPrint('Erro ao buscar dados do supervisor no Firestore: $e');
+      }
+    }
   }
 
-  Future<void> _toggleMockLowVolume(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('mock_low_volume', value);
-    setState(() {
-      _mockLowVolume = value;
-    });
+  Future<void> _changePhoto() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              const Text(
+                'Alterar Foto de Perfil',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.primary),
+              ),
+              const SizedBox(height: 12),
+              ListTile(
+                leading: const Icon(Icons.photo_camera, color: AppColors.primary),
+                title: const Text('Tirar Foto', style: TextStyle(fontSize: 18)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickAndUploadImage(ImageSource.camera, user.uid);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library, color: AppColors.primary),
+                title: const Text('Escolher da Galeria', style: TextStyle(fontSize: 18)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickAndUploadImage(ImageSource.gallery, user.uid);
+                },
+              ),
+              if (_fotoPath != null && _fotoPath!.isNotEmpty)
+                ListTile(
+                  leading: const Icon(Icons.delete, color: AppColors.error),
+                  title: const Text('Remover Foto', style: TextStyle(fontSize: 18, color: AppColors.error)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _removePhoto(user.uid);
+                  },
+                ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _pickAndUploadImage(ImageSource source, String uid) async {
+    try {
+      final picker = ImagePicker();
+      final image = await picker.pickImage(source: source, maxWidth: 512, maxHeight: 512, imageQuality: 85);
+      if (image == null) return;
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Row(
+            children: [
+              CircularProgressIndicator(color: Colors.white),
+              SizedBox(width: 16),
+              Text('Enviando foto...'),
+            ],
+          )),
+        );
+      }
+
+      final file = File(image.path);
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('profile_photos')
+          .child('supervisor_$uid.jpg');
+
+      await ref.putFile(file);
+      final downloadUrl = await ref.getDownloadURL();
+
+      if (Firebase.apps.isNotEmpty) {
+        await FirebaseFirestore.instance
+            .collection('supervisores')
+            .doc(uid)
+            .set({'fotoPath': downloadUrl}, SetOptions(merge: true));
+      }
+
+      setState(() {
+        _fotoPath = downloadUrl;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Foto de perfil atualizada com sucesso!')),
+        );
+      }
+    } catch (e) {
+      debugPrint('Erro ao atualizar foto do supervisor: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao atualizar foto: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _removePhoto(String uid) async {
+    try {
+      if (Firebase.apps.isNotEmpty) {
+        await FirebaseFirestore.instance
+            .collection('supervisores')
+            .doc(uid)
+            .update({'fotoPath': FieldValue.delete()});
+        
+        try {
+          final ref = FirebaseStorage.instance
+              .ref()
+              .child('profile_photos')
+              .child('supervisor_$uid.jpg');
+          await ref.delete();
+        } catch (_) {}
+      }
+
+      setState(() {
+        _fotoPath = null;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Foto de perfil removida.')),
+        );
+      }
+    } catch (e) {
+      debugPrint('Erro ao remover foto do supervisor: $e');
+    }
   }
 
   @override
@@ -75,90 +232,65 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
                 ),
                 child: Column(
                   children: [
-                    Container(
-                      width: 80, height: 80,
-                      decoration: const BoxDecoration(
-                        color: AppColors.primaryContainer,
-                        shape: BoxShape.circle,
+                    GestureDetector(
+                      onTap: _changePhoto,
+                      child: Stack(
+                        children: [
+                          Container(
+                            width: 80, height: 80,
+                            decoration: BoxDecoration(
+                              color: AppColors.primaryContainer,
+                              shape: BoxShape.circle,
+                              image: _fotoPath != null && _fotoPath!.isNotEmpty
+                                  ? DecorationImage(
+                                      image: NetworkImage(_fotoPath!),
+                                      fit: BoxFit.cover,
+                                    )
+                                  : null,
+                            ),
+                            child: _fotoPath == null || _fotoPath!.isEmpty
+                                ? const Icon(Icons.person, size: 40, color: AppColors.onPrimaryContainer)
+                                : null,
+                          ),
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: const BoxDecoration(
+                                color: AppColors.primary,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.camera_alt, size: 16, color: Colors.white),
+                            ),
+                          ),
+                        ],
                       ),
-                      child: const Icon(Icons.person, size: 40, color: AppColors.onPrimaryContainer),
                     ),
                     const SizedBox(height: 12),
-                    const Text('Maria Oliveira', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.onSurface)),
-                    const Text('maria@exemplo.com', style: TextStyle(fontSize: 16, color: AppColors.onSurfaceVariant)),
+                    Text(
+                      _userName,
+                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.onSurface),
+                    ),
+                    Text(
+                      _userEmail,
+                      style: const TextStyle(fontSize: 16, color: AppColors.onSurfaceVariant),
+                    ),
                   ],
                 ),
               ),
               const SizedBox(height: 24),
-              _settingsGroup('Preferências', [
+              _settingsGroup('Ações e Preferências', [
                 _settingsTile(
-                  Icons.notifications,
-                  'Notificações',
-                  'Push, E-mail e SMS',
-                  onTap: () => Navigator.pushNamed(context, '/connected-settings'),
-                ),
-                _settingsTile(
-                  Icons.volume_up,
-                  'Som',
-                  'Toque e vibração',
-                  onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Configurações de som em desenvolvimento.')),
-                  ),
-                ),
-
-                _settingsSwitchTile(
-                  Icons.volume_off,
-                  'Simular Volume Baixo',
-                  'Força alerta de som baixo nas telas do idoso',
-                  _mockLowVolume,
-                  _toggleMockLowVolume,
-                ),
-              ]),
-              const SizedBox(height: 24),
-              _settingsGroup('Monitoramento', [
-                _settingsTile(
-                  Icons.timer,
-                  'Intervalo de Verificação',
-                  'A cada 30 min',
-                  onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Intervalo de verificação em desenvolvimento.')),
-                  ),
-                ),
-                _settingsTile(
-                  Icons.sensors,
-                  'Sensores Ativos',
-                  'Movimento, Batimento',
-                  onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Sensores ativos em desenvolvimento.')),
-                  ),
-                ),
-                _settingsTile(
-                  Icons.emergency,
-                  'Contato de Emergência',
-                  '(11) 99999-9999',
-                  onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Contato de emergência em desenvolvimento.')),
-                  ),
-                ),
-              ]),
-              const SizedBox(height: 24),
-              _settingsGroup('Conta', [
-                _settingsTile(
-                  Icons.person,
-                  'Editar Perfil',
-                  '',
-                  onTap: () => Navigator.pushNamed(context, '/edit-profile'),
-                ),
-                _settingsTile(
-                  Icons.lock,
+                  Icons.lock_outline,
                   'Alterar Senha',
-                  '',
+                  'Redefinir sua senha de acesso',
                   onTap: () => Navigator.pushNamed(context, '/forgot-password'),
                 ),
                 _settingsTile(
                   Icons.logout,
                   'Sair da Conta',
-                  '',
+                  'Desconectar do aplicativo',
                   onTap: () async {
                     try {
                       if (Firebase.apps.isNotEmpty) {
@@ -230,43 +362,6 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _settingsSwitchTile(
-    IconData icon,
-    String title,
-    String subtitle,
-    bool value,
-    ValueChanged<bool> onChanged,
-  ) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.outlineVariant, width: 0.5)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: AppColors.primary, size: 24),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: const TextStyle(fontSize: 18, color: AppColors.onSurface)),
-                if (subtitle.isNotEmpty)
-                  Text(subtitle, style: const TextStyle(fontSize: 14, color: AppColors.onSurfaceVariant)),
-              ],
-            ),
-          ),
-          Switch(
-            value: value,
-            onChanged: onChanged,
-            activeThumbColor: AppColors.secondaryContainer,
-            activeTrackColor: AppColors.onSecondaryContainer.withValues(alpha: 0.2),
-          ),
-        ],
       ),
     );
   }

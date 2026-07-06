@@ -88,6 +88,11 @@ class NotificationService {
     }
   }
 
+  Future<void> cancelarTodas() async {
+    if (kIsWeb || !_initialized) return;
+    await _plugin.cancelAll();
+  }
+
   Future<void> mostrarAlertaCuidador(SmartAlert alert) async {
     if (kIsWeb || !_initialized) return;
     final androidDetails = AndroidNotificationDetails(

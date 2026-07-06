@@ -6,6 +6,8 @@ import '../theme/app_theme.dart';
 import '../models/lembrete.dart';
 import '../services/lembrete_service.dart';
 import '../widgets/supervisor_bottom_nav.dart';
+import '../widgets/custom_time_picker.dart';
+import '../widgets/supervisor_drawer.dart';
 
 class NewReminderScreen extends StatefulWidget {
   const NewReminderScreen({super.key});
@@ -24,10 +26,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
   String? _fotoPath;
   final ImagePicker _imagePicker = ImagePicker();
   String _selectedUrgency = 'normal';
-  String _selectedRecorrencia = 'diario';
-  List<int> _selectedDiasSemana = [];
-  int? _selectedIntervaloHoras = 4;
-  int? _selectedDiaMes = 1;
+  List<int> _selectedDiasSemana = [7, 1, 2, 3, 4, 5, 6];
   bool _validationAttempted = false;
   bool _isSaving = false;
   bool _isCapturingPhoto = false;
@@ -77,41 +76,36 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
 
   String _getRecurrenceDescription() {
     final timeStr = '${_selectedTime.hour.toString().padLeft(2, '0')}:${_selectedTime.minute.toString().padLeft(2, '0')}';
-    switch (_selectedRecorrencia) {
-      case 'diario':
-        return 'Toca diariamente às $timeStr.';
-      case 'semanal':
-        if (_selectedDiasSemana.isEmpty) {
-          return 'Selecione pelo menos um dia da semana.';
-        }
-        final Map<int, String> dayNames = {
-          1: 'Segunda',
-          2: 'Terça',
-          3: 'Quarta',
-          4: 'Quinta',
-          5: 'Sexta',
-          6: 'Sábado',
-          7: 'Domingo',
-        };
-        final days = _selectedDiasSemana.map((d) => dayNames[d] ?? '').toList()..sort();
-        return 'Toca toda(o) ${days.join(", ")} às $timeStr.';
-      case 'intervalo':
-        return 'Toca a cada $_selectedIntervaloHoras horas a partir de $timeStr.';
-      case 'quinzenal':
-        return 'Toca a cada 15 dias às $timeStr.';
-      case 'mensal':
-        return 'Toca no dia $_selectedDiaMes de cada mês às $timeStr.';
-      case 'unico':
-        return 'Toca apenas uma vez às $timeStr.';
-      default:
-        return 'Toca diariamente.';
+    if (_selectedDiasSemana.isEmpty) {
+      return 'Selecione pelo menos um dia da semana.';
     }
+    if (_selectedDiasSemana.length == 7) {
+      return 'Toca diariamente às $timeStr.';
+    }
+    final Map<int, String> dayNames = {
+      1: 'Segunda',
+      2: 'Terça',
+      3: 'Quarta',
+      4: 'Quinta',
+      5: 'Sexta',
+      6: 'Sábado',
+      7: 'Domingo',
+    };
+    final sortedDays = List<int>.from(_selectedDiasSemana)
+      ..sort((a, b) {
+        final valA = a == 7 ? 0 : a;
+        final valB = b == 7 ? 0 : b;
+        return valA.compareTo(valB);
+      });
+    final days = sortedDays.map((d) => dayNames[d] ?? '').toList();
+    return 'Toca toda(o) ${days.join(", ")} às $timeStr.';
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      drawer: const SupervisorDrawer(currentRoute: '/new-reminder'),
       bottomNavigationBar: const SupervisorBottomNav(
         selected: SupervisorNavDestination.newReminder,
       ),
@@ -143,8 +137,6 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                     ),
                     const SizedBox(height: 24),
                     _buildCategorySelector(),
-                    const SizedBox(height: 24),
-                    _buildUrgencySelector(),
                     if (_selectedCategory == 'medicacao') ...[
                       const SizedBox(height: 24),
                       _buildPillAppearanceSelector(),
@@ -205,7 +197,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                         children: [
                           InkWell(
                             onTap: () async {
-                              final time = await showTimePicker(
+                              final time = await showCustomTimePicker(
                                 context: context,
                                 initialTime: _selectedTime,
                               );
@@ -265,41 +257,45 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
   }
 
   Widget _buildTopBar() {
-    return Container(
-      height: 64,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        border: Border(bottom: BorderSide(color: AppColors.outlineVariant)),
-      ),
-      child: Row(
-        children: [
-          IconButton(
-            onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.arrow_back, color: AppColors.primary),
+    return Builder(
+      builder: (context) {
+        return Container(
+          height: 64,
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          decoration: const BoxDecoration(
+            color: AppColors.surface,
+            border: Border(bottom: BorderSide(color: AppColors.outlineVariant)),
           ),
-          const Expanded(
-            child: Text(
-              'Lembrete Amigo',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.w700,
-                color: AppColors.primary,
+          child: Row(
+            children: [
+              IconButton(
+                onPressed: () => Scaffold.of(context).openDrawer(),
+                icon: const Icon(Icons.menu, color: AppColors.primary, size: 32),
               ),
-            ),
+              const Expanded(
+                child: Text(
+                  'Lembrete Amigo',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+              Container(
+                width: 40,
+                height: 40,
+                decoration: const BoxDecoration(
+                  color: AppColors.primaryContainer,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.person, size: 20),
+              ),
+            ],
           ),
-          Container(
-            width: 40,
-            height: 40,
-            decoration: const BoxDecoration(
-              color: AppColors.primaryContainer,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.person, size: 20),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -735,84 +731,8 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
     );
   }
 
-  Widget _buildUrgencySelector() {
-    final urgencies = [
-      {'key': 'normal', 'label': 'Normal', 'color': Colors.green},
-      {'key': 'importante', 'label': 'Importante', 'color': Colors.orange},
-      {'key': 'critico', 'label': 'Crítico', 'color': Colors.red},
-    ];
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.outlineVariant),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'NÍVEL DE URGÊNCIA',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0,
-              color: AppColors.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: urgencies.map((u) {
-              final selected = _selectedUrgency == u['key'];
-              final color = u['color'] as Color;
-              return Expanded(
-                child: GestureDetector(
-                  onTap: () =>
-                      setState(() => _selectedUrgency = u['key'] as String),
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    decoration: BoxDecoration(
-                      color: selected
-                          ? color.withValues(alpha: 0.2)
-                          : AppColors.surfaceContainerLowest,
-                      border: Border.all(
-                        color: selected ? color : AppColors.outlineVariant,
-                        width: 2,
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Center(
-                      child: Text(
-                        u['label'] as String,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: selected ? color : AppColors.onSurface,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildRecurrenceSection() {
-    final recorrencias = [
-      {'key': 'diario', 'label': 'Diário'},
-      {'key': 'semanal', 'label': 'Semanal'},
-      {'key': 'intervalo', 'label': 'A cada X horas'},
-      {'key': 'quinzenal', 'label': 'A cada 15 dias'},
-      {'key': 'mensal', 'label': 'Mensal'},
-      {'key': 'unico', 'label': 'Uma vez'},
-    ];
-
-    final bool hasWeeklyError = _validationAttempted && _selectedRecorrencia == 'semanal' && _selectedDiasSemana.isEmpty;
+    final bool hasWeeklyError = _validationAttempted && _selectedDiasSemana.isEmpty;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -834,147 +754,56 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            value: _selectedRecorrencia,
-            decoration: InputDecoration(
-              filled: true,
-              fillColor: AppColors.surfaceContainerLowest,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
+          Text(
+            'Selecione os dias da semana:',
+            style: TextStyle(
+              fontSize: 14, 
+              fontWeight: FontWeight.bold,
+              color: hasWeeklyError ? AppColors.error : AppColors.onSurface,
             ),
-            items: recorrencias
-                .map(
-                  (r) => DropdownMenuItem(
-                    value: r['key'],
-                    child: Text(r['label'] as String),
-                  ),
-                )
-                .toList(),
-            onChanged: (val) {
-              if (val != null) {
-                setState(() => _selectedRecorrencia = val);
-              }
-            },
           ),
-
-          if (_selectedRecorrencia == 'semanal') ...[
-            const SizedBox(height: 16),
-            Text(
-              'Selecione os dias da semana:',
-              style: TextStyle(
-                fontSize: 14, 
-                fontWeight: FontWeight.bold,
-                color: hasWeeklyError ? AppColors.error : AppColors.onSurface,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: List.generate(7, (idx) {
-                final weekday = idx + 1;
-                final labels = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'];
-                final selected = _selectedDiasSemana.contains(weekday);
-                return GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      if (selected) {
-                        _selectedDiasSemana.remove(weekday);
-                      } else {
-                        _selectedDiasSemana.add(weekday);
-                      }
-                    });
-                  },
-                  child: Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: selected
-                          ? AppColors.primary
-                          : AppColors.surfaceContainerLowest,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: selected ? AppColors.primary : (hasWeeklyError ? AppColors.error : AppColors.outlineVariant)),
-                    ),
-                    child: Center(
-                      child: Text(
-                        labels[idx],
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: selected ? Colors.white : (hasWeeklyError ? AppColors.error : AppColors.onSurface),
-                        ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: List.generate(7, (idx) {
+              final weekdays = [7, 1, 2, 3, 4, 5, 6];
+              final weekday = weekdays[idx];
+              final labels = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
+              final isSelected = _selectedDiasSemana.contains(weekday);
+              return GestureDetector(
+                onTap: () {
+                  setState(() {
+                    if (isSelected) {
+                      _selectedDiasSemana.remove(weekday);
+                    } else {
+                      _selectedDiasSemana.add(weekday);
+                    }
+                  });
+                },
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? AppColors.primary
+                        : AppColors.surfaceContainerLowest,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: isSelected ? AppColors.primary : (hasWeeklyError ? AppColors.error : AppColors.outlineVariant)),
+                  ),
+                  child: Center(
+                    child: Text(
+                      labels[idx],
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: isSelected ? Colors.white : (hasWeeklyError ? AppColors.error : AppColors.onSurface),
                       ),
                     ),
                   ),
-                );
-              }),
-            ),
-          ],
-
-          if (_selectedRecorrencia == 'intervalo') ...[
-            const SizedBox(height: 16),
-            const Text(
-              'Repetir a cada quantas horas?',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: DropdownButtonFormField<int>(
-                    value: _selectedIntervaloHoras,
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: AppColors.surfaceContainerLowest,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    items: [2, 4, 6, 8, 12]
-                        .map(
-                          (h) => DropdownMenuItem(
-                            value: h,
-                            child: Text('$h em $h horas'),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (val) {
-                      if (val != null) {
-                        setState(() => _selectedIntervaloHoras = val);
-                      }
-                    },
-                  ),
                 ),
-              ],
-            ),
-          ],
-
-          if (_selectedRecorrencia == 'mensal') ...[
-            const SizedBox(height: 16),
-            const Text(
-              'Qual o dia do mês?',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<int>(
-              value: _selectedDiaMes,
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: AppColors.surfaceContainerLowest,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              items: List.generate(31, (i) => i + 1)
-                  .map((d) => DropdownMenuItem(value: d, child: Text('Dia $d')))
-                  .toList(),
-              onChanged: (val) {
-                if (val != null) {
-                  setState(() => _selectedDiaMes = val);
-                }
-              },
-            ),
-          ],
+              );
+            }),
+          ),
           const SizedBox(height: 16),
           Container(
             width: double.infinity,
@@ -1299,7 +1128,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
       return;
     }
 
-    if (_selectedRecorrencia == 'semanal' && _selectedDiasSemana.isEmpty) {
+    if (_selectedDiasSemana.isEmpty) {
       setState(() => _validationAttempted = true);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -1311,24 +1140,6 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
     }
 
     final now = DateTime.now();
-    if (_selectedRecorrencia == 'unico') {
-      final scheduled = DateTime(
-        now.year,
-        now.month,
-        now.day,
-        _selectedTime.hour,
-        _selectedTime.minute,
-      );
-      if (!scheduled.isAfter(now)) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Escolha um horário futuro para lembrete de uma vez.'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-        return;
-      }
-    }
 
     final lembrete = Lembrete(
       id: now.millisecondsSinceEpoch.toString(),
@@ -1343,19 +1154,15 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
       medicamentoCor: _selectedCategory == 'medicacao' ? _selectedCor : null,
       medicamentoFotoPath: _selectedCategory == 'medicacao' ? _fotoPath : null,
       urgencia: _selectedUrgency,
-      recorrencia: _selectedRecorrencia,
-      repeteTodosOsDias: _selectedRecorrencia == 'diario',
-      recorrenciaSemanal: _selectedRecorrencia == 'semanal',
-      recorrenciaMensal: _selectedRecorrencia == 'mensal',
-      recorrenciaIntervalo: _selectedRecorrencia == 'intervalo',
-      lembreteUnico: _selectedRecorrencia == 'unico',
-      diasSemana: _selectedRecorrencia == 'semanal'
-          ? _selectedDiasSemana
-          : const [],
-      diaMes: _selectedRecorrencia == 'mensal' ? _selectedDiaMes : null,
-      intervaloHoras: _selectedRecorrencia == 'intervalo'
-          ? _selectedIntervaloHoras
-          : null,
+      recorrencia: _selectedDiasSemana.length == 7 ? 'diario' : 'semanal',
+      repeteTodosOsDias: _selectedDiasSemana.length == 7,
+      recorrenciaSemanal: _selectedDiasSemana.length < 7,
+      recorrenciaMensal: false,
+      recorrenciaIntervalo: false,
+      lembreteUnico: false,
+      diasSemana: _selectedDiasSemana,
+      diaMes: null,
+      intervaloHoras: null,
     );
 
     try {

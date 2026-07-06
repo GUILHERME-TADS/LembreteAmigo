@@ -1,12 +1,15 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 
 import '../models/offline_write.dart';
 import 'secure_cache_service.dart';
+import 'session_role_service.dart';
 
 class OfflineSyncService {
   OfflineSyncService._();
@@ -78,6 +81,13 @@ class OfflineSyncService {
     _scheduleSyncSoon();
   }
 
+  Future<void> enqueueMultiple(List<OfflineWrite> writes) async {
+    final queue = await loadQueue();
+    queue.addAll(writes);
+    await _saveQueue(_compact(queue));
+    _scheduleSyncSoon();
+  }
+
   Future<void> startAutoSync() async {
     if (_autoSyncStarted) return;
     _autoSyncStarted = true;
@@ -135,7 +145,8 @@ class OfflineSyncService {
     required OfflineWriteAction action,
     Map<String, dynamic> data = const {},
   }) async {
-    if (_useFirebase) {
+    final queue = await loadQueue();
+    if (queue.isEmpty && _useFirebase) {
       try {
         await _apply(
           OfflineWrite(
@@ -146,7 +157,6 @@ class OfflineSyncService {
             data: data,
           ),
         ).timeout(_writeTimeout);
-        unawaited(syncPendingWrites());
         return true;
       } catch (e) {
         debugPrint('Escrita offline enfileirada em $collection/$docId: $e');
@@ -170,16 +180,37 @@ class OfflineSyncService {
       if (queue.isEmpty) return;
 
       final remaining = <OfflineWrite>[];
+      bool hasFailure = false;
+
       for (final write in queue) {
+        if (write.attempts >= 5) {
+          debugPrint(
+            'Escrita offline excedeu o limite de tentativas e foi descartada: ${write.collection}/${write.docId}',
+          );
+          continue;
+        }
+
+        if (hasFailure) {
+          remaining.add(write);
+          continue;
+        }
+
         try {
-          await _apply(write).timeout(_writeTimeout);
+          final updatedWrite = await _uploadPendingFilesIfNeeded(write);
+          await _apply(updatedWrite).timeout(_writeTimeout);
         } catch (e) {
           debugPrint(
             'Falha ao sincronizar ${write.collection}/${write.docId}: $e',
           );
           remaining.add(write.copyWith(attempts: write.attempts + 1));
+          hasFailure = true;
         }
       }
+      
+      final freshQueue = await loadQueue();
+      final newlyAdded = freshQueue.where((w) => !queue.any((q) => q.id == w.id)).toList();
+      remaining.addAll(newlyAdded);
+      
       await _saveQueue(_compact(remaining));
     } finally {
       _syncing = false;
@@ -216,7 +247,7 @@ class OfflineSyncService {
   }
 
   List<OfflineWrite> _compact(List<OfflineWrite> queue) {
-    final compacted = <OfflineWrite>[];
+    final compactedMap = <String, OfflineWrite>{};
     final deletedDocs = <String>{};
 
     for (final write in queue.reversed) {
@@ -225,15 +256,136 @@ class OfflineSyncService {
 
       if (write.action == OfflineWriteAction.delete) {
         deletedDocs.add(key);
-        compacted.add(write);
+        compactedMap[key] = write;
         continue;
       }
 
-      compacted.add(write);
+      if (write.action == OfflineWriteAction.update) {
+        final existing = compactedMap[key];
+        if (existing != null) {
+          if (existing.action == OfflineWriteAction.update) {
+            final mergedData = Map<String, dynamic>.from(write.data)..addAll(existing.data);
+            compactedMap[key] = existing.copyWith(data: mergedData);
+          } else if (existing.action == OfflineWriteAction.set) {
+            final mergedData = Map<String, dynamic>.from(write.data)..addAll(existing.data);
+            compactedMap[key] = existing.copyWith(data: mergedData);
+          }
+          continue;
+        }
+      }
+
+      if (write.action == OfflineWriteAction.set) {
+        final existing = compactedMap[key];
+        if (existing != null) {
+          if (existing.action == OfflineWriteAction.update) {
+            final mergedData = Map<String, dynamic>.from(write.data)..addAll(existing.data);
+            compactedMap[key] = write.copyWith(action: OfflineWriteAction.set, data: mergedData);
+          }
+          continue;
+        }
+      }
+
+      compactedMap[key] = write;
     }
 
-    final ordered = compacted.reversed.toList();
-    if (ordered.length <= 250) return ordered;
-    return ordered.sublist(ordered.length - 250);
+    final result = <OfflineWrite>[];
+    for (final write in queue) {
+      final key = '${write.collection}/${write.docId}';
+      final comp = compactedMap[key];
+      if (comp != null && !result.contains(comp)) {
+        result.add(comp);
+      }
+    }
+    return result;
+  }
+
+  bool _isRemotePath(String path) {
+    final uri = Uri.tryParse(path);
+    return uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
+  }
+
+  Future<OfflineWrite> _uploadPendingFilesIfNeeded(OfflineWrite write) async {
+    if (write.collection == 'lembretes') {
+      final data = Map<String, dynamic>.from(write.data);
+      final idosoId = data['idosoId'] as String? ?? await SessionRoleService.getActiveIdosoId();
+      final lembreteId = write.docId;
+
+      final audioPath = data['audioPath'] as String?;
+      if (audioPath != null && audioPath.isNotEmpty && !_isRemotePath(audioPath)) {
+        final remoteUrl = await _uploadToStorage(
+          localPath: audioPath,
+          destinationPath: 'reminder_audio/$idosoId/$lembreteId.m4a',
+          contentType: 'audio/mp4',
+        );
+        if (remoteUrl != null) {
+          data['audioPath'] = remoteUrl;
+        }
+      }
+
+      final fotoPath = data['medicamentoFotoPath'] as String?;
+      if (fotoPath != null && fotoPath.isNotEmpty && !_isRemotePath(fotoPath)) {
+        final isConfirmation = data['status'] == 'concluido_com_foto' || 
+            (write.action == OfflineWriteAction.update && data['concluidoComFoto'] == true);
+        final folder = isConfirmation ? 'confirmation_photos' : 'reminder_photos';
+        final remoteUrl = await _uploadToStorage(
+          localPath: fotoPath,
+          destinationPath: '$folder/$idosoId/$lembreteId.jpg',
+          contentType: 'image/jpeg',
+        );
+        if (remoteUrl != null) {
+          data['medicamentoFotoPath'] = remoteUrl;
+        }
+      }
+
+      return write.copyWith(data: data);
+    }
+
+    if (write.collection == 'mensagens') {
+      final data = Map<String, dynamic>.from(write.data);
+      final idosoId = data['idosoId'] as String? ?? await SessionRoleService.getActiveIdosoId();
+      final messageId = write.docId;
+
+      final audioPath = data['audioPath'] as String?;
+      if (audioPath != null && audioPath.isNotEmpty && !_isRemotePath(audioPath)) {
+        final remoteUrl = await _uploadToStorage(
+          localPath: audioPath,
+          destinationPath: 'message_audio/$idosoId/$messageId.m4a',
+          contentType: 'audio/mp4',
+        );
+        if (remoteUrl != null) {
+          data['audioPath'] = remoteUrl;
+        }
+      }
+
+      return write.copyWith(data: data);
+    }
+
+    return write;
+  }
+
+  Future<String?> _uploadToStorage({
+    required String localPath,
+    required String destinationPath,
+    required String contentType,
+  }) async {
+    if (kIsWeb) {
+      debugPrint('Upload de arquivo local nao suportado no Web.');
+      return null;
+    }
+    final file = File(localPath);
+    if (!await file.exists()) {
+      throw StateError('Arquivo local para upload nao encontrado: $localPath');
+    }
+    try {
+      final ref = FirebaseStorage.instance.ref().child(destinationPath);
+      final snapshot = await ref.putFile(
+        file,
+        SettableMetadata(contentType: contentType),
+      );
+      return await snapshot.ref.getDownloadURL();
+    } catch (e) {
+      debugPrint('Erro ao fazer upload de $localPath para $destinationPath: $e');
+      rethrow;
+    }
   }
 }

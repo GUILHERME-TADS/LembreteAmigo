@@ -29,6 +29,8 @@ class Lembrete {
   final String titulo;
   final int horarioHour;
   final int horarioMinute;
+  final int? originalHorarioHour;
+  final int? originalHorarioMinute;
   final String categoria;
   final String? audioPath;
   final bool concluido;
@@ -55,6 +57,8 @@ class Lembrete {
     required this.titulo,
     required this.horarioHour,
     required this.horarioMinute,
+    int? originalHorarioHour,
+    int? originalHorarioMinute,
     this.categoria = 'personalizado',
     this.audioPath,
     bool concluido = false,
@@ -76,6 +80,8 @@ class Lembrete {
     this.recorrencia = 'diario',
     this.urgencia = 'normal',
   }) : criadoEm = criadoEm ?? DateTime.now(),
+       originalHorarioHour = originalHorarioHour ?? horarioHour,
+       originalHorarioMinute = originalHorarioMinute ?? horarioMinute,
        status =
            status ??
            (concluidoComFoto
@@ -101,6 +107,8 @@ class Lembrete {
     String? titulo,
     int? horarioHour,
     int? horarioMinute,
+    int? originalHorarioHour,
+    int? originalHorarioMinute,
     String? categoria,
     String? audioPath,
     bool? concluido,
@@ -136,6 +144,8 @@ class Lembrete {
       titulo: titulo ?? this.titulo,
       horarioHour: horarioHour ?? this.horarioHour,
       horarioMinute: horarioMinute ?? this.horarioMinute,
+      originalHorarioHour: originalHorarioHour ?? this.originalHorarioHour,
+      originalHorarioMinute: originalHorarioMinute ?? this.originalHorarioMinute,
       categoria: categoria ?? this.categoria,
       audioPath: audioPath ?? this.audioPath,
       concluido: concluido ?? newStatus.isConcluido,
@@ -165,6 +175,8 @@ class Lembrete {
     'titulo': titulo,
     'horarioHour': horarioHour,
     'horarioMinute': horarioMinute,
+    'originalHorarioHour': originalHorarioHour,
+    'originalHorarioMinute': originalHorarioMinute,
     'categoria': categoria,
     'audioPath': audioPath,
     'concluido': status.isConcluido,
@@ -190,11 +202,15 @@ class Lembrete {
   factory Lembrete.fromJson(Map<String, dynamic> json) {
     final concluido = json['concluido'] as bool? ?? false;
     final concluidoComFoto = json['concluidoComFoto'] as bool? ?? false;
+    final hHour = (json['horarioHour'] as num?)?.toInt() ?? 0;
+    final hMinute = (json['horarioMinute'] as num?)?.toInt() ?? 0;
     return Lembrete(
-      id: json['id'] as String,
-      titulo: json['titulo'] as String,
-      horarioHour: json['horarioHour'] as int,
-      horarioMinute: json['horarioMinute'] as int,
+      id: json['id'] as String? ?? '',
+      titulo: json['titulo'] as String? ?? '',
+      horarioHour: hHour,
+      horarioMinute: hMinute,
+      originalHorarioHour: (json['originalHorarioHour'] as num?)?.toInt() ?? hHour,
+      originalHorarioMinute: (json['originalHorarioMinute'] as num?)?.toInt() ?? hMinute,
       categoria: json['categoria'] as String? ?? 'personalizado',
       audioPath: json['audioPath'] as String?,
       concluido: concluido,
@@ -219,10 +235,12 @@ class Lembrete {
       recorrenciaIntervalo: json['recorrenciaIntervalo'] as bool? ?? false,
       lembreteUnico: json['lembreteUnico'] as bool? ?? false,
       diasSemana:
-          (json['diasSemana'] as List?)?.map((item) => item as int).toList() ??
+          (json['diasSemana'] as List?)
+              ?.map((item) => (item as num?)?.toInt() ?? 0)
+              .toList() ??
           const [],
-      diaMes: json['diaMes'] as int?,
-      intervaloHoras: json['intervaloHoras'] as int?,
+      diaMes: (json['diaMes'] as num?)?.toInt(),
+      intervaloHoras: (json['intervaloHoras'] as num?)?.toInt(),
       recorrencia: json['recorrencia'] as String? ?? 'diario',
       urgencia: json['urgencia'] as String? ?? 'normal',
     );

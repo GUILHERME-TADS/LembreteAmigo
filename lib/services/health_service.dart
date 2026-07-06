@@ -30,6 +30,10 @@ class HealthService {
   }
 
   Future<void> enviarMetricas(int bpm) async {
+    if (SessionRoleService.isSupervisor) {
+      debugPrint('Supervisores nao podem enviar metricas de saude.');
+      return;
+    }
     if (!isValidBpm(bpm)) {
       debugPrint('BPM invalido ignorado: $bpm');
       return;
@@ -60,12 +64,23 @@ class HealthService {
   Stream<int?> obterMetricasStream() {
     if (_useFirebase) {
       return (() async* {
+        if (SessionRoleService.isSupervisor) {
+          final connected = await SessionRoleService.isSupervisorConnected();
+          if (!connected) {
+            yield null;
+            return;
+          }
+        }
         final idosoId = await _getActiveIdosoId();
         yield* FirebaseFirestore.instance
             .collection('health_metrics')
             .doc(idosoId)
             .snapshots()
-            .map((snapshot) {
+            .asyncMap((snapshot) async {
+              if (SessionRoleService.isSupervisor) {
+                final connected = await SessionRoleService.isSupervisorConnected();
+                if (!connected) return null;
+              }
               if (snapshot.exists && snapshot.data() != null) {
                 final bpm = snapshot.data()!['bpm'] as int?;
                 return isValidBpm(bpm) ? bpm : null;
@@ -77,4 +92,5 @@ class HealthService {
       return _localBpmController.stream;
     }
   }
+
 }

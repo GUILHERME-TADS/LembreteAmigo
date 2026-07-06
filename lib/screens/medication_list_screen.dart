@@ -15,17 +15,53 @@ class MedicationListScreen extends StatefulWidget {
 
 class _MedicationListScreenState extends State<MedicationListScreen> {
   final LembreteService _service = LembreteService.instance;
+  bool _isProcessingAction = false;
 
   @override
   void initState() {
     super.initState();
     _service.carregar();
+    _service.eventosNotifier.addListener(_onEventosChanged);
   }
 
   @override
   void dispose() {
+    _service.eventosNotifier.removeListener(_onEventosChanged);
     TTSService.instance.parar(caller: this);
     super.dispose();
+  }
+
+  void _onEventosChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  /// Calcula quantos dias consecutivos o idoso tomou ao menos 1 medicamento.
+  int _calcularStreakMedicacao() {
+    final eventos = LembreteService.instance.eventos
+        .where((e) =>
+            e.categoria == 'medicacao' && e.status.isConcluido)
+        .toList();
+
+    if (eventos.isEmpty) return 0;
+
+    final now = DateTime.now();
+    int streak = 0;
+
+    for (int i = 0; i < 365; i++) {
+      final day = DateTime(now.year, now.month, now.day - i);
+      final hadMedication = eventos.any((e) =>
+          e.registradoEm.year == day.year &&
+          e.registradoEm.month == day.month &&
+          e.registradoEm.day == day.day);
+      if (hadMedication) {
+        streak++;
+      } else {
+        break;
+      }
+    }
+    return streak;
   }
 
   String _descreverMedicamento(Lembrete l) {
@@ -75,11 +111,10 @@ class _MedicationListScreenState extends State<MedicationListScreen> {
                       medicacoes.where((l) => l.concluido).length;
 
                   return SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const SizedBox(height: 24),
                         const Text(
                           'Veja o que tomar hoje',
                           style: TextStyle(
@@ -108,6 +143,26 @@ class _MedicationListScreenState extends State<MedicationListScreen> {
                               cardBuilder: (context, onPlay, isPlaying) =>
                                   _buildMedicationCard(
                                 lembrete: lembrete,
+                                onTap: () async {
+                                  if (_isProcessingAction) return;
+                                  setState(() => _isProcessingAction = true);
+                                  try {
+                                    TTSService.instance.parar(caller: this);
+                                    if (!lembrete.concluido) {
+                                      await Navigator.pushNamed(
+                                        context,
+                                        '/take-photo-confirmation',
+                                        arguments: lembrete.id,
+                                      );
+                                    } else {
+                                      await _service.alternarConclusao(lembrete.id);
+                                    }
+                                  } finally {
+                                    if (mounted) {
+                                      setState(() => _isProcessingAction = false);
+                                    }
+                                  }
+                                },
                                 onPlay: onPlay,
                                 isPlaying: isPlaying,
                               ),
@@ -122,25 +177,19 @@ class _MedicationListScreenState extends State<MedicationListScreen> {
                           ],
                           _buildAddCard(),
                           const SizedBox(height: 24),
+                          _buildStreakCard(),
+                          const SizedBox(height: 16),
                           _buildProgressCard(concluidos, medicacoes.length),
                         ],
                         const SizedBox(height: 24),
                         SizedBox(
                           width: double.infinity,
                           height: 64,
-                          child: ElevatedButton.icon(
+                          child: ElevatedButton(
                             onPressed: () {
                               TTSService.instance.parar(caller: this);
                               Navigator.pop(context);
                             },
-                            icon: const Icon(Icons.arrow_back),
-                            label: const Text(
-                              'VOLTAR',
-                              style: TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.medicationsColor,
                               foregroundColor: AppColors.onPrimary,
@@ -148,6 +197,7 @@ class _MedicationListScreenState extends State<MedicationListScreen> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                             ),
+                            child: const Icon(Icons.arrow_back, size: 28),
                           ),
                         ),
                         const SizedBox(height: 24),
@@ -169,17 +219,19 @@ class _MedicationListScreenState extends State<MedicationListScreen> {
       height: 64,
       decoration: const BoxDecoration(
         color: AppColors.surface,
-        border: Border(bottom: BorderSide(color: AppColors.outlineVariant)),
       ),
       child: Row(
         children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back,
-                color: AppColors.medicationsColor, size: 32),
-            onPressed: () {
+          InkWell(
+            onTap: () {
               TTSService.instance.parar(caller: this);
               Navigator.pop(context);
             },
+            borderRadius: BorderRadius.circular(12),
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: Icon(Icons.arrow_back, color: AppColors.medicationsColor, size: 36),
+            ),
           ),
           Expanded(
             child: Text(
@@ -247,94 +299,101 @@ class _MedicationListScreenState extends State<MedicationListScreen> {
 
   Widget _buildMedicationCard({
     required Lembrete lembrete,
+    required VoidCallback onTap,
     VoidCallback? onPlay,
     bool isPlaying = false,
   }) {
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Row(
-        children: [
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              color: lembrete.concluido
-                  ? AppColors.tertiaryFixedDim.withValues(alpha: 0.3)
-                  : AppColors.surfaceContainerLow,
-              shape: BoxShape.circle,
-              border: Border.all(color: AppColors.outlineVariant, width: 2),
-            ),
-            child: Center(
-              child: lembrete.concluido
-                  ? const Icon(
-                      Icons.check_circle,
-                      color: AppColors.onTertiaryFixedVariant,
-                      size: 32,
-                    )
-                  : PillVisualizer(
-                      forma: lembrete.medicamentoForma,
-                      cor: lembrete.medicamentoCor,
-                      size: 36,
-                      fotoPath: lembrete.medicamentoFotoPath,
-                    ),
-            ),
-          ),
-          const SizedBox(width: 24),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  lembrete.titulo,
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w700,
-                    height: 1.3,
-                    color: AppColors.primary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    const Icon(Icons.schedule,
-                        size: 24, color: AppColors.medicationsColor),
-                    const SizedBox(width: 8),
-                    Text(
-                      lembrete.horarioFormatado,
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w700,
-                        height: 1.3,
-                        color: AppColors.onSurface,
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Row(
+          children: [
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: lembrete.concluido
+                    ? AppColors.tertiaryFixedDim.withValues(alpha: 0.3)
+                    : AppColors.surfaceContainerLow,
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.outlineVariant, width: 2),
+              ),
+              child: Center(
+                child: lembrete.concluido
+                    ? const Icon(
+                        Icons.check_circle,
+                        color: AppColors.onTertiaryFixedVariant,
+                        size: 32,
+                      )
+                    : PillVisualizer(
+                        forma: lembrete.medicamentoForma,
+                        cor: lembrete.medicamentoCor,
+                        size: 36,
+                        fotoPath: lembrete.medicamentoFotoPath,
                       ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          if (onPlay != null)
-            GestureDetector(
-              onTap: onPlay,
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.medicationsColor.withValues(alpha: 0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  isPlaying ? Icons.stop : Icons.play_arrow,
-                  color: AppColors.medicationsColor,
-                  size: 24,
-                ),
               ),
             ),
-          if (onPlay != null && lembrete.concluido)
-            const SizedBox(width: 12),
-          if (lembrete.concluido)
-            const Icon(Icons.check_circle,
-                color: AppColors.tertiaryFixedDim, size: 32),
-        ],
+            const SizedBox(width: 24),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    lembrete.titulo,
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w700,
+                      height: 1.3,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.schedule,
+                          size: 24, color: AppColors.medicationsColor),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          lembrete.horarioFormatado,
+                          style: const TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w700,
+                            height: 1.3,
+                            color: AppColors.onSurface,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            if (onPlay != null)
+              GestureDetector(
+                onTap: onPlay,
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.medicationsColor.withValues(alpha: 0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    isPlaying ? Icons.stop : Icons.play_arrow,
+                    color: AppColors.medicationsColor,
+                    size: 24,
+                  ),
+                ),
+              ),
+            if (onPlay != null && lembrete.concluido)
+              const SizedBox(width: 12),
+            if (lembrete.concluido)
+              const Icon(Icons.check_circle,
+                  color: AppColors.tertiaryFixedDim, size: 32),
+          ],
+        ),
       ),
     );
   }
@@ -362,6 +421,69 @@ class _MedicationListScreenState extends State<MedicationListScreen> {
               fontWeight: FontWeight.w500,
               height: 1.5,
               color: AppColors.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStreakCard() {
+    final streak = _calcularStreakMedicacao();
+    final String message;
+    if (streak == 0) {
+      message = 'Comece hoje e mantenha a sequência!';
+    } else if (streak == 1) {
+      message = 'Bom começo! Continue amanhã.';
+    } else if (streak < 7) {
+      message = 'Continue assim! Você está indo muito bem.';
+    } else {
+      message = 'Incrível! Mantenha esse ritmo campeão.';
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Colors.orange.shade100,
+            Colors.deepOrange.shade50,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        border: Border.all(color: Colors.orange.shade300, width: 2),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          const Text('🔥', style: TextStyle(fontSize: 40)),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  streak == 0
+                      ? 'Sem sequência ainda'
+                      : '$streak ${streak == 1 ? 'dia' : 'dias'} em sequência!',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.orange.shade900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  message,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.orange.shade800,
+                  ),
+                ),
+              ],
             ),
           ),
         ],

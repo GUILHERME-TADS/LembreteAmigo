@@ -475,10 +475,9 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
             const VolumeWarningBanner(),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
                 child: Column(
                   children: [
-                    const SizedBox(height: 24),
                     _buildCallButton(context),
                     const SizedBox(height: 24),
                     _buildHeartRateCard(context),
@@ -501,7 +500,6 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: const BoxDecoration(
         color: AppColors.surface,
-        border: Border(bottom: BorderSide(color: AppColors.outlineVariant)),
       ),
       child: Row(
         children: [
@@ -532,7 +530,12 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
               await Navigator.pushNamed(context, '/elderly-profile');
               _loadProfilePhoto();
             },
-            child: ElderlyProfileAvatar(fotoPath: _fotoPath, size: 48),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ElderlyProfileAvatar(fotoPath: _fotoPath, size: 56),
+              ],
+            ),
           ),
         ],
       ),
@@ -638,160 +641,156 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
   }
 
   Widget _buildSecondaryGrid(BuildContext context) {
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(
-            child: Material(
-              color: const Color(0xFFE1F5FE), // Soft Blue
-              borderRadius: BorderRadius.circular(16),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(16),
-                onTap: () {
-                  TTSService.instance.falar(
-                    'Diga o seu recado depois de tocar no botão.',
-                    caller: this,
-                  );
-                  _enviarMensagemDialog();
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 24,
-                    horizontal: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: const Color(0xFF0288D1),
-                      width: 3,
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: const Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.mic, size: 40, color: Color(0xFF0288D1)),
-                      SizedBox(height: 12),
-                      Text(
-                        'Mandar\nRecado',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF0288D1),
-                        ),
-                      ),
-                    ],
-                  ),
+    return Column(
+      children: [
+        // MANDAR RECADO
+        Material(
+          color: const Color(0xFFE1F5FE), // Soft Blue
+          borderRadius: BorderRadius.circular(16),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () {
+              TTSService.instance.falar(
+                'Diga o seu recado depois de tocar no botão.',
+                caller: this,
+              );
+              _enviarMensagemDialog();
+            },
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(
+                vertical: 24,
+                horizontal: 20,
+              ),
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: const Color(0xFF0288D1),
+                  width: 3,
                 ),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  Icon(Icons.mic, size: 40, color: Color(0xFF0288D1)),
+                  SizedBox(width: 16),
+                  Expanded(
+                    child: Text(
+                      'Mandar Recado para Ajudante',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF0288D1),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Material(
-              color: const Color(0xFFFFEBEE), // Soft Red
-              borderRadius: BorderRadius.circular(16),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(16),
-                onTap: () {
-                  TTSService.instance.falar(
-                    'Chamando ajuda de emergência! Por favor, aguarde.',
-                    caller: this,
-                  );
-                  Navigator.pushNamed(context, '/emergency-alert');
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 24,
-                    horizontal: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: const Color(0xFFC62828),
-                      width: 4,
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFFC62828).withValues(alpha: 0.15),
-                        blurRadius: 10,
-                        spreadRadius: 2,
-                      ),
-                    ],
-                  ),
-                  child: const Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.campaign, size: 40, color: Color(0xFFC62828)),
-                      SizedBox(height: 12),
-                      Text(
-                        'Emergência',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w900,
-                          color: Color(0xFFC62828),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+        ),
+        const SizedBox(height: 16),
+        // VER RECADOS
+        Material(
+          color: const Color(0xFFE8F5E9), // Soft Green
+          borderRadius: BorderRadius.circular(16),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () {
+              TTSService.instance.falar(
+                'Abrindo seus recados do cuidador.',
+                caller: this,
+              );
+              Navigator.pushNamed(context, '/messages');
+            },
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(
+                vertical: 24,
+                horizontal: 20,
               ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Material(
-              color: const Color(0xFFE8F5E9), // Soft Green
-              borderRadius: BorderRadius.circular(16),
-              child: InkWell(
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: const Color(0xFF2E7D32),
+                  width: 3,
+                ),
                 borderRadius: BorderRadius.circular(16),
-                onTap: () {
-                  TTSService.instance.falar(
-                    'Abrindo seus recados do cuidador.',
-                    caller: this,
-                  );
-                  Navigator.pushNamed(context, '/messages');
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 24,
-                    horizontal: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: const Color(0xFF2E7D32),
-                      width: 3,
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: const Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.chat_bubble,
-                        size: 40,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  Icon(Icons.chat_bubble, size: 40, color: Color(0xFF2E7D32)),
+                  SizedBox(width: 16),
+                  Expanded(
+                    child: Text(
+                      'Ver Recados do Ajudante',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
                         color: Color(0xFF2E7D32),
                       ),
-                      SizedBox(height: 12),
-                      Text(
-                        'Ver\nRecados',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF2E7D32),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
+                ],
               ),
             ),
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 16),
+        // EMERGÊNCIA
+        Material(
+          color: const Color(0xFFFFEBEE), // Soft Red
+          borderRadius: BorderRadius.circular(16),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () {
+              TTSService.instance.falar(
+                'Chamando ajuda de emergência! Por favor, aguarde.',
+                caller: this,
+              );
+              Navigator.pushNamed(context, '/emergency-alert');
+            },
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(
+                vertical: 24,
+                horizontal: 20,
+              ),
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: const Color(0xFFC62828),
+                  width: 4,
+                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFC62828).withValues(alpha: 0.15),
+                    blurRadius: 10,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  Icon(Icons.campaign, size: 40, color: Color(0xFFC62828)),
+                  SizedBox(width: 16),
+                  Expanded(
+                    child: Text(
+                      'Pedir Ajuda de Emergência',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFFC62828),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

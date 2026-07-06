@@ -27,11 +27,10 @@ class SupervisorReminderDetailScreen extends StatelessWidget {
             _buildTopBar(context),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const SizedBox(height: 24),
                     Center(
                       child: Container(
                         width: 120, height: 120,

@@ -24,9 +24,9 @@ class SeniorButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final bg = backgroundColor ?? AppColors.secondaryContainer;
     final fg = textColor ?? AppColors.onSecondaryContainer;
-    return SizedBox(
+    return Container(
       width: double.infinity,
-      height: height,
+      constraints: BoxConstraints(minHeight: height),
       child: ElevatedButton(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
@@ -76,8 +76,8 @@ class SeniorBottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 96,
-      padding: const EdgeInsets.only(bottom: 16),
+      constraints: const BoxConstraints(minHeight: 96),
+      padding: const EdgeInsets.only(bottom: 16, top: 8),
       decoration: const BoxDecoration(
         color: AppColors.surfaceContainerLowest,
         border: Border(
@@ -87,16 +87,17 @@ class SeniorBottomNav extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _navItem(Icons.home, 'Início', 0),
-          _navItem(Icons.medical_services, 'Remédios', 1),
-          _navItem(Icons.contact_support, 'Ajuda', 2),
+          _navItem(context, Icons.home, 'Início', 0),
+          _navItem(context, Icons.medical_services, 'Remédios', 1),
+          _navItem(context, Icons.contact_support, 'Ajuda', 2),
         ],
       ),
     );
   }
 
-  Widget _navItem(IconData icon, String label, int index) {
+  Widget _navItem(BuildContext context, IconData icon, String label, int index) {
     final selected = selectedIndex == index;
+    final textScale = MediaQuery.textScalerOf(context).scale(14);
     return GestureDetector(
       onTap: () => onTap?.call(index),
       child: Container(
@@ -112,16 +113,20 @@ class SeniorBottomNav extends StatelessWidget {
               color: selected ? AppColors.onSecondaryContainer : AppColors.onSurfaceVariant,
               size: 28,
             ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.05,
-                color: selected ? AppColors.onSecondaryContainer : AppColors.onSurfaceVariant,
+            if (textScale <= 22) ...[
+              const SizedBox(height: 4),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.05,
+                  color: selected ? AppColors.onSecondaryContainer : AppColors.onSurfaceVariant,
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ),
@@ -189,7 +194,8 @@ class SeniorInputField extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Container(
-          height: 64,
+          constraints: const BoxConstraints(minHeight: 64),
+          padding: const EdgeInsets.symmetric(vertical: 4),
           decoration: BoxDecoration(
             color: AppColors.surfaceContainerLow,
             border: Border.all(color: AppColors.outlineVariant),

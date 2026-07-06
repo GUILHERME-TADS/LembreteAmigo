@@ -310,11 +310,10 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
             const VolumeWarningBanner(),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 24),
                     const Text(
                       'Suas tarefas do dia',
                       style: TextStyle(
@@ -801,7 +800,6 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: const BoxDecoration(
         color: AppColors.surface,
-        border: Border(bottom: BorderSide(color: AppColors.outlineVariant)),
       ),
       child: Row(
         children: [
@@ -833,7 +831,12 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
               await Navigator.pushNamed(context, '/elderly-profile');
               _loadProfilePhoto();
             },
-            child: ElderlyProfileAvatar(fotoPath: _fotoPath, size: 48),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ElderlyProfileAvatar(fotoPath: _fotoPath, size: 56),
+              ],
+            ),
           ),
         ],
       ),
@@ -898,7 +901,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 6),
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
           decoration: BoxDecoration(
             color: selected ? AppColors.secondaryContainer : null,
             borderRadius: BorderRadius.circular(16),
@@ -907,14 +910,12 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 24, color: itemColor),
-              const SizedBox(height: 2),
+              Icon(icon, size: 28, color: itemColor),
+              const SizedBox(height: 4),
               Text(
                 label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: 14,
                   fontWeight: FontWeight.w800,
                   color: itemColor,
                 ),

@@ -13,6 +13,7 @@ class TTSService {
   bool _cancelSpeech = false;
   Object? _activeCaller;
   String? _activeText;
+  Object? _activeSessionToken;
 
   bool get isSpeaking => speakingNotifier.value;
   Object? get activeCaller => _activeCaller;
@@ -24,13 +25,21 @@ class TTSService {
     await _tts.setVolume(1.0);
     await _tts.setPitch(1.0);
     _tts.setCompletionHandler(() {
-      speakingNotifier.value = false;
-      _activeText = null;
-      _activeCaller = null;
-      if (_completer != null && !_completer!.isCompleted) {
-        _completer!.complete();
-      }
+      _resetCompleter();
     });
+    _tts.setErrorHandler((message) {
+      debugPrint('Erro na síntese de voz TTS: $message');
+      _resetCompleter();
+    });
+  }
+
+  void _resetCompleter() {
+    speakingNotifier.value = false;
+    _activeText = null;
+    _activeCaller = null;
+    if (_completer != null && !_completer!.isCompleted) {
+      _completer!.complete();
+    }
   }
 
   Future<void> setSpeechRate(double rate) async {
@@ -43,6 +52,7 @@ class TTSService {
     _cancelSpeech = false;
     _activeCaller = caller;
     _activeText = texto;
+    _activeSessionToken = Object();
     _completer = Completer<void>();
     speakingNotifier.value = true;
     await _tts.speak(texto);
@@ -54,13 +64,9 @@ class TTSService {
       return;
     }
     _cancelSpeech = true;
+    _activeSessionToken = null;
     await _tts.stop();
-    speakingNotifier.value = false;
-    _activeText = null;
-    _activeCaller = null;
-    if (_completer != null && !_completer!.isCompleted) {
-      _completer!.complete();
-    }
+    _resetCompleter();
   }
 
   Future<void> falarLista(List<String> textos, {Object? caller}) async {
@@ -68,20 +74,22 @@ class TTSService {
     await _tts.stop();
     _cancelSpeech = false;
     _activeCaller = caller;
+    final sessionToken = Object();
+    _activeSessionToken = sessionToken;
     for (var i = 0; i < textos.length; i++) {
-      if (_cancelSpeech || _activeCaller != caller) break;
+      if (_cancelSpeech || _activeCaller != caller || _activeSessionToken != sessionToken) break;
       _completer = Completer<void>();
       speakingNotifier.value = true;
       await _tts.speak(textos[i]);
       try {
         await _completer!.future;
       } catch (_) {}
-      if (_cancelSpeech || _activeCaller != caller) break;
+      if (_cancelSpeech || _activeCaller != caller || _activeSessionToken != sessionToken) break;
       if (i < textos.length - 1) {
         await Future.delayed(const Duration(milliseconds: 500));
       }
     }
-    if (_activeCaller == caller) {
+    if (_activeCaller == caller && _activeSessionToken == sessionToken) {
       speakingNotifier.value = false;
     }
   }

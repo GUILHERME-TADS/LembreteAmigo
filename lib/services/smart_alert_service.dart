@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/lembrete.dart';
+import '../models/lembrete_evento.dart';
 import '../models/smart_alert.dart';
 import 'notification_service.dart';
 
@@ -15,11 +16,13 @@ class SmartAlertService {
 
   Future<void> atualizar(
     List<Lembrete> lembretes, {
+    List<LembreteEvento>? eventos,
     DateTime? now,
     int? bpm,
   }) async {
     final detected = detectarAlertas(
       lembretes,
+      eventos: eventos,
       now: now ?? DateTime.now(),
       bpm: bpm,
     );
@@ -29,6 +32,7 @@ class SmartAlertService {
 
   List<SmartAlert> detectarAlertas(
     List<Lembrete> lembretes, {
+    List<LembreteEvento>? eventos,
     required DateTime now,
     int? bpm,
   }) {
@@ -89,6 +93,9 @@ class SmartAlertService {
 
     final bpmAlert = _buildBpmAlert(bpm, now: now);
     if (bpmAlert != null) alerts.add(bpmAlert);
+
+    final welfareAlerts = _buildWelfareAlerts(eventos, now: now);
+    alerts.addAll(welfareAlerts);
 
     alerts.sort((a, b) {
       final severityCompare = b.severity.index.compareTo(a.severity.index);
@@ -302,5 +309,45 @@ class SmartAlertService {
 
   bool _isSameDay(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  List<SmartAlert> _buildWelfareAlerts(List<LembreteEvento>? eventos, {required DateTime now}) {
+    if (eventos == null || eventos.isEmpty) return [];
+
+    final welfareAlerts = <SmartAlert>[];
+
+    for (final evento in eventos) {
+      if (evento.categoria != 'bem_estar') continue;
+      if (!_isSameDay(evento.registradoEm, now)) continue;
+
+      final obs = evento.observacao ?? '';
+      if (obs.contains('Preciso de ajuda')) {
+        welfareAlerts.add(
+          SmartAlert(
+            key: '${_dateKey(now)}:welfare:${evento.id}',
+            lembreteId: '',
+            title: 'Idoso precisa de ajuda',
+            message: 'O idoso informou no check-in de bem-estar: $obs.',
+            severity: SmartAlertSeverity.critical,
+            createdAt: evento.registradoEm,
+            minutesLate: 9999,
+          ),
+        );
+      } else if (obs.contains('Mais ou menos')) {
+        welfareAlerts.add(
+          SmartAlert(
+            key: '${_dateKey(now)}:welfare:${evento.id}',
+            lembreteId: '',
+            title: 'Atenção: Idoso indisposto',
+            message: 'O idoso informou no check-in de bem-estar: $obs.',
+            severity: SmartAlertSeverity.warning,
+            createdAt: evento.registradoEm,
+            minutesLate: 9998,
+          ),
+        );
+      }
+    }
+
+    return welfareAlerts;
   }
 }

@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../theme/app_theme.dart';
+import '../services/session_role_service.dart';
+import '../services/lembrete_service.dart';
+import '../services/message_service.dart';
 
 class SupervisorSettingsScreen extends StatefulWidget {
   const SupervisorSettingsScreen({super.key});
@@ -86,8 +91,20 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
               ),
               const SizedBox(height: 24),
               _settingsGroup('Preferências', [
-                _settingsTile(Icons.notifications, 'Notificações', 'Push, E-mail e SMS'),
-                _settingsTile(Icons.volume_up, 'Som', 'Toque e vibração'),
+                _settingsTile(
+                  Icons.notifications,
+                  'Notificações',
+                  'Push, E-mail e SMS',
+                  onTap: () => Navigator.pushNamed(context, '/connected-settings'),
+                ),
+                _settingsTile(
+                  Icons.volume_up,
+                  'Som',
+                  'Toque e vibração',
+                  onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Configurações de som em desenvolvimento.')),
+                  ),
+                ),
 
                 _settingsSwitchTile(
                   Icons.volume_off,
@@ -99,15 +116,63 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
               ]),
               const SizedBox(height: 24),
               _settingsGroup('Monitoramento', [
-                _settingsTile(Icons.timer, 'Intervalo de Verificação', 'A cada 30 min'),
-                _settingsTile(Icons.sensors, 'Sensores Ativos', 'Movimento, Batimento'),
-                _settingsTile(Icons.emergency, 'Contato de Emergência', '(11) 99999-9999'),
+                _settingsTile(
+                  Icons.timer,
+                  'Intervalo de Verificação',
+                  'A cada 30 min',
+                  onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Intervalo de verificação em desenvolvimento.')),
+                  ),
+                ),
+                _settingsTile(
+                  Icons.sensors,
+                  'Sensores Ativos',
+                  'Movimento, Batimento',
+                  onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Sensores ativos em desenvolvimento.')),
+                  ),
+                ),
+                _settingsTile(
+                  Icons.emergency,
+                  'Contato de Emergência',
+                  '(11) 99999-9999',
+                  onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Contato de emergência em desenvolvimento.')),
+                  ),
+                ),
               ]),
               const SizedBox(height: 24),
               _settingsGroup('Conta', [
-                _settingsTile(Icons.person, 'Editar Perfil', ''),
-                _settingsTile(Icons.lock, 'Alterar Senha', ''),
-                _settingsTile(Icons.logout, 'Sair da Conta', ''),
+                _settingsTile(
+                  Icons.person,
+                  'Editar Perfil',
+                  '',
+                  onTap: () => Navigator.pushNamed(context, '/edit-profile'),
+                ),
+                _settingsTile(
+                  Icons.lock,
+                  'Alterar Senha',
+                  '',
+                  onTap: () => Navigator.pushNamed(context, '/forgot-password'),
+                ),
+                _settingsTile(
+                  Icons.logout,
+                  'Sair da Conta',
+                  '',
+                  onTap: () async {
+                    try {
+                      if (Firebase.apps.isNotEmpty) {
+                        await FirebaseAuth.instance.signOut();
+                      }
+                    } catch (_) {}
+                    await SessionRoleService.logout();
+                    await LembreteService.instance.reset();
+                    await MessageService.instance.reset();
+                    if (mounted) {
+                      Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+                    }
+                  },
+                ),
               ]),
               const SizedBox(height: 32),
             ],
@@ -137,28 +202,34 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
     );
   }
 
-  Widget _settingsTile(IconData icon, String title, String subtitle) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.outlineVariant, width: 0.5)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: AppColors.primary, size: 24),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: const TextStyle(fontSize: 18, color: AppColors.onSurface)),
-                if (subtitle.isNotEmpty)
-                  Text(subtitle, style: const TextStyle(fontSize: 14, color: AppColors.onSurfaceVariant)),
-              ],
-            ),
+  Widget _settingsTile(IconData icon, String title, String subtitle, {VoidCallback? onTap}) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          decoration: const BoxDecoration(
+            border: Border(bottom: BorderSide(color: AppColors.outlineVariant, width: 0.5)),
           ),
-          const Icon(Icons.chevron_right, color: AppColors.outline),
-        ],
+          child: Row(
+            children: [
+              Icon(icon, color: AppColors.primary, size: 24),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: const TextStyle(fontSize: 18, color: AppColors.onSurface)),
+                    if (subtitle.isNotEmpty)
+                      Text(subtitle, style: const TextStyle(fontSize: 14, color: AppColors.onSurfaceVariant)),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: AppColors.outline),
+            ],
+          ),
+        ),
       ),
     );
   }

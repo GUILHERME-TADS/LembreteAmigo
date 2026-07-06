@@ -59,8 +59,8 @@ class LembreteEvento {
     );
 
     return LembreteEvento(
-      id: json['id'] as String,
-      lembreteId: json['lembreteId'] as String,
+      id: json['id'] as String? ?? '',
+      lembreteId: json['lembreteId'] as String? ?? '',
       titulo: json['titulo'] as String? ?? 'Lembrete',
       categoria: json['categoria'] as String? ?? 'personalizado',
       status: status,

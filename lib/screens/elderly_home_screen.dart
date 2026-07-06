@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -34,6 +35,7 @@ class ElderlyHomeScreen extends StatefulWidget {
 
 class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     with TickerProviderStateMixin {
+  bool _isConnected = false;
   List<Lembrete> _lembretes = [];
   Lembrete? _ultimoLembrete;
   final AudioPlayer _audioPlayer = AudioPlayer();
@@ -42,6 +44,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
   bool _isBannerSpeaking = false;
   bool _isOnline = true;
   Timer? _connectivityTimer;
+  StreamSubscription? _audioSubscription;
 
   // Confetti Animations
   AnimationController? _confettiController;
@@ -49,14 +52,30 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
   bool _allCompletedTriggered = false;
   bool _rotinaDoDiaOnly = false;
   bool _showWelfareCheckin = false;
+  bool _isProcessingAction = false;
+  int _welfareStep = 0;
+  String _selectedMood = '';
+  bool _hasSpokenWelfareGreeting = false;
   String _idosoNomeCheckin = 'João';
   String? _fotoPath;
   AnimationController? _pulseController;
   Animation<double>? _pulseAnimation;
 
+  Future<void> _updateConnectionStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    final pairedIdosoId = prefs.getString('paired_idoso_id');
+    if (mounted) {
+      setState(() {
+        _isConnected = pairedIdosoId != null && pairedIdosoId != 'idoso_autonomo';
+      });
+    }
+  }
+
   @override
   void initState() {
     super.initState();
+    _isConnected = widget.showConnected;
+    _updateConnectionStatus();
     _checkConnection();
     _loadProfilePhoto();
     if (widget.speakText != null) {
@@ -65,7 +84,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
       });
     }
     _connectivityTimer = Timer.periodic(
-      const Duration(seconds: 5),
+      const Duration(seconds: 30),
       (_) => _checkConnection(),
     );
 
@@ -110,7 +129,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     });
     LembreteService.instance.notifier.addListener(_onLembretesChanged);
 
-    _audioPlayer.onPlayerComplete.listen((_) {
+    _audioSubscription = _audioPlayer.onPlayerComplete.listen((_) {
       if (mounted) {
         setState(() {
           _isPlaying = false;
@@ -255,6 +274,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     _connectivityTimer?.cancel();
     _confettiController?.dispose();
     _pulseController?.dispose();
+    _audioSubscription?.cancel();
     LembreteService.instance.notifier.removeListener(_onLembretesChanged);
     TTSService.instance.parar(caller: this);
     _audioPlayer.dispose();
@@ -267,11 +287,18 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     final lastCheckin = prefs.getString('last_welfare_checkin_date');
 
     final jsonStr = prefs.getString('idoso_perfil');
-    String name = 'João';
+    String name = '';
     if (jsonStr != null) {
       try {
         final data = jsonDecode(jsonStr);
-        name = data['nome']?.toString().split(' ').first ?? 'João';
+        final rawName = data['nome']?.toString() ?? '';
+        if (rawName.isNotEmpty &&
+            rawName != 'Minha Conta' &&
+            rawName != 'Não cadastrado' &&
+            rawName != 'Minha' &&
+            rawName != 'Não') {
+          name = rawName.split(' ').first;
+        }
       } catch (_) {}
     }
 
@@ -280,22 +307,59 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
         _idosoNomeCheckin = name;
         _showWelfareCheckin = (lastCheckin != today);
       });
+
+      if (_showWelfareCheckin && !_hasSpokenWelfareGreeting) {
+        _hasSpokenWelfareGreeting = true;
+        final greetingText = _idosoNomeCheckin.trim().isEmpty
+            ? 'Como você está hoje? Selecione uma das opções na tela.'
+            : '$_idosoNomeCheckin, como você está hoje? Selecione uma das opções na tela.';
+        Future.delayed(const Duration(milliseconds: 800), () {
+          if (mounted && _showWelfareCheckin && _welfareStep == 0) {
+            TTSService.instance.falar(greetingText, caller: this);
+          }
+        });
+      }
     }
   }
 
-  Future<void> _registrarWelfareCheckin(String emotion) async {
+  Future<void> _registrarWelfareCheckin(String emotion, {String? detail}) async {
+    if ((emotion == 'Mais ou menos' || emotion == 'Preciso de ajuda') && detail == null) {
+      if (mounted) {
+        setState(() {
+          _selectedMood = emotion;
+          _welfareStep = 1;
+        });
+      }
+      final detailQuestion = emotion == 'Preciso de ajuda'
+          ? 'O que está acontecendo? Selecione uma das opções na tela.'
+          : 'O que você está sentindo? Selecione uma das opções na tela.';
+      await TTSService.instance.falar(detailQuestion, caller: this);
+      return;
+    }
+
+    final String welfareText = detail != null ? '$emotion - $detail' : emotion;
+
     final prefs = await SharedPreferences.getInstance();
     final today = DateTime.now().toIso8601String().substring(0, 10);
     await prefs.setString('last_welfare_checkin_date', today);
-    await LembreteService.instance.registrarWelfareCheckin(emotion);
+    await LembreteService.instance.registrarWelfareCheckin(welfareText);
     if (!mounted) return;
     setState(() {
-      _showWelfareCheckin = false;
+      _welfareStep = 2;
     });
-    await TTSService.instance.falar(
-      'Obrigado por me contar. Vou avisar que voce esta se sentindo $emotion.',
-      caller: this,
-    );
+
+    String feedbackSpeech = 'Obrigado por me contar. Já avisei seu cuidador.';
+    await TTSService.instance.falar(feedbackSpeech, caller: this);
+
+    Timer(const Duration(milliseconds: 2800), () {
+      if (mounted) {
+        setState(() {
+          _showWelfareCheckin = false;
+          _welfareStep = 0;
+          _selectedMood = '';
+        });
+      }
+    });
   }
 
   Future<void> _loadProfilePhoto() async {
@@ -570,7 +634,6 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                   const SizedBox(height: 24),
                   SizedBox(
                     width: double.infinity,
-                    height: 88,
                     child: ElevatedButton.icon(
                       onPressed: () {
                         countdownTimer?.cancel();
@@ -590,6 +653,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                             ? Colors.black
                             : AppColors.error,
                         foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 24),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                           side: isHighContrast
@@ -703,7 +767,6 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
 
                 SizedBox(
                   width: double.infinity,
-                  height: 72,
                   child: ElevatedButton.icon(
                     onPressed: () {
                       Navigator.pop(context);
@@ -726,6 +789,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                           ? Colors.black
                           : Colors.orange,
                       foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 20),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                         side: isHighContrast
@@ -739,7 +803,6 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
 
                 SizedBox(
                   width: double.infinity,
-                  height: 72,
                   child: ElevatedButton.icon(
                     onPressed: () {
                       Navigator.pop(context);
@@ -762,6 +825,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                           ? Colors.black
                           : AppColors.error,
                       foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 20),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                         side: isHighContrast
@@ -775,7 +839,6 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
 
                 SizedBox(
                   width: double.infinity,
-                  height: 72,
                   child: ElevatedButton.icon(
                     onPressed: () {
                       Navigator.pop(context);
@@ -800,6 +863,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                       foregroundColor: isHighContrast
                           ? Colors.white
                           : AppColors.primary,
+                      padding: const EdgeInsets.symmetric(vertical: 20),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                         side: BorderSide(
@@ -1036,9 +1100,19 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
   }
 
   Widget _buildWelfareCheckinCard() {
-    final firstName = _idosoNomeCheckin.trim().isEmpty
-        ? 'tudo bem'
-        : _idosoNomeCheckin;
+    if (_welfareStep == 2) {
+      return _buildConfirmationStep();
+    }
+    if (_welfareStep == 1) {
+      return _buildDetailStep();
+    }
+    return _buildMoodStep();
+  }
+
+  Widget _buildMoodStep() {
+    final greetingText = _idosoNomeCheckin.trim().isEmpty
+        ? 'Como você está hoje?'
+        : '$_idosoNomeCheckin, como você está hoje?';
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
@@ -1068,7 +1142,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  '$firstName, como voce esta hoje?',
+                  greetingText,
                   style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w900,
@@ -1077,16 +1151,25 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                   ),
                 ),
               ),
+              IconButton(
+                icon: const Icon(Icons.volume_up, color: AppColors.primary, size: 28),
+                onPressed: () {
+                  final textToSpeak = _idosoNomeCheckin.trim().isEmpty
+                      ? 'Como você está hoje? Selecione uma das opções abaixo.'
+                      : '$_idosoNomeCheckin, como você está hoje? Selecione uma das opções abaixo.';
+                  TTSService.instance.falar(textToSpeak, caller: this);
+                },
+              ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           Row(
             children: [
-              _welfareOption('Bem', Icons.sentiment_satisfied_alt),
+              _welfareOption('Bem', '😊', Colors.green.shade100, Colors.green.shade800),
               const SizedBox(width: 8),
-              _welfareOption('Mais ou menos', Icons.sentiment_neutral),
+              _welfareOption('Mais ou menos', '😐', Colors.orange.shade100, Colors.orange.shade800),
               const SizedBox(width: 8),
-              _welfareOption('Preciso de ajuda', Icons.support_agent),
+              _welfareOption('Preciso de ajuda', '🆘', Colors.red.shade100, Colors.red.shade900),
             ],
           ),
         ],
@@ -1094,32 +1177,35 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     );
   }
 
-  Widget _welfareOption(String label, IconData icon) {
+  Widget _welfareOption(String label, String emoji, Color btnBgColor, Color btnTextColor) {
     return Expanded(
       child: ElevatedButton(
         onPressed: () => _registrarWelfareCheckin(label),
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.surfaceContainerLowest,
-          foregroundColor: AppColors.primary,
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
+          backgroundColor: btnBgColor,
+          foregroundColor: btnTextColor,
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
+          elevation: 2,
+          shadowColor: Colors.black26,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: const BorderSide(color: AppColors.primaryFixedDim, width: 2),
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: btnTextColor.withValues(alpha: 0.3), width: 2),
           ),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 26),
-            const SizedBox(height: 4),
+            Text(emoji, style: const TextStyle(fontSize: 32)),
+            const SizedBox(height: 6),
             Text(
               label,
               textAlign: TextAlign.center,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 13,
+              style: TextStyle(
+                fontSize: 15,
                 fontWeight: FontWeight.w900,
+                color: btnTextColor,
                 height: 1.15,
               ),
             ),
@@ -1129,7 +1215,186 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     );
   }
 
+  Widget _buildDetailStep() {
+    final titleText = _selectedMood == 'Preciso de ajuda'
+        ? 'O que está acontecendo?'
+        : 'O que você está sentindo?';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.primaryFixed,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.primaryFixedDim, width: 2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: const BoxDecoration(
+                  color: AppColors.primary,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.help_outline,
+                  color: Colors.white,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  titleText,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.onPrimaryFixed,
+                    height: 1.25,
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.volume_up, color: AppColors.primary, size: 28),
+                onPressed: () {
+                  final textToSpeak = _selectedMood == 'Preciso de ajuda'
+                      ? 'O que está acontecendo? Selecione uma das opções: dor física, tristeza ou solidão, cansaço ou outro motivo.'
+                      : 'O que você está sentindo? Selecione uma das opções: dor física, tristeza ou solidão, cansaço ou outro motivo.';
+                  TTSService.instance.falar(textToSpeak, caller: this);
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _detailOption('Dor física', '🩹'),
+          const SizedBox(height: 8),
+          _detailOption('Tristeza / Solidão', '😢'),
+          const SizedBox(height: 8),
+          _detailOption('Cansaço', '🥱'),
+          const SizedBox(height: 8),
+          _detailOption('Outro motivo', '❓'),
+          const SizedBox(height: 16),
+          Align(
+            alignment: Alignment.center,
+            child: TextButton.icon(
+              onPressed: () {
+                if (mounted) {
+                  setState(() {
+                    _welfareStep = 0;
+                    _selectedMood = '';
+                  });
+                }
+              },
+              icon: const Icon(Icons.arrow_back, color: AppColors.primary),
+              label: const Text(
+                'Voltar',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _detailOption(String label, String emoji) {
+    return ElevatedButton(
+      onPressed: () => _registrarWelfareCheckin(_selectedMood, detail: label),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: AppColors.surfaceContainerLowest,
+        foregroundColor: AppColors.primary,
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+        elevation: 2,
+        shadowColor: Colors.black12,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: AppColors.primaryFixedDim, width: 2),
+        ),
+      ),
+      child: Row(
+        children: [
+          Text(emoji, style: const TextStyle(fontSize: 26)),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+          const Icon(Icons.arrow_forward_ios, size: 16, color: AppColors.primary),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildConfirmationStep() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 18),
+      decoration: BoxDecoration(
+        color: Colors.green.shade50,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.green.shade300, width: 2),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.green.shade100,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.check_circle_outline,
+              color: Colors.green.shade700,
+              size: 48,
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Check-in Enviado!',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w900,
+              color: Colors.green,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Obrigado por responder. Seu cuidador já foi avisado.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.green.shade800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _checkConnection() async {
+    if (kIsWeb) {
+      if (mounted && !_isOnline) {
+        setState(() {
+          _isOnline = true;
+        });
+      }
+      return;
+    }
     try {
       final result = await InternetAddress.lookup(
         'example.com',
@@ -1164,17 +1429,25 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
   }
 
   Future<void> _abrirGravacao() async {
-    _stopAllAudioAndTts();
-    final result = await Navigator.pushNamed(context, '/recording-audio');
-    if (result != null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Lembrete criado com sucesso!'),
-          backgroundColor: AppColors.tertiaryContainer,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 3),
-        ),
-      );
+    if (_isProcessingAction) return;
+    setState(() => _isProcessingAction = true);
+    try {
+      _stopAllAudioAndTts();
+      final result = await Navigator.pushNamed(context, '/recording-audio');
+      if (result != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Lembrete criado com sucesso!'),
+            backgroundColor: AppColors.tertiaryContainer,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isProcessingAction = false);
+      }
     }
   }
 
@@ -1237,10 +1510,6 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     if (mounted) setState(() => _isBannerSpeaking = false);
   }
 
-  void _toggleSpeak() {
-    if (_ultimoLembrete == null) return;
-    _speakReminder(_ultimoLembrete!);
-  }
 
   String _descreverLembrete(Lembrete l) {
     final spokenTime = PeriodHelper.getSpokenTime(
@@ -1537,13 +1806,13 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                       ],
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  if (lembrete.audioPath != null)
+                  const SizedBox(width: 24),
+                  if (lembrete.audioPath != null) ...[
                     GestureDetector(
                       onTap: () => _playAudio(lembrete.audioPath!),
                       child: Container(
-                        width: 56,
-                        height: 56,
+                        width: 64,
+                        height: 64,
                         decoration: BoxDecoration(
                           color:
                               _isPlaying &&
@@ -1576,26 +1845,35 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                               : (lembrete.status == LembreteStatus.adiado
                                     ? AppColors.onSecondaryFixedVariant
                                     : accentColor),
-                          size: 32,
+                          size: 36,
                         ),
                       ),
                     ),
-                  const SizedBox(width: 8),
+                    const SizedBox(width: 24),
+                  ],
                   GestureDetector(
-                    onTap: () {
-                      if (isMed && !lembrete.concluido) {
-                        Navigator.pushNamed(
-                          context,
-                          '/take-photo-confirmation',
-                          arguments: lembrete.id,
-                        );
-                      } else {
-                        LembreteService.instance.alternarConclusao(lembrete.id);
+                    onTap: () async {
+                      if (_isProcessingAction) return;
+                      setState(() => _isProcessingAction = true);
+                      try {
+                        if (isMed && !lembrete.concluido) {
+                          await Navigator.pushNamed(
+                            context,
+                            '/take-photo-confirmation',
+                            arguments: lembrete.id,
+                          );
+                        } else {
+                          await LembreteService.instance.alternarConclusao(lembrete.id);
+                        }
+                      } finally {
+                        if (mounted) {
+                          setState(() => _isProcessingAction = false);
+                        }
                       }
                     },
                     child: Container(
-                      width: 56,
-                      height: 56,
+                      width: 64,
+                      height: 64,
                       decoration: BoxDecoration(
                         color: lembrete.concluido
                             ? (isHighContrast
@@ -1650,9 +1928,13 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                         ? Colors.black
                                         : AppColors.onSecondaryFixedVariant)
                                   : Colors.white,
-                              size: 32,
+                              size: 36,
                             )
-                          : null,
+                          : Icon(
+                              Icons.radio_button_unchecked,
+                              color: isHighContrast ? Colors.black : accentColor,
+                              size: 36,
+                            ),
                     ),
                   ),
                 ],
@@ -1768,7 +2050,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
             .toList(),
       ),
       _PeriodSection(
-        title: 'MANHA',
+        title: 'MANHÃ',
         subtitle: '06:00 - 11:59',
         icon: Icons.wb_sunny,
         color: PeriodHelper.getPeriodColor(8),
@@ -1816,7 +2098,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
       if (section.title == 'MADRUGADA') {
         return l.horarioHour >= 0 && l.horarioHour < 6;
       }
-      if (section.title == 'MANHA') {
+      if (section.title == 'MANHÃ') {
         return l.horarioHour >= 6 && l.horarioHour < 12;
       }
       if (section.title == 'TARDE') {
@@ -2089,18 +2371,17 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                 const DeviceBarrierBanner(),
                 Expanded(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
                     child: Column(
                       children: [
-                        if (widget.showConnected) ...[
-                          const SizedBox(height: 12),
+                        if (_isConnected) ...[
                           _buildConnectedBadge(),
+                          const SizedBox(height: 12),
                         ],
                         if (_showWelfareCheckin) ...[
-                          const SizedBox(height: 20),
                           _buildWelfareCheckinCard(),
+                          const SizedBox(height: 16),
                         ],
-                        const SizedBox(height: 24),
                         _buildVoiceButton(),
                         const SizedBox(height: 24),
                         Text(
@@ -2147,7 +2428,6 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: const BoxDecoration(
         color: AppColors.surface,
-        border: Border(bottom: BorderSide(color: AppColors.outlineVariant)),
       ),
       child: Row(
         children: [
@@ -2177,11 +2457,26 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
           ),
           GestureDetector(
             onTap: () async {
-              _stopAllAudioAndTts();
-              await Navigator.pushNamed(context, '/elderly-profile');
-              _loadProfilePhoto();
+              if (_isProcessingAction) return;
+              setState(() => _isProcessingAction = true);
+              try {
+                _stopAllAudioAndTts();
+                await Navigator.pushNamed(context, '/elderly-profile');
+                await _updateConnectionStatus();
+                _loadProfilePhoto();
+                _checkWelfareStatus();
+              } finally {
+                if (mounted) {
+                  setState(() => _isProcessingAction = false);
+                }
+              }
             },
-            child: ElderlyProfileAvatar(fotoPath: _fotoPath, size: 48),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ElderlyProfileAvatar(fotoPath: _fotoPath, size: 56),
+              ],
+            ),
           ),
         ],
       ),
@@ -2263,7 +2558,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
         children: [
           Icon(
             _isOnline ? Icons.wifi : Icons.wifi_off,
-            size: 16,
+            size: 20,
             color: isHighContrast
                 ? Colors.black
                 : (_isOnline
@@ -2274,7 +2569,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
           Text(
             _isOnline ? 'Conectado' : 'Sem Internet',
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 17,
               fontWeight: FontWeight.w700,
               color: isHighContrast
                   ? Colors.black
@@ -2485,57 +2780,80 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                 onPressed: () =>
                                     _ouvirExplicacaoLembrete(lembrete),
                                 icon: const Icon(Icons.volume_up, size: 24),
-                                label: const Text(
-                                  'OUVIR EXPLICAÇÃO',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
+                                label: const FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    'OUVIR EXPLICAÇÃO',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ),
-                                style: isHighContrast
-                                    ? ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.black,
-                                        foregroundColor: Colors.white,
-                                        side: const BorderSide(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: isHighContrast
+                                      ? Colors.yellow
+                                      : AppColors.secondaryContainer,
+                                  foregroundColor: isHighContrast
+                                      ? Colors.black
+                                      : AppColors.onSecondaryContainer,
+                                  elevation: 0,
+                                  side: isHighContrast
+                                      ? const BorderSide(
                                           color: Colors.black,
                                           width: 2,
-                                        ),
-                                      )
-                                    : null,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            GestureDetector(
-                              onTap: lembrete.audioPath != null
-                                  ? () => _playAudio(lembrete.audioPath!)
-                                  : _toggleSpeak,
-                              child: Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: isHighContrast
-                                      ? Colors.white
-                                      : AppColors.primary.withValues(
-                                          alpha: 0.1,
-                                        ),
-                                  shape: BoxShape.circle,
-                                  border: isHighContrast
-                                      ? Border.all(
-                                          color: Colors.black,
-                                          width: 3,
                                         )
                                       : null,
-                                ),
-                                child: Icon(
-                                  _isPlaying || _isBannerSpeaking
-                                      ? Icons.stop
-                                      : Icons.play_arrow,
-                                  color: isHighContrast
-                                      ? Colors.black
-                                      : AppColors.primary,
-                                  size: 32,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
                                 ),
                               ),
                             ),
+                            if (lembrete.audioPath != null) ...[
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  onPressed: () => _playAudio(lembrete.audioPath!),
+                                  icon: Icon(
+                                    _isPlaying
+                                        ? Icons.stop
+                                        : Icons.play_arrow,
+                                    size: 24,
+                                  ),
+                                  label: const FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      'OUVIR VOZ',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: isHighContrast
+                                        ? Colors.white
+                                        : AppColors.primary.withValues(
+                                            alpha: 0.1,
+                                          ),
+                                    foregroundColor: isHighContrast
+                                        ? Colors.black
+                                        : AppColors.primary,
+                                    elevation: 0,
+                                    side: isHighContrast
+                                        ? const BorderSide(
+                                            color: Colors.black,
+                                            width: 2.5,
+                                          )
+                                        : null,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ],
@@ -2560,17 +2878,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
         return Container(
           width: double.infinity,
           decoration: BoxDecoration(
-            gradient: isHighContrast
-                ? null
-                : LinearGradient(
-                    colors: [
-                      categoryColor.withValues(alpha: 0.08),
-                      AppColors.surfaceContainerLowest,
-                    ],
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                  ),
-            color: isHighContrast ? Colors.white : null,
+            color: isHighContrast ? Colors.white : AppColors.surfaceContainerLowest,
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
               color: isHighContrast
@@ -2680,57 +2988,80 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                   onPressed: () =>
                                       _ouvirExplicacaoLembrete(lembrete),
                                   icon: const Icon(Icons.volume_up, size: 24),
-                                  label: const Text(
-                                    'OUVIR EXPLICAÇÃO',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
+                                  label: const FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      'OUVIR EXPLICAÇÃO',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                   ),
-                                  style: isHighContrast
-                                      ? ElevatedButton.styleFrom(
-                                          backgroundColor: Colors.black,
-                                          foregroundColor: Colors.white,
-                                          side: const BorderSide(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: isHighContrast
+                                        ? Colors.yellow
+                                        : AppColors.secondaryContainer,
+                                    foregroundColor: isHighContrast
+                                        ? Colors.black
+                                        : AppColors.onSecondaryContainer,
+                                    elevation: 0,
+                                    side: isHighContrast
+                                        ? const BorderSide(
                                             color: Colors.black,
                                             width: 2,
-                                          ),
-                                        )
-                                      : null,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              GestureDetector(
-                                onTap: lembrete.audioPath != null
-                                    ? () => _playAudio(lembrete.audioPath!)
-                                    : _toggleSpeak,
-                                child: Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: isHighContrast
-                                        ? Colors.white
-                                        : AppColors.primary.withValues(
-                                            alpha: 0.1,
-                                          ),
-                                    shape: BoxShape.circle,
-                                    border: isHighContrast
-                                        ? Border.all(
-                                            color: Colors.black,
-                                            width: 3,
                                           )
                                         : null,
-                                  ),
-                                  child: Icon(
-                                    _isPlaying || _isBannerSpeaking
-                                        ? Icons.stop
-                                        : Icons.play_arrow,
-                                    color: isHighContrast
-                                        ? Colors.black
-                                        : AppColors.primary,
-                                    size: 32,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
                                   ),
                                 ),
                               ),
+                              if (lembrete.audioPath != null) ...[
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    onPressed: () => _playAudio(lembrete.audioPath!),
+                                    icon: Icon(
+                                      _isPlaying
+                                          ? Icons.stop
+                                          : Icons.play_arrow,
+                                      size: 24,
+                                    ),
+                                    label: const FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Text(
+                                        'OUVIR VOZ',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: isHighContrast
+                                          ? Colors.white
+                                          : AppColors.primary.withValues(
+                                              alpha: 0.1,
+                                            ),
+                                      foregroundColor: isHighContrast
+                                          ? Colors.black
+                                          : AppColors.primary,
+                                      elevation: 0,
+                                      side: isHighContrast
+                                          ? const BorderSide(
+                                              color: Colors.black,
+                                              width: 2.5,
+                                            )
+                                          : null,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ],
@@ -2774,13 +3105,29 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _bottomNavItem(Icons.home, 'Início', true, null),
-              _bottomNavItem(Icons.list_alt, 'Lembretes', false, () {
-                _stopAllAudioAndTts();
-                Navigator.pushNamed(context, '/all-reminders');
+              _bottomNavItem(Icons.list_alt, 'Lembretes', false, () async {
+                if (_isProcessingAction) return;
+                setState(() => _isProcessingAction = true);
+                try {
+                  _stopAllAudioAndTts();
+                  await Navigator.pushNamed(context, '/all-reminders');
+                } finally {
+                  if (mounted) {
+                    setState(() => _isProcessingAction = false);
+                  }
+                }
               }),
-              _bottomNavItem(Icons.help_center, 'Ajuda', false, () {
-                _stopAllAudioAndTts();
-                Navigator.pushNamed(context, '/elderly-help');
+              _bottomNavItem(Icons.help_center, 'Ajuda', false, () async {
+                if (_isProcessingAction) return;
+                setState(() => _isProcessingAction = true);
+                try {
+                  _stopAllAudioAndTts();
+                  await Navigator.pushNamed(context, '/elderly-help');
+                } finally {
+                  if (mounted) {
+                    setState(() => _isProcessingAction = false);
+                  }
+                }
               }),
             ],
           ),
@@ -2801,7 +3148,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 6),
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
           decoration: BoxDecoration(
             color: selected ? AppColors.secondaryContainer : null,
             borderRadius: BorderRadius.circular(16),
@@ -2810,14 +3157,12 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 24, color: itemColor),
-              const SizedBox(height: 2),
+              Icon(icon, size: 28, color: itemColor),
+              const SizedBox(height: 4),
               Text(
                 label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: 14,
                   fontWeight: FontWeight.w800,
                   color: itemColor,
                 ),

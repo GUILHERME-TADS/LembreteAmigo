@@ -48,8 +48,18 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
   @override
   void dispose() {
-    _voiceRecorder.dispose();
     _recordingTimer?.cancel();
+    _voiceRecorder.isRecording().then((recording) {
+      if (recording) {
+        _voiceRecorder.stop().then((_) => _voiceRecorder.dispose());
+      } else {
+        _voiceRecorder.dispose();
+      }
+    }).catchError((_) {
+      try {
+        _voiceRecorder.dispose();
+      } catch (_) {}
+    });
     super.dispose();
   }
 
@@ -62,6 +72,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
           const RecordConfig(encoder: AudioEncoder.aacLc),
           path: path,
         );
+        if (!mounted) return;
         setState(() {
           _isRecordingVoice = true;
           _recordingSeconds = 0;
@@ -88,6 +99,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
   Future<void> _cancelVoiceRecording() async {
     await _voiceRecorder.stop();
     _recordingTimer?.cancel();
+    if (!mounted) return;
     setState(() {
       _isRecordingVoice = false;
       _recordingSeconds = 0;
@@ -98,6 +110,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
     final path = await _voiceRecorder.stop();
     _recordingTimer?.cancel();
     if (path != null) {
+      if (!mounted) return;
       setState(() => _sending = true);
       try {
         await MessageService.instance.sendAudio(
@@ -145,7 +158,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                     return _buildEmptyState();
                   }
                   return ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
                     itemBuilder: (context, index) =>
                         _messageBubble(messages[index]),
                     separatorBuilder: (context, index) =>
@@ -164,47 +177,46 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
   Widget _buildTopBar() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: const BoxDecoration(
         color: AppColors.surface,
-        border: Border(bottom: BorderSide(color: AppColors.outlineVariant)),
       ),
       child: Row(
         children: [
           IconButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              TTSService.instance.parar(caller: this);
+              Navigator.pop(context);
+            },
             icon: const Icon(
               Icons.arrow_back,
               color: AppColors.primary,
-              size: 30,
+              size: 28,
             ),
           ),
-          const SizedBox(width: 4),
-          const Icon(Icons.forum, color: AppColors.primary, size: 32),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  _isSupervisor ? 'Recados do idoso' : 'Recados do cuidador',
-                  style: const TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.primary,
-                  ),
+          const Spacer(),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                _isSupervisor ? 'Recados do idoso' : 'Recados do cuidador',
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
                 ),
-                if (!_isSupervisor) ...[
-                  const SizedBox(height: 6),
-                  const MeExplicaButton(
-                    textoExplicacao:
-                        'Olá! Esta é a tela de recados. Aqui você pode escutar os recados do seu cuidador e responder enviando recados de voz tocando no botão gigante de gravar.',
-                  ),
-                ],
+              ),
+              if (!_isSupervisor) ...[
+                const SizedBox(height: 6),
+                const MeExplicaButton(
+                  textoExplicacao:
+                      'Olá! Esta é a tela de recados. Aqui você pode escutar os recados do seu cuidador e responder enviando recados de voz tocando no botão gigante de gravar.',
+                ),
               ],
-            ),
+            ],
           ),
+          const Spacer(),
+          const SizedBox(width: 48), // Mantém o equilíbrio visual com o botão de voltar no lado oposto
         ],
       ),
     );
@@ -358,23 +370,69 @@ class _MessagesScreenState extends State<MessagesScreen> {
     final minutes = (_recordingSeconds ~/ 60).toString().padLeft(2, '0');
     final seconds = (_recordingSeconds % 60).toString().padLeft(2, '0');
 
-    return Row(
+    return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.fiber_manual_record, color: Colors.red, size: 24),
-        const SizedBox(width: 8),
-        Text(
-          'Gravando: $minutes:$seconds',
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.fiber_manual_record, color: Colors.red, size: 24),
+            const SizedBox(width: 8),
+            Text(
+              'Gravando: $minutes:$seconds',
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+                color: Colors.red,
+              ),
+            ),
+          ],
         ),
-        const Spacer(),
-        IconButton(
-          icon: const Icon(Icons.delete, color: AppColors.error, size: 28),
-          onPressed: _cancelVoiceRecording,
-        ),
-        const SizedBox(width: 8),
-        IconButton(
-          icon: const Icon(Icons.send, color: Colors.green, size: 28),
-          onPressed: _stopAndSendVoiceRecording,
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: SizedBox(
+                height: 64,
+                child: ElevatedButton.icon(
+                  onPressed: _cancelVoiceRecording,
+                  icon: const Icon(Icons.delete, size: 28),
+                  label: const Text(
+                    'APAGAR',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.error,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: SizedBox(
+                height: 64,
+                child: ElevatedButton.icon(
+                  onPressed: _stopAndSendVoiceRecording,
+                  icon: const Icon(Icons.send, size: 28),
+                  label: const Text(
+                    'ENVIAR',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );

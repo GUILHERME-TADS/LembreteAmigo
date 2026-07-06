@@ -45,9 +45,16 @@ class _ElderlyOnboardingScreenState extends State<ElderlyOnboardingScreen> {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        IconButton(
-                          icon: const Icon(Icons.arrow_back, color: AppColors.primary, size: 32),
-                          onPressed: () => Navigator.pop(context),
+                        InkWell(
+                          onTap: () {
+                            TTSService.instance.parar(caller: this);
+                            Navigator.pop(context);
+                          },
+                          borderRadius: BorderRadius.circular(12),
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            child: Icon(Icons.arrow_back, color: AppColors.primary, size: 36),
+                          ),
                         ),
                         const Spacer(),
                         const SizedBox(width: 48),

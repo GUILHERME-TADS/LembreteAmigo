@@ -175,6 +175,7 @@ class DeviceBarrierService {
   }
 
   Future<bool> _hasInternet() async {
+    if (kIsWeb) return true;
     try {
       final result = await InternetAddress.lookup(
         'example.com',
@@ -276,7 +277,18 @@ class DeviceBarrierService {
         .collection('device_diagnostics')
         .doc(idosoId)
         .snapshots()
-        .map((snapshot) {
+        .asyncMap((snapshot) async {
+          if (SessionRoleService.isSupervisor) {
+            final connected = await SessionRoleService.isSupervisorConnected();
+            if (!connected) {
+              return DeviceDiagnostics(
+                barriers: const [],
+                batteryLevel: null,
+                batteryState: null,
+                updatedAt: DateTime.now(),
+              );
+            }
+          }
           final now = DateTime.now();
           if (!snapshot.exists || snapshot.data() == null) {
             return DeviceDiagnostics(

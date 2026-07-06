@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -141,6 +142,10 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
 
   Future<void> _exportarRelatorioPDF() async {
     try {
+      final fontData = await rootBundle.load("assets/fonts/Roboto-Regular.ttf");
+      final robotoFont = pw.Font.ttf(fontData);
+      final pdfTheme = pw.ThemeData.withFont(base: robotoFont, bold: robotoFont);
+
       final pdf = pw.Document();
       final weeklyPct = _weeklyTotal == 0
           ? 0
@@ -148,6 +153,7 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
 
       pdf.addPage(
         pw.Page(
+          theme: pdfTheme,
           pageFormat: PdfPageFormat.a4,
           build: (pw.Context context) {
             return pw.Padding(
@@ -241,11 +247,10 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
             _buildTopBar(context),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 24),
                     _buildHeader(),
                     const SizedBox(height: 12),
                     _buildExportButton(),

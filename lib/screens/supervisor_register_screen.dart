@@ -178,7 +178,7 @@ class _SupervisorRegisterScreenState extends State<SupervisorRegisterScreen> {
               ),
               const SizedBox(height: 24),
               SeniorInputField(
-                label: 'E-mail Corporativo',
+                label: 'E-mail',
                 placeholder: 'nome@exemplo.com',
                 prefixIcon: Icons.mail,
                 controller: _emailController,

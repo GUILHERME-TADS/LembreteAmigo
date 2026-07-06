@@ -55,6 +55,19 @@ class MessageService {
   }
 
   Future<void> load() async {
+    if (SessionRoleService.isSupervisor) {
+      final idosoId = await getActiveIdosoId();
+      if (idosoId == SessionRoleService.unpairedIdosoId) {
+        await _messagesSubscription?.cancel();
+        _messagesSubscription = null;
+        _messages.clear();
+        notifier.value = const [];
+        _loaded = false;
+        _loadedIdosoId = null;
+        return;
+      }
+    }
+
     final idosoId = await getActiveIdosoId();
     if (_loaded && _loadedIdosoId == idosoId) return;
 
@@ -91,7 +104,23 @@ class MessageService {
         });
   }
 
+  Future<void> reset() async {
+    await _messagesSubscription?.cancel();
+    _messagesSubscription = null;
+    _messages.clear();
+    notifier.value = const [];
+    _loaded = false;
+    _loadedIdosoId = null;
+  }
+
+
+  Future<bool> _checkConnection() async {
+    final idosoId = await getActiveIdosoId();
+    return idosoId != SessionRoleService.unpairedIdosoId;
+  }
+
   Future<void> sendText(String text) async {
+    if (!await _checkConnection()) return;
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;
 
@@ -113,6 +142,7 @@ class MessageService {
     required String fallbackText,
     String? nomeIdoso,
   }) async {
+    if (!await _checkConnection()) return;
     final idosoId = await getActiveIdosoId();
     final messageId = 'msg_${DateTime.now().microsecondsSinceEpoch}';
     final storedAudioPath = await _uploadAudioIfNeeded(
@@ -132,6 +162,7 @@ class MessageService {
     );
     await saveOutgoing(message);
   }
+
 
   Future<String> _uploadAudioIfNeeded({
     required String audioPath,

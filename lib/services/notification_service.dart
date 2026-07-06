@@ -10,8 +10,6 @@ import '../models/smart_alert.dart';
 class NotificationService {
   NotificationService._();
   static final NotificationService instance = NotificationService._();
-  static const int _maxNotificationId = 2147483647;
-  static const int _notificationIdStride = 100000;
   static const int _maxGeneratedSlots = 40;
 
   final FlutterLocalNotificationsPlugin _plugin =
@@ -26,7 +24,12 @@ class NotificationService {
     // 1. Initialize Timezones
     tz.initializeTimeZones();
     final String timeZoneName = await FlutterTimezone.getLocalTimezone();
-    tz.setLocalLocation(tz.getLocation(timeZoneName));
+    try {
+      tz.setLocalLocation(tz.getLocation(timeZoneName));
+    } catch (_) {
+      debugPrint('Timezone local $timeZoneName nao encontrado. Usando America/Sao_Paulo.');
+      tz.setLocalLocation(tz.getLocation('America/Sao_Paulo'));
+    }
 
     // 2. Android settings
     const AndroidInitializationSettings initializationSettingsAndroid =
@@ -122,17 +125,19 @@ class NotificationService {
     final now = tz.TZDateTime.now(tz.local);
 
     for (final l in lembretes) {
-      await cancelar(l.id);
-      if (l.concluido) continue;
+      try {
+        await cancelar(l.id);
+        if (l.concluido) continue;
 
-      await _agendarLembrete(l, now);
+        await _agendarLembrete(l, now);
+      } catch (e) {
+        debugPrint('Erro ao agendar lembrete ${l.id}: $e');
+      }
     }
   }
 
   int _notificationIdFor(String id, [int slot = 0]) {
-    final parsed = int.tryParse(id);
-    final base = (parsed ?? _stableStringHash(id)) & 0x7fffffff;
-    return (base + slot * _notificationIdStride) % _maxNotificationId;
+    return _stableStringHash('${id}_$slot');
   }
 
   int _stableStringHash(String value) {

@@ -1,11 +1,60 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
 
-class ConnectedSettingsScreen extends StatelessWidget {
+class ConnectedSettingsScreen extends StatefulWidget {
   const ConnectedSettingsScreen({super.key});
 
   @override
+  State<ConnectedSettingsScreen> createState() => _ConnectedSettingsScreenState();
+}
+
+class _ConnectedSettingsScreenState extends State<ConnectedSettingsScreen> {
+  bool _syncAuto = true;
+  bool _pushNotifications = true;
+  bool _audioWifi = true;
+  bool _dataSaver = false;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPreferences();
+  }
+
+  Future<void> _loadPreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _syncAuto = prefs.getBool('connected_settings_sync_auto') ?? true;
+      _pushNotifications = prefs.getBool('connected_settings_push_notifications') ?? true;
+      _audioWifi = prefs.getBool('connected_settings_audio_wifi') ?? true;
+      _dataSaver = prefs.getBool('connected_settings_data_saver') ?? false;
+      _loading = false;
+    });
+  }
+
+  Future<void> _updatePreference(String key, bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(key, value);
+    setState(() {
+      if (key == 'connected_settings_sync_auto') _syncAuto = value;
+      if (key == 'connected_settings_push_notifications') _pushNotifications = value;
+      if (key == 'connected_settings_audio_wifi') _audioWifi = value;
+      if (key == 'connected_settings_data_saver') _dataSaver = value;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return const Scaffold(
+        backgroundColor: AppColors.background,
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -69,10 +118,30 @@ class ConnectedSettingsScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 24),
-              _switchTile(Icons.sync, 'Sincronização Automática', true),
-              _switchTile(Icons.notifications, 'Notificações Push', true),
-              _switchTile(Icons.cloud_upload, 'Upload de Áudio via Wi-Fi', true),
-              _switchTile(Icons.storage, 'Modo de Economia de Dados', false),
+              _switchTile(
+                Icons.sync,
+                'Sincronização Automática',
+                _syncAuto,
+                (val) => _updatePreference('connected_settings_sync_auto', val),
+              ),
+              _switchTile(
+                Icons.notifications,
+                'Notificações Push',
+                _pushNotifications,
+                (val) => _updatePreference('connected_settings_push_notifications', val),
+              ),
+              _switchTile(
+                Icons.cloud_upload,
+                'Upload de Áudio via Wi-Fi',
+                _audioWifi,
+                (val) => _updatePreference('connected_settings_audio_wifi', val),
+              ),
+              _switchTile(
+                Icons.storage,
+                'Modo de Economia de Dados',
+                _dataSaver,
+                (val) => _updatePreference('connected_settings_data_saver', val),
+              ),
               const SizedBox(height: 32),
             ],
           ),
@@ -81,7 +150,7 @@ class ConnectedSettingsScreen extends StatelessWidget {
     );
   }
 
-  Widget _switchTile(IconData icon, String title, bool value) {
+  Widget _switchTile(IconData icon, String title, bool value, ValueChanged<bool> onChanged) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: const BoxDecoration(
@@ -96,7 +165,7 @@ class ConnectedSettingsScreen extends StatelessWidget {
           ),
           Switch(
             value: value,
-            onChanged: (_) {},
+            onChanged: onChanged,
             activeThumbColor: AppColors.secondaryContainer,
           ),
         ],

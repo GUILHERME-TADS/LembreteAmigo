@@ -10,7 +10,6 @@ import 'models/lembrete.dart';
 import 'screens/active_reminder_screen.dart';
 import 'screens/activity_history_screen.dart';
 import 'screens/all_reminders_screen.dart';
-import 'screens/custom_reminders_screen.dart';
 import 'screens/detailed_history_screen.dart';
 import 'screens/edit_profile_screen.dart';
 import 'screens/elderly_help_screen.dart';
@@ -20,11 +19,9 @@ import 'screens/elderly_pairing_screen.dart';
 import 'screens/elderly_profile_screen.dart';
 import 'screens/emergency_alert_screen.dart';
 import 'screens/exercise_detail_screen.dart';
-import 'screens/exercise_screen.dart';
 import 'screens/forgot_password_screen.dart';
 import 'screens/heart_rate_measure_screen.dart';
 import 'screens/meal_detail_screen.dart';
-import 'screens/meals_screen.dart';
 import 'screens/medication_confirmation_screen.dart';
 import 'screens/medication_list_screen.dart';
 import 'screens/messages_screen.dart';
@@ -43,7 +40,6 @@ import 'screens/supervisor_register_screen.dart';
 import 'screens/supervisor_reminder_detail_screen.dart';
 import 'screens/supervisor_settings_screen.dart';
 import 'screens/take_photo_confirmation_screen.dart';
-import 'screens/water_screen.dart';
 import 'screens/welcome_screen.dart';
 import 'services/lembrete_service.dart';
 import 'services/notification_service.dart';
@@ -73,10 +69,6 @@ bool isElderlyOnlyRoute(String routeName) {
     '/elderly-profile',
     '/edit-profile',
     '/recording-audio',
-    '/meals',
-    '/exercise',
-    '/water',
-    '/custom',
   };
 
   return elderlyRoutes.contains(routeName);
@@ -102,8 +94,10 @@ bool isSupervisorProtectedRoute(String routeName) {
 
 bool hasSupervisorAuthSession() {
   try {
-    return Firebase.apps.isNotEmpty &&
-        FirebaseAuth.instance.currentUser != null;
+    if (Firebase.apps.isEmpty) {
+      return true; // Bypass auth check in local simulation/dev mode
+    }
+    return FirebaseAuth.instance.currentUser != null;
   } catch (_) {
     return false;
   }
@@ -183,6 +177,7 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
   Timer? _unlockedReminderTimer;
   final Set<String> _openedReminderKeys = {};
   AppLifecycleState _lifecycleState = AppLifecycleState.resumed;
+  StreamSubscription<User?>? _authStateSubscription;
   bool _largeText = false;
   bool _highContrast = false;
   bool _slowVoice = false;
@@ -199,8 +194,22 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
     LembreteService.instance.notifier.addListener(_openDueReminderIfNeeded);
     _unlockedReminderTimer = Timer.periodic(const Duration(seconds: 15), (_) {
       _loadAccessibilityPreferences();
-      _openDueReminderIfNeeded();
+      LembreteService.instance.carregar().then((_) => _openDueReminderIfNeeded());
     });
+    try {
+      if (Firebase.apps.isNotEmpty) {
+        _authStateSubscription =
+            FirebaseAuth.instance.authStateChanges().listen((user) async {
+          if (user == null && SessionRoleService.isSupervisor) {
+            await SessionRoleService.logout();
+            navigatorKey.currentState?.pushNamedAndRemoveUntil(
+              '/supervisor-login',
+              (route) => false,
+            );
+          }
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadAccessibilityPreferences() async {
@@ -233,13 +242,16 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
     _lifecycleState = state;
     if (state == AppLifecycleState.resumed) {
       _loadAccessibilityPreferences();
-      OfflineSyncService.instance.syncPendingWrites();
-      _openDueReminderIfNeeded();
+      LembreteService.instance.carregar().then((_) {
+        OfflineSyncService.instance.syncPendingWrites();
+        _openDueReminderIfNeeded();
+      });
     }
   }
 
   @override
   void dispose() {
+    _authStateSubscription?.cancel();
     _unlockedReminderTimer?.cancel();
     OfflineSyncService.instance.stopAutoSync();
     LembreteService.instance.notifier.removeListener(_openDueReminderIfNeeded);
@@ -409,9 +421,11 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
           ),
       builder: (context, child) {
         final mediaQuery = MediaQuery.of(context);
+        final systemScale = mediaQuery.textScaler.scale(1.0);
+        final scaleFactor = systemScale * (_largeText ? 1.15 : 1.0);
         return MediaQuery(
           data: mediaQuery.copyWith(
-            textScaler: TextScaler.linear(_largeText ? 1.15 : 1.0),
+            textScaler: TextScaler.linear(scaleFactor.clamp(1.0, 2.5)),
           ),
           child: child ?? const SizedBox.shrink(),
         );
@@ -421,7 +435,8 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
         Widget page;
         final routeName = settings.name ?? '/';
         if (isSupervisorProtectedRoute(routeName) &&
-            !hasSupervisorAuthSession()) {
+            (!hasSupervisorAuthSession() ||
+                !SessionRoleService.isSupervisor)) {
           return MaterialPageRoute(
             builder: (_) => const SupervisorLoginScreen(),
             settings: const RouteSettings(name: '/supervisor-login'),
@@ -549,18 +564,7 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
           case '/emergency-alert':
             page = const EmergencyAlertScreen();
             break;
-          case '/meals':
-            page = const MealsScreen();
-            break;
-          case '/exercise':
-            page = const ExerciseScreen();
-            break;
-          case '/water':
-            page = const WaterScreen();
-            break;
-          case '/custom':
-            page = const CustomRemindersScreen();
-            break;
+
           default:
             page = const WelcomeScreen();
         }
@@ -582,14 +586,40 @@ class _AppStartupState extends State<_AppStartup> {
   @override
   void initState() {
     super.initState();
-    if (widget.pendingPayload != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (widget.pendingPayload != null) {
         navigatorKey.currentState?.pushNamed(
           '/active-reminder',
           arguments: widget.pendingPayload,
         );
-      });
-    }
+        return;
+      }
+
+      await SessionRoleService.load();
+      if (!mounted) return;
+
+      if (SessionRoleService.isElderly) {
+        final prefs = await SharedPreferences.getInstance();
+        final pairedIdosoId = prefs.getString('paired_idoso_id');
+        if (pairedIdosoId != null) {
+          final isPaired = pairedIdosoId != 'idoso_autonomo';
+          navigatorKey.currentState?.pushNamedAndRemoveUntil(
+            '/elderly-home',
+            (route) => false,
+            arguments: {'connected': isPaired},
+          );
+          return;
+        }
+      } else if (SessionRoleService.isSupervisor) {
+        if (hasSupervisorAuthSession()) {
+          navigatorKey.currentState?.pushNamedAndRemoveUntil(
+            '/supervisor-dashboard',
+            (route) => false,
+          );
+          return;
+        }
+      }
+    });
   }
 
   @override

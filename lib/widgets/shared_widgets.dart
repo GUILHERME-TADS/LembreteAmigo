@@ -123,7 +123,8 @@ class SeniorButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: 120,
+        constraints: const BoxConstraints(minHeight: 120),
+        padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
           color: bgColor,
           borderRadius: BorderRadius.circular(AppRadius.lg),

@@ -13,8 +13,7 @@ class SecureCacheService {
   Future<String?> read(String key) async {
     if (kIsWeb) {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(key);
-      return null;
+      return prefs.getString(key);
     }
 
     try {
@@ -34,7 +33,7 @@ class SecureCacheService {
   Future<void> write(String key, String value) async {
     if (kIsWeb) {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(key);
+      await prefs.setString(key, value);
       return;
     }
 

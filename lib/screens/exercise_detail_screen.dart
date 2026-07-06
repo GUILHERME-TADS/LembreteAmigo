@@ -68,10 +68,9 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
             _buildTopBar(context),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
                 child: Column(
                   children: [
-                    const SizedBox(height: 16),
                     _buildPulsingIcon(),
                     const SizedBox(height: 32),
                     Text(
@@ -161,17 +160,23 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
 
   Widget _buildTopBar(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      height: 64,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      constraints: const BoxConstraints(minHeight: 64),
       decoration: const BoxDecoration(
         color: AppColors.surface,
-        border: Border(bottom: BorderSide(color: AppColors.outlineVariant)),
       ),
       child: Row(
         children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back, color: AppColors.tertiaryContainer, size: 32),
-            onPressed: () => Navigator.pop(context),
+          InkWell(
+            onTap: () {
+              TTSService.instance.parar(caller: this);
+              Navigator.pop(context);
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: Icon(Icons.arrow_back, color: AppColors.tertiaryContainer, size: 36),
+            ),
           ),
           const Expanded(
             child: Text(

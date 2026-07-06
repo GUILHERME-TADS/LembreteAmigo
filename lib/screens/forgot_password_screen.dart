@@ -134,7 +134,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'E-mail Corporativo',
+          'E-mail',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w700,
@@ -185,7 +185,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   void _onSubmit() async {
     final email = _emailController.text.trim();
     if (email.isEmpty) {
-      _showError('Por favor, informe seu e-mail corporativo.');
+      _showError('Por favor, informe seu e-mail.');
       return;
     }
     final emailRegex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');

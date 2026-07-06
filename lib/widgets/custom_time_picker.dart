@@ -295,42 +295,46 @@ class _CustomTimePickerDialogState extends State<CustomTimePickerDialog> {
           onTap: () async {
             // Abrir caixa de diálogo simples para entrada direta via teclado se o idoso preferir
             final controller = TextEditingController(text: value.toString().padLeft(2, '0'));
-            final res = await showDialog<int>(
-              context: context,
-              builder: (context) => AlertDialog(
-                title: Text('Digite o valor de $label'),
-                content: TextField(
-                  controller: controller,
-                  keyboardType: TextInputType.number,
-                  autofocus: true,
-                  maxLength: 2,
-                  style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
-                  textAlign: TextAlign.center,
-                  decoration: const InputDecoration(counterText: ''),
+            try {
+              final res = await showDialog<int>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: Text('Digite o valor de $label'),
+                  content: TextField(
+                    controller: controller,
+                    keyboardType: TextInputType.number,
+                    autofocus: true,
+                    maxLength: 2,
+                    style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center,
+                    decoration: const InputDecoration(counterText: ''),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('CANCELAR'),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        final val = int.tryParse(controller.text);
+                        Navigator.pop(context, val);
+                      },
+                      child: const Text('OK'),
+                    ),
+                  ],
                 ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('CANCELAR'),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      final val = int.tryParse(controller.text);
-                      Navigator.pop(context, val);
-                    },
-                    child: const Text('OK'),
-                  ),
-                ],
-              ),
-            );
-            if (res != null) {
-              setState(() {
-                if (label == 'HORA') {
-                  _hour = res.clamp(0, 23);
-                } else {
-                  _minute = res.clamp(0, 59);
-                }
-              });
+              );
+              if (res != null) {
+                setState(() {
+                  if (label == 'HORA') {
+                    _hour = res.clamp(0, 23);
+                  } else {
+                    _minute = res.clamp(0, 59);
+                  }
+                });
+              }
+            } finally {
+              controller.dispose();
             }
           },
           child: Container(

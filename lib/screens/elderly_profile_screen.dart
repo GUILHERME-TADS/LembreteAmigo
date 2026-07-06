@@ -31,11 +31,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
   String? _fotoPath;
   bool _isLoading = true;
   bool _isAutonomous = false;
-  bool _largeText = false;
-  bool _highContrast = false;
-  bool _slowVoice = false;
-  bool _largeButtons = false;
-  bool _reduceAnimations = false;
+
 
   bool get _useFirebase {
     try {
@@ -67,20 +63,9 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final pairedId = prefs.getString('paired_idoso_id');
-      final lText = prefs.getBool('accessibility_large_text') ?? false;
-      final hContrast = prefs.getBool('accessibility_high_contrast') ?? false;
-      final sVoice = prefs.getBool('accessibility_slow_voice') ?? false;
-      final lButtons = prefs.getBool('accessibility_large_buttons') ?? false;
-      final rAnims = prefs.getBool('accessibility_reduce_animations') ?? false;
-
       if (mounted) {
         setState(() {
           _isAutonomous = (pairedId == 'idoso_autonomo');
-          _largeText = lText;
-          _highContrast = hContrast;
-          _slowVoice = sVoice;
-          _largeButtons = lButtons;
-          _reduceAnimations = rAnims;
         });
       }
 
@@ -209,20 +194,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
     }
   }
 
-  Future<void> _updateAccessibilitySetting(String key, bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(key, value);
-    if (key == 'accessibility_slow_voice') {
-      await TTSService.instance.setSpeechRate(value ? 0.38 : 0.5);
-    }
-    setState(() {
-      if (key == 'accessibility_large_text') _largeText = value;
-      if (key == 'accessibility_high_contrast') _highContrast = value;
-      if (key == 'accessibility_slow_voice') _slowVoice = value;
-      if (key == 'accessibility_large_buttons') _largeButtons = value;
-      if (key == 'accessibility_reduce_animations') _reduceAnimations = value;
-    });
-  }
+
 
   Future<void> _desvincularAjudante(BuildContext context) async {
     final confirm = await showDialog<bool>(
@@ -283,6 +255,8 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
       setState(() => _isLoading = false);
     }
   }
+
+
 
   Future<void> _showEditDeleteDialog(Lembrete lembrete) async {
     TTSService.instance.parar(caller: this);
@@ -533,6 +507,51 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
     ).showSnackBar(const SnackBar(content: Text('Lembrete excluído.')));
   }
 
+  Widget _buildTopBar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            onPressed: () {
+              TTSService.instance.parar(caller: this);
+              Navigator.pop(context);
+            },
+            icon: const Icon(
+              Icons.arrow_back,
+              color: AppColors.primary,
+              size: 28,
+            ),
+          ),
+          const Spacer(),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              Text(
+                'Meu Perfil',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
+                ),
+              ),
+              SizedBox(height: 6),
+              MeExplicaButton(
+                textoExplicacao:
+                    'Olá! Esta é a tela com as suas informações. Aqui você vê o seu nome e telefone. Para mudar sua foto, aperte em cima do círculo da foto. Para mudar seu nome ou se conectar com um ajudante, use os botões da lista abaixo.',
+              ),
+            ],
+          ),
+          const Spacer(),
+          const SizedBox(width: 48), // Mantém o equilíbrio visual com o botão de voltar no lado oposto
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // Medicamentos reais filtrados de LembreteService
@@ -549,45 +568,14 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
         child: Column(
           children: [
             const VolumeWarningBanner(),
+            _buildTopBar(),
             Expanded(
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : SingleChildScrollView(
-                      padding: const EdgeInsets.all(20),
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
                       child: Column(
                         children: [
-                          Row(
-                            children: [
-                              IconButton(
-                                onPressed: () {
-                                  TTSService.instance.parar(caller: this);
-                                  Navigator.pop(context);
-                                },
-                                icon: const Icon(
-                                  Icons.arrow_back,
-                                  color: AppColors.primary,
-                                ),
-                              ),
-                              const Expanded(
-                                child: Text(
-                                  'Lembrete Amigo',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.primary,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 48),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          const MeExplicaButton(
-                            textoExplicacao:
-                                'Olá! Esta é a tela com as suas informações. Aqui você vê o seu nome e telefone. Para mudar sua foto, aperte em cima do círculo da foto. Para mudar seu nome ou se conectar com um ajudante, use os botões da lista abaixo.',
-                          ),
-                          const SizedBox(height: 20),
                           Container(
                             width: double.infinity,
                             padding: const EdgeInsets.all(24),
@@ -924,6 +912,67 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                                         Flexible(
                                           child: Text(
                                             'ALTERAR MEUS DADOS',
+                                            textAlign: TextAlign.center,
+                                            style: TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 64,
+                                  child: OutlinedButton(
+                                    onPressed: () async {
+                                      TTSService.instance.parar(caller: this);
+                                      final confirm = await showDialog<bool>(
+                                        context: context,
+                                        builder: (ctx) => AlertDialog(
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                          title: const Text('Sair do Modo Idoso?', style: TextStyle(fontWeight: FontWeight.bold)),
+                                          content: const Text(
+                                            'Deseja realmente voltar para a tela de escolha de perfil? Suas informações e lembretes continuarão salvos normalmente.',
+                                            style: TextStyle(fontSize: 18),
+                                          ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () => Navigator.pop(ctx, false),
+                                              child: const Text('NÃO', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                            ),
+                                            TextButton(
+                                              onPressed: () => Navigator.pop(ctx, true),
+                                              child: const Text('SIM, SAIR', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.error)),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                      if (confirm == true) {
+                                        await SessionRoleService.exitElderlyModeOnly();
+                                        if (context.mounted) {
+                                          Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+                                        }
+                                      }
+                                    },
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: AppColors.onSurface,
+                                      side: const BorderSide(color: AppColors.outlineVariant, width: 2),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                    child: const Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.swap_horiz, size: 28),
+                                        SizedBox(width: 12),
+                                        Flexible(
+                                          child: Text(
+                                            'SAIR DO MODO IDOSO',
                                             textAlign: TextAlign.center,
                                             style: TextStyle(
                                               fontSize: 18,
@@ -1475,9 +1524,11 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('idoso_foto_path');
 
-      setState(() {
-        _fotoPath = null;
-      });
+      if (mounted) {
+        setState(() {
+          _fotoPath = null;
+        });
+      }
 
       if (_useFirebase) {
         final idosoId = await SessionRoleService.getActiveIdosoId();

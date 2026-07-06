@@ -64,12 +64,7 @@ class _VolumeWarningBannerState extends State<VolumeWarningBanner> {
     );
   }
 
-  Future<void> _testSound() async {
-    await TTSService.instance.falar(
-      'Teste de som do Lembrete Amigo. Se voce ouviu esta mensagem, o som esta funcionando.',
-      caller: this,
-    );
-  }
+
 
   Future<void> _speakWarning() async {
     await TTSService.instance.falar(

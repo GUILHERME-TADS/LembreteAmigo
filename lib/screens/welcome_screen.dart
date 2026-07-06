@@ -13,6 +13,7 @@ class WelcomeScreen extends StatefulWidget {
 }
 
 class _WelcomeScreenState extends State<WelcomeScreen> {
+  bool _isProcessingTap = false;
   @override
   void initState() {
     super.initState();
@@ -102,28 +103,38 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                             title: 'Sou o Idoso',
                             subtitle: 'Acesso fácil e simplificado',
                             bgColor: AppColors.secondaryContainer,
-                            textColor: AppColors.onSecondaryContainer,
+                            textColor: AppColors.onSecondaryFixed,
                             iconBgColor: AppColors.surfaceContainerLowest,
-                            iconColor: AppColors.onSecondaryContainer,
+                            iconColor: AppColors.onSecondaryFixed,
                             onTap: () async {
-                              TTSService.instance.parar(caller: this);
-                              await SessionRoleService.setElderly();
-                              final prefs =
-                                  await SharedPreferences.getInstance();
-                              final isPaired =
-                                  prefs.getString('paired_idoso_id') != null;
-                              if (!mounted) return;
-                              if (isPaired) {
-                                Navigator.pushNamed(
-                                  context,
-                                  '/elderly-home',
-                                  arguments: {'connected': true},
-                                );
-                              } else {
-                                Navigator.pushNamed(
-                                  context,
-                                  '/elderly-onboarding',
-                                );
+                              if (_isProcessingTap) return;
+                              setState(() => _isProcessingTap = true);
+                              try {
+                                TTSService.instance.parar(caller: this);
+                                await SessionRoleService.setElderly();
+                                final prefs =
+                                    await SharedPreferences.getInstance();
+                                final pairedIdosoId =
+                                    prefs.getString('paired_idoso_id');
+                                if (!mounted) return;
+                                if (pairedIdosoId != null) {
+                                  final isPaired = pairedIdosoId != 'idoso_autonomo';
+                                  Navigator.pushNamedAndRemoveUntil(
+                                    context,
+                                    '/elderly-home',
+                                    (route) => false,
+                                    arguments: {'connected': isPaired},
+                                  );
+                                } else {
+                                  Navigator.pushNamed(
+                                    context,
+                                    '/elderly-onboarding',
+                                  );
+                                }
+                              } finally {
+                                if (mounted) {
+                                  setState(() => _isProcessingTap = false);
+                                }
                               }
                             },
                           ),
@@ -137,10 +148,18 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                             iconBgColor: AppColors.primaryContainer,
                             iconColor: AppColors.onPrimaryContainer,
                             onTap: () async {
-                              TTSService.instance.parar(caller: this);
-                              await SessionRoleService.setSupervisor();
-                              if (!mounted) return;
-                              Navigator.pushNamed(context, '/supervisor-login');
+                              if (_isProcessingTap) return;
+                              setState(() => _isProcessingTap = true);
+                              try {
+                                TTSService.instance.parar(caller: this);
+                                await SessionRoleService.setSupervisor();
+                                if (!mounted) return;
+                                Navigator.pushNamed(context, '/supervisor-login');
+                              } finally {
+                                if (mounted) {
+                                  setState(() => _isProcessingTap = false);
+                                }
+                              }
                             },
                           ),
                         ],
@@ -318,66 +337,68 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           ),
           child: SafeArea(
             top: false,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 48,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.outlineVariant,
-                    borderRadius: BorderRadius.circular(2),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 48,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.outlineVariant,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  children: [
-                    Icon(icon, color: AppColors.primary, size: 32),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 24,
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Icon(icon, color: AppColors.primary, size: 32),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    content,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      height: 1.5,
+                      color: AppColors.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'FECHAR',
+                        style: TextStyle(
+                          fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
                         ),
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  content,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    height: 1.5,
-                    color: AppColors.onSurfaceVariant,
                   ),
-                ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text(
-                      'FECHAR',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );

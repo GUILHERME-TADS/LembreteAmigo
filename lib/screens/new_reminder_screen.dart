@@ -30,6 +30,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
   int? _selectedDiaMes = 1;
   bool _validationAttempted = false;
   bool _isSaving = false;
+  bool _isCapturingPhoto = false;
 
   @override
   void dispose() {
@@ -42,6 +43,8 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
       setState(() => _fotoPath = null);
       return;
     }
+    if (_isCapturingPhoto) return;
+    setState(() => _isCapturingPhoto = true);
 
     try {
       final image = await _imagePicker.pickImage(
@@ -65,6 +68,10 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
           backgroundColor: AppColors.error,
         ),
       );
+    } finally {
+      if (mounted) {
+        setState(() => _isCapturingPhoto = false);
+      }
     }
   }
 
@@ -114,11 +121,10 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
             _buildTopBar(),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 24),
                     const Text(
                       'Novo Lembrete',
                       style: TextStyle(
@@ -157,7 +163,8 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                     ),
                     const SizedBox(height: 8),
                     Container(
-                      height: 56,
+                      constraints: const BoxConstraints(minHeight: 56),
+                      padding: const EdgeInsets.symmetric(vertical: 4),
                       decoration: BoxDecoration(
                         color: AppColors.surfaceContainerLowest,
                         border: Border.all(color: AppColors.outline),
@@ -171,7 +178,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                           hintText: 'Ex: Tomar o remédio de pressão',
                           border: InputBorder.none,
                           counterText: '',
-                          contentPadding: EdgeInsets.symmetric(horizontal: 16),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         ),
                       ),
                     ),
@@ -203,6 +210,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                                 initialTime: _selectedTime,
                               );
                               if (time != null) {
+                                if (!mounted) return;
                                 setState(() => _selectedTime = time);
                               }
                             },
@@ -575,6 +583,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                   '/new-reminder-audio',
                 );
                 if (result is String) {
+                  if (!mounted) return;
                   setState(() => _audioPath = result);
                 }
               },

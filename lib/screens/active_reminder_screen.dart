@@ -34,6 +34,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
   bool _voiceCommandHandled = false;
   Timer? _urgencyReinforcementTimer;
   Timer? _noResponseTimer;
+  bool _isProcessingAction = false;
 
   @override
   void initState() {
@@ -44,16 +45,32 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
   }
 
   void _buscarLembrete() {
-    if (lembrete != null || _lembreteId == null) return;
+    if (_lembreteId == null) return;
     try {
       final l = LembreteService.instance.lembretes.firstWhere(
         (item) => item.id == _lembreteId,
       );
+
+      // Se o lembrete foi concluído remotamente, fecha a tela e para o alarme
+      if (l.concluido && lembrete != null) {
+        _isSpeakingLoopActive = false;
+        _isLoopPaused = false;
+        VibrationService.stopVibration();
+        _familyAudioPlayer.stop();
+        TTSService.instance.parar(caller: this);
+        if (mounted) {
+          Navigator.pop(context);
+        }
+        return;
+      }
+
       setState(() {
         lembrete = l;
         _notFound = false;
       });
-      _startReminderLoop(l);
+      if (!_isSpeakingLoopActive) {
+        _startReminderLoop(l);
+      }
     } catch (_) {
       if (LembreteService.instance.lembretes.isNotEmpty && mounted) {
         setState(() => _notFound = true);
@@ -158,24 +175,28 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
     if (path == null || path.isEmpty) return;
     if (!await audioPathExists(path)) return;
 
+    StreamSubscription? sub;
     try {
       AudioManager.stopAll();
       await TTSService.instance.parar(caller: this);
       await _familyAudioPlayer.stop();
       final completed = Completer<void>();
-      final sub = _familyAudioPlayer.onPlayerComplete.listen((_) {
+      sub = _familyAudioPlayer.onPlayerComplete.listen((_) {
         if (!completed.isCompleted) completed.complete();
       });
       await _familyAudioPlayer.play(audioSourceForPath(path), volume: 1.0);
       await completed.future.timeout(
         const Duration(seconds: 20),
         onTimeout: () async {
-          await _familyAudioPlayer.stop();
+          if (mounted) {
+            await _familyAudioPlayer.stop();
+          }
         },
       );
-      await sub.cancel();
     } catch (e) {
       debugPrint('Erro ao tocar voz familiar: $e');
+    } finally {
+      await sub?.cancel();
     }
   }
 
@@ -590,6 +611,16 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
   @override
   Widget build(BuildContext context) {
     if (_notFound) return _buildMissingReminderScaffold();
+    if (lembrete == null) {
+      return const Scaffold(
+        backgroundColor: AppColors.background,
+        body: Center(
+          child: CircularProgressIndicator(
+            color: AppColors.primary,
+          ),
+        ),
+      );
+    }
 
     final String titleText;
     final String subtitleText;
@@ -598,56 +629,47 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
     final bool requiresPhoto;
     final String confirmButtonText;
 
-    if (lembrete != null) {
-      requiresPhoto = lembrete!.categoria == 'medicacao';
-      categoryIcon = lembrete!.categoria == 'medicacao'
-          ? Icons.medication
-          : lembrete!.categoria == 'refeicoes'
-          ? Icons.restaurant
-          : lembrete!.categoria == 'hidratacao'
-          ? Icons.water_drop
-          : lembrete!.categoria == 'exercicio'
-          ? Icons.directions_walk
-          : Icons.notifications;
+    requiresPhoto = lembrete!.categoria == 'medicacao';
+    categoryIcon = lembrete!.categoria == 'medicacao'
+        ? Icons.medication
+        : lembrete!.categoria == 'refeicoes'
+        ? Icons.restaurant
+        : lembrete!.categoria == 'hidratacao'
+        ? Icons.water_drop
+        : lembrete!.categoria == 'exercicio'
+        ? Icons.directions_walk
+        : Icons.notifications;
 
-      iconColor = lembrete!.categoria == 'medicacao'
-          ? AppColors.medicationsColor
-          : lembrete!.categoria == 'refeicoes'
-          ? AppColors.mealsColor
-          : lembrete!.categoria == 'hidratacao'
-          ? AppColors.voiceFeedbackBlue
-          : lembrete!.categoria == 'exercicio'
-          ? AppColors.tertiaryContainer
-          : AppColors.primary;
+    iconColor = lembrete!.categoria == 'medicacao'
+        ? AppColors.medicationsColor
+        : lembrete!.categoria == 'refeicoes'
+        ? AppColors.mealsColor
+        : lembrete!.categoria == 'hidratacao'
+        ? AppColors.voiceFeedbackBlue
+        : lembrete!.categoria == 'exercicio'
+        ? AppColors.tertiaryContainer
+        : AppColors.primary;
 
-      if (lembrete!.categoria == 'medicacao') {
-        titleText = 'HORA DO REMÉDIO';
-        subtitleText = 'Por favor, tome seu remédio agora.';
-        confirmButtonText = 'ENTENDI, VOU TOMAR!';
-      } else if (lembrete!.categoria == 'refeicoes') {
-        titleText = 'HORA DE COMER';
-        subtitleText = 'Por favor, faça sua refeição agora.';
-        confirmButtonText = 'ENTENDI, VOU COMER!';
-      } else if (lembrete!.categoria == 'hidratacao') {
-        titleText = 'HORA DE BEBER ÁGUA';
-        subtitleText = 'Por favor, beba um copo de água agora.';
-        confirmButtonText = 'ENTENDI, VOU BEBER!';
-      } else if (lembrete!.categoria == 'exercicio') {
-        titleText = 'HORA DO EXERCÍCIO';
-        subtitleText = 'Por favor, faça sua atividade física agora.';
-        confirmButtonText = 'ENTENDI, VOU FAZER!';
-      } else {
-        titleText = 'HORA DO LEMBRETE';
-        subtitleText = 'Por favor, faça esta atividade agora.';
-        confirmButtonText = 'ENTENDI, VOU FAZER!';
-      }
-    } else {
-      requiresPhoto = true;
-      categoryIcon = Icons.medication;
-      iconColor = AppColors.primary;
+    if (lembrete!.categoria == 'medicacao') {
       titleText = 'HORA DO REMÉDIO';
       subtitleText = 'Por favor, tome seu remédio agora.';
       confirmButtonText = 'ENTENDI, VOU TOMAR!';
+    } else if (lembrete!.categoria == 'refeicoes') {
+      titleText = 'HORA DE COMER';
+      subtitleText = 'Por favor, faça sua refeição agora.';
+      confirmButtonText = 'ENTENDI, VOU COMER!';
+    } else if (lembrete!.categoria == 'hidratacao') {
+      titleText = 'HORA DE BEBER ÁGUA';
+      subtitleText = 'Por favor, beba um copo de água agora.';
+      confirmButtonText = 'ENTENDI, VOU BEBER!';
+    } else if (lembrete!.categoria == 'exercicio') {
+      titleText = 'HORA DO EXERCÍCIO';
+      subtitleText = 'Por favor, faça sua atividade física agora.';
+      confirmButtonText = 'ENTENDI, VOU FAZER!';
+    } else {
+      titleText = 'HORA DO LEMBRETE';
+      subtitleText = 'Por favor, faça esta atividade agora.';
+      confirmButtonText = 'ENTENDI, VOU FAZER!';
     }
 
     final isHighContrast = Theme.of(context).colorScheme.primary == Colors.black;
@@ -901,63 +923,71 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                               height: 80,
                               child: ElevatedButton.icon(
                                 onPressed: () async {
-                                  final navigator = Navigator.of(context);
-                                  _isLoopPaused = true;
-                                  VibrationService.stopVibration();
-                                  AudioManager.stopAll();
-                                  _noResponseTimer?.cancel();
-                                  await _familyAudioPlayer.stop();
-                                  await TTSService.instance.parar();
-                                  if (lembrete != null) {
-                                    NotificationService.instance
-                                        .cancelar(lembrete!.id)
-                                        .catchError((e) {
+                                  if (_isProcessingAction) return;
+                                  setState(() => _isProcessingAction = true);
+                                  try {
+                                    final navigator = Navigator.of(context);
+                                    _isLoopPaused = true;
+                                    VibrationService.stopVibration();
+                                    AudioManager.stopAll();
+                                    _noResponseTimer?.cancel();
+                                    await _familyAudioPlayer.stop();
+                                    await TTSService.instance.parar();
+                                    if (lembrete != null) {
+                                      NotificationService.instance
+                                          .cancelar(lembrete!.id)
+                                          .catchError((e) {
+                                        debugPrint(
+                                          'Erro ao cancelar notificacao: $e',
+                                        );
+                                      });
+                                    }
+                                    if (requiresPhoto) {
+                                      final id = lembrete?.id;
+                                      if (id == null || id.isEmpty) {
+                                        if (mounted) {
+                                          setState(() => _notFound = true);
+                                        }
+                                        return;
+                                      }
+                                      AudioManager.stopAll();
+                                      await TTSService.instance.parar();
+                                      await navigator.pushNamed(
+                                        '/take-photo-confirmation',
+                                        arguments: id,
+                                      );
+                                      if (mounted) {
+                                        _isLoopPaused = false;
+                                      }
+                                    } else {
+                                      _isSpeakingLoopActive = false;
+                                      if (lembrete != null) {
+                                        LembreteService.instance
+                                            .alternarConclusao(lembrete!.id)
+                                            .catchError((e) {
                                           debugPrint(
-                                            'Erro ao cancelar notificacao: $e',
+                                            'Erro ao concluir lembrete: $e',
                                           );
                                         });
-                                  }
-                                  if (requiresPhoto) {
-                                    final id = lembrete?.id;
-                                    if (id == null || id.isEmpty) {
-                                      if (mounted) {
-                                        setState(() => _notFound = true);
                                       }
-                                      return;
+                                      final feedbackMsg =
+                                          lembrete?.categoria == 'hidratacao'
+                                              ? 'Você bebeu sua água.'
+                                              : lembrete?.categoria == 'refeicoes'
+                                                  ? 'Você fez sua refeição.'
+                                                  : lembrete?.categoria == 'exercicio'
+                                                      ? 'Você fez seu exercício.'
+                                                      : 'Você concluiu sua atividade.';
+                                      navigator.pushNamedAndRemoveUntil(
+                                        '/medication-confirmation',
+                                        (route) => false,
+                                        arguments: feedbackMsg,
+                                      );
                                     }
-                                    AudioManager.stopAll();
-                                    await TTSService.instance.parar();
-                                    await navigator.pushNamed(
-                                      '/take-photo-confirmation',
-                                      arguments: id,
-                                    );
+                                  } finally {
                                     if (mounted) {
-                                      _isLoopPaused = false;
+                                      setState(() => _isProcessingAction = false);
                                     }
-                                  } else {
-                                    _isSpeakingLoopActive = false;
-                                    if (lembrete != null) {
-                                      LembreteService.instance
-                                          .alternarConclusao(lembrete!.id)
-                                          .catchError((e) {
-                                            debugPrint(
-                                              'Erro ao concluir lembrete: $e',
-                                            );
-                                          });
-                                    }
-                                    final feedbackMsg =
-                                        lembrete?.categoria == 'hidratacao'
-                                        ? 'Você bebeu sua água.'
-                                        : lembrete?.categoria == 'refeicoes'
-                                        ? 'Você fez sua refeição.'
-                                        : lembrete?.categoria == 'exercicio'
-                                        ? 'Você fez seu exercício.'
-                                        : 'Você concluiu sua atividade.';
-                                    navigator.pushNamedAndRemoveUntil(
-                                      '/medication-confirmation',
-                                      (route) => false,
-                                      arguments: feedbackMsg,
-                                    );
                                   }
                                 },
                                 icon: const Icon(Icons.check_circle, size: 36),
@@ -991,35 +1021,43 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                               height: 72,
                               child: ElevatedButton.icon(
                                 onPressed: () {
-                                  _isSpeakingLoopActive = false;
-                                  _isLoopPaused = false;
-                                  VibrationService.stopVibration();
-                                  _noResponseTimer?.cancel();
-                                  _familyAudioPlayer.stop();
-                                  TTSService.instance.parar();
-                                  final navigator = Navigator.of(context);
-                                  final categoria = lembrete?.categoria;
-                                  if (lembrete != null) {
-                                    NotificationService.instance
-                                        .cancelar(lembrete!.id)
-                                        .catchError((e) {
-                                          debugPrint(
-                                            'Erro ao cancelar notificacao: $e',
-                                          );
-                                        });
-                                    LembreteService.instance
-                                        .adiar(lembrete!.id, 10)
-                                        .catchError((e) {
-                                          debugPrint(
-                                            'Erro ao adiar lembrete: $e',
-                                          );
-                                        });
+                                  if (_isProcessingAction) return;
+                                  setState(() => _isProcessingAction = true);
+                                  try {
+                                    _isSpeakingLoopActive = false;
+                                    _isLoopPaused = false;
+                                    VibrationService.stopVibration();
+                                    _noResponseTimer?.cancel();
+                                    _familyAudioPlayer.stop();
+                                    TTSService.instance.parar();
+                                    final navigator = Navigator.of(context);
+                                    final categoria = lembrete?.categoria;
+                                    if (lembrete != null) {
+                                      NotificationService.instance
+                                          .cancelar(lembrete!.id)
+                                          .catchError((e) {
+                                        debugPrint(
+                                          'Erro ao cancelar notificacao: $e',
+                                        );
+                                      });
+                                      LembreteService.instance
+                                          .adiar(lembrete!.id, 10)
+                                          .catchError((e) {
+                                        debugPrint(
+                                          'Erro ao adiar lembrete: $e',
+                                        );
+                                      });
+                                    }
+                                    navigator.pushNamedAndRemoveUntil(
+                                      '/reinforcement-alert',
+                                      (route) => false,
+                                      arguments: {'categoria': categoria},
+                                    );
+                                  } finally {
+                                    if (mounted) {
+                                      setState(() => _isProcessingAction = false);
+                                    }
                                   }
-                                  navigator.pushNamedAndRemoveUntil(
-                                    '/reinforcement-alert',
-                                    (route) => false,
-                                    arguments: {'categoria': categoria},
-                                  );
                                 },
                                 icon: const Icon(Icons.access_time, size: 30),
                                 label: const FittedBox(
@@ -1050,38 +1088,46 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                               height: 72,
                               child: ElevatedButton.icon(
                                 onPressed: () {
-                                  _isSpeakingLoopActive = false;
-                                  _isLoopPaused = false;
-                                  VibrationService.stopVibration();
-                                  TTSService.instance.parar();
-                                  final navigator = Navigator.of(context);
-                                  if (lembrete != null) {
-                                    NotificationService.instance
-                                        .cancelar(lembrete!.id)
-                                        .catchError((e) {
-                                          debugPrint(
-                                            'Erro ao cancelar notificacao: $e',
-                                          );
-                                        });
-                                    LembreteService.instance
-                                        .registrarDificuldade(
-                                          lembrete!.id,
-                                          'O idoso informou que nao conseguiu realizar a atividade.',
-                                        )
-                                        .catchError((e) {
-                                          debugPrint(
-                                            'Erro ao registrar dificuldade: $e',
-                                          );
-                                        });
+                                  if (_isProcessingAction) return;
+                                  setState(() => _isProcessingAction = true);
+                                  try {
+                                    _isSpeakingLoopActive = false;
+                                    _isLoopPaused = false;
+                                    VibrationService.stopVibration();
+                                    TTSService.instance.parar();
+                                    final navigator = Navigator.of(context);
+                                    if (lembrete != null) {
+                                      NotificationService.instance
+                                          .cancelar(lembrete!.id)
+                                          .catchError((e) {
+                                        debugPrint(
+                                          'Erro ao cancelar notificacao: $e',
+                                        );
+                                      });
+                                      LembreteService.instance
+                                          .registrarDificuldade(
+                                            lembrete!.id,
+                                            'O idoso informou que nao conseguiu realizar a atividade.',
+                                          )
+                                          .catchError((e) {
+                                        debugPrint(
+                                          'Erro ao registrar dificuldade: $e',
+                                        );
+                                      });
+                                    }
+                                    navigator.pushNamedAndRemoveUntil(
+                                      '/reinforcement-alert',
+                                      (route) => false,
+                                      arguments: {
+                                        'categoria': lembrete?.categoria,
+                                        'tipo': 'dificuldade',
+                                      },
+                                    );
+                                  } finally {
+                                    if (mounted) {
+                                      setState(() => _isProcessingAction = false);
+                                    }
                                   }
-                                  navigator.pushNamedAndRemoveUntil(
-                                    '/reinforcement-alert',
-                                    (route) => false,
-                                    arguments: {
-                                      'categoria': lembrete?.categoria,
-                                      'tipo': 'dificuldade',
-                                    },
-                                  );
                                 },
                                 icon: const Icon(Icons.support_agent, size: 30),
                                 label: const FittedBox(

@@ -438,7 +438,7 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
   @override
   void dispose() {
     TTSService.instance.parar(caller: this);
-    _speech.stop();
+    _speech.cancel();
     super.dispose();
   }
 

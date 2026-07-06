@@ -253,11 +253,10 @@ class _SupervisorHelpScreenState extends State<SupervisorHelpScreen> {
             _buildTopBar(context),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 20),
                     // Quick Tour Banner
                     GestureDetector(
                       onTap: () => _showQuickTour(context),

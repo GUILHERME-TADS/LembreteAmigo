@@ -104,7 +104,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
 
     if (!_useFirebase) {
       setState(() {
-        _errorMessage = 'O Firebase não está ativo. Conecte-se à internet para realizar o vínculo.';
+        _errorMessage = 'Não foi possível conectar. Por favor, verifique se seu celular está conectado à internet e tente novamente.';
         _isLoading = false;
       });
       return;
@@ -135,6 +135,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
       await prefs.setString('paired_idoso_id', docRef.id);
       await prefs.setString('idoso_perfil', jsonEncode(localPerfil));
 
+      if (!mounted) return;
       setState(() {
         _pairingCode = code;
         _isLoading = false;
@@ -164,10 +165,12 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
             _handleSuccess();
           }
         }
+      }, onError: (Object error) {
+        debugPrint('Erro ao escutar atualizações de pareamento: $error');
       });
       
       TTSService.instance.falar(
-        'Seu código de conexão é: ${code.split('').join(' ')}. Mostre este código para o seu ajudante.',
+        'Seu código de conexão é: ${code.split('').join(' ')}. Mostre este número para quem cuida de você. Ela vai digitar esse número no celular dela para conectar os dois aparelhos.',
         caller: this,
       );
 
@@ -194,12 +197,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
     );
   }
 
-  void _handleFailure(String message) {
-    setState(() {
-      _errorMessage = message;
-    });
-    TTSService.instance.falar(message, caller: this);
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -218,9 +216,8 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
                       const SizedBox(height: 16),
                     Row(
                       children: [
-                        IconButton(
-                          icon: const Icon(Icons.arrow_back, color: AppColors.primary, size: 36),
-                          onPressed: () {
+                        InkWell(
+                          onTap: () {
                             if (!_showModeSelection) {
                               setState(() {
                                 _showModeSelection = true;
@@ -230,6 +227,11 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
                               Navigator.pop(context);
                             }
                           },
+                          borderRadius: BorderRadius.circular(12),
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            child: Icon(Icons.arrow_back, color: AppColors.primary, size: 36),
+                          ),
                         ),
                         const Expanded(
                           child: Text(
@@ -309,7 +311,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
                       ),
                       const SizedBox(height: 16),
                       const Text(
-                        'Mostre ou diga este código para o seu ajudante para ele poder te cadastrar no celular dele:',
+                        'Mostre este número para quem cuida de você. Ela vai digitar esse número no celular dela para conectar os dois aparelhos:',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 18,

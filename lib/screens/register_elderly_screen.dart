@@ -145,16 +145,19 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
       ),
     );
 
+    if (!mounted) return;
     if (confirm != true) return;
 
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Faca login novamente antes de vincular um idoso.'),
-        ),
-      );
-      return;
+    if (_useFirebase) {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Faca login novamente antes de vincular um idoso.'),
+          ),
+        );
+        return;
+      }
     }
 
     setState(() => _isLoading = true);
@@ -422,32 +425,35 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
                   childWidget = const SizedBox.shrink();
                 }
 
-                return Container(
-                  width: 48,
-                  height: 58,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceContainerLowest,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: isFocused
-                          ? AppColors.primary
-                          : (hasDigit
-                                ? AppColors.secondary
-                                : AppColors.outlineVariant),
-                      width: isFocused ? 2.5 : 1.5,
+                return Flexible(
+                  child: Container(
+                    height: 58,
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    constraints: const BoxConstraints(maxWidth: 48),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceContainerLowest,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isFocused
+                            ? AppColors.primary
+                            : (hasDigit
+                                  ? AppColors.secondary
+                                  : AppColors.outlineVariant),
+                        width: isFocused ? 2.5 : 1.5,
+                      ),
+                      boxShadow: isFocused
+                          ? [
+                              BoxShadow(
+                                color: AppColors.primary.withValues(alpha: 0.15),
+                                blurRadius: 6,
+                                spreadRadius: 1,
+                              ),
+                            ]
+                          : null,
                     ),
-                    boxShadow: isFocused
-                        ? [
-                            BoxShadow(
-                              color: AppColors.primary.withValues(alpha: 0.15),
-                              blurRadius: 6,
-                              spreadRadius: 1,
-                            ),
-                          ]
-                        : null,
+                    child: childWidget,
                   ),
-                  child: childWidget,
                 );
               }),
             ),

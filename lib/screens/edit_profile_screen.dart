@@ -168,6 +168,35 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       return;
     }
 
+    final phoneRegex = RegExp(r'^(\(?\d{2}\)?\s?)?\d{4,5}\-?\d{4}$');
+    final dateRegex = RegExp(r'^\d{2}/\d{2}/\d{4}$');
+
+    if (dataNasc.isNotEmpty && !dateRegex.hasMatch(dataNasc)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Use o formato DD/MM/AAAA para a data de nascimento.'),
+        ),
+      );
+      TTSService.instance.falar(
+        'A data de nascimento deve estar no formato dia, mês e ano.',
+        caller: this,
+      );
+      return;
+    }
+
+    if (telefone.isNotEmpty && !phoneRegex.hasMatch(telefone)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Por favor, digite um telefone válido.'),
+        ),
+      );
+      TTSService.instance.falar(
+        'Por favor, digite um telefone válido.',
+        caller: this,
+      );
+      return;
+    }
+
     TTSService.instance.falar(
       'Salvando suas informações, por favor aguarde...',
       caller: this,
@@ -233,6 +262,51 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
   }
 
+  Widget _buildTopBar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            onPressed: () {
+              TTSService.instance.parar(caller: this);
+              Navigator.pop(context);
+            },
+            icon: const Icon(
+              Icons.arrow_back,
+              color: AppColors.primary,
+              size: 28,
+            ),
+          ),
+          const Spacer(),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              Text(
+                'Editar Perfil',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
+                ),
+              ),
+              SizedBox(height: 6),
+              MeExplicaButton(
+                textoExplicacao:
+                    'Olá! Aqui você altera as suas informações, como seu nome completo, sua data de nascimento, seu telefone e seu endereço. Quando terminar, aperte o botão salvar perfil no final.',
+              ),
+            ],
+          ),
+          const Spacer(),
+          const SizedBox(width: 48), // Mantém o equilíbrio visual com o botão de voltar no lado oposto
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -241,48 +315,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         child: Column(
           children: [
             const VolumeWarningBanner(),
+            _buildTopBar(),
             Expanded(
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : SingleChildScrollView(
-                      padding: const EdgeInsets.all(20),
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              Align(
-                                alignment: Alignment.centerLeft,
-                                child: IconButton(
-                                  onPressed: () {
-                                    TTSService.instance.parar(caller: this);
-                                    Navigator.pop(context);
-                                  },
-                                  icon: const Icon(
-                                    Icons.arrow_back,
-                                    color: AppColors.primary,
-                                  ),
-                                ),
-                              ),
-                              const Text(
-                                'Editar Perfil',
-                                style: TextStyle(
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.primary,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          const Center(
-                            child: MeExplicaButton(
-                              textoExplicacao:
-                                  'Olá! Aqui você altera as suas informações, como seu nome completo, sua data de nascimento, seu telefone e seu endereço. Quando terminar, aperte o botão salvar perfil no final.',
-                            ),
-                          ),
-                          const SizedBox(height: 24),
                           SeniorInputField(
                             label: 'Nome Completo',
                             placeholder: 'Nome do idoso',

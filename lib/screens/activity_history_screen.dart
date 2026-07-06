@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../models/lembrete.dart';
@@ -26,7 +27,7 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
     super.initState();
     _service.carregar();
     _checkConnection();
-    _connectivityTimer = Timer.periodic(const Duration(seconds: 5), (_) => _checkConnection());
+    _connectivityTimer = Timer.periodic(const Duration(seconds: 30), (_) => _checkConnection());
   }
 
   @override
@@ -36,6 +37,14 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
   }
 
   Future<void> _checkConnection() async {
+    if (kIsWeb) {
+      if (mounted && !_isOnline) {
+        setState(() {
+          _isOnline = true;
+        });
+      }
+      return;
+    }
     try {
       final result = await InternetAddress.lookup('example.com').timeout(const Duration(seconds: 3));
       final bool hasNet = result.isNotEmpty && result[0].rawAddress.isNotEmpty;
@@ -231,11 +240,10 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
                   list.sort((a, b) => b.criadoEm.compareTo(a.criadoEm));
 
                   return SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const SizedBox(height: 16),
                         Row(
                           children: [
                             Icon(

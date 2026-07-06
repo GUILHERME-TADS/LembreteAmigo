@@ -33,14 +33,22 @@ class OfflineWrite {
     this.attempts = 0,
   }) : createdAt = createdAt ?? DateTime.now();
 
-  OfflineWrite copyWith({int? attempts}) {
+  OfflineWrite copyWith({
+    String? id,
+    String? collection,
+    String? docId,
+    OfflineWriteAction? action,
+    Map<String, dynamic>? data,
+    DateTime? createdAt,
+    int? attempts,
+  }) {
     return OfflineWrite(
-      id: id,
-      collection: collection,
-      docId: docId,
-      action: action,
-      data: data,
-      createdAt: createdAt,
+      id: id ?? this.id,
+      collection: collection ?? this.collection,
+      docId: docId ?? this.docId,
+      action: action ?? this.action,
+      data: data ?? this.data,
+      createdAt: createdAt ?? this.createdAt,
       attempts: attempts ?? this.attempts,
     );
   }

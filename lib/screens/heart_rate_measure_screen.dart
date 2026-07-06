@@ -21,12 +21,14 @@ class _HeartRateMeasureScreenState extends State<HeartRateMeasureScreen>
   bool _isProcessing = false;
   bool _isFingerDetected = false;
   bool _isFinished = false;
+  bool _isDisposed = false;
 
   final List<SensorValue> _measurements = [];
   int _bpm = 0;
   double _progress = 0.0;
   DateTime? _startTime;
   Timer? _timer;
+  int _unstableSignalCount = 0;
 
   // Variáveis para a animação do coração pulsante
   late AnimationController _pulseController;
@@ -72,6 +74,7 @@ class _HeartRateMeasureScreenState extends State<HeartRateMeasureScreen>
   Future<void> _initCamera() async {
     try {
       final cameras = await availableCameras();
+      if (_isDisposed) return;
       if (cameras.isEmpty) {
         _showError('Nenhuma câmera encontrada no dispositivo.');
         return;
@@ -91,7 +94,10 @@ class _HeartRateMeasureScreenState extends State<HeartRateMeasureScreen>
       );
 
       await _controller!.initialize();
-      if (!mounted) return;
+      if (_isDisposed) {
+        await _controller?.dispose();
+        return;
+      }
 
       setState(() {
         _isCameraInitialized = true;
@@ -99,15 +105,18 @@ class _HeartRateMeasureScreenState extends State<HeartRateMeasureScreen>
 
       // Ligar o flash em modo contínuo (torch)
       await _controller!.setFlashMode(FlashMode.torch);
+      if (_isDisposed) return;
 
       // Iniciar captura de quadros
       _controller!.startImageStream((CameraImage image) {
-        if (_isProcessing || _isFinished || !mounted) return;
+        if (_isProcessing || _isFinished || _isDisposed || !mounted) return;
         _isProcessing = true;
         _scanImage(image);
       });
     } catch (e) {
-      _showError('Erro ao inicializar a câmera: $e');
+      if (!_isDisposed) {
+        _showError('Erro ao inicializar a câmera: $e');
+      }
     }
   }
 
@@ -269,6 +278,7 @@ class _HeartRateMeasureScreenState extends State<HeartRateMeasureScreen>
   void _restartMeasurementDueToUnstableSignal() {
     if (!mounted) return;
     setState(() {
+      _unstableSignalCount++;
       _measurements.clear();
       _bpm = 0;
       _progress = 0.0;
@@ -279,12 +289,12 @@ class _HeartRateMeasureScreenState extends State<HeartRateMeasureScreen>
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text(
-          'Nao foi possivel medir ainda. Cubra bem a camera e o flash e fique parado.',
+          'Não foi possível medir ainda. Cubra bem a câmera e o flash e fique parado.',
         ),
       ),
     );
     TTSService.instance.falar(
-      'Nao consegui medir ainda. Cubra bem a camera e o flash e fique parado.',
+      'Não consegui medir ainda. Cubra bem a câmera e o flash e fique parado.',
       caller: this,
     );
   }
@@ -318,6 +328,95 @@ class _HeartRateMeasureScreenState extends State<HeartRateMeasureScreen>
     );
   }
 
+  void _finishMeasurementManual(int bpm) async {
+    setState(() {
+      _bpm = bpm;
+      _isFinished = true;
+      _progress = 1.0;
+      _isFingerDetected = true;
+    });
+
+    try {
+      if (_controller != null) {
+        await _controller!.stopImageStream();
+        await _controller!.setFlashMode(FlashMode.off);
+      }
+    } catch (_) {}
+
+    try {
+      await HealthService.instance.enviarMetricas(bpm);
+      if (mounted) {
+        TTSService.instance.falar(
+          'Batimentos gravados com sucesso! Frequência de $bpm batimentos por minuto.',
+          caller: this,
+        );
+      }
+    } catch (e) {
+      debugPrint('Erro ao salvar metricas: $e');
+    }
+  }
+
+  void _showManualInputDialog() async {
+    TTSService.instance.parar(caller: this);
+    final controller = TextEditingController(text: '75');
+    final res = await showDialog<int>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text(
+          'Digite seus batimentos',
+          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Digite o valor que você mediu (por exemplo, no pulso ou no relógio):',
+              style: TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              autofocus: true,
+              maxLength: 3,
+              style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+              decoration: const InputDecoration(
+                counterText: '',
+                suffixText: ' batimentos',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('CANCELAR', style: TextStyle(fontSize: 18)),
+          ),
+          TextButton(
+            onPressed: () {
+              final val = int.tryParse(controller.text);
+              Navigator.pop(context, val);
+            },
+            child: const Text('GRAVAR', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+
+    if (!mounted) return;
+    if (res != null && HealthService.isValidBpm(res)) {
+      _finishMeasurementManual(res);
+    } else if (res != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Valor de batimentos inválido. Digite um valor entre 40 e 170.'),
+        ),
+      );
+    }
+  }
+
   void _showError(String message) {
     if (!mounted) return;
     showDialog(
@@ -340,15 +439,20 @@ class _HeartRateMeasureScreenState extends State<HeartRateMeasureScreen>
 
   @override
   void dispose() {
+    _isDisposed = true;
     _timer?.cancel();
     _pulseController.dispose();
     TTSService.instance.parar(caller: this);
 
     // Parar stream e flash se o usuário sair antes de concluir
     if (_controller != null) {
-      _controller!.setFlashMode(FlashMode.off).then((_) {
-        _controller!.dispose();
-      });
+      try {
+        _controller!.setFlashMode(FlashMode.off).catchError((_) {});
+      } catch (_) {}
+      try {
+        _controller!.stopImageStream().catchError((_) {});
+      } catch (_) {}
+      _controller!.dispose();
     }
     super.dispose();
   }
@@ -385,51 +489,52 @@ class _HeartRateMeasureScreenState extends State<HeartRateMeasureScreen>
             const VolumeWarningBanner(),
             // Top Bar
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              height: 64,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               decoration: const BoxDecoration(
                 color: AppColors.surface,
-                border: Border(
-                  bottom: BorderSide(color: AppColors.outlineVariant),
-                ),
               ),
               child: Row(
                 children: [
                   IconButton(
+                    onPressed: () {
+                      TTSService.instance.parar(caller: this);
+                      Navigator.pop(context);
+                    },
                     icon: const Icon(
                       Icons.arrow_back,
                       color: AppColors.primary,
-                      size: 32,
-                    ),
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
-                  ),
-                  const Spacer(),
-                  const Text(
-                    'Medir Batimentos',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
+                      size: 28,
                     ),
                   ),
                   const Spacer(),
-                  const SizedBox(width: 48), // Spacer simétrico
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: const [
+                      Text(
+                        'Medir Batimentos',
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      SizedBox(height: 6),
+                      MeExplicaButton(
+                        textoExplicacao:
+                            'Olá! Esta é a tela para ver como está o seu coração. Coloque a ponta do seu dedo indicador em cima da câmera traseira do celular, cobrindo ela inteira, e segure firme. A medição vai começar sozinha.',
+                      ),
+                    ],
+                  ),
+                  const Spacer(),
+                  const SizedBox(width: 48),
                 ],
               ),
             ),
-            const SizedBox(height: 12),
-            const MeExplicaButton(
-              textoExplicacao:
-                  'Olá! Esta é a tela para ver como está o seu coração. Coloque a ponta do seu dedo indicador em cima da câmera traseira do celular, cobrindo ela inteira, e segure firme. A medição vai começar sozinha.',
-            ),
-            const SizedBox(height: 12),
 
             // Corpo Principal
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.all(24.0),
+                padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
@@ -533,14 +638,14 @@ class _HeartRateMeasureScreenState extends State<HeartRateMeasureScreen>
                                     color: Colors.white,
                                   ),
                                 ),
-                                const Text(
-                                  'BPM',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white70,
-                                  ),
-                                ),
+                                 const Text(
+                                   'Batimentos',
+                                   style: TextStyle(
+                                     fontSize: 12,
+                                     fontWeight: FontWeight.bold,
+                                     color: Colors.white70,
+                                   ),
+                                 ),
                               ],
                             ),
                           ),
@@ -582,7 +687,7 @@ class _HeartRateMeasureScreenState extends State<HeartRateMeasureScreen>
                           ),
                         ),
                         child: const Text(
-                          'Aguardando leitura de sinal...',
+                          'Esperando colocar o dedo...',
                           style: TextStyle(
                             fontSize: 18,
                             color: AppColors.onSurfaceVariant,
@@ -593,24 +698,50 @@ class _HeartRateMeasureScreenState extends State<HeartRateMeasureScreen>
 
                     // Barra de progresso inferior ou resultado
                     if (_isFinished)
-                      Text(
-                        'Medição concluída: $_bpm batimentos/minuto',
-                        textAlign: TextAlign.center,
+                       Text(
+                         'Medição concluída: $_bpm batimentos por minuto',
+                         textAlign: TextAlign.center,
                         style: const TextStyle(
                           fontSize: 26,
                           fontWeight: FontWeight.w800,
                           color: AppColors.primary,
                         ),
                       )
-                    else
-                      Text(
-                        'Progresso da Medição: ${(_progress * 100).toInt()}%',
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.onSurfaceVariant,
-                        ),
-                      ),
+                     else ...[
+                       Text(
+                         'Progresso da Medição: ${(_progress * 100).toInt()}%',
+                         style: const TextStyle(
+                           fontSize: 22,
+                           fontWeight: FontWeight.w700,
+                           color: AppColors.onSurfaceVariant,
+                         ),
+                       ),
+                       if (_unstableSignalCount >= 1) ...[
+                         const SizedBox(height: 12),
+                         SizedBox(
+                           width: double.infinity,
+                           height: 72,
+                           child: ElevatedButton.icon(
+                             onPressed: _showManualInputDialog,
+                             icon: const Icon(Icons.keyboard, size: 28),
+                             label: const Text(
+                               'DIGITAR MANUALMENTE',
+                               style: TextStyle(
+                                 fontSize: 18,
+                                 fontWeight: FontWeight.w900,
+                               ),
+                             ),
+                             style: ElevatedButton.styleFrom(
+                               backgroundColor: AppColors.secondaryContainer,
+                               foregroundColor: AppColors.onSecondaryContainer,
+                               shape: RoundedRectangleBorder(
+                                 borderRadius: BorderRadius.circular(16),
+                               ),
+                             ),
+                           ),
+                         ),
+                       ],
+                     ],
 
                     // Botão voltar final
                     if (_isFinished)

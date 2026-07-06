@@ -68,20 +68,23 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
   }
 
   void _entrar() async {
+    if (_isLoading) return;
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
-
-    await _saveRemembered();
 
     if (_useFirebase) {
       if (email.isEmpty || password.isEmpty) {
         _showError('Por favor, preencha todos os campos.');
         return;
       }
+    }
 
-      setState(() => _isLoading = true);
+    setState(() => _isLoading = true);
 
-      try {
+    try {
+      await _saveRemembered();
+
+      if (_useFirebase) {
         await FirebaseAuth.instance.signInWithEmailAndPassword(
           email: email,
           password: password,
@@ -89,27 +92,27 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
         await SessionRoleService.setSupervisor();
         if (!mounted) return;
         Navigator.pushReplacementNamed(context, '/supervisor-dashboard');
-      } on FirebaseAuthException catch (e) {
-        String msg = 'Erro ao entrar.';
-        if (e.code == 'user-not-found') {
-          msg = 'E-mail não cadastrado.';
-        } else if (e.code == 'wrong-password') {
-          msg = 'Senha incorreta.';
-        } else if (e.code == 'invalid-email') {
-          msg = 'E-mail inválido.';
-        } else if (e.code == 'user-disabled') {
-          msg = 'Esta conta foi desativada.';
-        }
-        _showError(msg);
-      } catch (e) {
-        _showError('Erro de conexão: $e');
-      } finally {
-        if (mounted) setState(() => _isLoading = false);
+      } else {
+        await SessionRoleService.setSupervisor();
+        if (!mounted) return;
+        Navigator.pushReplacementNamed(context, '/supervisor-dashboard');
       }
-    } else {
-      _showError(
-        'Autenticacao indisponivel. Verifique a configuracao do Firebase e tente novamente.',
-      );
+    } on FirebaseAuthException catch (e) {
+      String msg = 'Erro ao entrar.';
+      if (e.code == 'user-not-found') {
+        msg = 'E-mail não cadastrado.';
+      } else if (e.code == 'wrong-password') {
+        msg = 'Senha incorreta.';
+      } else if (e.code == 'invalid-email') {
+        msg = 'E-mail inválido.';
+      } else if (e.code == 'user-disabled') {
+        msg = 'Esta conta foi desativada.';
+      }
+      _showError(msg);
+    } catch (e) {
+      _showError('Erro de conexão: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -212,7 +215,7 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
                       ),
                       const SizedBox(height: 32),
                       SeniorInputField(
-                        label: 'E-mail Corporativo',
+                        label: 'E-mail',
                         placeholder: 'nome@exemplo.com',
                         prefixIcon: Icons.mail,
                         controller: _emailController,
@@ -259,7 +262,8 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
                           ),
                           const SizedBox(height: 8),
                           Container(
-                            height: 64,
+                            constraints: const BoxConstraints(minHeight: 64),
+                            padding: const EdgeInsets.symmetric(vertical: 4),
                             decoration: BoxDecoration(
                               color: AppColors.surfaceContainerLow,
                               border: Border.all(
@@ -286,6 +290,7 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
                                       border: InputBorder.none,
                                       contentPadding: EdgeInsets.symmetric(
                                         horizontal: 16,
+                                        vertical: 8,
                                       ),
                                     ),
                                   ),

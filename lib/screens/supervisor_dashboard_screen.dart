@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -22,6 +23,7 @@ import '../theme/app_theme.dart';
 import '../widgets/audio_player_card.dart';
 import '../widgets/reminder_with_audio.dart';
 import '../widgets/supervisor_bottom_nav.dart';
+import 'photo_gallery_screen.dart';
 
 class SupervisorDashboardScreen extends StatefulWidget {
   const SupervisorDashboardScreen({super.key});
@@ -49,6 +51,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   List<DeviceBarrier> _deviceBarriers = [];
   int? _batteryLevel;
   String? _batteryState;
+  bool _isConnected = false;
+  bool _checkingConnection = true;
 
   bool get _useFirebase {
     try {
@@ -58,33 +62,77 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     }
   }
 
+  Future<void> _checkSupervisorConnection() async {
+    final connected = await SessionRoleService.isSupervisorConnected();
+    if (mounted) {
+      setState(() {
+        _isConnected = connected;
+      });
+    }
+  }
+
+  Future<void> _checkConnectionAndInit() async {
+    if (mounted) {
+      setState(() {
+        _checkingConnection = true;
+      });
+    }
+    await _checkSupervisorConnection();
+    if (_isConnected) {
+      await _loadBpmAndLembretes();
+      _startDeviceBarrierWatcher();
+      LembreteService.instance.notifier.removeListener(_onLembretesChanged);
+      LembreteService.instance.notifier.addListener(_onLembretesChanged);
+      SmartAlertService.instance.notifier.removeListener(_onSmartAlertsChanged);
+      SmartAlertService.instance.notifier.addListener(_onSmartAlertsChanged);
+      _smartAlertTimer?.cancel();
+      _smartAlertTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+        SmartAlertService.instance.atualizar(
+          LembreteService.instance.lembretes,
+          eventos: LembreteService.instance.eventos,
+          bpm: _lastBpm,
+        );
+      });
+      await _bpmSubscription?.cancel();
+      _bpmSubscription = HealthService.instance.obterMetricasStream().listen(
+        (bpm) {
+          if (mounted) {
+            setState(() {
+              _lastBpm = bpm;
+              _isLoadingBpm = false;
+            });
+            SmartAlertService.instance.atualizar(
+              LembreteService.instance.lembretes,
+              eventos: LembreteService.instance.eventos,
+              bpm: bpm,
+            );
+          }
+        },
+        onError: (error) {
+          debugPrint('Erro ao escutar BPM no Firestore: $error');
+          if (mounted) {
+            setState(() => _isLoadingBpm = false);
+          }
+        },
+      );
+    } else {
+      if (mounted) {
+        setState(() {
+          _isLoadingBpm = false;
+        });
+      }
+    }
+    if (mounted) {
+      setState(() {
+        _checkingConnection = false;
+      });
+    }
+  }
+
   @override
   void initState() {
     super.initState();
-    _loadBpmAndLembretes();
-    _startDeviceBarrierWatcher();
-    LembreteService.instance.notifier.addListener(_onLembretesChanged);
-    SmartAlertService.instance.notifier.addListener(_onSmartAlertsChanged);
-    _smartAlertTimer = Timer.periodic(const Duration(minutes: 1), (_) {
-      SmartAlertService.instance.atualizar(
-        LembreteService.instance.lembretes,
-        bpm: _lastBpm,
-      );
-    });
-    _bpmSubscription = HealthService.instance.obterMetricasStream().listen((
-      bpm,
-    ) {
-      if (mounted) {
-        setState(() {
-          _lastBpm = bpm;
-          _isLoadingBpm = false;
-        });
-        SmartAlertService.instance.atualizar(
-          LembreteService.instance.lembretes,
-          bpm: bpm,
-        );
-      }
-    });
+    _checkConnectionAndInit();
   }
 
   @override
@@ -101,6 +149,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   void _onLembretesChanged() {
     SmartAlertService.instance.atualizar(
       LembreteService.instance.lembretes,
+      eventos: LembreteService.instance.eventos,
       bpm: _lastBpm,
     );
     if (mounted) setState(() {});
@@ -115,6 +164,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   }
 
   Future<void> _startDeviceBarrierWatcher() async {
+    if (!_isConnected) return;
     final idosoId = await SessionRoleService.getActiveIdosoId();
     await _deviceBarrierSubscription?.cancel();
 
@@ -152,9 +202,11 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   }
 
   Future<void> _loadBpmAndLembretes() async {
+    if (!_isConnected) return;
     await LembreteService.instance.carregar();
     await SmartAlertService.instance.atualizar(
       LembreteService.instance.lembretes,
+      eventos: LembreteService.instance.eventos,
       bpm: _lastBpm,
     );
     try {
@@ -188,6 +240,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       if (mounted) {
         await SmartAlertService.instance.atualizar(
           LembreteService.instance.lembretes,
+          eventos: LembreteService.instance.eventos,
           bpm: bpm,
         );
         if (!mounted) return;
@@ -311,9 +364,10 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                 ListTile(
                   leading: const Icon(Icons.person_add, color: AppColors.primary),
                   title: const Text('Cadastrar/Emparelhar Idoso', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  onTap: () {
+                  onTap: () async {
                     Navigator.pop(context);
-                    Navigator.pushNamed(context, '/register-elderly');
+                    await Navigator.pushNamed(context, '/register-elderly');
+                    _checkConnectionAndInit();
                   },
                 ),
                 ListTile(
@@ -363,9 +417,19 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
           ListTile(
             leading: const Icon(Icons.logout, color: AppColors.error),
             title: const Text('Sair da Conta', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.error)),
-            onTap: () {
+            onTap: () async {
               Navigator.pop(context);
-              Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+              try {
+                if (Firebase.apps.isNotEmpty) {
+                  await FirebaseAuth.instance.signOut();
+                }
+              } catch (_) {}
+              await SessionRoleService.logout();
+              await LembreteService.instance.reset();
+              await MessageService.instance.reset();
+              if (context.mounted) {
+                Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+              }
             },
           ),
           const SizedBox(height: 24),
@@ -376,6 +440,15 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_checkingConnection) {
+      return const Scaffold(
+        backgroundColor: AppColors.background,
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: AppColors.background,
@@ -388,34 +461,133 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
           children: [
             _buildTopBar(context),
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 24),
-                    _buildSmartAlertsSection(),
-                    if (_smartAlerts.isNotEmpty) const SizedBox(height: 24),
-                    _buildDeviceBarrierSection(),
-                    if (_deviceBarriers.isNotEmpty) const SizedBox(height: 24),
-                    _buildMessagesShortcut(),
-                    const SizedBox(height: 24),
-                    _buildOverviewSection(),
-                    const SizedBox(height: 24),
-                    _buildHealthSnapshot(),
-                    const SizedBox(height: 24),
-                    _buildTodayReminders(context),
-                    const SizedBox(height: 24),
-                    _buildRecentHistory(context),
-                    const SizedBox(height: 24),
-                  ],
-                ),
-              ),
+              child: _isConnected
+                  ? SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                      child: Column(
+                        children: [
+                          _buildTodayWelfareStatusSection(),
+                          const SizedBox(height: 24),
+                          _buildMoodHistoryChart(),
+                          const SizedBox(height: 24),
+                          _buildSmartAlertsSection(),
+                          if (_smartAlerts.isNotEmpty) const SizedBox(height: 24),
+                          _buildDeviceBarrierSection(),
+                          if (_deviceBarriers.isNotEmpty) const SizedBox(height: 24),
+                          _buildMessagesShortcut(),
+                          const SizedBox(height: 24),
+                          _buildOverviewSection(),
+                          const SizedBox(height: 24),
+                          _buildHealthSnapshot(),
+                          const SizedBox(height: 24),
+                          _buildTodayReminders(context),
+                          const SizedBox(height: 24),
+                          _buildRecentHistory(context),
+                          const SizedBox(height: 24),
+                        ],
+                      ),
+                    )
+                  : _buildUnconnectedState(context),
             ),
           ],
         ),
       ),
     );
   }
+
+  Widget _buildUnconnectedState(BuildContext context) {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        child: Container(
+          padding: const EdgeInsets.all(28),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: AppColors.primary.withValues(alpha: 0.12),
+              width: 2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withValues(alpha: 0.08),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.errorContainer.withValues(alpha: 0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.phonelink_off,
+                  size: 80,
+                  color: AppColors.error,
+                ),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Dispositivo Não Vinculado',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Para receber e visualizar as informações em tempo real (lembretes, alertas e batimentos cardíacos), você precisa conectar o seu painel ao dispositivo do idoso utilizando o código de 6 dígitos gerado no aplicativo dele.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  height: 1.45,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 28),
+              SizedBox(
+                width: double.infinity,
+                height: 64,
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    await Navigator.pushNamed(context, '/register-elderly');
+                    _checkConnectionAndInit();
+                  },
+                  icon: const Icon(Icons.link, size: 28),
+                  label: const Text(
+                    'CONECTAR APARELHO',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.1,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    elevation: 4,
+                    shadowColor: AppColors.primary.withValues(alpha: 0.4),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
 
   Widget _buildTopBar(BuildContext context) {
     return Container(
@@ -1613,6 +1785,35 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   ],
                 ),
               ),
+              // Gallery button
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const PhotoGalleryScreen(),
+                      ),
+                    ),
+                    icon: const Icon(Icons.photo_library_outlined,
+                        size: 20),
+                    label: const Text(
+                      'Ver Galeria de Fotos',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      side: const BorderSide(
+                          color: AppColors.primary, width: 1.5),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -1650,6 +1851,299 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Builds the 7-day mood history chart for the supervisor dashboard.
+  Widget _buildMoodHistoryChart() {
+    final now = DateTime.now();
+    final eventos = LembreteService.instance.eventos
+        .where((e) => e.categoria == 'bem_estar')
+        .toList();
+
+    // Build a map: dateKey -> last observacao of that day
+    final Map<String, String?> moodByDay = {};
+    for (final e in eventos) {
+      final key =
+          '${e.registradoEm.year}-${e.registradoEm.month.toString().padLeft(2, '0')}-${e.registradoEm.day.toString().padLeft(2, '0')}';
+      // Keep the most recent entry per day
+      if (!moodByDay.containsKey(key)) {
+        moodByDay[key] = e.observacao;
+      }
+    }
+
+    final dayLabels = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.outlineVariant, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.mood, color: AppColors.primary, size: 22),
+              const SizedBox(width: 8),
+              const Text(
+                'Humor — Últimos 7 dias',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.onSurface,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: List.generate(7, (index) {
+              // index 0 = 6 days ago, index 6 = today
+              final day = DateTime(
+                  now.year, now.month, now.day - (6 - index));
+              final key =
+                  '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
+              final mood = moodByDay[key];
+              final dayLabel = dayLabels[day.weekday % 7];
+              final isToday = index == 6;
+
+              Color circleColor;
+              String emoji;
+              String tooltip;
+
+              if (mood == null) {
+                circleColor = AppColors.surfaceContainerHigh;
+                emoji = '—';
+                tooltip = 'Sem check-in';
+              } else if (mood.contains('Preciso de ajuda')) {
+                circleColor = AppColors.errorContainer;
+                emoji = '🔴';
+                tooltip = mood;
+              } else if (mood.contains('Mais ou menos')) {
+                circleColor = const Color(0xFFFFF9C4);
+                emoji = '🟡';
+                tooltip = mood;
+              } else {
+                circleColor = AppColors.tertiaryFixed;
+                emoji = '🟢';
+                tooltip = mood;
+              }
+
+              return Tooltip(
+                message: tooltip,
+                child: Column(
+                  children: [
+                    Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: circleColor,
+                        shape: BoxShape.circle,
+                        border: isToday
+                            ? Border.all(
+                                color: AppColors.primary, width: 2.5)
+                            : Border.all(
+                                color: AppColors.outlineVariant, width: 1),
+                      ),
+                      child: Center(
+                        child: mood == null
+                            ? Text(
+                                '—',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: AppColors.outline,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              )
+                            : Text(
+                                emoji,
+                                style:
+                                    const TextStyle(fontSize: 18),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      dayLabel,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: isToday
+                            ? FontWeight.w900
+                            : FontWeight.w500,
+                        color: isToday
+                            ? AppColors.primary
+                            : AppColors.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ),
+          const SizedBox(height: 12),
+          // Legend
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _moodLegendItem('🟢', 'Bem', AppColors.tertiaryFixed),
+              const SizedBox(width: 12),
+              _moodLegendItem('🟡', 'Mais ou menos',
+                  const Color(0xFFFFF9C4)),
+              const SizedBox(width: 12),
+              _moodLegendItem('🔴', 'Preciso de ajuda',
+                  AppColors.errorContainer),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _moodLegendItem(String emoji, String label, Color color) {
+    return Row(
+      children: [
+        Container(
+          width: 14,
+          height: 14,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: AppColors.onSurfaceVariant),
+        ),
+      ],
+    );
+  }
+
+  LembreteEvento? _getTodayWelfareCheckin() {
+    final now = DateTime.now();
+    final todayEvents = LembreteService.instance.eventos.where((e) {
+      return e.categoria == 'bem_estar' &&
+          e.registradoEm.year == now.year &&
+          e.registradoEm.month == now.month &&
+          e.registradoEm.day == now.day;
+    }).toList();
+    if (todayEvents.isEmpty) return null;
+    todayEvents.sort((a, b) => b.registradoEm.compareTo(a.registradoEm));
+    return todayEvents.first;
+  }
+
+  Widget _buildTodayWelfareStatusSection() {
+    final todayCheckin = _getTodayWelfareCheckin();
+
+    Color bgColor;
+    Color borderColor;
+    Color textColor;
+    Color iconColor;
+    IconData icon;
+    String statusTitle;
+    String statusDesc;
+
+    if (todayCheckin == null) {
+      bgColor = AppColors.surfaceContainerHigh;
+      borderColor = AppColors.outlineVariant;
+      textColor = AppColors.onSurfaceVariant;
+      iconColor = AppColors.outline;
+      icon = Icons.calendar_today;
+      statusTitle = 'Check-in de Hoje';
+      statusDesc = 'O idoso ainda não realizou o check-in de bem-estar hoje.';
+    } else {
+      final obs = todayCheckin.observacao ?? '';
+      if (obs.contains('Preciso de ajuda')) {
+        bgColor = AppColors.errorContainer;
+        borderColor = AppColors.error.withValues(alpha: 0.5);
+        textColor = AppColors.error;
+        iconColor = AppColors.error;
+        icon = Icons.warning;
+        statusTitle = 'Atenção: Idoso precisa de ajuda!';
+        statusDesc = 'Resposta do idoso: "$obs"';
+      } else if (obs.contains('Mais ou menos')) {
+        bgColor = AppColors.secondaryFixed;
+        borderColor = AppColors.onSecondaryFixedVariant.withValues(alpha: 0.5);
+        textColor = AppColors.onSecondaryFixed;
+        iconColor = AppColors.onSecondaryFixedVariant;
+        icon = Icons.sentiment_neutral;
+        statusTitle = 'Check-in: Indisposto';
+        statusDesc = 'Resposta do idoso: "$obs"';
+      } else {
+        bgColor = AppColors.tertiaryFixed;
+        borderColor = AppColors.onTertiaryFixedVariant.withValues(alpha: 0.5);
+        textColor = AppColors.onTertiaryFixed;
+        iconColor = AppColors.onTertiaryFixedVariant;
+        icon = Icons.sentiment_very_satisfied;
+        statusTitle = 'Check-in: Tudo bem!';
+        statusDesc = 'O idoso respondeu que está se sentindo bem hoje.';
+      }
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor, width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: iconColor, size: 28),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  statusTitle,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    color: textColor,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  statusDesc,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: textColor.withValues(alpha: 0.85),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

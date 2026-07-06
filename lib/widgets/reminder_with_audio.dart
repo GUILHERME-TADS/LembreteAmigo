@@ -252,6 +252,7 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
 
   @override
   Widget build(BuildContext context) {
+    final isHighContrast = Theme.of(context).colorScheme.primary == Colors.black;
     final Color sideBarColor = widget.status == ReminderStatus.done
         ? AppColors.tertiaryFixedDim
         : widget.status == ReminderStatus.late
@@ -507,7 +508,13 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
                                           : AppColors.onError,
                                       size: 32,
                                     )
-                                  : null,
+                                  : Icon(
+                                      Icons.radio_button_unchecked,
+                                      color: isHighContrast
+                                          ? Colors.black
+                                          : widget.accentColor,
+                                      size: 32,
+                                    ),
                             ),
                           ),
                         ],

@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:camera/camera.dart';
@@ -82,7 +83,12 @@ class _TakePhotoConfirmationScreenState
     }
   }
 
+  bool _isCameraInitializing = false;
+  bool _isUploading = false;
+
   Future<void> _initCamera() async {
+    if (_isCameraInitializing) return;
+    _isCameraInitializing = true;
     try {
       if (_cameraController != null) {
         await _cameraController!.dispose();
@@ -136,10 +142,13 @@ class _TakePhotoConfirmationScreenState
         });
       }
       debugPrint('Erro ao inicializar câmera: $e');
+    } finally {
+      _isCameraInitializing = false;
     }
   }
 
   Future<void> _toggleCamera() async {
+    if (_isCameraInitializing) return;
     setState(() {
       _lensDirection = _lensDirection == CameraLensDirection.back
           ? CameraLensDirection.front
@@ -193,33 +202,13 @@ class _TakePhotoConfirmationScreenState
     if (_isProfilePhoto || lembreteId == 'profile_photo') return;
     try {
       final bytes = await File(file.path).readAsBytes();
-      final decoded = img.decodeImage(bytes);
-      if (decoded == null) return;
-
-      final int startX = (decoded.width / 2 - 40).toInt().clamp(
-        0,
-        decoded.width,
-      );
-      final int startY = (decoded.height / 2 - 40).toInt().clamp(
-        0,
-        decoded.height,
-      );
-
-      int rSum = 0, gSum = 0, bSum = 0, count = 0;
-      for (int y = startY; y < startY + 80 && y < decoded.height; y++) {
-        for (int x = startX; x < startX + 80 && x < decoded.width; x++) {
-          final pixel = decoded.getPixel(x, y);
-          rSum += pixel.r.toInt();
-          gSum += pixel.g.toInt();
-          bSum += pixel.b.toInt();
-          count++;
-        }
-      }
+      final result = await compute(_processColorAnalysis, bytes);
+      final count = result['count'] as int;
 
       if (count > 0) {
-        final r = rSum ~/ count;
-        final g = gSum ~/ count;
-        final b = bSum ~/ count;
+        final r = (result['r'] as int) ~/ count;
+        final g = (result['g'] as int) ~/ count;
+        final b = (result['b'] as int) ~/ count;
 
         final detected = _detectColorName(r, g, b);
         debugPrint('Cor detectada no centro: $detected (RGB: $r, $g, $b)');
@@ -625,93 +614,113 @@ class _TakePhotoConfirmationScreenState
               child: SizedBox(
                 height: 80,
                 child: ElevatedButton.icon(
-                  onPressed: () async {
-                    final navigator = Navigator.of(context);
-                    TTSService.instance.parar(caller: this);
-                    if (_isProfilePhoto || lembreteId == 'profile_photo') {
-                      final prefs = await SharedPreferences.getInstance();
-                      await prefs.setString(
-                        'idoso_foto_path',
-                        _capturedFile!.path,
-                      );
-                      final idosoId =
-                          await SessionRoleService.getActiveIdosoId();
-
-                      if (_useFirebase) {
-                        Future(() async {
+                  onPressed: _isUploading
+                      ? null
+                      : () async {
+                          setState(() => _isUploading = true);
                           try {
-                            final file = File(_capturedFile!.path);
-                            final ref = FirebaseStorage.instance
-                                .ref()
-                                .child('profile_photos')
-                                .child('$idosoId.jpg');
-                            final uploadTask = ref.putFile(file);
-                            final snapshot = await uploadTask;
-                            final downloadUrl = await snapshot.ref
-                                .getDownloadURL();
+                            final navigator = Navigator.of(context);
+                            final scaffoldMessenger = ScaffoldMessenger.of(context);
+                            TTSService.instance.parar(caller: this);
+                            if (_isProfilePhoto || lembreteId == 'profile_photo') {
+                              final prefs = await SharedPreferences.getInstance();
+                              await prefs.setString(
+                                'idoso_foto_path',
+                                _capturedFile!.path,
+                              );
+                              final idosoId =
+                                  await SessionRoleService.getActiveIdosoId();
 
-                            await FirebaseFirestore.instance
-                                .collection('idoso_perfil')
-                                .doc(idosoId)
-                                .set({
-                                  'fotoPath': downloadUrl,
-                                }, SetOptions(merge: true));
-                            await FirebaseFirestore.instance
-                                .collection('idosos')
-                                .doc(idosoId)
-                                .set({
-                                  'fotoPath': downloadUrl,
-                                }, SetOptions(merge: true));
-                            debugPrint(
-                              'Foto de perfil salva com sucesso no Firebase em background!',
-                            );
+                              if (_useFirebase) {
+                                Future(() async {
+                                  try {
+                                    final file = File(_capturedFile!.path);
+                                    final ref = FirebaseStorage.instance
+                                        .ref()
+                                        .child('profile_photos')
+                                        .child('$idosoId.jpg');
+                                    final uploadTask = await ref.putFile(file);
+                                    final downloadUrl = await uploadTask.ref
+                                        .getDownloadURL();
+
+                                    await FirebaseFirestore.instance
+                                        .collection('idoso_perfil')
+                                        .doc(idosoId)
+                                        .set({
+                                          'fotoPath': downloadUrl,
+                                        }, SetOptions(merge: true));
+                                    await FirebaseFirestore.instance
+                                        .collection('idosos')
+                                        .doc(idosoId)
+                                        .set({
+                                          'fotoPath': downloadUrl,
+                                        }, SetOptions(merge: true));
+                                  } catch (uploadError) {
+                                    debugPrint('Erro no upload da foto de perfil em background: $uploadError');
+                                  }
+                                });
+                              }
+
+                              SystemSound.play(SystemSoundType.click);
+                              HapticFeedback.vibrate();
+                              navigator.pop(_capturedFile!.path);
+                              return;
+                            } else if (lembreteId != null) {
+                              await LembreteService.instance.concluirComFoto(
+                                lembreteId,
+                                _capturedFile!.path,
+                              );
+                              SystemSound.play(SystemSoundType.click);
+                              HapticFeedback.vibrate();
+                              Lembrete? target;
+                              final targetId = lembreteId;
+                              final idx = LembreteService.instance.lembretes.indexWhere(
+                                (l) => l.id == targetId,
+                              );
+                              if (idx != -1) {
+                                target = LembreteService.instance.lembretes[idx];
+                              }
+                              navigator.pushNamedAndRemoveUntil(
+                                '/medication-confirmation',
+                                (route) => false,
+                                arguments: target?.titulo ?? 'remédio',
+                              );
+                            } else {
+                              scaffoldMessenger.showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Lembrete invalido. Abra o lembrete novamente.',
+                                  ),
+                                  backgroundColor: AppColors.error,
+                                ),
+                              );
+                            }
                           } catch (e) {
-                            debugPrint(
-                              'Erro ao sincronizar foto de perfil em background: $e',
-                            );
+                            debugPrint('Erro ao processar confirmacao de foto: $e');
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Erro ao processar foto: $e'),
+                                  backgroundColor: AppColors.error,
+                                ),
+                              );
+                            }
+                          } finally {
+                            if (mounted) {
+                              setState(() => _isUploading = false);
+                            }
                           }
-                        });
-                      }
-
-                      SystemSound.play(SystemSoundType.click);
-                      HapticFeedback.vibrate();
-                      navigator.pop(_capturedFile!.path);
-                      return;
-                    } else if (lembreteId != null) {
-                      await LembreteService.instance.concluirComFoto(
-                        lembreteId,
-                      );
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Lembrete invalido. Abra o lembrete novamente.',
-                          ),
-                          backgroundColor: AppColors.error,
-                        ),
-                      );
-                      return;
-                    }
-                    SystemSound.play(SystemSoundType.click);
-                    HapticFeedback.vibrate();
-                    Lembrete? target;
-                    final targetId = lembreteId;
-                    final idx = LembreteService.instance.lembretes.indexWhere(
-                      (l) => l.id == targetId,
-                    );
-                    if (idx != -1) {
-                      target = LembreteService.instance.lembretes[idx];
-                    }
-                    navigator.pushNamedAndRemoveUntil(
-                      '/medication-confirmation',
-                      (route) => false,
-                      arguments: target?.titulo ?? 'remédio',
-                    );
-                  },
-                  icon: const Icon(Icons.send, size: 32),
-                  label: const Text(
-                    'CONFIRMAR',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        },
+                  icon: _isUploading
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                        )
+                      : const Icon(Icons.check_circle_outline, size: 32),
+                  label: Text(
+                    _isUploading ? 'ENVIANDO...' : 'CONFIRMAR',
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.tertiaryFixedDim,
@@ -736,4 +745,24 @@ class _TakePhotoConfirmationScreenState
     TTSService.instance.parar(caller: this);
     super.dispose();
   }
+}
+
+Map<String, dynamic> _processColorAnalysis(List<int> bytes) {
+  final decoded = img.decodeImage(Uint8List.fromList(bytes));
+  if (decoded == null) return {'r': 0, 'g': 0, 'b': 0, 'count': 0};
+
+  final int startX = (decoded.width / 2 - 40).toInt().clamp(0, decoded.width);
+  final int startY = (decoded.height / 2 - 40).toInt().clamp(0, decoded.height);
+
+  int rSum = 0, gSum = 0, bSum = 0, count = 0;
+  for (int y = startY; y < startY + 80 && y < decoded.height; y++) {
+    for (int x = startX; x < startX + 80 && x < decoded.width; x++) {
+      final pixel = decoded.getPixel(x, y);
+      rSum += pixel.r.toInt();
+      gSum += pixel.g.toInt();
+      bSum += pixel.b.toInt();
+      count++;
+    }
+  }
+  return {'r': rSum, 'g': gSum, 'b': bSum, 'count': count};
 }

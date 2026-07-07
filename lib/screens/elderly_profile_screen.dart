@@ -98,7 +98,14 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
 
       String? fotoPath = reloadPhoto ? localFoto : _fotoPath;
 
-      // 2. Se o Firebase estiver ativo, tenta sincronizar no background com try-catch
+      bool isRealValue(String v) =>
+          v.isNotEmpty &&
+          v != 'Minha Conta' &&
+          v != 'Não cadastrado' &&
+          v != 'Não informada' &&
+          v != 'Não informado';
+
+      // 2. Se o Firebase estiver ativo, tenta preencher campos vazios com dados da nuvem
       if (_useFirebase) {
         try {
           final idosoId = await SessionRoleService.getActiveIdosoId();
@@ -113,30 +120,46 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
 
           if (docIdoso.exists && docIdoso.data() != null) {
             final data = docIdoso.data()!;
-            if (data['nome']?.toString().isNotEmpty == true)
-              nome = data['nome'] as String;
-            if (data['dataNascimento']?.toString().isNotEmpty == true)
-              dataNasc = data['dataNascimento'] as String;
-            if (data['telefone']?.toString().isNotEmpty == true)
-              telefone = data['telefone'] as String;
-            if (data['endereco']?.toString().isNotEmpty == true)
-              endereco = data['endereco'] as String;
-            if (data['condicoes'] != null) {
+            if (!isRealValue(nome)) {
+              final v = data['nome']?.toString() ?? '';
+              if (isRealValue(v)) nome = v;
+            }
+            if (!isRealValue(dataNasc)) {
+              final v = data['dataNascimento']?.toString() ?? '';
+              if (isRealValue(v)) dataNasc = v;
+            }
+            if (!isRealValue(telefone)) {
+              final v = data['telefone']?.toString() ?? '';
+              if (isRealValue(v)) telefone = v;
+            }
+            if (!isRealValue(endereco)) {
+              final v = data['endereco']?.toString() ?? '';
+              if (isRealValue(v)) endereco = v;
+            }
+            if (condicoes.isEmpty && data['condicoes'] != null) {
               condicoes = List<String>.from(data['condicoes'] as List);
             }
           }
 
           if (docPerfil.exists && docPerfil.data() != null) {
             final data = docPerfil.data()!;
-            if (data['nome']?.toString().isNotEmpty == true)
-              nome = data['nome'] as String;
-            if (data['dataNascimento']?.toString().isNotEmpty == true)
-              dataNasc = data['dataNascimento'] as String;
-            if (data['telefone']?.toString().isNotEmpty == true)
-              telefone = data['telefone'] as String;
-            if (data['endereco']?.toString().isNotEmpty == true)
-              endereco = data['endereco'] as String;
-            if (data['condicoes'] != null) {
+            if (!isRealValue(nome)) {
+              final v = data['nome']?.toString() ?? '';
+              if (isRealValue(v)) nome = v;
+            }
+            if (!isRealValue(dataNasc)) {
+              final v = data['dataNascimento']?.toString() ?? '';
+              if (isRealValue(v)) dataNasc = v;
+            }
+            if (!isRealValue(telefone)) {
+              final v = data['telefone']?.toString() ?? '';
+              if (isRealValue(v)) telefone = v;
+            }
+            if (!isRealValue(endereco)) {
+              final v = data['endereco']?.toString() ?? '';
+              if (isRealValue(v)) endereco = v;
+            }
+            if (condicoes.isEmpty && data['condicoes'] != null) {
               condicoes = List<String>.from(data['condicoes'] as List);
             }
           }

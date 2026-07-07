@@ -17,6 +17,7 @@ import 'offline_sync_service.dart';
 import 'secure_cache_service.dart';
 import 'session_role_service.dart';
 import 'smart_alert_service.dart';
+import 'widget_service.dart';
 
 class LembreteService {
   LembreteService._();
@@ -355,6 +356,7 @@ class LembreteService {
       }
     }
     await SmartAlertService.instance.atualizar(_lembretes, eventos: _eventos);
+    await WidgetService.instance.atualizar();
   }
 
   Future<void> _cancelarNotificacoesLocais() async {

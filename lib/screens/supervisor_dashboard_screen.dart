@@ -14,16 +14,23 @@ import '../models/lembrete_evento.dart';
 import '../models/smart_alert.dart';
 import '../services/device_barrier_service.dart';
 import '../services/health_service.dart';
+import '../services/supervisor_ai_service.dart';
 import '../services/lembrete_service.dart';
 import '../services/session_role_service.dart';
 import '../services/smart_alert_service.dart';
 import '../services/message_service.dart';
+import '../services/video_call_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/skeleton_loading.dart';
 import '../widgets/audio_player_card.dart';
 import '../widgets/reminder_with_audio.dart';
 import '../widgets/supervisor_bottom_nav.dart';
 import '../widgets/supervisor_drawer.dart';
 import 'photo_gallery_screen.dart';
+import '../widgets/charts/adherence_trend_chart.dart';
+import '../widgets/charts/category_distribution_chart.dart';
+import '../widgets/charts/bpm_history_chart.dart';
+import '../widgets/charts/weekly_comparison_chart.dart';
 
 class SupervisorDashboardScreen extends StatefulWidget {
   const SupervisorDashboardScreen({super.key});
@@ -46,8 +53,17 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   final TextEditingController _quickMessageController = TextEditingController();
   bool _sendingQuickMessage = false;
   bool _refortIsLoading = false;
+  SupervisorInsights? _aiInsights;
+  bool _aiLoading = false;
+  bool _aiLoaded = false;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   List<SmartAlert> _smartAlerts = [];
+  Map<DateTime, double> _dailyAdherence = {};
+  List<BpmReading> _bpmReadings = [];
+  int _currentWeekCompleted = 0;
+  int _currentWeekTotal = 0;
+  int _previousWeekCompleted = 0;
+  int _previousWeekTotal = 0;
   List<DeviceBarrier> _deviceBarriers = [];
   int? _batteryLevel;
   String? _batteryState;
@@ -100,6 +116,12 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
             setState(() {
               _lastBpm = bpm;
               _isLoadingBpm = false;
+              if (bpm != null) {
+                _bpmReadings.add(BpmReading(bpm: bpm, time: DateTime.now()));
+                if (_bpmReadings.length > 20) {
+                  _bpmReadings = _bpmReadings.sublist(_bpmReadings.length - 20);
+                }
+              }
             });
             SmartAlertService.instance.atualizar(
               LembreteService.instance.lembretes,
@@ -154,6 +176,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       eventos: LembreteService.instance.eventos,
       bpm: _lastBpm,
     );
+    _computeChartData();
     if (mounted) setState(() {});
   }
 
@@ -163,6 +186,62 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
         _smartAlerts = SmartAlertService.instance.alerts;
       });
     }
+  }
+
+  void _computeChartData() {
+    final now = DateTime.now();
+    final eventos = LembreteService.instance.eventos;
+
+    _dailyAdherence = {};
+    for (int i = 13; i >= 0; i--) {
+      final day = DateTime(now.year, now.month, now.day - i);
+      final dayEnd = DateTime(day.year, day.month, day.day, 23, 59, 59);
+      final dayEvents = eventos.where((e) =>
+          e.registradoEm.isAfter(day) && e.registradoEm.isBefore(dayEnd));
+      final total = dayEvents.length;
+      if (total == 0) {
+        _dailyAdherence[day] = -1;
+      } else {
+        final completed = dayEvents.where((e) => e.status.isConcluido).length;
+        _dailyAdherence[day] = (completed / total * 100);
+      }
+    }
+
+    _bpmReadings = [];
+    final bpmEvents = eventos
+        .where((e) =>
+            e.observacao != null &&
+            e.observacao!.contains('BPM'))
+        .toList()
+      ..sort((a, b) => a.registradoEm.compareTo(b.registradoEm));
+    for (final e in bpmEvents.take(20)) {
+      final bpm = int.tryParse(e.observacao!.replaceAll(RegExp(r'[^0-9]'), ''));
+      if (bpm != null) {
+        _bpmReadings.add(BpmReading(bpm: bpm, time: e.registradoEm));
+      }
+    }
+    if (bpmEvents.isEmpty && _lastBpm != null) {
+      _bpmReadings.add(BpmReading(bpm: _lastBpm!, time: now));
+    }
+
+    final weekStart = DateTime(now.year, now.month, now.day - 6);
+    final twoWeeksAgo = DateTime(now.year, now.month, now.day - 13);
+
+    final currentWeekEvents = eventos.where((e) =>
+        e.registradoEm.isAfter(weekStart) &&
+        e.registradoEm.isBefore(now) &&
+        e.categoria != 'bem_estar');
+    _currentWeekTotal = currentWeekEvents.length;
+    _currentWeekCompleted =
+        currentWeekEvents.where((e) => e.status.isConcluido).length;
+
+    final previousWeekEvents = eventos.where((e) =>
+        e.registradoEm.isAfter(twoWeeksAgo) &&
+        e.registradoEm.isBefore(weekStart) &&
+        e.categoria != 'bem_estar');
+    _previousWeekTotal = previousWeekEvents.length;
+    _previousWeekCompleted =
+        previousWeekEvents.where((e) => e.status.isConcluido).length;
   }
 
   Future<void> _startDeviceBarrierWatcher() async {
@@ -245,6 +324,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
           eventos: LembreteService.instance.eventos,
           bpm: bpm,
         );
+        _computeChartData();
         if (!mounted) return;
         setState(() {
           _lastBpm = bpm;
@@ -255,11 +335,60 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
           _smartAlerts = SmartAlertService.instance.alerts;
         });
       }
+      _loadAIInsights();
     } catch (_) {
       if (mounted) {
         setState(() {
           _isLoadingBpm = false;
         });
+      }
+    }
+  }
+
+  Future<void> _loadAIInsights() async {
+    if (_aiLoaded || _aiLoading) return;
+    setState(() => _aiLoading = true);
+    final insights = await SupervisorAIService.instance.getDailySummary();
+    if (mounted) {
+      setState(() {
+        _aiInsights = insights;
+        _aiLoading = false;
+        _aiLoaded = true;
+      });
+    }
+  }
+
+  Future<void> _initiateVideoCall() async {
+    if (!_isConnected) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Nenhum idoso conectado.')),
+        );
+      }
+      return;
+    }
+    try {
+      final idosoId = await SessionRoleService.getActiveIdosoId();
+      final callId = await VideoCallService.instance.initiateCall(
+        idosoId: idosoId,
+      );
+      if (callId == null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Erro ao iniciar chamada.')),
+        );
+        return;
+      }
+      if (mounted && callId != null) {
+        Navigator.pushNamed(context, '/active-video-call', arguments: {
+          'callId': callId,
+          'roomName': 'call_${idosoId}_${DateTime.now().millisecondsSinceEpoch}',
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Erro ao iniciar chamada de vídeo.')),
+        );
       }
     }
   }
@@ -327,10 +456,24 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     if (_checkingConnection) {
-      return const Scaffold(
+      return Scaffold(
         backgroundColor: AppColors.background,
-        body: Center(
-          child: CircularProgressIndicator(),
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SkeletonLoading(height: 24, width: 160),
+                const SizedBox(height: 24),
+                SkeletonCard(lines: 2, lineHeight: 20),
+                const SizedBox(height: 16),
+                SkeletonCard(lines: 4, lineHeight: 16),
+                const SizedBox(height: 16),
+                SkeletonLoading(height: 200),
+              ],
+            ),
+          ),
         ),
       );
     }
@@ -356,6 +499,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                           const SizedBox(height: 24),
                           _buildMoodHistoryChart(),
                           const SizedBox(height: 24),
+                          _buildAISummarySection(),
+                          const SizedBox(height: 24),
                           _buildSmartAlertsSection(),
                           if (_smartAlerts.isNotEmpty) const SizedBox(height: 24),
                           _buildDeviceBarrierSection(),
@@ -364,7 +509,13 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                           const SizedBox(height: 24),
                           _buildOverviewSection(),
                           const SizedBox(height: 24),
+                          _buildAdherenceChartSection(),
+                          const SizedBox(height: 24),
+                          _buildWeeklyComparisonSection(),
+                          const SizedBox(height: 24),
                           _buildHealthSnapshot(),
+                          const SizedBox(height: 24),
+                          _buildCategoryChartSection(),
                           const SizedBox(height: 24),
                           _buildTodayReminders(context),
                           const SizedBox(height: 24),
@@ -518,6 +669,155 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildAISummarySection() {
+    if (_aiLoading) {
+      return Card(
+        color: AppColors.surfaceContainerLow,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Gerando resumo inteligente...',
+                style: TextStyle(color: AppColors.onSurfaceVariant),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_aiInsights == null || !_aiInsights!.hasContent) {
+      return const SizedBox.shrink();
+    }
+
+    final insights = _aiInsights!;
+    return Card(
+      color: AppColors.primaryFixed.withValues(alpha: 0.5),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.auto_awesome,
+                    size: 18, color: AppColors.primary),
+                const SizedBox(width: 8),
+                Text(
+                  'RESUMO INTELIGENTE',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.primary,
+                    letterSpacing: 1,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              insights.summary,
+              style: const TextStyle(
+                fontSize: 15,
+                height: 1.4,
+              ),
+            ),
+            if (insights.insights.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              ...insights.insights.map(
+                (i) => Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('• ', style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.onPrimaryFixedVariant,
+                      )),
+                      Expanded(
+                        child: Text(i, style: const TextStyle(fontSize: 14)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+            if (insights.attentionPoints.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Text(
+                'ATENCAO',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.error,
+                  letterSpacing: 1,
+                ),
+              ),
+              const SizedBox(height: 4),
+              ...insights.attentionPoints.map(
+                (a) => Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.warning_amber_rounded,
+                          size: 16, color: AppColors.error),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          a,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: AppColors.error,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+            if (insights.suggestions.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Text(
+                'SUGESTOES',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.onPrimaryFixedVariant,
+                  letterSpacing: 1,
+                ),
+              ),
+              ...insights.suggestions.map(
+                (s) => Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.lightbulb_outline,
+                          size: 16, color: AppColors.secondary),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(s, style: const TextStyle(fontSize: 14)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -1015,6 +1315,33 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                           ),
                         ),
                       ),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: _initiateVideoCall,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryContainer.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: AppColors.primary, width: 1.5),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.videocam, color: AppColors.primary, size: 16),
+                            SizedBox(width: 4),
+                            Text(
+                              'Vídeo',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -1233,6 +1560,21 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
           if (_lastBpm != null && !_isLoadingBpm) ...[
             const SizedBox(height: 16),
             EcgHeartbeatWidget(bpm: _lastBpm!),
+          ],
+          if (_bpmReadings.length >= 2) ...[
+            const SizedBox(height: 20),
+            const Divider(color: AppColors.onPrimaryContainer, height: 1),
+            const SizedBox(height: 16),
+            const Text(
+              'Histórico de Medições',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppColors.onPrimaryContainer,
+              ),
+            ),
+            const SizedBox(height: 12),
+            BpmHistoryChart(readings: _bpmReadings),
           ],
         ],
       ),
@@ -1736,6 +2078,135 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildAdherenceChartSection() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.outlineVariant, width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.trending_up, color: AppColors.primary, size: 22),
+              SizedBox(width: 8),
+              Text(
+                'Tendência de Adesão',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.onSurface,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Últimos 14 dias',
+            style: TextStyle(
+              fontSize: 12,
+              color: AppColors.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 12),
+          AdherenceTrendChart(dailyAdherence: _dailyAdherence),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWeeklyComparisonSection() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.outlineVariant, width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.bar_chart, color: AppColors.primary, size: 22),
+              SizedBox(width: 8),
+              Text(
+                'Comparativo Semanal',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.onSurface,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          WeeklyComparisonChart(
+            currentWeekCompleted: _currentWeekCompleted,
+            currentWeekTotal: _currentWeekTotal,
+            previousWeekCompleted: _previousWeekCompleted,
+            previousWeekTotal: _previousWeekTotal,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategoryChartSection() {
+    final lembretes = LembreteService.instance.lembretes;
+    final completedByCategory = <String, int>{};
+    final totalByCategory = <String, int>{};
+
+    for (final l in lembretes) {
+      final cat = l.categoria;
+      totalByCategory[cat] = (totalByCategory[cat] ?? 0) + 1;
+      if (l.concluido) {
+        completedByCategory[cat] = (completedByCategory[cat] ?? 0) + 1;
+      }
+    }
+
+    if (totalByCategory.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.outlineVariant, width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.pie_chart, color: AppColors.primary, size: 22),
+              SizedBox(width: 8),
+              Text(
+                'Distribuição por Categoria',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.onSurface,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          CategoryDistributionChart(
+            completedByCategory: completedByCategory,
+            totalByCategory: totalByCategory,
+          ),
+        ],
       ),
     );
   }

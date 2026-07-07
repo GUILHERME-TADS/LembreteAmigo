@@ -13,3 +13,9 @@ export 'me_explica_button.dart';
 export 'supervisor_bottom_nav.dart';
 export 'elderly_profile_avatar.dart';
 export 'audio_waveform_indicator.dart';
+export 'skeleton_loading.dart';
+
+export 'charts/adherence_trend_chart.dart';
+export 'charts/category_distribution_chart.dart';
+export 'charts/weekly_comparison_chart.dart';
+export 'charts/bpm_history_chart.dart';

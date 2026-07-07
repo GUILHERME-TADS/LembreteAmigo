@@ -9,12 +9,16 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:fl_chart/fl_chart.dart';
+
 import '../models/lembrete.dart';
 import '../services/lembrete_service.dart';
 import '../services/session_role_service.dart';
 import '../theme/app_theme.dart';
 
 import '../widgets/supervisor_bottom_nav.dart';
+import '../widgets/charts/adherence_trend_chart.dart';
+import '../widgets/charts/weekly_comparison_chart.dart';
 
 class MonthlyReportsScreen extends StatefulWidget {
   const MonthlyReportsScreen({super.key});
@@ -260,6 +264,8 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
                     _buildAdherenceBreakdown(),
                     const SizedBox(height: 16),
                     _buildRadialChart(),
+                    const SizedBox(height: 16),
+                    _buildReportCharts(),
                     const SizedBox(height: 24),
                   ],
                 ),
@@ -599,6 +605,37 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
   }
 
   Widget _buildRadialChart() {
+    final lembretes = LembreteService.instance.lembretes;
+    final total = lembretes.length;
+    final completed = lembretes.where((l) => l.concluido).length;
+    final pending = total - completed;
+
+    final sections = <PieChartSectionData>[
+      PieChartSectionData(
+        color: AppColors.tertiaryFixed,
+        value: completed.toDouble(),
+        title: completed > 0 ? '$completed' : '',
+        radius: 55,
+        titleStyle: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+      ),
+      if (pending > 0)
+        PieChartSectionData(
+          color: AppColors.surfaceContainerHigh,
+          value: pending.toDouble(),
+          title: '$pending',
+          radius: 55,
+          titleStyle: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: AppColors.onSurfaceVariant,
+          ),
+        ),
+    ];
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -618,21 +655,186 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          Text(
-            '$_geralPct%',
-            style: const TextStyle(
-              fontSize: 48,
-              fontWeight: FontWeight.w900,
-              color: AppColors.onTertiaryContainer,
+          SizedBox(
+            height: 180,
+            child: Row(
+              children: [
+                Expanded(
+                  child: PieChart(
+                    PieChartData(
+                      sections: sections,
+                      centerSpaceRadius: 40,
+                      sectionsSpace: 2,
+                      borderData: FlBorderData(show: false),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _donutLegend(
+                        AppColors.tertiaryFixed,
+                        'Concluídos',
+                        '$completed',
+                      ),
+                      const SizedBox(height: 12),
+                      _donutLegend(
+                        AppColors.surfaceContainerHigh,
+                        'Pendentes',
+                        '$pending',
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        '$_geralPct%',
+                        style: const TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.onTertiaryContainer,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ),
-          const Text(
-            'Baseado nos lembretes cadastrados',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 16, color: AppColors.onSurfaceVariant),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _donutLegend(Color color, String label, String value) {
+    return Row(
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 14,
+            color: AppColors.onSurfaceVariant,
+          ),
+        ),
+        const Spacer(),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: AppColors.onSurface,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildReportCharts() {
+    final now = DateTime.now();
+    final eventos = LembreteService.instance.eventos;
+
+    final dailyAdherence = <DateTime, double>{};
+    for (int i = 13; i >= 0; i--) {
+      final day = DateTime(now.year, now.month, now.day - i);
+      final dayEnd = DateTime(day.year, day.month, day.day, 23, 59, 59);
+      final dayEvents = eventos.where((e) =>
+          e.registradoEm.isAfter(day) && e.registradoEm.isBefore(dayEnd));
+      final total = dayEvents.length;
+      if (total == 0) {
+        dailyAdherence[day] = -1;
+      } else {
+        final completed = dayEvents.where((e) => e.status.isConcluido).length;
+        dailyAdherence[day] = (completed / total * 100);
+      }
+    }
+
+    final weekStart = DateTime(now.year, now.month, now.day - 6);
+    final twoWeeksAgo = DateTime(now.year, now.month, now.day - 13);
+
+    final currentWeekEvents = eventos.where((e) =>
+        e.registradoEm.isAfter(weekStart) &&
+        e.registradoEm.isBefore(now) &&
+        e.categoria != 'bem_estar');
+    final currentTotal = currentWeekEvents.length;
+    final currentDone =
+        currentWeekEvents.where((e) => e.status.isConcluido).length;
+
+    final previousWeekEvents = eventos.where((e) =>
+        e.registradoEm.isAfter(twoWeeksAgo) &&
+        e.registradoEm.isBefore(weekStart) &&
+        e.categoria != 'bem_estar');
+    final previousTotal = previousWeekEvents.length;
+    final previousDone =
+        previousWeekEvents.where((e) => e.status.isConcluido).length;
+
+    return Column(
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceContainerLowest,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.outlineVariant),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Tendência de Adesão',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(height: 12),
+              AdherenceTrendChart(
+                dailyAdherence: dailyAdherence,
+                daysToShow: 14,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceContainerLowest,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.outlineVariant),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Comparativo Semanal',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(height: 12),
+              WeeklyComparisonChart(
+                currentWeekCompleted: currentDone,
+                currentWeekTotal: currentTotal,
+                previousWeekCompleted: previousDone,
+                previousWeekTotal: previousTotal,
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

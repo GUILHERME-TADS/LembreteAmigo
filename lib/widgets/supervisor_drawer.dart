@@ -133,6 +133,11 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
                   onTap: () => _navigateTo(context, '/messages'),
                 ),
                 ListTile(
+                  leading: const Icon(Icons.videocam, color: AppColors.primary),
+                  title: const Text('Chamadas de Vídeo', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  onTap: () => _navigateTo(context, '/video-call-history'),
+                ),
+                ListTile(
                   leading: const Icon(Icons.analytics, color: AppColors.primary),
                   title: const Text('Relatórios Mensais', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   onTap: () => _navigateTo(context, '/monthly-reports'),

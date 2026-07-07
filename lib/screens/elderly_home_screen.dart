@@ -14,6 +14,8 @@ import '../services/lembrete_service.dart';
 import '../services/location_service.dart';
 import '../services/session_role_service.dart';
 import '../services/tts_service.dart';
+import '../services/video_call_service.dart';
+import '../services/achievement_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/audio_path_helper.dart';
 import '../utils/period_helper.dart';
@@ -192,6 +194,19 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
 
       _startConfetti();
       _showVictoryDialog(streak);
+
+      unawaited(AchievementService.instance.checkAndUnlock(
+        streakDays: streak,
+        totalCompletions: _lembretes.length,
+        onTimeDays: streak,
+        familyCompleted: _isConnected,
+      ));
+      unawaited(AchievementService.instance.updateProgress(
+        streakDays: streak,
+        totalCompletions: _lembretes.length,
+        onTimeDays: streak,
+      ));
+    } else if (!allDone) {
     } else if (!allDone) {
       _allCompletedTriggered = false;
 
@@ -313,11 +328,6 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
             final rawName = docIdoso.data()?['nome']?.toString() ?? '';
             if (rawName.isNotEmpty && rawName != 'Não cadastrado') {
               name = rawName.split(' ').first;
-              final Map<String, dynamic> localData = jsonStr != null 
-                  ? jsonDecode(jsonStr) 
-                  : <String, dynamic>{};
-              localData['nome'] = rawName;
-              await prefs.setString('idoso_perfil', jsonEncode(localData));
             }
           }
           
@@ -330,11 +340,6 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
               final rawName = docPerfil.data()?['nome']?.toString() ?? '';
               if (rawName.isNotEmpty && rawName != 'Não cadastrado') {
                 name = rawName.split(' ').first;
-                final Map<String, dynamic> localData = jsonStr != null 
-                    ? jsonDecode(jsonStr) 
-                    : <String, dynamic>{};
-                localData['nome'] = rawName;
-                await prefs.setString('idoso_perfil', jsonEncode(localData));
               }
             }
           }
@@ -444,40 +449,8 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     }
   }
 
-  bool _isReminderActiveToday(Lembrete lembrete) {
-    final now = DateTime.now();
-    if (lembrete.recorrencia == 'diario' || lembrete.repeteTodosOsDias) {
-      return true;
-    }
-    if (lembrete.recorrencia == 'semanal' || lembrete.recorrenciaSemanal) {
-      return lembrete.diasSemana.contains(now.weekday);
-    }
-    if (lembrete.recorrencia == 'mensal' || lembrete.recorrenciaMensal) {
-      return (lembrete.diaMes ?? lembrete.criadoEm.day) == now.day;
-    }
-    if (lembrete.recorrencia == 'quinzenal') {
-      final diffDays = DateTime(now.year, now.month, now.day)
-          .difference(
-            DateTime(
-              lembrete.criadoEm.year,
-              lembrete.criadoEm.month,
-              lembrete.criadoEm.day,
-            ),
-          )
-          .inDays;
-      return diffDays >= 0 && diffDays % 15 == 0;
-    }
-    if (lembrete.recorrencia == 'unico' || lembrete.lembreteUnico) {
-      final hojeKey = '${now.year}-${now.month}-${now.day}';
-      final criadoKey =
-          '${lembrete.criadoEm.year}-${lembrete.criadoEm.month}-${lembrete.criadoEm.day}';
-      return hojeKey == criadoKey;
-    }
-    if (lembrete.recorrencia == 'intervalo' || lembrete.recorrenciaIntervalo) {
-      return true;
-    }
-    return true;
-  }
+  bool _isReminderActiveToday(Lembrete lembrete) =>
+      lembrete.isActiveOn(DateTime.now());
 
   void _ouvirExplicacaoLembrete(Lembrete l) {
     _stopAllAudioAndTts();
@@ -835,6 +808,42 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                     onPressed: () {
                       Navigator.pop(context);
                       _confirmarAcaoSOSComContagem(
+                        'Chamada de Vídeo',
+                        'Iniciando chamada de vídeo para o ajudante',
+                        _initiateVideoCall,
+                      );
+                    },
+                    icon: const Icon(Icons.videocam, size: 28),
+                    label: const Text(
+                      'CHAMADA DE VÍDEO',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isHighContrast
+                          ? Colors.black
+                          : const Color(0xFF1565C0),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 20),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        side: isHighContrast
+                            ? const BorderSide(color: Colors.black, width: 2)
+                            : BorderSide.none,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _confirmarAcaoSOSComContagem(
                         'Ligar para SAMU',
                         'Iniciando ligação para o SAMU no 1 9 2',
                         () => _ligar('192'),
@@ -921,6 +930,37 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Não foi possível abrir o discador.')),
+        );
+      }
+    }
+  }
+
+  Future<void> _initiateVideoCall() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final idosoId = prefs.getString('paired_idoso_id');
+      if (idosoId == null || idosoId.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Nenhum cuidador vinculado.')),
+          );
+        }
+        return;
+      }
+      final callId = await VideoCallService.instance.initiateCall(
+        idosoId: idosoId,
+        initiatedBy: 'idoso',
+      );
+      if (callId != null && mounted) {
+        Navigator.pushNamed(context, '/active-video-call', arguments: {
+          'callId': callId,
+          'roomName': 'call_${idosoId}_${DateTime.now().millisecondsSinceEpoch}',
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Erro ao iniciar chamada de vídeo.')),
         );
       }
     }
@@ -3133,6 +3173,18 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _bottomNavItem(Icons.home, 'Início', true, null),
+              _bottomNavItem(Icons.emoji_events, 'Medalhas', false, () async {
+                if (_isProcessingAction) return;
+                setState(() => _isProcessingAction = true);
+                try {
+                  _stopAllAudioAndTts();
+                  await Navigator.pushNamed(context, '/achievements');
+                } finally {
+                  if (mounted) {
+                    setState(() => _isProcessingAction = false);
+                  }
+                }
+              }),
               _bottomNavItem(Icons.list_alt, 'Lembretes', false, () async {
                 if (_isProcessingAction) return;
                 setState(() => _isProcessingAction = true);

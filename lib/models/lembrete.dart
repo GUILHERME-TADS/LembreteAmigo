@@ -170,6 +170,42 @@ class Lembrete {
     );
   }
 
+  bool isActiveOn(DateTime date) => isReminderActiveOn(this, date);
+
+  static bool isReminderActiveOn(Lembrete lembrete, DateTime date) {
+    if (lembrete.recorrencia == 'diario' || lembrete.repeteTodosOsDias) {
+      return true;
+    }
+    if (lembrete.recorrencia == 'semanal' || lembrete.recorrenciaSemanal) {
+      return lembrete.diasSemana.contains(date.weekday);
+    }
+    if (lembrete.recorrencia == 'mensal' || lembrete.recorrenciaMensal) {
+      return (lembrete.diaMes ?? lembrete.criadoEm.day) == date.day;
+    }
+    if (lembrete.recorrencia == 'quinzenal') {
+      final diffDays = DateTime(date.year, date.month, date.day)
+          .difference(
+            DateTime(
+              lembrete.criadoEm.year,
+              lembrete.criadoEm.month,
+              lembrete.criadoEm.day,
+            ),
+          )
+          .inDays;
+      return diffDays >= 0 && diffDays % 15 == 0;
+    }
+    if (lembrete.recorrencia == 'unico' || lembrete.lembreteUnico) {
+      final dateKey = '${date.year}-${date.month}-${date.day}';
+      final createdKey =
+          '${lembrete.criadoEm.year}-${lembrete.criadoEm.month}-${lembrete.criadoEm.day}';
+      return dateKey == createdKey;
+    }
+    if (lembrete.recorrencia == 'intervalo' || lembrete.recorrenciaIntervalo) {
+      return true;
+    }
+    return true;
+  }
+
   Map<String, dynamic> toJson() => {
     'id': id,
     'titulo': titulo,

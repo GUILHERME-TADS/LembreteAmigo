@@ -635,7 +635,64 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
             'Tire uma foto da embalagem ou do comprimido real para facilitar a identificação.',
             style: TextStyle(fontSize: 14, color: AppColors.onSurfaceVariant),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () async {
+                final result = await Navigator.pushNamed(
+                  context,
+                  '/identify-medication',
+                );
+                if (result != null && mounted) {
+                  final data = result as Map<String, dynamic>;
+                  setState(() {
+                    if (data['titulo'] != null &&
+                        data['titulo'].toString().isNotEmpty) {
+                      _titleController.text = data['titulo'] as String;
+                    }
+                    if (data['forma'] != null &&
+                        data['forma'].toString().isNotEmpty) {
+                      _selectedForma = data['forma'] as String;
+                    }
+                    if (data['cor'] != null &&
+                        data['cor'].toString().isNotEmpty) {
+                      _selectedCor = data['cor'] as String;
+                    }
+                    if (data['fotoPath'] != null) {
+                      _fotoPath = data['fotoPath'] as String;
+                    }
+                  });
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Medicamento identificado e preenchido!'),
+                      backgroundColor: AppColors.tertiaryFixedDim,
+                    ),
+                  );
+                }
+              },
+              icon: const Icon(Icons.auto_awesome, size: 22),
+              label: const Text(
+                'Identificar Remédio por Foto',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: BorderSide(
+                  color: AppColors.primary.withValues(alpha: 0.4),
+                  width: 2,
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
           InkWell(
             onTap: _capturarFotoRemedio,
             child: Container(

@@ -219,27 +219,30 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       // Salva localmente primeiro
       await prefs.setString('idoso_perfil', jsonEncode(perfil));
 
-      // Salva no Firebase se estiver ativo em background
+      // Salva no Firebase de forma confiável
       if (_useFirebase) {
-        Future(() async {
-          try {
-            await FirebaseFirestore.instance
-                .collection('idoso_perfil')
-                .doc(idosoId)
-                .set(perfil, SetOptions(merge: true));
-            await FirebaseFirestore.instance
-                .collection('idosos')
-                .doc(idosoId)
-                .set(perfil, SetOptions(merge: true));
-            debugPrint(
-              'Perfil sincronizado com o Firebase em background com sucesso!',
-            );
-          } catch (firebaseError) {
-            debugPrint(
-              'Erro ao sincronizar perfil no Firebase em background: $firebaseError',
+        try {
+          await FirebaseFirestore.instance
+              .collection('idoso_perfil')
+              .doc(idosoId)
+              .set(perfil, SetOptions(merge: true));
+          await FirebaseFirestore.instance
+              .collection('idosos')
+              .doc(idosoId)
+              .set(perfil, SetOptions(merge: true));
+        } catch (firebaseError) {
+          debugPrint('Erro ao sincronizar perfil no Firebase: $firebaseError');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Dados salvos no aparelho, mas a sincronização com a nuvem falhou. Os dados serão enviados quando houver conexão.',
+                ),
+                duration: Duration(seconds: 4),
+              ),
             );
           }
-        });
+        }
       }
 
       TTSService.instance.parar(caller: this);

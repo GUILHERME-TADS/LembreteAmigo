@@ -3,6 +3,7 @@ import 'package:lembretes_app/models/app_message.dart';
 import 'package:lembretes_app/models/lembrete.dart';
 import 'package:lembretes_app/models/offline_write.dart';
 import 'package:lembretes_app/models/smart_alert.dart';
+import 'package:lembretes_app/services/supervisor_ai_service.dart';
 import 'package:lembretes_app/services/offline_sync_service.dart';
 import 'package:lembretes_app/services/health_service.dart';
 import 'package:lembretes_app/services/session_role_service.dart';
@@ -411,6 +412,76 @@ void main() {
       expectTime('Tomar remedio quinze pras duas da tarde', 13, 45);
       expectTime('Medir glicose dez para as seis da manha', 5, 50);
       expectTime('Tomar agua oito menos cinco da noite', 19, 55);
+    });
+  });
+
+  group('isActiveOn (recorrencia centralizada)', () {
+    test('diario retorna true para qualquer data', () {
+      final l = Lembrete(id: '1', titulo: 'Teste', horarioHour: 8, horarioMinute: 0, recorrencia: 'diario');
+      expect(l.isActiveOn(DateTime(2026, 7, 1)), isTrue);
+      expect(l.isActiveOn(DateTime(2026, 7, 15)), isTrue);
+      expect(l.isActiveOn(DateTime(2026, 12, 31)), isTrue);
+    });
+
+    test('semanal retorna true apenas nos dias corretos', () {
+      final monday = DateTime(2026, 7, 6);
+      expect(monday.weekday, 1);
+      final l = Lembrete(id: '2', titulo: 'Teste', horarioHour: 8, horarioMinute: 0, recorrencia: 'semanal', diasSemana: const [1, 3, 5], repeteTodosOsDias: false);
+      expect(l.isActiveOn(monday), isTrue);
+      expect(l.isActiveOn(monday.add(const Duration(days: 2))), isTrue);  // Wednesday
+      expect(l.isActiveOn(monday.add(const Duration(days: 4))), isTrue);  // Friday
+      expect(l.isActiveOn(monday.add(const Duration(days: 1))), isFalse); // Tuesday
+      expect(l.isActiveOn(monday.add(const Duration(days: 5))), isFalse); // Saturday
+    });
+
+    test('mensal retorna true no dia correspondente', () {
+      final l = Lembrete(id: '3', titulo: 'Teste', horarioHour: 8, horarioMinute: 0, recorrencia: 'mensal', diaMes: 15, criadoEm: DateTime(2026, 1, 1), repeteTodosOsDias: false);
+      expect(l.isActiveOn(DateTime(2026, 7, 15)), isTrue);
+      expect(l.isActiveOn(DateTime(2026, 8, 15)), isTrue);
+      expect(l.isActiveOn(DateTime(2026, 7, 14)), isFalse);
+    });
+
+    test('unico retorna true apenas na data de criacao', () {
+      final l = Lembrete(id: '4', titulo: 'Teste', horarioHour: 8, horarioMinute: 0, recorrencia: 'unico', criadoEm: DateTime(2026, 7, 4), repeteTodosOsDias: false);
+      expect(l.isActiveOn(DateTime(2026, 7, 4)), isTrue);
+      expect(l.isActiveOn(DateTime(2026, 7, 5)), isFalse);
+    });
+
+    test('quinzenal segue ciclo de 15 dias', () {
+      final l = Lembrete(id: '5', titulo: 'Teste', horarioHour: 8, horarioMinute: 0, recorrencia: 'quinzenal', criadoEm: DateTime(2026, 7, 1), repeteTodosOsDias: false);
+      expect(l.isActiveOn(DateTime(2026, 7, 1)), isTrue);
+      expect(l.isActiveOn(DateTime(2026, 7, 16)), isTrue);
+      expect(l.isActiveOn(DateTime(2026, 7, 31)), isTrue);
+      expect(l.isActiveOn(DateTime(2026, 7, 10)), isFalse);
+    });
+  });
+
+  group('SupervisorInsights', () {
+    test('hasContent retorna true quando tem conteudo', () {
+      expect(const SupervisorInsights(summary: '').hasContent, isFalse);
+      expect(const SupervisorInsights(summary: 'Resumo').hasContent, isTrue);
+      expect(const SupervisorInsights(summary: '', insights: ['ok']).hasContent, isTrue);
+    });
+  });
+
+  group('HealthService BPM', () {
+    test('bpmHistory comeca vazio', () {
+      expect(HealthService.instance.bpmHistory, isEmpty);
+    });
+
+    test('bpmStream e um broadcast stream', () {
+      final stream = HealthService.instance.bpmStream;
+      expect(stream, isNotNull);
+      expect(stream.isBroadcast, isTrue);
+    });
+  });
+
+  group('Lembrete isReminderActiveOn estatico', () {
+    test('chamada estatica produz mesmo resultado que instancia', () {
+      final l = Lembrete(id: '1', titulo: 'Teste', horarioHour: 8, horarioMinute: 0, recorrencia: 'semanal', diasSemana: const [3], repeteTodosOsDias: false);
+      final date = DateTime(2026, 7, 8);
+      expect(l.isActiveOn(date), isTrue);
+      expect(Lembrete.isReminderActiveOn(l, date), isTrue);
     });
   });
 }

@@ -65,17 +65,21 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('paired_idoso_id', 'idoso_autonomo');
-      
-      final Map<String, dynamic> localPerfil = {
-        'nome': 'Minha Conta',
-        'dataNascimento': '01/01/1950',
-        'telefone': '',
-        'endereco': '',
-        'condicoes': <dynamic>[],
-        'fotoPath': null
-      };
+
+      final jsonStr = prefs.getString('idoso_perfil');
+      final Map<String, dynamic> localPerfil = jsonStr != null
+          ? jsonDecode(jsonStr) as Map<String, dynamic>
+          : <String, dynamic>{};
+
+      localPerfil.putIfAbsent('nome', () => 'Minha Conta');
+      localPerfil.putIfAbsent('dataNascimento', () => '01/01/1950');
+      localPerfil.putIfAbsent('telefone', () => '');
+      localPerfil.putIfAbsent('endereco', () => '');
+      localPerfil.putIfAbsent('condicoes', () => <dynamic>[]);
+      localPerfil.putIfAbsent('fotoPath', () => null);
+
       await prefs.setString('idoso_perfil', jsonEncode(localPerfil));
-      
+
       if (mounted) {
         Navigator.pushNamedAndRemoveUntil(
           context,
@@ -116,17 +120,20 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       
-      final Map<String, dynamic> localPerfil = {
-        'nome': 'Minha Conta',
-        'dataNascimento': '',
-        'telefone': '',
-        'endereco': '',
-        'condicoes': <String>[],
-        'status': 'pending',
-        'pairingCode': code,
-        'pairingCodeExpires': DateTime.now().add(const Duration(hours: 2)).toIso8601String(),
-        'fotoPath': null,
-      };
+      final jsonStr = prefs.getString('idoso_perfil');
+      final Map<String, dynamic> localPerfil = jsonStr != null
+          ? jsonDecode(jsonStr) as Map<String, dynamic>
+          : <String, dynamic>{};
+
+      localPerfil.putIfAbsent('nome', () => 'Minha Conta');
+      localPerfil.putIfAbsent('dataNascimento', () => '');
+      localPerfil.putIfAbsent('telefone', () => '');
+      localPerfil.putIfAbsent('endereco', () => '');
+      localPerfil.putIfAbsent('condicoes', () => <String>[]);
+      localPerfil.putIfAbsent('fotoPath', () => null);
+      localPerfil['status'] = 'pending';
+      localPerfil['pairingCode'] = code;
+      localPerfil['pairingCodeExpires'] = DateTime.now().add(const Duration(hours: 2)).toIso8601String();
 
       final docRef = await FirebaseFirestore.instance
           .collection('idoso_perfil')
@@ -154,14 +161,29 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
             // Conectado com sucesso pelo supervisor!
             _profileSubscription?.cancel();
             final prefsInstance = await SharedPreferences.getInstance();
-            await prefsInstance.setString('idoso_perfil', jsonEncode(data));
-            
-            // Se tiver fotoPath no Firestore, salva também em idoso_foto_path
+
+            // Preserva dados locais existentes, só atualiza conexão do Firestore
+            final jsonStr = prefsInstance.getString('idoso_perfil');
+            final Map<String, dynamic> merged = jsonStr != null
+                ? jsonDecode(jsonStr) as Map<String, dynamic>
+                : <String, dynamic>{};
+
+            merged['status'] = data['status'];
+            if (data['supervisorId'] != null) {
+              merged['supervisorId'] = data['supervisorId'];
+            }
+
+            for (final key in ['nome', 'dataNascimento', 'telefone', 'endereco', 'condicoes', 'fotoPath']) {
+              merged.putIfAbsent(key, () => data[key]);
+            }
+
+            await prefsInstance.setString('idoso_perfil', jsonEncode(merged));
+
             final fotoPath = data['fotoPath'] as String?;
             if (fotoPath != null && fotoPath.isNotEmpty) {
               await prefsInstance.setString('idoso_foto_path', fotoPath);
             }
-            
+
             _handleSuccess();
           }
         }

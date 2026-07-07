@@ -8,7 +8,7 @@ import '../services/session_role_service.dart';
 import '../services/tts_service.dart';
 import '../services/lembrete_service.dart';
 import '../models/lembrete.dart';
-import '../utils/period_helper.dart';
+import '../services/alex_ai_service.dart';
 import 'alex_avatar.dart';
 
 class AlexAssistantSheet extends StatefulWidget {
@@ -46,8 +46,9 @@ class _AlexAssistantSheetState extends State<AlexAssistantSheet> {
     setState(() {
       _status = 'Oi, eu sou o Alex.';
     });
-    await TTSService.instance.falar(
+    await TTSService.instance.falarComEmocao(
       'Oi, eu sou o Alex. Fale com calma. Voce pode dizer: quais sao minhas tarefas, ja fiz, tomei o remedio, ou preciso de ajuda.',
+      'informativo',
       caller: this,
     );
     if (mounted) {
@@ -64,8 +65,9 @@ class _AlexAssistantSheetState extends State<AlexAssistantSheet> {
           _isListening = false;
           _status = 'Nao consegui ouvir voce.';
         });
-        await TTSService.instance.falar(
+        await TTSService.instance.falarComEmocao(
           'Nao consegui ligar o reconhecimento de voz. Use os botoes da tela ou chame seu cuidador.',
+          'informativo',
           caller: this,
         );
         return;
@@ -102,8 +104,9 @@ class _AlexAssistantSheetState extends State<AlexAssistantSheet> {
         _isListening = false;
         _status = 'Tive dificuldade para ouvir.';
       });
-      await TTSService.instance.falar(
+      await TTSService.instance.falarComEmocao(
         'Tive dificuldade para ouvir. Toque em ouvir de novo e fale devagar.',
+        'informativo',
         caller: this,
       );
     }
@@ -112,189 +115,111 @@ class _AlexAssistantSheetState extends State<AlexAssistantSheet> {
   Future<void> _processCommand(String text) async {
     if (_isProcessing) return;
     _isProcessing = true;
-    final lower = _normalizeSpeech(text);
 
-    if (lower.isEmpty) {
-      await _askToRepeat();
-      _isProcessing = false;
+    if (text.trim().isEmpty) {
+      await _speakAndRetry(
+        'Nao entendi. Pode falar de novo mais devagar?',
+      );
       return;
     }
 
-    if (_hasAny(lower, const [
-      'dor',
-      'ajuda',
-      'socorro',
-      'emergencia',
-      'passando mal',
-      'machuquei',
-      'cai',
-      'cair',
-      'queda',
-      'chama alguem',
-      'chamar alguem',
-      'preciso de alguem',
-    ])) {
+    final response = await AlexAIService.instance.processMessage(text);
+
+    if (response.isEmergency) {
       await _triggerEmergency(text);
       _isProcessing = false;
       return;
     }
 
-    if (_hasAny(lower, const [
-      'tomei',
-      'ja tomei',
-      'conclui',
-      'fiz',
-      'ja fiz',
-      'bebi',
-      'comi',
-      'terminei',
-      'marcar',
-      'finalizar',
-      'pronto',
-      'feito',
-      'ok',
-    ])) {
-      await _handleCompleteReminder(lower);
-      _isProcessing = false;
+    setState(() {
+      _status = response.reply;
+    });
+    if (response.reply.isNotEmpty) {
+      await TTSService.instance.falarComEmocao(
+        response.reply,
+        response.effectiveEmotion,
+        caller: this,
+      );
+    }
+
+    if (response.isCompleteReminder) {
+      await _handleAICompleteReminder(response);
+    } else if (response.isCreateReminder) {
+      await _handleAICreateReminder(response);
+    } else if (response.isSentimentLog) {
+      await _handleAISentimentLog(response);
+    }
+
+    if (response.actionType == 'general' && response.confidence < 0.4) {
+      if (mounted) {
+        _isProcessing = false;
+        await _startListening();
+      }
       return;
     }
 
-    if (_hasAny(lower, const [
-      'quais',
-      'lista',
-      'ver',
-      'lembrete',
-      'remedio',
-      'tarefas',
-      'atividade',
-      'hoje',
-      'o que tenho',
-      'minha rotina',
-    ])) {
-      await _handleListReminders();
-      _isProcessing = false;
-      return;
-    }
-
-    await _askToRepeat();
+    if (mounted) Navigator.pop(context);
     _isProcessing = false;
   }
 
-  String _normalizeSpeech(String text) {
-    return text
-        .toLowerCase()
-        .replaceAll(RegExp(r'[áàâãä]'), 'a')
-        .replaceAll(RegExp(r'[éèêë]'), 'e')
-        .replaceAll(RegExp(r'[íìîï]'), 'i')
-        .replaceAll(RegExp(r'[óòôõö]'), 'o')
-        .replaceAll(RegExp(r'[úùûü]'), 'u')
-        .replaceAll('ç', 'c')
-        .replaceAll(RegExp(r'[^a-z0-9\s]'), ' ')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
+  Future<void> _handleAICompleteReminder(AlexAIResponse response) async {
+    final reminderTitle = response.actionData?['reminderTitle'] as String?;
+    if (reminderTitle == null || reminderTitle.isEmpty) {
+      final pending = _lembretesList.where((l) => !l.concluido).toList();
+      if (pending.length == 1) {
+        await LembreteService.instance.concluir(pending.first.id);
+      }
+      return;
+    }
+
+    final normalized = AlexAIService.instance.normalize(reminderTitle);
+    final pending = _lembretesList.where((l) => !l.concluido).toList();
+    for (final l in pending) {
+      if (AlexAIService.instance.normalize(l.titulo).contains(normalized) ||
+          normalized.contains(AlexAIService.instance.normalize(l.titulo))) {
+        await LembreteService.instance.concluir(l.id);
+        return;
+      }
+    }
   }
 
-  bool _hasAny(String text, List<String> words) {
-    return words.any(text.contains);
-  }
+  Future<void> _handleAICreateReminder(AlexAIResponse response) async {
+    final data = response.actionData;
+    if (data == null) return;
 
-  Future<void> _askToRepeat() async {
-    setState(() {
-      _status = 'Nao entendi ainda.';
-    });
-    await TTSService.instance.falar(
-      'Desculpe, eu nao entendi. Fale uma frase curta, como: minhas tarefas, ja fiz, tomei o remedio, ou preciso de ajuda.',
-      caller: this,
+    final titulo = data['titulo'] as String?;
+    final horarioHour = data['horarioHour'] as int?;
+    final horarioMinute = data['horarioMinute'] as int?;
+    final categoria = data['categoria'] as String? ?? 'personalizado';
+    final recorrencia = data['recorrencia'] as String? ?? 'diario';
+
+    if (titulo == null || horarioHour == null || horarioMinute == null) return;
+
+    final lembrete = Lembrete(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      titulo: titulo,
+      horarioHour: horarioHour,
+      horarioMinute: horarioMinute,
+      categoria: categoria,
+      recorrencia: recorrencia,
     );
+    await LembreteService.instance.adicionar(lembrete);
+  }
+
+  Future<void> _handleAISentimentLog(AlexAIResponse response) async {
+    final sentiment = response.actionData?['sentiment'] as String? ?? 'neutro';
+    await LembreteService.instance.registrarWelfareCheckin(sentiment);
+  }
+
+  Future<void> _speakAndRetry(String message) async {
+    setState(() {
+      _status = message;
+    });
+    await TTSService.instance.falarComEmocao(message, 'informativo', caller: this);
     if (mounted) {
       _isProcessing = false;
       await _startListening();
     }
-  }
-
-  Future<void> _handleListReminders() async {
-    final pendentes = _lembretesList.where((l) => !l.concluido).toList();
-
-    if (pendentes.isEmpty) {
-      await TTSService.instance.falar(
-        'Muito bem. Voce ja terminou todas as suas tarefas de hoje.',
-        caller: this,
-      );
-    } else {
-      String desc = 'Voce tem ${pendentes.length} tarefas para fazer hoje. ';
-      for (int i = 0; i < pendentes.length; i++) {
-        final l = pendentes[i];
-        final spokenTime = PeriodHelper.getSpokenTime(
-          l.horarioHour,
-          l.horarioMinute,
-        );
-        desc += '${i + 1}. ${l.titulo}, as $spokenTime. ';
-      }
-      await TTSService.instance.falar(desc, caller: this);
-    }
-
-    if (mounted) Navigator.pop(context);
-  }
-
-  Future<void> _handleCompleteReminder(String text) async {
-    final pending = _lembretesList.where((l) => !l.concluido).toList();
-    Lembrete? match;
-    final commandWords = RegExp(
-      r'\b(tomei|ja|conclui|fiz|bebi|comi|terminei|marcar|finalizar|pronto|feito|ok|o|a|um|uma|remedio|atividade|tarefa)\b',
-    );
-    final meaningfulText = text
-        .replaceAll(commandWords, '')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
-
-    for (final l in pending) {
-      final titleClean = _normalizeSpeech(l.titulo);
-      if (titleClean.isEmpty) continue;
-      if (text.contains(titleClean) ||
-          (meaningfulText.length >= 3 && titleClean.contains(meaningfulText))) {
-        match = l;
-        break;
-      }
-    }
-
-    if (match != null) {
-      await LembreteService.instance.concluir(match.id);
-      await TTSService.instance.falar(
-        'Tudo certo. Marquei que voce terminou: ${match.titulo}.',
-        caller: this,
-      );
-    } else {
-      final meds = pending.where((l) => l.categoria == 'medicacao').toList();
-      final canCompleteOnlyTask =
-          pending.length == 1 &&
-          _hasAny(text, const ['fiz', 'ja fiz', 'pronto', 'feito', 'ok']);
-      final canCompleteOnlyMedicine =
-          meds.length == 1 &&
-          _hasAny(text, const ['tomei', 'ja tomei', 'remedio']);
-
-      if (canCompleteOnlyTask || canCompleteOnlyMedicine) {
-        final item = canCompleteOnlyMedicine ? meds.first : pending.first;
-        await LembreteService.instance.concluir(item.id);
-        await TTSService.instance.falar(
-          'Tudo certo. Marquei que voce terminou: ${item.titulo}.',
-          caller: this,
-        );
-      } else {
-        setState(() {
-          _status = 'Preciso saber qual tarefa.';
-        });
-        await TTSService.instance.falar(
-          'Eu preciso saber qual tarefa voce fez. Fale, por exemplo: tomei o remedio da manha, ou fiz a caminhada.',
-          caller: this,
-        );
-        if (mounted) {
-          _isProcessing = false;
-          await _startListening();
-          return;
-        }
-      }
-    }
-    if (mounted) Navigator.pop(context);
   }
 
   Future<void> _triggerEmergency(String speech) async {
@@ -321,8 +246,9 @@ class _AlexAssistantSheetState extends State<AlexAssistantSheet> {
         'resolvido': false,
       });
 
-      await TTSService.instance.falar(
+      await TTSService.instance.falarComEmocao(
         'Estou pedindo socorro e avisando quem cuida de voce agora mesmo.',
+        'emergencia',
         caller: this,
       );
     } catch (e) {

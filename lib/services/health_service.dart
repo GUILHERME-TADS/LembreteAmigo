@@ -15,7 +15,35 @@ class HealthService {
   final StreamController<int?> _localBpmController =
       StreamController<int?>.broadcast();
 
+  Stream<int?> get bpmStream => _localBpmController.stream;
+
+  List<int> _bpmHistory = [];
+  List<int> get bpmHistory => List.unmodifiable(_bpmHistory);
+
   static bool isValidBpm(int? bpm) => bpm != null && bpm >= 40 && bpm <= 180;
+
+  Future<int?> getLastBpm() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt('last_bpm_value');
+  }
+
+  Future<String?> getLastBpmTime() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('last_bpm_time');
+  }
+
+  Future<List<int>> loadBpmHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final historyStr = prefs.getString('bpm_history');
+      if (historyStr != null) {
+        final list = historyStr.split(',').map((e) => int.tryParse(e)).where((e) => e != null).cast<int>().toList();
+        _bpmHistory = list;
+        return List.unmodifiable(list);
+      }
+    } catch (_) {}
+    return [];
+  }
 
   bool get _useFirebase {
     try {
@@ -43,6 +71,17 @@ class HealthService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt('last_bpm_value', bpm);
       await prefs.setString('last_bpm_time', DateTime.now().toIso8601String());
+
+      final historyStr = prefs.getString('bpm_history');
+      final history = <int>[];
+      if (historyStr != null) {
+        final parts = historyStr.split(',').map((e) => int.tryParse(e)).where((e) => e != null).cast<int>().toList();
+        history.addAll(parts);
+      }
+      history.add(bpm);
+      if (history.length > 50) history.removeAt(0);
+      await prefs.setString('bpm_history', history.join(','));
+      _bpmHistory = history;
     } catch (_) {}
 
     _localBpmController.add(bpm);

@@ -31,40 +31,8 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
     LembreteService.instance.notifier.addListener(_onLembretesChanged);
   }
 
-  bool _isReminderActiveToday(Lembrete lembrete) {
-    final now = DateTime.now();
-    if (lembrete.recorrencia == 'diario' || lembrete.repeteTodosOsDias) {
-      return true;
-    }
-    if (lembrete.recorrencia == 'semanal' || lembrete.recorrenciaSemanal) {
-      return lembrete.diasSemana.contains(now.weekday);
-    }
-    if (lembrete.recorrencia == 'mensal' || lembrete.recorrenciaMensal) {
-      return (lembrete.diaMes ?? lembrete.criadoEm.day) == now.day;
-    }
-    if (lembrete.recorrencia == 'quinzenal') {
-      final diffDays = DateTime(now.year, now.month, now.day)
-          .difference(
-            DateTime(
-              lembrete.criadoEm.year,
-              lembrete.criadoEm.month,
-              lembrete.criadoEm.day,
-            ),
-          )
-          .inDays;
-      return diffDays >= 0 && diffDays % 15 == 0;
-    }
-    if (lembrete.recorrencia == 'unico' || lembrete.lembreteUnico) {
-      final hojeKey = '${now.year}-${now.month}-${now.day}';
-      final criadoKey =
-          '${lembrete.criadoEm.year}-${lembrete.criadoEm.month}-${lembrete.criadoEm.day}';
-      return hojeKey == criadoKey;
-    }
-    if (lembrete.recorrencia == 'intervalo' || lembrete.recorrenciaIntervalo) {
-      return true;
-    }
-    return true;
-  }
+  bool _isReminderActiveToday(Lembrete lembrete) =>
+      lembrete.isActiveOn(DateTime.now());
 
   void _loadReminders() {
     final list = LembreteService.instance.lembretes

@@ -227,36 +227,8 @@ class SmartAlertService {
     return SmartAlertSeverity.info;
   }
 
-  bool _isReminderActiveToday(Lembrete lembrete, DateTime now) {
-    if (lembrete.recorrencia == 'diario' || lembrete.repeteTodosOsDias) {
-      return true;
-    }
-    if (lembrete.recorrencia == 'semanal' || lembrete.recorrenciaSemanal) {
-      return lembrete.diasSemana.contains(now.weekday);
-    }
-    if (lembrete.recorrencia == 'mensal' || lembrete.recorrenciaMensal) {
-      return (lembrete.diaMes ?? lembrete.criadoEm.day) == now.day;
-    }
-    if (lembrete.recorrencia == 'quinzenal') {
-      final diffDays = DateTime(now.year, now.month, now.day)
-          .difference(
-            DateTime(
-              lembrete.criadoEm.year,
-              lembrete.criadoEm.month,
-              lembrete.criadoEm.day,
-            ),
-          )
-          .inDays;
-      return diffDays >= 0 && diffDays % 15 == 0;
-    }
-    if (lembrete.recorrencia == 'unico' || lembrete.lembreteUnico) {
-      return _dateKey(lembrete.criadoEm) == _dateKey(now);
-    }
-    if (lembrete.recorrencia == 'intervalo' || lembrete.recorrenciaIntervalo) {
-      return true;
-    }
-    return true;
-  }
+  bool _isReminderActiveToday(Lembrete lembrete, DateTime now) =>
+      Lembrete.isReminderActiveOn(lembrete, now);
 
   Future<void> _notifyNewAlerts(List<SmartAlert> alerts) async {
     if (alerts.isEmpty) return;

@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:home_widget/home_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'models/lembrete.dart';
@@ -17,7 +18,12 @@ import 'screens/elderly_onboarding_screen.dart';
 import 'screens/elderly_pairing_screen.dart';
 import 'screens/elderly_profile_screen.dart';
 import 'screens/emergency_alert_screen.dart';
+import 'screens/achievements_screen.dart';
+import 'screens/identify_medication_screen.dart';
 import 'screens/exercise_detail_screen.dart';
+import 'screens/incoming_video_call_screen.dart';
+import 'screens/active_video_call_screen.dart';
+import 'screens/video_call_history_screen.dart';
 import 'screens/forgot_password_screen.dart';
 import 'screens/heart_rate_measure_screen.dart';
 import 'screens/meal_detail_screen.dart';
@@ -38,12 +44,19 @@ import 'screens/supervisor_register_screen.dart';
 import 'screens/supervisor_reminder_detail_screen.dart';
 import 'screens/supervisor_settings_screen.dart';
 import 'screens/take_photo_confirmation_screen.dart';
+import 'screens/voice_settings_screen.dart';
 import 'screens/welcome_screen.dart';
 import 'services/lembrete_service.dart';
 import 'services/notification_service.dart';
 import 'services/offline_sync_service.dart';
 import 'services/session_role_service.dart';
+import 'services/crashlytics_service.dart';
+import 'services/push_notification_service.dart';
 import 'services/tts_service.dart';
+import 'services/widget_service.dart';
+import 'services/achievement_service.dart';
+import 'services/always_listening_service.dart';
+
 import 'theme/app_theme.dart';
 import 'widgets/index.dart';
 
@@ -68,6 +81,10 @@ bool isElderlyOnlyRoute(String routeName) {
     '/elderly-profile',
     '/edit-profile',
     '/recording-audio',
+    '/voice-settings',
+    '/incoming-video-call',
+    '/active-video-call',
+    '/achievements',
   };
 
   return elderlyRoutes.contains(routeName);
@@ -132,6 +149,7 @@ void main() async {
   try {
     await Firebase.initializeApp();
     debugPrint('Firebase inicializado com sucesso.');
+    await CrashlyticsService.instance.init();
   } catch (e) {
     debugPrint(
       'Erro ao inicializar Firebase. Operando em modo de simulacao local: $e',
@@ -158,6 +176,56 @@ void main() async {
     } catch (e) {
       debugPrint('Erro ao inicializar notificacoes. Continuando sem alarmes locais: $e');
     }
+    try {
+      final push = PushNotificationService.instance;
+      await push.init();
+
+      push.onVideoCallReceived = (callId, roomName) {
+        final currentRoute = _routeTracker.currentRouteName;
+        if (currentRoute == '/incoming-video-call' ||
+            currentRoute == '/active-video-call') {
+          return;
+        }
+        navigatorKey.currentState?.pushNamed(
+          '/incoming-video-call',
+          arguments: {'callId': callId, 'roomName': roomName},
+        );
+      };
+
+      push.onVideoCallOpenedApp = (callId, roomName) {
+        navigatorKey.currentState?.pushNamedAndRemoveUntil(
+          '/incoming-video-call',
+          (route) => false,
+          arguments: {'callId': callId, 'roomName': roomName},
+        );
+      };
+    } catch (e) {
+      debugPrint('Erro ao inicializar push notifications. Continuando sem FCM: $e');
+    }
+    try {
+      await AchievementService.instance.initialize();
+      await AlwaysListeningService.instance.initialize();
+    } catch (e) {
+      debugPrint('Erro ao inicializar servicos: $e');
+    }
+  }
+
+  if (!kIsWeb) {
+    try {
+      HomeWidget.widgetClicked.listen((Uri? uri) {
+        if (uri != null && uri.toString().isNotEmpty) {
+          final reminderId = uri.queryParameters['id'];
+          if (reminderId != null && reminderId.isNotEmpty) {
+            navigatorKey.currentState?.pushNamed(
+              '/active-reminder',
+              arguments: reminderId,
+            );
+          }
+        } else {
+          navigatorKey.currentState?.pushNamed('/elderly-home');
+        }
+      });
+    } catch (_) {}
   }
 
   runApp(MeuApp(pendingPayload: pendingPayload));
@@ -242,6 +310,7 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
       _loadAccessibilityPreferences();
       LembreteService.instance.carregar().then((_) {
         OfflineSyncService.instance.syncPendingWrites();
+        WidgetService.instance.atualizar();
         _openDueReminderIfNeeded();
       });
     }
@@ -320,39 +389,8 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
     return candidates.isEmpty ? null : candidates.first;
   }
 
-  bool _isReminderActiveToday(Lembrete lembrete, DateTime now) {
-    if (lembrete.recorrencia == 'diario' || lembrete.repeteTodosOsDias) {
-      return true;
-    }
-    if (lembrete.recorrencia == 'semanal' || lembrete.recorrenciaSemanal) {
-      return lembrete.diasSemana.contains(now.weekday);
-    }
-    if (lembrete.recorrencia == 'mensal' || lembrete.recorrenciaMensal) {
-      return (lembrete.diaMes ?? lembrete.criadoEm.day) == now.day;
-    }
-    if (lembrete.recorrencia == 'quinzenal') {
-      final diffDays = DateTime(now.year, now.month, now.day)
-          .difference(
-            DateTime(
-              lembrete.criadoEm.year,
-              lembrete.criadoEm.month,
-              lembrete.criadoEm.day,
-            ),
-          )
-          .inDays;
-      return diffDays >= 0 && diffDays % 15 == 0;
-    }
-    if (lembrete.recorrencia == 'unico' || lembrete.lembreteUnico) {
-      return _dateOnly(lembrete.criadoEm) == _dateOnly(now);
-    }
-    if (lembrete.recorrencia == 'intervalo' || lembrete.recorrenciaIntervalo) {
-      return true;
-    }
-    return true;
-  }
-
-  DateTime _dateOnly(DateTime date) =>
-      DateTime(date.year, date.month, date.day);
+  bool _isReminderActiveToday(Lembrete lembrete, DateTime now) =>
+      Lembrete.isReminderActiveOn(lembrete, now);
 
   String _reminderOpenKey(Lembrete lembrete, DateTime now) {
     final date = '${now.year}-${now.month}-${now.day}';
@@ -560,8 +598,34 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
           case '/emergency-alert':
             page = const EmergencyAlertScreen();
             break;
+          case '/incoming-video-call':
+            final args = settings.arguments as Map<String, dynamic>?;
+            page = IncomingVideoCallScreen(
+              callId: args?['callId'] as String? ?? '',
+              roomName: args?['roomName'] as String? ?? '',
+            );
+            break;
+          case '/active-video-call':
+            final args = settings.arguments as Map<String, dynamic>?;
+            page = ActiveVideoCallScreen(
+              callId: args?['callId'] as String? ?? '',
+              roomName: args?['roomName'] as String? ?? '',
+            );
+            break;
+          case '/video-call-history':
+            page = const VideoCallHistoryScreen();
+            break;
           case '/welcome':
             page = const WelcomeScreen();
+            break;
+          case '/voice-settings':
+            page = const VoiceSettingsScreen();
+            break;
+          case '/achievements':
+            page = const AchievementsScreen();
+            break;
+          case '/identify-medication':
+            page = const IdentifyMedicationScreen();
             break;
 
           default:
@@ -596,6 +660,8 @@ class _AppStartupState extends State<_AppStartup> {
 
       await SessionRoleService.load();
       if (!mounted) return;
+
+      WidgetService.instance.atualizar();
 
       if (SessionRoleService.isElderly) {
         final prefs = await SharedPreferences.getInstance();

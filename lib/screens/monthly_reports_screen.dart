@@ -37,8 +37,6 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
   int _weeklyTotal = 0;
   int _weeklyDone = 0;
   int _weeklyMissed = 0;
-  int? _lastBpm;
-  String _weeklyWelfare = 'Sem check-in registrado nesta semana.';
   String _weeklyHumanSummary =
       'Ainda nao ha dados suficientes para resumir a semana.';
   String _weeklyAttention =
@@ -72,7 +70,6 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
       await LembreteService.instance.carregar();
       final lembretes = LembreteService.instance.lembretes;
       final eventos = LembreteService.instance.eventos;
-      final lastBpm = prefs.getInt('last_bpm_value');
 
       int getPctForCategory(String category) {
         final items = lembretes.where((l) => l.categoria == category).toList();
@@ -93,11 +90,6 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
       final routineEvents = weeklyEvents
           .where((evento) => evento.categoria != 'bem_estar')
           .toList();
-      final welfareEvents =
-          weeklyEvents
-              .where((evento) => evento.categoria == 'bem_estar')
-              .toList()
-            ..sort((a, b) => b.registradoEm.compareTo(a.registradoEm));
       final completedCount = routineEvents
           .where((evento) => evento.status.isConcluido)
           .length;
@@ -122,10 +114,6 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
         _weeklyTotal = routineEvents.length;
         _weeklyDone = completedCount;
         _weeklyMissed = missedCount;
-        _lastBpm = lastBpm;
-        _weeklyWelfare = welfareEvents.isNotEmpty
-            ? welfareEvents.first.observacao ?? 'Check-in registrado.'
-            : 'Sem check-in registrado nesta semana.';
         _weeklyHumanSummary = _buildHumanSummary(
           weeklyPct,
           routineEvents.length,
@@ -135,8 +123,6 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
         _weeklyAttention = _buildAttentionSummary(
           weeklyPct,
           missedCount,
-          lastBpm,
-          _weeklyWelfare,
         );
       });
     } catch (e) {
@@ -187,11 +173,6 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
                   pw.Bullet(text: 'Atividades registradas: $_weeklyTotal'),
                   pw.Bullet(text: 'Atividades concluidas: $_weeklyDone'),
                   pw.Bullet(text: 'Atividades nao feitas: $_weeklyMissed'),
-                  pw.Bullet(
-                    text:
-                        'Ultimo batimento: ${_lastBpm != null ? '$_lastBpm BPM' : 'sem medicao'}',
-                  ),
-                  pw.Bullet(text: 'Bem-estar: $_weeklyWelfare'),
                   pw.Bullet(text: 'Resumo familiar: $_weeklyHumanSummary'),
                   pw.Bullet(text: 'Ponto de atencao: $_weeklyAttention'),
                   pw.SizedBox(height: 20),
@@ -289,7 +270,7 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
         children: [
           IconButton(
             onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.arrow_back, color: AppColors.primary),
+            icon: const Icon(Icons.arrow_back, color: AppColors.primary, size: 32),
           ),
           const Expanded(
             child: Text(
@@ -427,26 +408,7 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
               color: AppColors.onSurfaceVariant,
             ),
           ),
-          const SizedBox(height: 14),
-          Text(
-            _lastBpm != null
-                ? 'Ultimo batimento medido: $_lastBpm BPM'
-                : 'Sem batimento medido nesta semana.',
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: AppColors.onSurface,
-            ),
-          ),
           const SizedBox(height: 8),
-          Text(
-            _weeklyWelfare,
-            style: const TextStyle(
-              fontSize: 16,
-              height: 1.35,
-              color: AppColors.onSurfaceVariant,
-            ),
-          ),
         ],
       ),
     );
@@ -499,15 +461,9 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
     return 'A semana exige atencao: apenas $done de $total atividades foram confirmadas.';
   }
 
-  String _buildAttentionSummary(int pct, int missed, int? bpm, String welfare) {
+  String _buildAttentionSummary(int pct, int missed) {
     if (missed >= 3) {
       return 'Houve $missed atividades nao feitas. Vale revisar horarios, dificuldade de uso ou necessidade de apoio presencial.';
-    }
-    if (bpm != null && (bpm < 60 || bpm > 100)) {
-      return 'O ultimo batimento ficou fora da faixa de repouso usada pelo app. Acompanhe novas medicoes.';
-    }
-    if (!welfare.startsWith('Sem check-in')) {
-      return 'Ultimo check-in de bem-estar: $welfare';
     }
     if (pct >= 85) {
       return 'Sem ponto critico aparente nesta semana.';

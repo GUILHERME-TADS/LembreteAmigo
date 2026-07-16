@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 enum VideoCallStatus {
   ringing,
   connected,
@@ -20,6 +22,7 @@ class VideoCall {
   final String supervisorId;
   final VideoCallStatus status;
   final String initiatedBy;
+  final String callType; // 'video' or 'voice'
   final DateTime startedAt;
   final DateTime? endedAt;
   final int? durationSeconds;
@@ -31,6 +34,7 @@ class VideoCall {
     required this.supervisorId,
     required this.status,
     required this.initiatedBy,
+    required this.callType,
     required this.startedAt,
     this.endedAt,
     this.durationSeconds,
@@ -39,6 +43,7 @@ class VideoCall {
   bool get isFromSos => initiatedBy == 'sos';
   bool get isFromElderly => initiatedBy == 'idoso';
   bool get isFromSupervisor => initiatedBy == 'supervisor';
+  bool get isVoiceCall => callType == 'voice';
 
   Map<String, dynamic> toJson() => {
     'roomName': roomName,
@@ -46,6 +51,7 @@ class VideoCall {
     'supervisorId': supervisorId,
     'status': status.name,
     'initiatedBy': initiatedBy,
+    'callType': callType,
     'startedAt': startedAt.toIso8601String(),
     if (endedAt != null) 'endedAt': endedAt!.toIso8601String(),
     if (durationSeconds != null) 'durationSeconds': durationSeconds,
@@ -59,10 +65,19 @@ class VideoCall {
       supervisorId: json['supervisorId'] as String? ?? '',
       status: VideoCallStatus.fromString(json['status'] as String? ?? 'ended'),
       initiatedBy: json['initiatedBy'] as String? ?? 'supervisor',
-      startedAt: DateTime.tryParse(json['startedAt'] as String? ?? '') ?? DateTime.now(),
-      endedAt: json['endedAt'] != null ? DateTime.tryParse(json['endedAt'] as String) : null,
-      durationSeconds: json['durationSeconds'] as int?,
+      callType: json['callType'] as String? ?? 'video',
+      startedAt: _parseDateTime(json['startedAt']) ?? DateTime.now(),
+      endedAt: _parseDateTime(json['endedAt']),
+      durationSeconds: (json['durationSeconds'] as num?)?.toInt(),
     );
+  }
+
+  static DateTime? _parseDateTime(Object? value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    if (value is Timestamp) return value.toDate();
+    if (value is String) return DateTime.tryParse(value);
+    return null;
   }
 
   String get formattedDuration {

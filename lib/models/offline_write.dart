@@ -65,15 +65,15 @@ class OfflineWrite {
 
   factory OfflineWrite.fromJson(Map<String, dynamic> json) {
     return OfflineWrite(
-      id: json['id'] as String,
-      collection: json['collection'] as String,
-      docId: json['docId'] as String,
+      id: json['id'] as String? ?? '',
+      collection: json['collection'] as String? ?? '',
+      docId: json['docId'] as String? ?? '',
       action: OfflineWriteAction.fromStorage(json['action'] as String?),
       data: Map<String, dynamic>.from(json['data'] as Map? ?? const {}),
       createdAt:
           DateTime.tryParse(json['createdAt'] as String? ?? '') ??
           DateTime.now(),
-      attempts: json['attempts'] as int? ?? 0,
+      attempts: (json['attempts'] as num?)?.toInt() ?? 0,
     );
   }
 }

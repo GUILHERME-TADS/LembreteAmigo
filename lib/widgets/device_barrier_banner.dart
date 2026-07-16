@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 
@@ -16,28 +14,32 @@ class DeviceBarrierBanner extends StatefulWidget {
   State<DeviceBarrierBanner> createState() => _DeviceBarrierBannerState();
 }
 
-class _DeviceBarrierBannerState extends State<DeviceBarrierBanner> {
-  Timer? _timer;
+class _DeviceBarrierBannerState extends State<DeviceBarrierBanner>
+    with WidgetsBindingObserver {
   List<DeviceBarrier> _barriers = const [];
   bool _isActing = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _barriers = DeviceBarrierService.instance.barriers
         .where((barrier) => barrier.type != DeviceBarrierType.lowVolume)
         .toList();
     DeviceBarrierService.instance.notifier.addListener(_onBarriersChanged);
     _refresh(markElderlyActive: true, publish: true);
-    _timer = Timer.periodic(
-      const Duration(seconds: 20),
-      (_) => _refresh(markElderlyActive: true, publish: true),
-    );
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refresh(markElderlyActive: true, publish: true);
+    }
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     DeviceBarrierService.instance.notifier.removeListener(_onBarriersChanged);
     TTSService.instance.parar(caller: this);
     super.dispose();

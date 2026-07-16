@@ -19,11 +19,22 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
   String _supervisorName = 'Cuidador';
   String _supervisorEmail = 'supervisor@lembreteamigo.com';
   String? _supervisorFoto;
+  bool _isConnected = false;
 
   @override
   void initState() {
     super.initState();
     _loadSupervisorProfile();
+    _checkConnectionStatus();
+  }
+
+  Future<void> _checkConnectionStatus() async {
+    final conn = await SessionRoleService.isSupervisorConnected();
+    if (mounted) {
+      setState(() {
+        _isConnected = conn;
+      });
+    }
   }
 
   Future<void> _loadSupervisorProfile() async {
@@ -58,6 +69,26 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
   }
 
   void _navigateTo(BuildContext context, String routeName) {
+    final protectedRoutes = [
+      '/messages',
+      '/video-call-history',
+      '/monthly-reports',
+      '/effectiveness-feedback',
+      '/activity-history',
+      '/edit-profile',
+    ];
+
+    if (protectedRoutes.contains(routeName) && !_isConnected) {
+      Navigator.pop(context); // Close drawer to display snackbar clearly
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Conecte um dispositivo de idoso para acessar esta tela.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
     Navigator.pop(context); // Close drawer
     if (widget.currentRoute == routeName) return;
 
@@ -127,25 +158,61 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
                   title: const Text('Cadastrar/Emparelhar Idoso', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   onTap: () => _navigateTo(context, '/register-elderly'),
                 ),
-                ListTile(
-                  leading: const Icon(Icons.forum, color: AppColors.primary),
-                  title: const Text('Recados', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  onTap: () => _navigateTo(context, '/messages'),
+                Opacity(
+                  opacity: _isConnected ? 1.0 : 0.4,
+                  child: ListTile(
+                    leading: const Icon(Icons.person, color: AppColors.primary),
+                    title: const Text('Editar Dados do Idoso', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    onTap: () => _navigateTo(context, '/edit-profile'),
+                  ),
                 ),
-                ListTile(
-                  leading: const Icon(Icons.videocam, color: AppColors.primary),
-                  title: const Text('Chamadas de Vídeo', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  onTap: () => _navigateTo(context, '/video-call-history'),
+                Opacity(
+                  opacity: _isConnected ? 1.0 : 0.4,
+                  child: ListTile(
+                    leading: const Icon(Icons.edit_calendar, color: AppColors.primary),
+                    title: const Text('Editar Lembretes do Idoso', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    onTap: () => _navigateTo(context, '/activity-history'),
+                  ),
                 ),
-                ListTile(
-                  leading: const Icon(Icons.analytics, color: AppColors.primary),
-                  title: const Text('Relatórios Mensais', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  onTap: () => _navigateTo(context, '/monthly-reports'),
+                Opacity(
+                  opacity: _isConnected ? 1.0 : 0.4,
+                  child: ListTile(
+                    leading: const Icon(Icons.forum, color: AppColors.primary),
+                    title: const Text('Recados', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    onTap: () => _navigateTo(context, '/messages'),
+                  ),
                 ),
-                ListTile(
-                  leading: const Icon(Icons.history, color: AppColors.primary),
-                  title: const Text('Histórico Detalhado', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  onTap: () => _navigateTo(context, '/activity-history'),
+                Opacity(
+                  opacity: _isConnected ? 1.0 : 0.4,
+                  child: ListTile(
+                    leading: const Icon(Icons.videocam, color: AppColors.primary),
+                    title: const Text('Chamadas de Vídeo', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    onTap: () => _navigateTo(context, '/video-call-history'),
+                  ),
+                ),
+                Opacity(
+                  opacity: _isConnected ? 1.0 : 0.4,
+                  child: ListTile(
+                    leading: const Icon(Icons.analytics, color: AppColors.primary),
+                    title: const Text('Relatórios Mensais', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    onTap: () => _navigateTo(context, '/monthly-reports'),
+                  ),
+                ),
+                Opacity(
+                  opacity: _isConnected ? 1.0 : 0.4,
+                  child: ListTile(
+                    leading: const Icon(Icons.favorite, color: AppColors.primary),
+                    title: const Text('Efetividade do Tratamento', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    onTap: () => _navigateTo(context, '/effectiveness-feedback'),
+                  ),
+                ),
+                Opacity(
+                  opacity: _isConnected ? 1.0 : 0.4,
+                  child: ListTile(
+                    leading: const Icon(Icons.history, color: AppColors.primary),
+                    title: const Text('Histórico Detalhado', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    onTap: () => _navigateTo(context, '/activity-history'),
+                  ),
                 ),
                 ListTile(
                   leading: const Icon(Icons.settings, color: AppColors.primary),

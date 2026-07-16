@@ -134,7 +134,7 @@ class SeniorBottomNav extends StatelessWidget {
   }
 }
 
-class SeniorInputField extends StatelessWidget {
+class SeniorInputField extends StatefulWidget {
   final String label;
   final String? placeholder;
   final IconData? prefixIcon;
@@ -142,7 +142,6 @@ class SeniorInputField extends StatelessWidget {
   final TextEditingController? controller;
   final List<TextInputFormatter>? inputFormatters;
   final TextInputType? keyboardType;
-
   final VoidCallback? onTapAudio;
 
   const SeniorInputField({
@@ -158,6 +157,19 @@ class SeniorInputField extends StatelessWidget {
   });
 
   @override
+  State<SeniorInputField> createState() => _SeniorInputFieldState();
+}
+
+class _SeniorInputFieldState extends State<SeniorInputField> {
+  late bool _obscureText;
+
+  @override
+  void initState() {
+    super.initState();
+    _obscureText = widget.isPassword;
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -166,7 +178,7 @@ class SeniorInputField extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              label,
+              widget.label,
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
@@ -174,9 +186,9 @@ class SeniorInputField extends StatelessWidget {
                 color: AppColors.onSurfaceVariant,
               ),
             ),
-            if (onTapAudio != null)
+            if (widget.onTapAudio != null)
               GestureDetector(
-                onTap: onTapAudio,
+                onTap: widget.onTapAudio,
                 child: Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
@@ -203,25 +215,37 @@ class SeniorInputField extends StatelessWidget {
           ),
           child: Row(
             children: [
-              if (prefixIcon != null)
+              if (widget.prefixIcon != null)
                 Padding(
                   padding: const EdgeInsets.only(left: 16),
-                  child: Icon(prefixIcon, color: AppColors.outline),
+                  child: Icon(widget.prefixIcon, color: AppColors.outline),
                 ),
               Expanded(
                 child: TextField(
-                  controller: controller,
-                  obscureText: isPassword,
-                  keyboardType: keyboardType,
-                  inputFormatters: inputFormatters,
+                  controller: widget.controller,
+                  obscureText: _obscureText,
+                  keyboardType: widget.keyboardType,
+                  inputFormatters: widget.inputFormatters,
                   style: const TextStyle(fontSize: 18),
                   decoration: InputDecoration(
-                    hintText: placeholder,
+                    hintText: widget.placeholder,
                     border: InputBorder.none,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16),
                   ),
                 ),
               ),
+              if (widget.isPassword)
+                IconButton(
+                  onPressed: () {
+                    setState(() {
+                      _obscureText = !_obscureText;
+                    });
+                  },
+                  icon: Icon(
+                    _obscureText ? Icons.visibility : Icons.visibility_off,
+                    color: AppColors.outline,
+                  ),
+                ),
             ],
           ),
         ),

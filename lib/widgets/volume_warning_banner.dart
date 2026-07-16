@@ -13,7 +13,8 @@ class VolumeWarningBanner extends StatefulWidget {
   State<VolumeWarningBanner> createState() => _VolumeWarningBannerState();
 }
 
-class _VolumeWarningBannerState extends State<VolumeWarningBanner> {
+class _VolumeWarningBannerState extends State<VolumeWarningBanner>
+    with WidgetsBindingObserver {
   Timer? _timer;
   int _volumePercentage = 100;
   bool _isAdjusting = false;
@@ -22,12 +23,21 @@ class _VolumeWarningBannerState extends State<VolumeWarningBanner> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _checkVolume();
-    _timer = Timer.periodic(const Duration(seconds: 2), (_) => _checkVolume());
+    _timer = Timer.periodic(const Duration(seconds: 5), (_) => _checkVolume());
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkVolume();
+    }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
     TTSService.instance.parar(caller: this);
     super.dispose();

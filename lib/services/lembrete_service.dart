@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
@@ -113,6 +114,16 @@ class LembreteService {
     _carregarFuture = null;
   }
 
+  void pauseSubscriptions() {
+    _lembretesSubscription?.pause();
+    _eventosSubscription?.pause();
+  }
+
+  void resumeSubscriptions() {
+    _lembretesSubscription?.resume();
+    _eventosSubscription?.resume();
+  }
+
 
   Future<void> _executarCarregar(String idosoId) async {
     await _carregarCacheLocal(activeIdosoId: idosoId);
@@ -127,9 +138,15 @@ class LembreteService {
         .where('idosoId', isEqualTo: idosoId)
         .snapshots()
         .listen((snapshot) async {
+          final pendingDeletes = await OfflineSyncService.instance.getPendingDeletes('lembretes');
+          final items = snapshot.docs
+              .map((doc) => Lembrete.fromJson(doc.data()))
+              .where((l) => !pendingDeletes.contains(l.id))
+              .toList();
+
           _lembretes
             ..clear()
-            ..addAll(snapshot.docs.map((doc) => Lembrete.fromJson(doc.data())))
+            ..addAll(items)
             ..sort((a, b) => b.criadoEm.compareTo(a.criadoEm));
           await _verificarEFiltrarViradaDoDia();
           await _salvarLembretesLocais();
@@ -537,7 +554,12 @@ class LembreteService {
     required String lembreteId,
   }) async {
     if (audioPath == null || audioPath.isEmpty) return audioPath;
-    if (!_useFirebase || isRemoteAudioPath(audioPath)) return audioPath;
+    if (!_useFirebase ||
+        isRemoteAudioPath(audioPath) ||
+        audioPath == 'ia_generated' ||
+        audioPath.startsWith('assets/')) {
+      return audioPath;
+    }
 
     final file = File(audioPath);
     if (!await file.exists()) {
@@ -733,20 +755,60 @@ class LembreteService {
     await _atualizarStatus(id, LembreteStatus.perdido, observacao: motivo);
   }
 
-  Future<void> registrarWelfareCheckin(String emotion) async {
-    if (!await _checkConnection()) return;
-    final mockLembrete = Lembrete(
-      id: 'welfare_${DateTime.now().millisecondsSinceEpoch}',
-      titulo: 'Check-in de Bem-estar',
-      horarioHour: DateTime.now().hour,
-      horarioMinute: DateTime.now().minute,
-      categoria: 'bem_estar',
-      idosoId: await _getActiveIdosoId(),
-    );
-    await _registrarEvento(
-      mockLembrete,
-      LembreteStatus.concluido,
-      observacao: emotion,
-    );
+  List<Map<String, String>> getActiveMedicationsWithSchedule() {
+    return _lembretes
+        .where((l) => l.categoria == 'medicacao')
+        .map((l) => {
+              'titulo': l.titulo,
+              'horario': l.horarioFormatado,
+            })
+        .toList();
   }
+
+  Future<Map<String, dynamic>?> analyzeMedication({
+    required String newMedication,
+    required String newMedicationTime,
+  }) async {
+    if (!_useFirebase) return null;
+    try {
+      final existing = getActiveMedicationsWithSchedule();
+
+      final callable = FirebaseFunctions.instance.httpsCallable('analyzeMedication');
+      final result = await callable.call({
+        'newMedication': newMedication,
+        'newMedicationTime': newMedicationTime,
+        'existingMedications': existing,
+      });
+
+      if (result.data is Map) {
+        return Map<String, dynamic>.from(result.data as Map);
+      }
+    } catch (e) {
+      debugPrint('Erro ao analisar medicamento: $e');
+    }
+    return null;
+  }
+
+  Future<String> queryMedicationFAQ({
+    required String medicationName,
+    required String question,
+  }) async {
+    if (!_useFirebase) return 'Serviço de IA indisponível offline.';
+    try {
+      final callable = FirebaseFunctions.instance.httpsCallable('queryMedicationFAQ');
+      final result = await callable.call({
+        'medicationName': medicationName,
+        'question': question,
+      });
+
+      if (result.data is Map) {
+        final data = Map<String, dynamic>.from(result.data as Map);
+        return data['answer'] as String? ?? 'Sem resposta.';
+      }
+    } catch (e) {
+      debugPrint('Erro ao consultar bula FAQ: $e');
+    }
+    return 'Não foi possível consultar a bula no momento.';
+  }
+
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -17,6 +18,10 @@ class NotificationService {
   GlobalKey<NavigatorState>? _navigatorKey;
   bool _initialized = false;
 
+  /// Callback disparado quando o usuário toca em uma notificação de lembrete.
+  /// O payload contém o ID do lembrete.
+  FutureOr<void> Function(String lembreteId)? onNotificationTapped;
+
   Future<void> init(GlobalKey<NavigatorState> navigatorKey) async {
     _navigatorKey = navigatorKey;
     if (kIsWeb) return;
@@ -26,8 +31,8 @@ class NotificationService {
     final String timeZoneName = await FlutterTimezone.getLocalTimezone();
     try {
       tz.setLocalLocation(tz.getLocation(timeZoneName));
-    } catch (_) {
-      debugPrint('Timezone local $timeZoneName nao encontrado. Usando America/Sao_Paulo.');
+    } catch (e) {
+      debugPrint('Timezone local $timeZoneName nao encontrado: $e. Usando America/Sao_Paulo.');
       tz.setLocalLocation(tz.getLocation('America/Sao_Paulo'));
     }
 
@@ -56,6 +61,10 @@ class NotificationService {
       onDidReceiveNotificationResponse: (NotificationResponse response) {
         final payload = response.payload;
         if (payload != null && payload.isNotEmpty) {
+          final callback = onNotificationTapped;
+          if (callback != null) {
+            callback(payload);
+          }
           _navigatorKey?.currentState?.pushNamed(
             '/active-reminder',
             arguments: payload,

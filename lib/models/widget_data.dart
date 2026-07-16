@@ -4,15 +4,12 @@ class WidgetData {
   final int horarioHour;
   final int horarioMinute;
   final String categoria;
-  final String urgencia;
-
   WidgetData({
     required this.id,
     required this.titulo,
     required this.horarioHour,
     required this.horarioMinute,
     required this.categoria,
-    this.urgencia = 'normal',
   });
 
   String get horarioFormatado {
@@ -44,7 +41,7 @@ class WidgetData {
     'hour': horarioHour,
     'minute': horarioMinute,
     'category': categoria,
-    'priority': urgencia,
+    'priority': 'critico',
   };
 
   factory WidgetData.fromJson(Map<String, dynamic> json) => WidgetData(
@@ -53,6 +50,5 @@ class WidgetData {
     horarioHour: (json['hour'] as num?)?.toInt() ?? 0,
     horarioMinute: (json['minute'] as num?)?.toInt() ?? 0,
     categoria: json['category'] as String? ?? 'personalizado',
-    urgencia: json['priority'] as String? ?? 'normal',
   );
 }

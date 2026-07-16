@@ -71,7 +71,7 @@ class _PostponeConfirmationScreenState extends State<PostponeConfirmationScreen>
           icon: Icons.medication,
           color: AppColors.medicationsColor,
           titleText: 'HORA DO REMÉDIO',
-          message: isDificuldade 
+          message: isDificuldade
               ? 'Tudo bem, não se preocupe! Já enviei um recado para o seu ajudante avisando que você precisa de ajuda com o seu remédio.'
               : 'Combinado! Não se preocupe, eu vou te lembrar de tomar o seu remédio novamente em dez minutos.',
           tip: isDificuldade

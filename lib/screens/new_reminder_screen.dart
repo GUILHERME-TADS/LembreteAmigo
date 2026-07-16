@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -10,26 +10,95 @@ import '../widgets/custom_time_picker.dart';
 import '../widgets/supervisor_drawer.dart';
 
 class NewReminderScreen extends StatefulWidget {
-  const NewReminderScreen({super.key});
+  final Lembrete? lembrete;
+  const NewReminderScreen({super.key, this.lembrete});
 
   @override
   State<NewReminderScreen> createState() => _NewReminderScreenState();
 }
 
 class _NewReminderScreenState extends State<NewReminderScreen> {
+  int _activeStep = 1;
   String? _selectedCategory;
   final _titleController = TextEditingController();
-  TimeOfDay _selectedTime = const TimeOfDay(hour: 8, minute: 0);
-  String _selectedForma = 'comprimido';
-  String _selectedCor = 'azul';
+
+  bool _validateStep1() {
+    if (_selectedCategory == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Selecione uma categoria para o lembrete.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return false;
+    }
+    return true;
+  }
+
+  bool _validateStep2() {
+    final titulo = _titleController.text.trim();
+    if (titulo.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Por favor, digite o que lembrar'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return false;
+    }
+    return true;
+  }
+
+  void _goToStep(int step) {
+    if (step == 1) {
+      setState(() => _activeStep = 1);
+    } else if (step == 2) {
+      if (_validateStep1()) {
+        setState(() => _activeStep = 2);
+      }
+    } else if (step == 3) {
+      if (_validateStep1() && _validateStep2()) {
+        setState(() => _activeStep = 3);
+      }
+    }
+  }
+  TimeOfDay? _selectedTime;
   String? _audioPath;
   String? _fotoPath;
   final ImagePicker _imagePicker = ImagePicker();
-  String _selectedUrgency = 'normal';
-  List<int> _selectedDiasSemana = [7, 1, 2, 3, 4, 5, 6];
-  bool _validationAttempted = false;
+  List<int> _selectedDiasSemana = [];
   bool _isSaving = false;
   bool _isCapturingPhoto = false;
+  bool _isUsoContinuo = true;
+  DateTime _dataInicio = DateTime.now();
+  DateTime? _dataFim;
+  DateTime? _selectedSingleDate;
+  bool? _gerarAudioIA;
+  String? _medicamentoInstrucoes;
+  String? _medicamentoAudioTexto;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.lembrete != null) {
+      final l = widget.lembrete!;
+      _selectedCategory = l.categoria;
+      _titleController.text = l.titulo;
+      _selectedTime = TimeOfDay(hour: l.horarioHour, minute: l.horarioMinute);
+      _selectedDiasSemana = List<int>.from(l.diasSemana);
+      _selectedSingleDate = l.lembreteUnico ? l.dataInicio : null;
+      _isUsoContinuo = l.isUsoContinuo;
+      _dataInicio = l.dataInicio ?? DateTime.now();
+      _dataFim = l.dataFim;
+      _audioPath = l.audioPath == 'ia_generated' ? null : l.audioPath;
+      _fotoPath = l.medicamentoFotoPath;
+      _medicamentoInstrucoes = l.medicamentoInstrucoes;
+      _medicamentoAudioTexto = l.medicamentoAudioTexto;
+      _gerarAudioIA = l.audioPath == null
+          ? null
+          : l.audioPath == 'ia_generated';
+    }
+  }
 
   @override
   void dispose() {
@@ -75,10 +144,26 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
   }
 
   String _getRecurrenceDescription() {
-    final timeStr = '${_selectedTime.hour.toString().padLeft(2, '0')}:${_selectedTime.minute.toString().padLeft(2, '0')}';
-    if (_selectedDiasSemana.isEmpty) {
-      return 'Selecione pelo menos um dia da semana.';
+    if (_selectedTime == null) {
+      return 'Selecione o horário e os dias.';
     }
+    final timeStr = '${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}';
+
+    if (_selectedSingleDate != null) {
+      final dateStr = '${_selectedSingleDate!.day.toString().padLeft(2, '0')}/${_selectedSingleDate!.month.toString().padLeft(2, '0')}/${_selectedSingleDate!.year}';
+      return 'Toca uma única vez em $dateStr às $timeStr.';
+    }
+
+    if (_selectedDiasSemana.isEmpty) {
+      final now = DateTime.now();
+      final reminderTime = DateTime(now.year, now.month, now.day, _selectedTime!.hour, _selectedTime!.minute);
+      if (reminderTime.isAfter(now)) {
+        return 'Toca uma única vez hoje às $timeStr.';
+      } else {
+        return 'Toca uma única vez amanhã às $timeStr.';
+      }
+    }
+
     if (_selectedDiasSemana.length == 7) {
       return 'Toca diariamente às $timeStr.';
     }
@@ -99,6 +184,44 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
       });
     final days = sortedDays.map((d) => dayNames[d] ?? '').toList();
     return 'Toca toda(o) ${days.join(", ")} às $timeStr.';
+  }
+
+  String _getStep1Summary() {
+    if (_selectedCategory == null) return 'Nenhuma categoria selecionada';
+    final Map<String, String> names = {
+      'medicacao': 'Remédio',
+      'refeicoes': 'Refeição',
+      'exercicio': 'Exercício',
+      'hidratacao': 'Água',
+      'personalizado': 'Personalizado',
+    };
+    return 'Categoria: ${names[_selectedCategory] ?? _selectedCategory}';
+  }
+
+  String _getStep2Summary() {
+    final titulo = _titleController.text.trim();
+    if (_selectedTime == null) {
+      return titulo.isEmpty ? 'Nenhum horário selecionado' : titulo;
+    }
+    final timeStr = '${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}';
+    if (titulo.isEmpty) return 'Horário: $timeStr';
+    return '$titulo às $timeStr';
+  }
+
+  String _getPlaceholder() {
+    switch (_selectedCategory) {
+      case 'medicacao':
+        return 'Ex: Tomar a Losartana';
+      case 'refeicoes':
+        return 'Ex: Tomar o café da manhã';
+      case 'exercicio':
+        return 'Ex: Fazer caminhada';
+      case 'hidratacao':
+        return 'Ex: Beber 2 copos de água';
+      case 'personalizado':
+      default:
+        return 'Ex: Medir a pressão';
+    }
   }
 
   @override
@@ -136,121 +259,302 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    _buildCategorySelector(),
-                    if (_selectedCategory == 'medicacao') ...[
-                      const SizedBox(height: 24),
-                      _buildPillAppearanceSelector(),
-                      const SizedBox(height: 24),
-                      _buildFotoSection(),
-                    ],
-                    const SizedBox(height: 24),
-                    const Text(
-                      'O QUE LEMBRAR?',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0,
-                        color: AppColors.onSurfaceVariant,
-                      ),
+                    // Passo 1: Identificação (Categoria e Foto)
+                    _buildStepCard(
+                      stepNumber: 1,
+                      title: 'Identificação',
+                      summary: _getStep1Summary(),
+                      children: [
+                        _buildCategorySelector(),
+                        if (_selectedCategory == 'medicacao') ...[
+                          const SizedBox(height: 20),
+                          _buildIACard(),
+                          const SizedBox(height: 20),
+                          _buildFotoSection(),
+                        ],
+                      ],
                     ),
-                    const SizedBox(height: 8),
-                    Container(
-                      constraints: const BoxConstraints(minHeight: 56),
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceContainerLowest,
-                        border: Border.all(color: AppColors.outline),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: TextField(
-                        controller: _titleController,
-                        maxLength: 80,
-                        style: const TextStyle(fontSize: 18),
-                        decoration: const InputDecoration(
-                          hintText: 'Ex: Tomar o remédio de pressão',
-                          border: InputBorder.none,
-                          counterText: '',
-                          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        ),
-                      ),
-                    ),
-                    _buildTitleSuggestions(),
-                    const SizedBox(height: 24),
-                    const Text(
-                      'HORÁRIO',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0,
-                        color: AppColors.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceContainerLow,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.outlineVariant),
-                      ),
-                      child: Column(
-                        children: [
-                          InkWell(
-                            onTap: () async {
-                              final time = await showCustomTimePicker(
-                                context: context,
-                                initialTime: _selectedTime,
-                              );
-                              if (time != null) {
-                                if (!mounted) return;
-                                setState(() => _selectedTime = time);
-                              }
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 24),
-                              decoration: BoxDecoration(
-                                color: AppColors.surfaceContainerLowest,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: AppColors.outlineVariant),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    '${_selectedTime.hour.toString().padLeft(2, '0')}:${_selectedTime.minute.toString().padLeft(2, '0')}',
-                                    style: const TextStyle(
-                                      fontSize: 40,
-                                      fontWeight: FontWeight.w800,
-                                      height: 1.2,
-                                      letterSpacing: 0,
-                                      color: AppColors.primary,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  const Icon(
-                                    Icons.schedule,
-                                    size: 32,
-                                    color: AppColors.onSurfaceVariant,
-                                  ),
-                                ],
+
+                    // Passo 2: O Que Lembrar e Horário
+                    _buildStepCard(
+                      stepNumber: 2,
+                      title: 'Informações e Horário',
+                      summary: _getStep2Summary(),
+                      children: [
+                        Row(
+                          children: [
+                            const Text(
+                              'O QUE LEMBRAR?',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.2,
+                                color: AppColors.onSurfaceVariant,
                               ),
                             ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppColors.error.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text(
+                                'Obrigatório',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.error,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          constraints: const BoxConstraints(minHeight: 56),
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceContainerLowest,
+                            border: Border.all(color: AppColors.outlineVariant),
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          _buildTimeShortcuts(),
-                        ],
-                      ),
+                          child: TextField(
+                            controller: _titleController,
+                            maxLength: 80,
+                            style: const TextStyle(fontSize: 18),
+                            decoration: InputDecoration(
+                              hintText: _getPlaceholder(),
+                              border: InputBorder.none,
+                              counterText: '',
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        Row(
+                          children: [
+                            const Text(
+                              'HORÁRIO DO LEMBRETE',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.2,
+                                color: AppColors.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppColors.error.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text(
+                                'Obrigatório',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.error,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        InkWell(
+                          onTap: () async {
+                            final time = await showCustomTimePicker(
+                              context: context,
+                              initialTime: _selectedTime ?? const TimeOfDay(hour: 8, minute: 0),
+                            );
+                            if (time != null) {
+                              if (!mounted) return;
+                              setState(() => _selectedTime = time);
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 20),
+                            decoration: BoxDecoration(
+                              color: AppColors.surfaceContainerLowest,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: AppColors.outlineVariant),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  _selectedTime != null
+                                      ? '${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}'
+                                      : '--:--',
+                                  style: const TextStyle(
+                                    fontSize: 40,
+                                    fontWeight: FontWeight.w800,
+                                    height: 1.2,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                const Icon(
+                                  Icons.schedule,
+                                  size: 32,
+                                  color: AppColors.onSurfaceVariant,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 24),
-                    _buildAudioSection(),
-                    const SizedBox(height: 24),
-                    _buildRecurrenceSection(),
-                    const SizedBox(height: 32),
+
+                    // Passo 3: Repetição e Avisos
+                    _buildStepCard(
+                      stepNumber: 3,
+                      title: 'Áudio e Duração',
+                      summary: _getRecurrenceDescription(),
+                      children: [
+                        _buildAudioSection(),
+                        const SizedBox(height: 24),
+                        _buildRecurrenceSection(),
+                        if (_selectedCategory == 'medicacao') ...[
+                          const SizedBox(height: 24),
+                          _buildDurationSection(),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 12),
                   ],
                 ),
               ),
             ),
             _buildBottomBar(),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStepCard({
+    required int stepNumber,
+    required String title,
+    required List<Widget> children,
+    String? summary,
+  }) {
+    final isActive = _activeStep == stepNumber;
+
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 20),
+        decoration: BoxDecoration(
+          color: isActive ? AppColors.surfaceContainerLow : AppColors.surfaceContainerLowest,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isActive ? AppColors.primary : AppColors.outlineVariant,
+            width: isActive ? 2 : 1,
+          ),
+          boxShadow: isActive
+              ? [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.08),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  )
+                ]
+              : null,
+        ),
+        child: InkWell(
+          onTap: isActive ? null : () => _goToStep(stepNumber),
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: isActive ? AppColors.primary : AppColors.outline,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: Text(
+                          '$stepNumber',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        title.toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: isActive ? AppColors.primary : AppColors.onSurfaceVariant,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                    if (!isActive)
+                      const Icon(
+                        Icons.edit_note,
+                        color: AppColors.outline,
+                        size: 24,
+                      ),
+                  ],
+                ),
+                if (!isActive && summary != null && summary.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 38),
+                    child: Text(
+                      summary,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+                if (isActive) ...[
+                  const SizedBox(height: 16),
+                  ...children,
+                  if (stepNumber < 3) ...[
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () => _goToStep(stepNumber + 1),
+                        icon: const Icon(Icons.arrow_forward),
+                        label: Text(
+                          stepNumber == 1 ? 'Avançar para Etapa 2' : 'Avançar para Etapa 3',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -277,25 +581,219 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                   'Lembrete Amigo',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 28,
+                    fontSize: 24,
                     fontWeight: FontWeight.w700,
                     color: AppColors.primary,
                   ),
                 ),
               ),
-              Container(
-                width: 40,
-                height: 40,
-                decoration: const BoxDecoration(
-                  color: AppColors.primaryContainer,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.person, size: 20),
-              ),
+              const SizedBox(width: 48),
             ],
           ),
         );
       },
+    );
+  }
+
+  Widget _buildIACard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.primary.withValues(alpha: 0.12),
+          width: 2,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.auto_awesome,
+                color: AppColors.primary,
+                size: 26,
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'Preencher com Foto (IA)',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Tire uma foto da receita médica ou da caixa do remédio para preencher os dados automaticamente com IA.',
+            style: TextStyle(
+              fontSize: 14,
+              color: AppColors.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Column(
+            children: [
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    final result = await Navigator.pushNamed(
+                      context,
+                      '/identify-medication',
+                    );
+                    if (result != null && mounted) {
+                      final data = result as Map<String, dynamic>;
+                      setState(() {
+                        _selectedCategory = 'medicacao';
+                        if (data['titulo'] != null &&
+                            data['titulo'].toString().isNotEmpty) {
+                          final title = data['titulo'] as String;
+                          final dosage = data['dosagem'] as String? ?? '';
+                          _titleController.text = dosage.isNotEmpty ? '$title ($dosage)' : title;
+                        }
+                        if (data['fotoPath'] != null) {
+                          _fotoPath = data['fotoPath'] as String;
+                        }
+                      });
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Campos preenchidos com sucesso!'),
+                          backgroundColor: AppColors.tertiaryFixedDim,
+                        ),
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.photo_camera, size: 20),
+                  label: const Text(
+                    'Escanear Receita ou Caixa',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    final result = await Navigator.pushNamed(
+                      context,
+                      '/barcode-scanner',
+                    );
+                    if (result != null && mounted) {
+                      final data = result as Map<String, dynamic>;
+                      setState(() {
+                        _selectedCategory = 'medicacao';
+                        if (data['titulo'] != null &&
+                            data['titulo'].toString().isNotEmpty) {
+                          _titleController.text = data['titulo'] as String;
+                        }
+                      });
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Medicamento identificado por código de barras!'),
+                          backgroundColor: AppColors.tertiaryFixedDim,
+                        ),
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.qr_code_scanner, size: 20),
+                  label: const Text(
+                    'Escanear Código de Barras',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    side: const BorderSide(
+                      color: AppColors.primary,
+                      width: 2,
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategoryCard(Map<String, dynamic> cat) {
+    final isSelected = _selectedCategory == cat['key'];
+    final icon = cat['icon'] as IconData;
+    final label = cat['label'] as String;
+    final color = cat['color'] as Color;
+
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _selectedCategory = cat['key'] as String;
+          if (_selectedCategory != 'medicacao') {
+            if (_gerarAudioIA == true) {
+              _gerarAudioIA = null;
+            }
+            _medicamentoInstrucoes = null;
+            _medicamentoAudioTexto = null;
+          }
+        });
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        height: 52,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? color.withValues(alpha: 0.15)
+              : AppColors.surfaceContainerLowest,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? color : AppColors.outlineVariant,
+            width: isSelected ? 2.5 : 1.5,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              color: isSelected ? color : AppColors.outline,
+              size: 26,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: isSelected ? color : AppColors.onSurface,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -317,7 +815,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
         'icon': Icons.directions_walk,
         'label': 'Exercício',
         'key': 'exercicio',
-        'color': AppColors.tertiaryContainer,
+        'color': AppColors.tertiary,
       },
       {
         'icon': Icons.water_drop,
@@ -332,213 +830,284 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
         'color': AppColors.customColor,
       },
     ];
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.outlineVariant),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'CATEGORIA DO LEMBRETE',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0,
-              color: AppColors.onSurfaceVariant,
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Text(
+              'CATEGORIA DO LEMBRETE',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.2,
+                color: AppColors.onSurfaceVariant,
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          Center(
-            child: Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              alignment: WrapAlignment.center,
-              children: categories.map((cat) {
-                final key = cat['key'] as String;
-                final color = cat['color'] as Color;
-                final selected = _selectedCategory == key;
-                return GestureDetector(
-                  onTap: () =>
-                      setState(() => _selectedCategory = selected ? null : key),
-                  child: Container(
-                    width: 95,
-                    height: 115,
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 8,
-                      horizontal: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: selected
-                          ? color.withValues(alpha: 0.2)
-                          : AppColors.surfaceContainerLowest,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: selected ? color : Colors.transparent,
-                        width: 2,
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppColors.error.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: const Text(
+                'Obrigatório',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.error,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Column(
+          children: [
+            Row(
+              children: [
+                Expanded(child: _buildCategoryCard(categories[0])),
+                const SizedBox(width: 10),
+                Expanded(child: _buildCategoryCard(categories[1])),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(child: _buildCategoryCard(categories[2])),
+                const SizedBox(width: 10),
+                Expanded(child: _buildCategoryCard(categories[3])),
+              ],
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: _buildCategoryCard(categories[4]),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFotoSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Text(
+              'FOTO REAL DO REMÉDIO',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.2,
+                color: AppColors.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppColors.onSurfaceVariant.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: const Text(
+                'Opcional',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        const Text(
+          'Tire uma foto da embalagem ou do comprimido real para facilitar a identificação.',
+          style: TextStyle(fontSize: 13, color: AppColors.onSurfaceVariant),
+        ),
+        const SizedBox(height: 12),
+        InkWell(
+          onTap: _capturarFotoRemedio,
+          child: Container(
+            height: 120,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceContainerLowest,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: _fotoPath != null
+                    ? AppColors.tertiaryFixedDim
+                    : AppColors.outlineVariant,
+                width: _fotoPath != null ? 3 : 2,
+              ),
+            ),
+            child: _fotoPath != null
+                ? Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.file(
+                          File(_fotoPath!),
+                          width: 72,
+                          height: 72,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const Icon(
+                            Icons.check_circle,
+                            color: AppColors.onTertiaryFixedVariant,
+                            size: 36,
+                          ),
+                        ),
                       ),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            color: selected
-                                ? color
-                                : color.withValues(alpha: 0.15),
-                            shape: BoxShape.circle,
+                      const SizedBox(width: 12),
+                      const Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Foto Vinculada!',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.primary,
+                            ),
                           ),
-                          child: Icon(
-                            cat['icon'] as IconData,
-                            size: 24,
-                            color: selected ? Colors.white : color,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          cat['label'] as String,
-                          textAlign: TextAlign.center,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                        ],
+                      ),
+                      const SizedBox(width: 20),
+                      TextButton(
+                        onPressed: () => setState(() => _fotoPath = null),
+                        child: const Text(
+                          'Remover',
                           style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: selected ? color : AppColors.onSurface,
-                            height: 1.1,
+                            color: AppColors.error,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
+                  )
+                : const Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.photo_camera,
+                        size: 48,
+                        color: AppColors.primary,
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        'Tirar Foto do Remédio',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
                   ),
-                );
-              }).toList(),
-            ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTitleSuggestions() {
-    final category = _selectedCategory ?? 'personalizado';
-    final Map<String, List<String>> suggestions = {
-      'medicacao': ['Dipirona', 'Losartana', 'Paracetamol', 'Vitamina', 'Omeprazol'],
-      'refeicoes': ['Café da manhã', 'Almoço', 'Café da tarde', 'Jantar', 'Ceia'],
-      'exercicio': ['Alongamento', 'Caminhada', 'Fisioterapia', 'Yoga'],
-      'hidratacao': ['Beber água', "Copo d'água", 'Garrafa de água'],
-      'personalizado': ['Consulta médica', 'Medir Pressão', 'Medir Glicose', 'Lanche'],
-    };
-
-    final list = suggestions[category] ?? suggestions['personalizado']!;
-
-    return Padding(
-      padding: const EdgeInsets.only(top: 8),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: list.map((title) {
-            return Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: ActionChip(
-                label: Text(
-                  title,
-                  style: const TextStyle(
-                    color: AppColors.primary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                backgroundColor: AppColors.surfaceContainerLowest,
-                onPressed: () {
-                  setState(() {
-                    _titleController.text = title;
-                  });
-                },
-              ),
-            );
-          }).toList(),
         ),
-      ),
-    );
-  }
-
-  Widget _buildTimeShortcuts() {
-    final presets = [
-      const TimeOfDay(hour: 8, minute: 0),
-      const TimeOfDay(hour: 12, minute: 0),
-      const TimeOfDay(hour: 14, minute: 0),
-      const TimeOfDay(hour: 18, minute: 0),
-      const TimeOfDay(hour: 20, minute: 0),
-      const TimeOfDay(hour: 22, minute: 0),
-    ];
-
-    return Padding(
-      padding: const EdgeInsets.only(top: 12),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: presets.map((tod) {
-            final label = '${tod.hour.toString().padLeft(2, '0')}:${tod.minute.toString().padLeft(2, '0')}';
-            final isSelected = _selectedTime.hour == tod.hour && _selectedTime.minute == tod.minute;
-            return Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: ChoiceChip(
-                label: Text(
-                  label,
-                  style: TextStyle(
-                    color: isSelected ? Colors.white : AppColors.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                selected: isSelected,
-                selectedColor: AppColors.primary,
-                backgroundColor: AppColors.surfaceContainerLowest,
-                onSelected: (selected) {
-                  if (selected) {
-                    setState(() {
-                      _selectedTime = tod;
-                    });
-                  }
-                },
-              ),
-            );
-          }).toList(),
-        ),
-      ),
+      ],
     );
   }
 
   Widget _buildAudioSection() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.outlineVariant),
-      ),
-      child: Column(
-        children: [
-          const Text(
-            'ÁUDIO PERSONALIZADO',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0,
-              color: AppColors.onSurfaceVariant,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Text(
+              'ÁUDIO DO IDOSO',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.2,
+                color: AppColors.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppColors.onSurfaceVariant.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: const Text(
+                'Opcional',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: ChoiceChip(
+                label: const Text('Grave Voz'),
+                selected: _gerarAudioIA == false,
+                onSelected: (val) {
+                  setState(() {
+                    _gerarAudioIA = val ? false : null;
+                    if (!val) _audioPath = null;
+                  });
+                },
+              ),
+            ),
+            if (_selectedCategory == 'medicacao') ...[
+              const SizedBox(width: 12),
+              Expanded(
+                child: ChoiceChip(
+                  label: const Text('Voz por IA'),
+                  selected: _gerarAudioIA == true,
+                  onSelected: (val) {
+                    setState(() {
+                      _gerarAudioIA = val ? true : null;
+                      if (val) _audioPath = null;
+                    });
+                  },
+                ),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 16),
+        if (_gerarAudioIA == true) ...[
+          const Center(
+            child: Column(
+              children: [
+                Icon(Icons.auto_awesome, color: AppColors.primary, size: 36),
+                SizedBox(height: 8),
+                Text(
+                  'Voz por IA Ativada',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'O app gerará uma fala acolhedora e explicativa do remédio para ler ao idoso.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 13, color: AppColors.onSurfaceVariant),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 4),
-          const Text(
-            'Grave uma frase familiar. Ela sera tocada automaticamente antes do aviso do app.',
-            style: TextStyle(fontSize: 14, color: AppColors.onSurfaceVariant),
-          ),
-          const SizedBox(height: 12),
+        ] else if (_gerarAudioIA == false) ...[
           if (_audioPath != null) ...[
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -572,252 +1141,194 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
               ],
             ),
           ] else ...[
-            GestureDetector(
-              onTap: () async {
-                final result = await Navigator.pushNamed(
-                  context,
-                  '/new-reminder-audio',
-                );
-                if (result is String) {
-                  if (!mounted) return;
-                  setState(() => _audioPath = result);
-                }
-              },
-              child: Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: AppColors.secondaryContainer,
-                  shape: BoxShape.circle,
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Colors.black12,
-                      blurRadius: 8,
-                      offset: Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.mic,
-                  size: 36,
-                  color: AppColors.onSecondaryContainer,
+            const Center(
+              child: Text(
+                'Grave uma frase familiar. Ela será tocada automaticamente no horário.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: AppColors.onSurfaceVariant),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Center(
+              child: GestureDetector(
+                onTap: () async {
+                  final result = await Navigator.pushNamed(
+                    context,
+                    '/new-reminder-audio',
+                  );
+                  if (result is String) {
+                    if (!mounted) return;
+                    setState(() => _audioPath = result);
+                  }
+                },
+                child: Container(
+                  width: 72,
+                  height: 72,
+                  decoration: const BoxDecoration(
+                    color: AppColors.secondaryContainer,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black12,
+                        blurRadius: 8,
+                        offset: Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.mic,
+                    size: 32,
+                    color: AppColors.onSecondaryContainer,
+                  ),
                 ),
               ),
             ),
           ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFotoSection() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.outlineVariant),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'FOTO REAL DO REMÉDIO (OPCIONAL)',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0,
-              color: AppColors.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'Tire uma foto da embalagem ou do comprimido real para facilitar a identificação.',
-            style: TextStyle(fontSize: 14, color: AppColors.onSurfaceVariant),
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () async {
-                final result = await Navigator.pushNamed(
-                  context,
-                  '/identify-medication',
-                );
-                if (result != null && mounted) {
-                  final data = result as Map<String, dynamic>;
-                  setState(() {
-                    if (data['titulo'] != null &&
-                        data['titulo'].toString().isNotEmpty) {
-                      _titleController.text = data['titulo'] as String;
-                    }
-                    if (data['forma'] != null &&
-                        data['forma'].toString().isNotEmpty) {
-                      _selectedForma = data['forma'] as String;
-                    }
-                    if (data['cor'] != null &&
-                        data['cor'].toString().isNotEmpty) {
-                      _selectedCor = data['cor'] as String;
-                    }
-                    if (data['fotoPath'] != null) {
-                      _fotoPath = data['fotoPath'] as String;
-                    }
-                  });
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Medicamento identificado e preenchido!'),
-                      backgroundColor: AppColors.tertiaryFixedDim,
-                    ),
-                  );
-                }
-              },
-              icon: const Icon(Icons.auto_awesome, size: 22),
-              label: const Text(
-                'Identificar Remédio por Foto',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
+        ] else ...[
+          const Center(
+            child: Column(
+              children: [
+                Icon(Icons.info_outline, color: AppColors.outline, size: 36),
+                SizedBox(height: 8),
+                Text(
+                  'Nenhum áudio selecionado',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.onSurfaceVariant,
+                  ),
                 ),
-              ),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                side: BorderSide(
-                  color: AppColors.primary.withValues(alpha: 0.4),
-                  width: 2,
+                SizedBox(height: 4),
+                Text(
+                  'O lembrete usará a voz de leitura padrão do sistema (opcional).',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 13, color: AppColors.onSurfaceVariant),
                 ),
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          InkWell(
-            onTap: _capturarFotoRemedio,
-            child: Container(
-              height: 120,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: AppColors.surfaceContainerLowest,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: _fotoPath != null
-                      ? AppColors.tertiaryFixedDim
-                      : AppColors.outlineVariant,
-                  width: _fotoPath != null ? 3 : 2,
-                ),
-              ),
-              child: _fotoPath != null
-                  ? Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.file(
-                            File(_fotoPath!),
-                            width: 72,
-                            height: 72,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => const Icon(
-                              Icons.check_circle,
-                              color: AppColors.onTertiaryFixedVariant,
-                              size: 36,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Foto Vinculada!',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                            Text(
-                              'Aparência: $_selectedForma $_selectedCor',
-                              style: const TextStyle(
-                                fontSize: 14,
-                                color: AppColors.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(width: 20),
-                        TextButton(
-                          onPressed: () => setState(() => _fotoPath = null),
-                          child: const Text(
-                            'Remover',
-                            style: TextStyle(
-                              color: AppColors.error,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    )
-                  : const Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.photo_camera,
-                          size: 48,
-                          color: AppColors.primary,
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          'Tirar Foto do Remédio',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ],
-                    ),
+              ],
             ),
           ),
         ],
-      ),
+      ],
     );
   }
 
   Widget _buildRecurrenceSection() {
-    final bool hasWeeklyError = _validationAttempted && _selectedDiasSemana.isEmpty;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: hasWeeklyError ? AppColors.error : AppColors.outlineVariant, width: hasWeeklyError ? 2 : 1),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'REPETIÇÃO DO LEMBRETE',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0,
-              color: AppColors.onSurfaceVariant,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Text(
+              'REPETIÇÃO DO LEMBRETE',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.2,
+                color: AppColors.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppColors.onSurfaceVariant.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: const Text(
+                'Opcional',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (_selectedSingleDate != null) ...[
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceContainerLowest,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.outlineVariant),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.calendar_today, color: AppColors.primary),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Agendado para data única',
+                        style: TextStyle(fontSize: 12, color: AppColors.onSurfaceVariant),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${_selectedSingleDate!.day.toString().padLeft(2, '0')}/${_selectedSingleDate!.month.toString().padLeft(2, '0')}/${_selectedSingleDate!.year}',
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
+                TextButton(
+                  onPressed: () {
+                    setState(() {
+                      _selectedSingleDate = null;
+                    });
+                  },
+                  child: const Text('Repetir Semanal'),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 12),
-          Text(
-            'Selecione os dias da semana:',
-            style: TextStyle(
-              fontSize: 14, 
-              fontWeight: FontWeight.bold,
-              color: hasWeeklyError ? AppColors.error : AppColors.onSurface,
-            ),
+        ] else ...[
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Selecione os dias da semana:',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.onSurface,
+                ),
+              ),
+              TextButton.icon(
+                onPressed: () async {
+                  final now = DateTime.now();
+                  final date = await showDatePicker(
+                    context: context,
+                    initialDate: now,
+                    firstDate: now,
+                    lastDate: now.add(const Duration(days: 365)),
+                    builder: (context, child) {
+                      return Theme(
+                        data: Theme.of(context).copyWith(
+                          colorScheme: const ColorScheme.light(
+                            primary: AppColors.primary,
+                            onPrimary: Colors.white,
+                            onSurface: AppColors.onSurface,
+                          ),
+                        ),
+                        child: child!,
+                      );
+                    },
+                  );
+                  if (date != null) {
+                    setState(() {
+                      _selectedSingleDate = date;
+                      _selectedDiasSemana = [];
+                    });
+                  }
+                },
+                icon: const Icon(Icons.calendar_month, size: 18),
+                label: const Text('Data Única'),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           Row(
@@ -845,7 +1356,9 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                         ? AppColors.primary
                         : AppColors.surfaceContainerLowest,
                     shape: BoxShape.circle,
-                    border: Border.all(color: isSelected ? AppColors.primary : (hasWeeklyError ? AppColors.error : AppColors.outlineVariant)),
+                    border: Border.all(
+                      color: isSelected ? AppColors.primary : AppColors.outlineVariant,
+                    ),
                   ),
                   child: Center(
                     child: Text(
@@ -853,7 +1366,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
-                        color: isSelected ? Colors.white : (hasWeeklyError ? AppColors.error : AppColors.onSurface),
+                        color: isSelected ? Colors.white : AppColors.onSurface,
                       ),
                     ),
                   ),
@@ -861,40 +1374,197 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
               );
             }),
           ),
-          const SizedBox(height: 16),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: hasWeeklyError ? AppColors.errorContainer : AppColors.surfaceContainerLowest,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: hasWeeklyError ? AppColors.error : AppColors.outlineVariant,
-                width: 1.5,
+        ],
+        const SizedBox(height: 16),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceContainerLowest,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: AppColors.outlineVariant,
+              width: 1.5,
+            ),
+          ),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.info_outline,
+                color: AppColors.primary,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  _getRecurrenceDescription(),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDurationSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Text(
+              'DURAÇÃO DO TRATAMENTO',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.2,
+                color: AppColors.onSurfaceVariant,
               ),
             ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.info_outline,
-                  color: hasWeeklyError ? AppColors.error : AppColors.primary,
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppColors.error.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: const Text(
+                'Obrigatório',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.error,
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    _getRecurrenceDescription(),
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: hasWeeklyError ? AppColors.error : AppColors.primary,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: ChoiceChip(
+                label: const Text('Uso Contínuo'),
+                selected: _isUsoContinuo,
+                onSelected: (val) {
+                  setState(() => _isUsoContinuo = true);
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: ChoiceChip(
+                label: const Text('Período Definido'),
+                selected: !_isUsoContinuo,
+                onSelected: (val) {
+                  setState(() => _isUsoContinuo = false);
+                },
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: InkWell(
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: _dataInicio,
+                    firstDate: DateTime(2000),
+                    lastDate: DateTime(2100),
+                  );
+                  if (picked != null) {
+                    setState(() => _dataInicio = picked);
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceContainerLowest,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.outlineVariant),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Data Início',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${_dataInicio.day}/${_dataInicio.month}/${_dataInicio.year}',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            if (!_isUsoContinuo) ...[
+              const SizedBox(width: 12),
+              Expanded(
+                child: InkWell(
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: _dataFim ?? DateTime.now().add(const Duration(days: 7)),
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime(2100),
+                    );
+                    if (picked != null) {
+                      setState(() => _dataFim = picked);
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceContainerLowest,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.outlineVariant),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Data Fim',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _dataFim != null
+                              ? '${_dataFim!.day}/${_dataFim!.month}/${_dataFim!.year}'
+                              : 'Selecionar',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              ],
-            ),
-          ),
-        ],
-      ),
+              ),
+            ],
+          ],
+        ),
+      ],
     );
   }
 
@@ -939,219 +1609,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
     );
   }
 
-  Widget _buildPillAppearanceSelector() {
-    final formas = [
-      {'key': 'comprimido', 'label': 'Comprimido', 'icon': Icons.circle},
-      {'key': 'capsula', 'label': 'Cápsula', 'icon': Icons.splitscreen},
-      {'key': 'gotas', 'label': 'Gotas', 'icon': Icons.water_drop},
-      {'key': 'pomada', 'label': 'Pomada', 'icon': Icons.healing},
-    ];
 
-    final cores = [
-      {
-        'key': 'vermelho',
-        'label': 'Vermelho',
-        'color': const Color(0xFFE57373),
-      },
-      {'key': 'azul', 'label': 'Azul', 'color': const Color(0xFF64B5F6)},
-      {'key': 'verde', 'label': 'Verde', 'color': const Color(0xFF81C784)},
-      {'key': 'amarelo', 'label': 'Amarelo', 'color': const Color(0xFFFFD54F)},
-      {'key': 'branco', 'label': 'Branco', 'color': const Color(0xFFEEEEEE)},
-    ];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'APARÊNCIA DO REMÉDIO',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0,
-            color: AppColors.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(height: 12),
-        const Text(
-          'Formato:',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            color: AppColors.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: formas.map((f) {
-            final selected = _selectedForma == f['key'];
-            return Expanded(
-              child: GestureDetector(
-                onTap: () =>
-                    setState(() => _selectedForma = f['key'] as String),
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color: selected
-                        ? AppColors.primaryContainer
-                        : AppColors.surfaceContainerLowest,
-                    border: Border.all(
-                      color: selected
-                          ? AppColors.primary
-                          : AppColors.outlineVariant,
-                      width: 2,
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    children: [
-                      Icon(
-                        f['icon'] as IconData,
-                        color: selected ? Colors.white : AppColors.primary,
-                        size: 24,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        f['label'] as String,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: selected ? Colors.white : AppColors.onSurface,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-        const SizedBox(height: 16),
-        const Text(
-          'Cor:',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            color: AppColors.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: cores.map((c) {
-            final selected = _selectedCor == c['key'];
-            final color = c['color'] as Color;
-            return GestureDetector(
-              onTap: () => setState(() => _selectedCor = c['key'] as String),
-              child: Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  color: color,
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: selected ? AppColors.primary : Colors.black12,
-                    width: selected ? 4 : 2,
-                  ),
-                ),
-                child: selected
-                    ? Icon(
-                        Icons.check,
-                        color: c['key'] == 'branco'
-                            ? Colors.black
-                            : Colors.white,
-                      )
-                    : null,
-              ),
-            );
-          }).toList(),
-        ),
-        _buildPillPreview(),
-      ],
-    );
-  }
-
-  Widget _buildPillPreview() {
-    final Map<String, IconData> shapeIcons = {
-      'comprimido': Icons.circle,
-      'capsula': Icons.splitscreen,
-      'gotas': Icons.water_drop,
-      'pomada': Icons.healing,
-    };
-
-    final Map<String, Color> colorMap = {
-      'vermelho': const Color(0xFFE57373),
-      'azul': const Color(0xFF64B5F6),
-      'verde': const Color(0xFF81C784),
-      'amarelo': const Color(0xFFFFD54F),
-      'branco': const Color(0xFFFFFFFF),
-    };
-
-    final icon = shapeIcons[_selectedForma] ?? Icons.circle;
-    final pillColor = colorMap[_selectedCor] ?? const Color(0xFF64B5F6);
-
-    return Container(
-      margin: const EdgeInsets.only(top: 16),
-      padding: const EdgeInsets.all(16),
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.outlineVariant, width: 2),
-        boxShadow: [
-          BoxShadow(
-            color: pillColor.withValues(alpha: 0.25),
-            blurRadius: 10,
-            spreadRadius: 1,
-            offset: const Offset(0, 2),
-          )
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              color: pillColor.withValues(alpha: 0.15),
-              shape: BoxShape.circle,
-              border: Border.all(color: pillColor, width: 2),
-            ),
-            child: Icon(
-              icon,
-              color: pillColor,
-              size: 36,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Aparência na tela do idoso:',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${_selectedForma.toUpperCase()} ${_selectedCor.toUpperCase()}',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                    color: _selectedCor == 'branco' ? AppColors.onSurface : pillColor,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   void _salvarLembrete() async {
     if (_isSaving) return;
@@ -1175,7 +1633,6 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
       return;
     }
     if (_selectedCategory == null) {
-      setState(() => _validationAttempted = true);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Selecione uma categoria para o lembrete.'),
@@ -1185,41 +1642,215 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
       return;
     }
 
-    if (_selectedDiasSemana.isEmpty) {
-      setState(() => _validationAttempted = true);
+    if (_selectedTime == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Selecione pelo menos um dia da semana'),
+          content: Text('Por favor, selecione o horário do lembrete.'),
           backgroundColor: AppColors.error,
         ),
       );
       return;
     }
 
+    DateTime targetDate;
+    if (_selectedSingleDate != null) {
+      targetDate = _selectedSingleDate!;
+    } else if (_selectedDiasSemana.isEmpty) {
+      final now = DateTime.now();
+      final reminderTime = DateTime(now.year, now.month, now.day, _selectedTime!.hour, _selectedTime!.minute);
+      if (reminderTime.isAfter(now)) {
+        targetDate = DateTime(now.year, now.month, now.day);
+      } else {
+        targetDate = DateTime(now.year, now.month, now.day).add(const Duration(days: 1));
+      }
+    } else {
+      targetDate = _dataInicio;
+    }
+
+    if (_gerarAudioIA == false && _audioPath == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Por favor, grave o áudio para o lembrete.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    if (!_isUsoContinuo && _selectedCategory == 'medicacao') {
+      if (_dataFim == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Por favor, selecione a data de término do tratamento.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+        return;
+      }
+      final startDay = DateTime(_dataInicio.year, _dataInicio.month, _dataInicio.day);
+      final endDay = DateTime(_dataFim!.year, _dataFim!.month, _dataFim!.day);
+      if (endDay.isBefore(startDay)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('A data de término deve ser posterior ou igual à data de início.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+        return;
+      }
+    }
+
+    if (_selectedCategory == 'medicacao') {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: Card(
+            margin: EdgeInsets.all(32),
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text(
+                    'Analisando medicamento com IA...',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final newTimeStr = '${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}';
+      Map<String, dynamic>? analysis;
+      try {
+        analysis = await LembreteService.instance.analyzeMedication(
+          newMedication: titulo,
+          newMedicationTime: newTimeStr,
+        );
+      } catch (e) {
+        debugPrint('Erro ao analisar medicamento: $e');
+      }
+
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+      }
+
+      if (analysis != null) {
+        _medicamentoInstrucoes = analysis['guidelines'] as String? ?? '';
+        _medicamentoAudioTexto = analysis['suggestedAudioText'] as String? ?? '';
+
+        final hasInteraction = analysis['hasInteraction'] == true;
+        final severity = analysis['severity'].toString().toLowerCase();
+        final interactionWarning = analysis['interactionWarning'] as String? ?? '';
+        final schedulingConflictWarning = analysis['schedulingConflictWarning'] as String? ?? '';
+
+        final bool showInteraction = hasInteraction && (severity == 'moderate' || severity == 'severe');
+        final bool showConflict = schedulingConflictWarning.isNotEmpty;
+
+        if (showInteraction || showConflict) {
+          if (!mounted) return;
+          final confirmSave = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              icon: Icon(
+                Icons.warning_amber_rounded,
+                color: severity == 'severe' ? Colors.red : Colors.orange,
+                size: 48,
+              ),
+              title: const Text(
+                'Alerta Clínico de IA',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              content: Scrollbar(
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (showInteraction) ...[
+                        const Text(
+                          'Interação Medicamentosa:',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.red),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          interactionWarning,
+                          style: const TextStyle(fontSize: 15),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      if (showConflict) ...[
+                        const Text(
+                          'Conflito de Horário / Polimedicação:',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.orange),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          schedulingConflictWarning,
+                          style: const TextStyle(fontSize: 15),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Ajustar Lembrete'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: severity == 'severe' ? Colors.red : AppColors.primary,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Ignorar e Salvar'),
+                ),
+              ],
+            ),
+          );
+
+          if (confirmSave != true) return;
+        }
+      }
+    }
+
     final now = DateTime.now();
+    final reminderId = widget.lembrete?.id ?? now.millisecondsSinceEpoch.toString();
 
     final lembrete = Lembrete(
-      id: now.millisecondsSinceEpoch.toString(),
+      id: reminderId,
       titulo: titulo,
-      horarioHour: _selectedTime.hour,
-      horarioMinute: _selectedTime.minute,
+      horarioHour: _selectedTime!.hour,
+      horarioMinute: _selectedTime!.minute,
       categoria: _selectedCategory ?? 'personalizado',
-      audioPath: _audioPath,
-      medicamentoForma: _selectedCategory == 'medicacao'
-          ? _selectedForma
-          : null,
-      medicamentoCor: _selectedCategory == 'medicacao' ? _selectedCor : null,
+      audioPath: _gerarAudioIA == true ? 'ia_generated' : _audioPath,
       medicamentoFotoPath: _selectedCategory == 'medicacao' ? _fotoPath : null,
-      urgencia: _selectedUrgency,
-      recorrencia: _selectedDiasSemana.length == 7 ? 'diario' : 'semanal',
+      medicamentoInstrucoes: _selectedCategory == 'medicacao' ? _medicamentoInstrucoes : null,
+      medicamentoAudioTexto: _gerarAudioIA == true && _selectedCategory == 'medicacao' ? _medicamentoAudioTexto : null,
+      recorrencia: (_selectedSingleDate != null || _selectedDiasSemana.isEmpty) ? 'unico' : (_selectedDiasSemana.length == 7 ? 'diario' : 'semanal'),
       repeteTodosOsDias: _selectedDiasSemana.length == 7,
-      recorrenciaSemanal: _selectedDiasSemana.length < 7,
+      recorrenciaSemanal: _selectedDiasSemana.length < 7 && _selectedDiasSemana.isNotEmpty && _selectedSingleDate == null,
       recorrenciaMensal: false,
       recorrenciaIntervalo: false,
-      lembreteUnico: false,
+      lembreteUnico: _selectedSingleDate != null || _selectedDiasSemana.isEmpty,
       diasSemana: _selectedDiasSemana,
       diaMes: null,
       intervaloHoras: null,
+      dataInicio: (_selectedSingleDate != null || _selectedDiasSemana.isEmpty) ? targetDate : _dataInicio,
+      dataFim: (_selectedSingleDate != null || _selectedDiasSemana.isEmpty) ? targetDate : ((_isUsoContinuo || _selectedCategory != 'medicacao') ? null : _dataFim),
+      isUsoContinuo: (_selectedSingleDate != null || _selectedDiasSemana.isEmpty) ? false : (_selectedCategory != 'medicacao' ? true : _isUsoContinuo),
+      concluido: widget.lembrete?.concluido ?? false,
+      concluidoComFoto: widget.lembrete?.concluidoComFoto ?? false,
+      status: widget.lembrete?.status,
+      criadoEm: widget.lembrete?.criadoEm,
     );
 
     try {
@@ -1227,8 +1858,12 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
       await LembreteService.instance.adicionar(lembrete);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Lembrete criado com sucesso!'),
+        SnackBar(
+          content: Text(
+            widget.lembrete == null
+                ? 'Lembrete criado com sucesso!'
+                : 'Lembrete atualizado com sucesso!',
+          ),
           backgroundColor: AppColors.tertiaryFixedDim,
         ),
       );
@@ -1237,7 +1872,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Nao foi possivel salvar o lembrete: $e'),
+          content: Text('Não foi possível salvar o lembrete: $e'),
           backgroundColor: AppColors.error,
         ),
       );

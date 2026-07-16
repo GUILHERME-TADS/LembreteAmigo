@@ -1,12 +1,62 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../services/session_role_service.dart';
 
 enum SupervisorNavDestination { none, home, history, help, newReminder }
 
-class SupervisorBottomNav extends StatelessWidget {
+class SupervisorBottomNav extends StatefulWidget {
   final SupervisorNavDestination selected;
 
   const SupervisorBottomNav({super.key, required this.selected});
+
+  @override
+  State<SupervisorBottomNav> createState() => _SupervisorBottomNavState();
+}
+
+class _SupervisorBottomNavState extends State<SupervisorBottomNav> {
+  bool _isConnected = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkConnectionStatus();
+  }
+
+  Future<void> _checkConnectionStatus() async {
+    final conn = await SessionRoleService.isSupervisorConnected();
+    if (mounted) {
+      setState(() {
+        _isConnected = conn;
+      });
+    }
+  }
+
+  void _handleTap(String routeName, BuildContext context) {
+    final protectedRoutes = [
+      '/new-reminder',
+      '/activity-history',
+    ];
+
+    if (protectedRoutes.contains(routeName) && !_isConnected) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Conecte um dispositivo de idoso para acessar esta tela.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    if (routeName == '/supervisor-dashboard') {
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        routeName,
+        (route) => false,
+      );
+    } else {
+      Navigator.pushNamed(context, routeName);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,38 +88,40 @@ class SupervisorBottomNav extends StatelessWidget {
               _SupervisorNavItem(
                 icon: Icons.home,
                 label: 'Início',
-                selected: selected == SupervisorNavDestination.home,
-                onTap: selected == SupervisorNavDestination.home
+                selected: widget.selected == SupervisorNavDestination.home,
+                onTap: widget.selected == SupervisorNavDestination.home
                     ? null
-                    : () => Navigator.pushNamedAndRemoveUntil(
-                        context,
-                        '/supervisor-dashboard',
-                        (route) => false,
-                      ),
+                    : () => _handleTap('/supervisor-dashboard', context),
               ),
-              _SupervisorNavItem(
-                icon: Icons.add_circle,
-                label: 'Novo',
-                selected: selected == SupervisorNavDestination.newReminder,
-                onTap: selected == SupervisorNavDestination.newReminder
-                    ? null
-                    : () => Navigator.pushNamed(context, '/new-reminder'),
+              Opacity(
+                opacity: _isConnected ? 1.0 : 0.4,
+                child: _SupervisorNavItem(
+                  icon: Icons.add_circle,
+                  label: 'Novo',
+                  selected: widget.selected == SupervisorNavDestination.newReminder,
+                  onTap: widget.selected == SupervisorNavDestination.newReminder
+                      ? null
+                      : () => _handleTap('/new-reminder', context),
+                ),
               ),
-              _SupervisorNavItem(
-                icon: Icons.history,
-                label: 'Histórico',
-                selected: selected == SupervisorNavDestination.history,
-                onTap: selected == SupervisorNavDestination.history
-                    ? null
-                    : () => Navigator.pushNamed(context, '/activity-history'),
+              Opacity(
+                opacity: _isConnected ? 1.0 : 0.4,
+                child: _SupervisorNavItem(
+                  icon: Icons.history,
+                  label: 'Histórico',
+                  selected: widget.selected == SupervisorNavDestination.history,
+                  onTap: widget.selected == SupervisorNavDestination.history
+                      ? null
+                      : () => _handleTap('/activity-history', context),
+                ),
               ),
               _SupervisorNavItem(
                 icon: Icons.help_center,
                 label: 'Ajuda',
-                selected: selected == SupervisorNavDestination.help,
-                onTap: selected == SupervisorNavDestination.help
+                selected: widget.selected == SupervisorNavDestination.help,
+                onTap: widget.selected == SupervisorNavDestination.help
                     ? null
-                    : () => Navigator.pushNamed(context, '/supervisor-help'),
+                    : () => _handleTap('/supervisor-help', context),
               ),
             ],
           ),

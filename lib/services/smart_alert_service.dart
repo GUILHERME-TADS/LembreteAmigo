@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/lembrete.dart';
 import '../models/lembrete_evento.dart';
 import '../models/smart_alert.dart';
+import 'crashlytics_service.dart';
 import 'notification_service.dart';
 
 class SmartAlertService {
@@ -18,23 +19,26 @@ class SmartAlertService {
     List<Lembrete> lembretes, {
     List<LembreteEvento>? eventos,
     DateTime? now,
-    int? bpm,
   }) async {
-    final detected = detectarAlertas(
-      lembretes,
-      eventos: eventos,
-      now: now ?? DateTime.now(),
-      bpm: bpm,
-    );
-    notifier.value = detected;
-    await _notifyNewAlerts(detected);
+    try {
+      final detected = detectarAlertas(
+        lembretes,
+        eventos: eventos,
+        now: now ?? DateTime.now(),
+      );
+      notifier.value = detected;
+      await _notifyNewAlerts(detected);
+    } catch (e, s) {
+      debugPrint('[SmartAlert] Erro ao atualizar alertas: $e');
+      CrashlyticsService.instance.recordError(e, s,
+          reason: 'SmartAlertService.atualizar');
+    }
   }
 
   List<SmartAlert> detectarAlertas(
     List<Lembrete> lembretes, {
     List<LembreteEvento>? eventos,
     required DateTime now,
-    int? bpm,
   }) {
     final alerts = <SmartAlert>[];
     var lateCount = 0;
@@ -42,66 +46,74 @@ class SmartAlertService {
     var criticalLateCount = 0;
 
     for (final lembrete in lembretes) {
-      if (!_isReminderActiveToday(lembrete, now)) continue;
-      if (lembrete.status.isConcluido) continue;
+      try {
+        if (!_isReminderActiveToday(lembrete, now)) continue;
+        if (lembrete.status.isConcluido) continue;
 
-      final scheduled = DateTime(
-        now.year,
-        now.month,
-        now.day,
-        lembrete.horarioHour,
-        lembrete.horarioMinute,
-      );
-
-      // Se o lembrete foi criado hoje após o horário programado de hoje, ele não está atrasado hoje.
-      if (scheduled.isBefore(now) &&
-          _isSameDay(lembrete.criadoEm, now) &&
-          lembrete.criadoEm.isAfter(scheduled)) {
-        continue;
-      }
-
-      final minutesLate = now.difference(scheduled).inMinutes;
-      if (minutesLate < 0) continue;
-
-      if (lembrete.status == LembreteStatus.perdido) {
-        alerts.add(
-          _buildMissedAlert(lembrete, now: now, minutesLate: minutesLate),
+        final scheduled = DateTime(
+          now.year,
+          now.month,
+          now.day,
+          lembrete.horarioHour,
+          lembrete.horarioMinute,
         );
-        lateCount++;
-        if (lembrete.categoria == 'medicacao') lateMedicationCount++;
-        continue;
-      }
 
-      final threshold = _lateThresholdMinutes(lembrete);
-      if (minutesLate >= threshold) {
-        alerts.add(
-          _buildLateAlert(lembrete, now: now, minutesLate: minutesLate),
-        );
-        lateCount++;
-        if (lembrete.categoria == 'medicacao') lateMedicationCount++;
-        if (lembrete.urgencia == 'critico') criticalLateCount++;
+        if (scheduled.isBefore(now) &&
+            _isSameDay(lembrete.criadoEm, now) &&
+            lembrete.criadoEm.isAfter(scheduled)) {
+          continue;
+        }
+
+        final minutesLate = now.difference(scheduled).inMinutes;
+        if (minutesLate < 0) continue;
+
+        if (lembrete.status == LembreteStatus.perdido) {
+          alerts.add(
+            _buildMissedAlert(lembrete, now: now, minutesLate: minutesLate),
+          );
+          lateCount++;
+          if (lembrete.categoria == 'medicacao') lateMedicationCount++;
+          continue;
+        }
+
+        final threshold = _lateThresholdMinutes(lembrete);
+        if (minutesLate >= threshold) {
+          alerts.add(
+            _buildLateAlert(lembrete, now: now, minutesLate: minutesLate),
+          );
+          lateCount++;
+          if (lembrete.categoria == 'medicacao') lateMedicationCount++;
+          if (_severityFor(lembrete) == SmartAlertSeverity.critical) {
+            criticalLateCount++;
+          }
+        }
+      } catch (e) {
+        debugPrint('[SmartAlert] Erro ao processar lembrete ${lembrete.id}: $e');
       }
     }
 
-    final routineAlert = _buildRoutinePatternAlert(
-      now: now,
-      lateCount: lateCount,
-      lateMedicationCount: lateMedicationCount,
-      criticalLateCount: criticalLateCount,
-    );
-    if (routineAlert != null) alerts.add(routineAlert);
+    try {
+      final routineAlert = _buildRoutinePatternAlert(
+        now: now,
+        lateCount: lateCount,
+        lateMedicationCount: lateMedicationCount,
+        criticalLateCount: criticalLateCount,
+      );
+      if (routineAlert != null) alerts.add(routineAlert);
 
-    final bpmAlert = _buildBpmAlert(bpm, now: now);
-    if (bpmAlert != null) alerts.add(bpmAlert);
 
-    final welfareAlerts = _buildWelfareAlerts(eventos, now: now);
-    alerts.addAll(welfareAlerts);
 
-    alerts.sort((a, b) {
-      final severityCompare = b.severity.index.compareTo(a.severity.index);
-      if (severityCompare != 0) return severityCompare;
-      return b.minutesLate.compareTo(a.minutesLate);
-    });
+      alerts.sort((a, b) {
+        final severityCompare = b.severity.index.compareTo(a.severity.index);
+        if (severityCompare != 0) return severityCompare;
+        return b.minutesLate.compareTo(a.minutesLate);
+      });
+    } catch (e, s) {
+      debugPrint('[SmartAlert] Erro ao construir alertas agregados: $e');
+      CrashlyticsService.instance.recordError(e, s,
+          reason: 'SmartAlertService.detectarAlertas');
+    }
+
     return alerts;
   }
 
@@ -150,26 +162,7 @@ class SmartAlertService {
     return null;
   }
 
-  SmartAlert? _buildBpmAlert(int? bpm, {required DateTime now}) {
-    if (bpm == null) return null;
-    if (bpm >= 60 && bpm <= 100) return null;
 
-    final isCritical = bpm < 50 || bpm > 120;
-    final direction = bpm < 60 ? 'baixo' : 'alto';
-
-    return SmartAlert(
-      key: '${_dateKey(now)}:health:bpm:$direction',
-      lembreteId: '',
-      title: isCritical ? 'Batimento fora do padrão' : 'Atenção ao coração',
-      message:
-          'Última medição: $bpm BPM. Valor $direction para a faixa de repouso usada pelo app.',
-      severity: isCritical
-          ? SmartAlertSeverity.critical
-          : SmartAlertSeverity.warning,
-      createdAt: now,
-      minutesLate: isCritical ? 9999 : 9998,
-    );
-  }
 
   SmartAlert _buildLateAlert(
     Lembrete lembrete, {
@@ -212,16 +205,18 @@ class SmartAlertService {
   }
 
   int _lateThresholdMinutes(Lembrete lembrete) {
-    if (lembrete.urgencia == 'critico') return 2;
-    if (lembrete.urgencia == 'importante') return 10;
+    final title = lembrete.titulo.toLowerCase();
+    if (title.contains('insulina')) return 2;
     if (lembrete.categoria == 'medicacao') return 15;
     return 30;
   }
 
   SmartAlertSeverity _severityFor(Lembrete lembrete) {
-    if (lembrete.urgencia == 'critico') return SmartAlertSeverity.critical;
-    if (lembrete.urgencia == 'importante' ||
-        lembrete.categoria == 'medicacao') {
+    final title = lembrete.titulo.toLowerCase();
+    if (title.contains('insulina')) {
+      return SmartAlertSeverity.critical;
+    }
+    if (lembrete.categoria == 'medicacao') {
       return SmartAlertSeverity.warning;
     }
     return SmartAlertSeverity.info;
@@ -233,23 +228,33 @@ class SmartAlertService {
   Future<void> _notifyNewAlerts(List<SmartAlert> alerts) async {
     if (alerts.isEmpty) return;
 
-    final prefs = await SharedPreferences.getInstance();
-    final notified = prefs.getStringList('smart_alert_notified_keys') ?? [];
-    final notifiedSet = notified.toSet();
-    var changed = false;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final notified = prefs.getStringList('smart_alert_notified_keys') ?? [];
+      final notifiedSet = notified.toSet();
+      var changed = false;
 
-    for (final alert in alerts) {
-      if (notifiedSet.contains(alert.key)) continue;
-      await NotificationService.instance.mostrarAlertaCuidador(alert);
-      notifiedSet.add(alert.key);
-      changed = true;
-    }
+      for (final alert in alerts) {
+        try {
+          if (notifiedSet.contains(alert.key)) continue;
+          await NotificationService.instance.mostrarAlertaCuidador(alert);
+          notifiedSet.add(alert.key);
+          changed = true;
+        } catch (e) {
+          debugPrint('[SmartAlert] Erro ao notificar alerta ${alert.key}: $e');
+        }
+      }
 
-    if (changed) {
-      await prefs.setStringList(
-        'smart_alert_notified_keys',
-        notifiedSet.take(200).toList(),
-      );
+      if (changed) {
+        await prefs.setStringList(
+          'smart_alert_notified_keys',
+          notifiedSet.take(200).toList(),
+        );
+      }
+    } catch (e, s) {
+      debugPrint('[SmartAlert] Erro ao persistir alertas notificados: $e');
+      CrashlyticsService.instance.recordError(e, s,
+          reason: 'SmartAlertService._notifyNewAlerts');
     }
   }
 
@@ -281,45 +286,5 @@ class SmartAlertService {
 
   bool _isSameDay(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
-  }
-
-  List<SmartAlert> _buildWelfareAlerts(List<LembreteEvento>? eventos, {required DateTime now}) {
-    if (eventos == null || eventos.isEmpty) return [];
-
-    final welfareAlerts = <SmartAlert>[];
-
-    for (final evento in eventos) {
-      if (evento.categoria != 'bem_estar') continue;
-      if (!_isSameDay(evento.registradoEm, now)) continue;
-
-      final obs = evento.observacao ?? '';
-      if (obs.contains('Preciso de ajuda')) {
-        welfareAlerts.add(
-          SmartAlert(
-            key: '${_dateKey(now)}:welfare:${evento.id}',
-            lembreteId: '',
-            title: 'Idoso precisa de ajuda',
-            message: 'O idoso informou no check-in de bem-estar: $obs.',
-            severity: SmartAlertSeverity.critical,
-            createdAt: evento.registradoEm,
-            minutesLate: 9999,
-          ),
-        );
-      } else if (obs.contains('Mais ou menos')) {
-        welfareAlerts.add(
-          SmartAlert(
-            key: '${_dateKey(now)}:welfare:${evento.id}',
-            lembreteId: '',
-            title: 'Atenção: Idoso indisposto',
-            message: 'O idoso informou no check-in de bem-estar: $obs.',
-            severity: SmartAlertSeverity.warning,
-            createdAt: evento.registradoEm,
-            minutesLate: 9998,
-          ),
-        );
-      }
-    }
-
-    return welfareAlerts;
   }
 }

@@ -7,57 +7,12 @@ import '../services/tts_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/audio_path_helper.dart';
 import '../utils/period_helper.dart';
+import '../utils/reminder_state_helper.dart';
 import 'audio_manager.dart';
 import 'reminder_status_badge.dart';
 import 'alex_avatar.dart';
 
-enum ReminderStatus { done, late, scheduled, postponed, missed }
-
-ReminderStatus reminderStatusFromLembrete(Lembrete lembrete) {
-  switch (lembrete.status) {
-    case LembreteStatus.adiado:
-      return ReminderStatus.postponed;
-    case LembreteStatus.perdido:
-      return ReminderStatus.missed;
-    case LembreteStatus.concluido:
-    case LembreteStatus.concluidoComFoto:
-    case LembreteStatus.confirmadoPeloCuidador:
-      return ReminderStatus.done;
-    case LembreteStatus.pendente:
-      return ReminderStatus.scheduled;
-  }
-}
-
-ReminderStatus reminderVisualStatusFromLembrete(
-  Lembrete lembrete, {
-  DateTime? now,
-}) {
-  final storedStatus = reminderStatusFromLembrete(lembrete);
-  if (storedStatus != ReminderStatus.scheduled || lembrete.concluido) {
-    return storedStatus;
-  }
-
-  final currentTime = now ?? DateTime.now();
-  var targetTime = DateTime(
-    currentTime.year,
-    currentTime.month,
-    currentTime.day,
-    lembrete.horarioHour,
-    lembrete.horarioMinute,
-  );
-
-  if (targetTime.isBefore(currentTime) &&
-      lembrete.criadoEm.isAfter(targetTime)) {
-    targetTime = targetTime.add(const Duration(days: 1));
-  }
-
-  final diff = targetTime.difference(currentTime);
-  if (diff.isNegative && diff.inMinutes.abs() >= 5) {
-    return ReminderStatus.late;
-  }
-
-  return storedStatus;
-}
+export '../utils/reminder_state_helper.dart';
 
 LembreteStatus _getLembreteStatus(ReminderStatus status) {
   switch (status) {
@@ -83,6 +38,7 @@ class ReminderWithAudio extends StatefulWidget {
   final ReminderStatus status;
   final Color accentColor;
   final String? audioPath;
+  final String? ttsText;
 
   const ReminderWithAudio({
     super.key,
@@ -95,6 +51,7 @@ class ReminderWithAudio extends StatefulWidget {
     this.status = ReminderStatus.scheduled,
     this.accentColor = AppColors.primary,
     this.audioPath,
+    this.ttsText,
   });
 
   @override
@@ -138,7 +95,7 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
         _audioPlayer.stop();
       }
       if (_isSpeaking) {
-        TTSService.instance.parar();
+        TTSService.instance.parar(caller: this);
       }
       if (_isPlaying || _isSpeaking) {
         setState(() {
@@ -155,20 +112,20 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
   void dispose() {
     AudioManager.activeIdNotifier.removeListener(_onActiveIdChanged);
     AudioManager.stopPlay(audioId);
-    TTSService.instance.parar();
+    TTSService.instance.parar(caller: this);
     _waveController.dispose();
     _audioPlayer.dispose();
     super.dispose();
   }
 
   void _togglePlay() {
-    if (widget.audioPath != null) {
+    if (widget.audioPath != null && widget.audioPath != 'ia_generated') {
       if (_isPlaying) {
         _audioPlayer.stop();
         _onAudioComplete();
       } else {
         if (_isSpeaking) {
-          TTSService.instance.parar();
+          TTSService.instance.parar(caller: this);
           setState(() => _isSpeaking = false);
         }
         if (!AudioManager.requestPlay(audioId)) return;
@@ -186,7 +143,7 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
 
   void _toggleTTS() async {
     if (_isSpeaking) {
-      await TTSService.instance.parar();
+      await TTSService.instance.parar(caller: this);
       _waveController.stop();
       _waveController.reset();
       AudioManager.stopPlay(audioId);
@@ -195,9 +152,8 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
       if (!AudioManager.requestPlay(audioId)) return;
       setState(() => _isSpeaking = true);
       _waveController.repeat(reverse: true);
-      final spokenTime = PeriodHelper.getSpokenTimeFromStr(widget.time);
-      final texto = '${widget.title} às $spokenTime';
-      await TTSService.instance.falar(texto);
+      final texto = widget.ttsText ?? '${widget.title} às ${PeriodHelper.getSpokenTimeFromStr(widget.time)}';
+      await TTSService.instance.falar(texto, caller: this);
       _waveController.stop();
       _waveController.reset();
       AudioManager.stopPlay(audioId);
@@ -453,66 +409,57 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
                           ),
                           const SizedBox(width: 12),
                           GestureDetector(
-                            onTap: widget.onTap,
+                            onTap: (widget.status == ReminderStatus.done ||
+                                    widget.status == ReminderStatus.postponed ||
+                                    widget.status == ReminderStatus.missed)
+                                ? null
+                                : widget.onTap,
                             child: Container(
                               width: 56,
                               height: 56,
                               decoration: BoxDecoration(
-                                color: widget.status == ReminderStatus.done
-                                    ? AppColors.tertiaryFixedDim
-                                    : widget.status == ReminderStatus.postponed
-                                    ? AppColors.secondaryFixed
-                                    : (widget.status == ReminderStatus.late ||
-                                          widget.status ==
-                                              ReminderStatus.missed)
-                                    ? AppColors.error
+                                color: (widget.status == ReminderStatus.done ||
+                                        widget.status == ReminderStatus.postponed ||
+                                        widget.status == ReminderStatus.missed)
+                                    ? Colors.transparent
                                     : widget.accentColor.withValues(alpha: 0.1),
                                 shape: BoxShape.rectangle,
                                 borderRadius: BorderRadius.circular(14),
                                 border: Border.all(
-                                  color: widget.status == ReminderStatus.done
-                                      ? AppColors.onTertiaryFixedVariant
-                                      : widget.status ==
-                                            ReminderStatus.postponed
-                                      ? AppColors.onSecondaryFixedVariant
-                                      : (widget.status == ReminderStatus.late ||
-                                            widget.status ==
-                                                ReminderStatus.missed)
-                                      ? AppColors.onError
+                                  color: (widget.status == ReminderStatus.done ||
+                                          widget.status == ReminderStatus.postponed ||
+                                          widget.status == ReminderStatus.missed)
+                                      ? Colors.transparent
                                       : widget.accentColor,
-                                  width: 3,
+                                  width: (widget.status == ReminderStatus.done ||
+                                          widget.status == ReminderStatus.postponed ||
+                                          widget.status == ReminderStatus.missed)
+                                      ? 0
+                                      : 3,
                                 ),
                               ),
-                              child:
-                                  widget.status == ReminderStatus.done ||
-                                      widget.status ==
-                                          ReminderStatus.postponed ||
+                              child: widget.status == ReminderStatus.done ||
+                                      widget.status == ReminderStatus.postponed ||
                                       widget.status == ReminderStatus.late ||
                                       widget.status == ReminderStatus.missed
                                   ? Icon(
                                       widget.status == ReminderStatus.done
                                           ? Icons.check
-                                          : widget.status ==
-                                                ReminderStatus.postponed
-                                          ? Icons.schedule
-                                          : widget.status ==
-                                                ReminderStatus.missed
-                                          ? Icons.close
-                                          : Icons.priority_high,
-                                      color:
-                                          widget.status == ReminderStatus.done
-                                          ? AppColors.onTertiaryFixedVariant
-                                          : widget.status ==
-                                                ReminderStatus.postponed
-                                          ? AppColors.onSecondaryFixedVariant
-                                          : AppColors.onError,
+                                          : widget.status == ReminderStatus.postponed
+                                              ? Icons.schedule
+                                              : widget.status == ReminderStatus.missed
+                                                  ? Icons.close
+                                                  : Icons.priority_high,
+                                      color: widget.status == ReminderStatus.done
+                                          ? const Color(0xFF005312)
+                                          : widget.status == ReminderStatus.postponed
+                                              ? const Color(0xFF827717)
+                                              : AppColors.error,
                                       size: 32,
                                     )
                                   : Icon(
                                       Icons.radio_button_unchecked,
-                                      color: isHighContrast
-                                          ? Colors.black
-                                          : widget.accentColor,
+                                      color: isHighContrast ? Colors.black : widget.accentColor,
                                       size: 32,
                                     ),
                             ),

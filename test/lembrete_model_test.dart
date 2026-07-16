@@ -5,7 +5,6 @@ import 'package:lembretes_app/models/offline_write.dart';
 import 'package:lembretes_app/models/smart_alert.dart';
 import 'package:lembretes_app/services/supervisor_ai_service.dart';
 import 'package:lembretes_app/services/offline_sync_service.dart';
-import 'package:lembretes_app/services/health_service.dart';
 import 'package:lembretes_app/services/session_role_service.dart';
 import 'package:lembretes_app/services/smart_alert_service.dart';
 import 'package:lembretes_app/utils/voice_reminder_parser.dart';
@@ -104,11 +103,11 @@ void main() {
       horarioMinute: 15,
     );
 
-    final concluido = lembrete.copyWith(concluido: true);
+    final concluido = lembrete.copyWith(status: LembreteStatus.concluido);
     expect(concluido.status, LembreteStatus.concluido);
     expect(concluido.concluido, isTrue);
 
-    final pendente = concluido.copyWith(concluido: false);
+    final pendente = concluido.copyWith(status: LembreteStatus.pendente);
     expect(pendente.status, LembreteStatus.pendente);
     expect(pendente.concluido, isFalse);
     expect(pendente.concluidoComFoto, isFalse);
@@ -245,10 +244,9 @@ void main() {
     final critico = Lembrete(
       id: 'crit-1',
       titulo: 'Insulina',
-      horarioHour: 9,
+      horarioHour: 7,
       horarioMinute: 7,
       categoria: 'medicacao',
-      urgencia: 'critico',
     );
 
     final alerts = service.detectarAlertas([normal, critico], now: now);
@@ -273,38 +271,7 @@ void main() {
     expect(alerts, isEmpty);
   });
 
-  test('gera alerta para bpm fora da faixa de repouso usada pelo app', () {
-    final service = SmartAlertService.instance;
-    final now = DateTime(2026, 7, 2, 10, 0);
 
-    final alerts = service.detectarAlertas(const [], now: now, bpm: 124);
-
-    expect(alerts, hasLength(1));
-    expect(alerts.first.lembreteId, isEmpty);
-    expect(alerts.first.severity, SmartAlertSeverity.critical);
-    expect(alerts.first.message, contains('124 BPM'));
-  });
-
-  test('valida bpm antes de salvar metricas de saude', () {
-    expect(HealthService.isValidBpm(39), isFalse);
-    expect(HealthService.isValidBpm(40), isTrue);
-    expect(HealthService.isValidBpm(72), isTrue);
-    expect(HealthService.isValidBpm(180), isTrue);
-    expect(HealthService.isValidBpm(181), isFalse);
-    expect(HealthService.isValidBpm(null), isFalse);
-  });
-
-  test(
-    'nao gera alerta para bpm dentro da faixa de repouso usada pelo app',
-    () {
-      final service = SmartAlertService.instance;
-      final now = DateTime(2026, 7, 2, 10, 0);
-
-      final alerts = service.detectarAlertas(const [], now: now, bpm: 78);
-
-      expect(alerts, isEmpty);
-    },
-  );
 
   test('serializa escrita offline pendente', () {
     final write = OfflineWrite(
@@ -454,6 +421,56 @@ void main() {
       expect(l.isActiveOn(DateTime(2026, 7, 31)), isTrue);
       expect(l.isActiveOn(DateTime(2026, 7, 10)), isFalse);
     });
+
+    test('respeita data de inicio e data de fim para lembretes temporarios', () {
+      final l = Lembrete(
+        id: '6',
+        titulo: 'Antibiotico',
+        horarioHour: 8,
+        horarioMinute: 0,
+        recorrencia: 'diario',
+        dataInicio: DateTime(2026, 7, 10),
+        dataFim: DateTime(2026, 7, 17),
+        isUsoContinuo: false,
+      );
+
+      // Antes do inicio
+      expect(l.isActiveOn(DateTime(2026, 7, 9)), isFalse);
+
+      // No dia do inicio
+      expect(l.isActiveOn(DateTime(2026, 7, 10)), isTrue);
+
+      // Durante o tratamento
+      expect(l.isActiveOn(DateTime(2026, 7, 14)), isTrue);
+
+      // No ultimo dia
+      expect(l.isActiveOn(DateTime(2026, 7, 17)), isTrue);
+
+      // Apos o fim
+      expect(l.isActiveOn(DateTime(2026, 7, 18)), isFalse);
+    });
+
+    test('uso continuo ignora data de fim', () {
+      final l = Lembrete(
+        id: '7',
+        titulo: 'Uso Continuo',
+        horarioHour: 8,
+        horarioMinute: 0,
+        recorrencia: 'diario',
+        dataInicio: DateTime(2026, 7, 10),
+        dataFim: DateTime(2026, 7, 17),
+        isUsoContinuo: true,
+      );
+
+      // Antes do inicio
+      expect(l.isActiveOn(DateTime(2026, 7, 9)), isFalse);
+
+      // Durante
+      expect(l.isActiveOn(DateTime(2026, 7, 14)), isTrue);
+
+      // Apos a data de fim (deve continuar ativo por ser de uso continuo)
+      expect(l.isActiveOn(DateTime(2026, 7, 18)), isTrue);
+    });
   });
 
   group('SupervisorInsights', () {
@@ -464,17 +481,7 @@ void main() {
     });
   });
 
-  group('HealthService BPM', () {
-    test('bpmHistory comeca vazio', () {
-      expect(HealthService.instance.bpmHistory, isEmpty);
-    });
 
-    test('bpmStream e um broadcast stream', () {
-      final stream = HealthService.instance.bpmStream;
-      expect(stream, isNotNull);
-      expect(stream.isBroadcast, isTrue);
-    });
-  });
 
   group('Lembrete isReminderActiveOn estatico', () {
     test('chamada estatica produz mesmo resultado que instancia', () {

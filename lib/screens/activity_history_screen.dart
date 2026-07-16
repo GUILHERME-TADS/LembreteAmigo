@@ -1,11 +1,12 @@
-import 'dart:io';
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+import 'dart:io';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../models/lembrete.dart';
 import '../services/lembrete_service.dart';
 import '../services/supervisor_ai_service.dart';
+import '../utils/debounce.dart';
 import '../widgets/supervisor_bottom_nav.dart';
 import '../widgets/supervisor_drawer.dart';
 
@@ -19,50 +20,42 @@ class ActivityHistoryScreen extends StatefulWidget {
 class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
   final LembreteService _service = LembreteService.instance;
   bool _isOnline = true;
-  Timer? _connectivityTimer;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   String _searchQuery = '';
   String _selectedCategory = 'Todos';
   String _selectedStatus = 'Todos';
   SupervisorInsights? _aiPatterns;
   bool _aiPatternsLoading = false;
+  final Debouncer _searchDebouncer = Debouncer(delay: Duration(milliseconds: 300));
 
   @override
   void initState() {
     super.initState();
     _service.carregar();
-    _checkConnection();
-    _connectivityTimer = Timer.periodic(const Duration(seconds: 30), (_) => _checkConnection());
+    Connectivity().checkConnectivity().then(_updateOnlineStatus);
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen(
+      _updateOnlineStatus,
+    );
   }
 
   @override
   void dispose() {
-    _connectivityTimer?.cancel();
+    _connectivitySubscription?.cancel();
+    _searchDebouncer.dispose();
     super.dispose();
   }
 
-  Future<void> _checkConnection() async {
-    if (kIsWeb) {
-      if (mounted && !_isOnline) {
-        setState(() {
-          _isOnline = true;
-        });
-      }
-      return;
-    }
-    try {
-      final result = await InternetAddress.lookup('example.com').timeout(const Duration(seconds: 3));
-      final bool hasNet = result.isNotEmpty && result[0].rawAddress.isNotEmpty;
-      if (mounted && _isOnline != hasNet) {
-        setState(() {
-          _isOnline = hasNet;
-        });
-      }
-    } catch (_) {
-      if (mounted && _isOnline) {
-        setState(() {
-          _isOnline = false;
-        });
-      }
+  void _updateOnlineStatus(List<ConnectivityResult> results) {
+    if (!mounted) return;
+    final online = results.any(
+      (r) => r == ConnectivityResult.wifi ||
+          r == ConnectivityResult.mobile ||
+          r == ConnectivityResult.ethernet,
+    );
+    if (_isOnline != online) {
+      setState(() {
+        _isOnline = online;
+      });
     }
   }
 
@@ -217,22 +210,18 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
               child: ValueListenableBuilder<List<Lembrete>>(
                 valueListenable: _service.notifier,
                 builder: (context, lembretes, _) {
-                  // Apply filters
                   var list = List<Lembrete>.from(lembretes);
                   
-                  // Category Filter
                   if (_selectedCategory != 'Todos') {
                     list = list.where((l) => l.categoria == _selectedCategory).toList();
                   }
 
-                  // Status Filter
                   if (_selectedStatus == 'Concluídos') {
                     list = list.where((l) => l.concluido).toList();
                   } else if (_selectedStatus == 'Pendentes') {
                     list = list.where((l) => !l.concluido).toList();
                   }
 
-                  // Search Filter
                   if (_searchQuery.isNotEmpty) {
                     final query = _searchQuery.toLowerCase();
                     list = list.where((l) =>
@@ -241,47 +230,29 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
                     ).toList();
                   }
 
-                  // Sort: descending by criadoEm date
                   list.sort((a, b) => b.criadoEm.compareTo(a.criadoEm));
 
                   return SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.circle,
-                              size: 12,
-                              color: _isOnline ? AppColors.tertiaryFixedDim : AppColors.error,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              _isOnline ? 'Conectado' : 'Sem Internet',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.05,
-                                color: _isOnline ? AppColors.onTertiaryContainer : AppColors.error,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
                         const Text(
                           'Histórico de Atividades',
-                          style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.onSurface),
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.onSurface,
+                          ),
                         ),
                         const SizedBox(height: 16),
                         _buildStatsHeader(lembretes),
                         _buildPatternAnalysisButton(lembretes),
-                        _buildSearchAndFilters(),
                         if (_aiPatterns != null) ...[
-                          const SizedBox(height: 12),
                           _buildPatternAnalysisResults(),
                         ],
-                        const SizedBox(height: 20),
+                        _buildSearchAndFilters(),
+                        const SizedBox(height: 10),
                         if (list.isEmpty)
                           Center(
                             child: Padding(
@@ -317,7 +288,7 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
   Widget _buildPatternAnalysisButton(List<Lembrete> todos) {
     if (todos.isEmpty) return const SizedBox.shrink();
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 16),
       child: SizedBox(
         width: double.infinity,
         child: OutlinedButton.icon(
@@ -333,8 +304,8 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
               : const Icon(Icons.auto_awesome, size: 18),
           label: Text(
             _aiPatternsLoading
-                ? 'Analisando padroes...'
-                : 'Analisar Padroes com IA',
+                ? 'Analisando padrões...'
+                : 'Analisar Padrões com IA',
           ),
           style: OutlinedButton.styleFrom(
             foregroundColor: AppColors.primary,
@@ -352,76 +323,118 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
   Widget _buildPatternAnalysisResults() {
     final p = _aiPatterns!;
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppColors.primaryFixed.withValues(alpha: 0.3),
+        color: AppColors.primaryContainer.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.25), width: 1.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.auto_awesome, size: 16, color: AppColors.primary),
+              const Icon(Icons.auto_awesome, size: 18, color: AppColors.primary),
               const SizedBox(width: 8),
-              Text(
-                'ANALISE DE PADROES',
+              const Text(
+                'PADRÕES IDENTIFICADOS (IA)',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w800,
                   color: AppColors.primary,
-                  letterSpacing: 1,
+                  letterSpacing: 0.5,
                 ),
               ),
               const Spacer(),
               GestureDetector(
                 onTap: () => setState(() => _aiPatterns = null),
-                child: Icon(Icons.close, size: 18, color: AppColors.onSurfaceVariant),
+                child: const Icon(Icons.close, size: 18, color: AppColors.onSurfaceVariant),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          Text(p.summary, style: const TextStyle(fontSize: 14, height: 1.4)),
+          Text(
+            p.summary,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
+              color: AppColors.onSurface,
+            ),
+          ),
           if (p.insights.isNotEmpty) ...[
             const SizedBox(height: 12),
             ...p.insights.map((i) => Padding(
-              padding: const EdgeInsets.only(bottom: 4),
+              padding: const EdgeInsets.only(bottom: 6),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('• ', style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.onPrimaryFixedVariant)),
-                  Expanded(child: Text(i, style: const TextStyle(fontSize: 13))),
+                  const Text('• ', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),
+                  Expanded(
+                    child: Text(
+                      i,
+                      style: const TextStyle(fontSize: 14, color: AppColors.onSurfaceVariant),
+                    ),
+                  ),
                 ],
               ),
             )),
           ],
           if (p.attentionPoints.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Text('ATENCAO', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.error, letterSpacing: 1)),
+            const SizedBox(height: 12),
+            const Text(
+              'ATENÇÃO',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: AppColors.error,
+                letterSpacing: 0.5,
+              ),
+            ),
+            const SizedBox(height: 6),
             ...p.attentionPoints.map((a) => Padding(
-              padding: const EdgeInsets.only(top: 4),
+              padding: const EdgeInsets.only(bottom: 6),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.warning_amber_rounded, size: 16, color: AppColors.error),
-                  const SizedBox(width: 6),
-                  Expanded(child: Text(a, style: TextStyle(fontSize: 13, color: AppColors.error))),
+                  const Icon(Icons.warning_amber_rounded, size: 16, color: AppColors.error),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      a,
+                      style: const TextStyle(fontSize: 14, color: AppColors.error, fontWeight: FontWeight.w600),
+                    ),
+                  ),
                 ],
               ),
             )),
           ],
           if (p.suggestions.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Text('SUGESTOES', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.onPrimaryFixedVariant, letterSpacing: 1)),
+            const SizedBox(height: 12),
+            const Text(
+              'SUGESTÕES',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: AppColors.primary,
+                letterSpacing: 0.5,
+              ),
+            ),
+            const SizedBox(height: 6),
             ...p.suggestions.map((s) => Padding(
-              padding: const EdgeInsets.only(top: 4),
+              padding: const EdgeInsets.only(bottom: 6),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.lightbulb_outline, size: 16, color: AppColors.secondary),
-                  const SizedBox(width: 6),
-                  Expanded(child: Text(s, style: const TextStyle(fontSize: 13))),
+                  const Icon(Icons.lightbulb_outline, size: 16, color: AppColors.primary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      s,
+                      style: const TextStyle(fontSize: 14, color: AppColors.onSurfaceVariant),
+                    ),
+                  ),
                 ],
               ),
             )),
@@ -457,60 +470,120 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
     final concluidosRemedios = todos.where((l) => l.categoria == 'medicacao' && l.concluido).length;
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       margin: const EdgeInsets.only(bottom: 20),
       decoration: BoxDecoration(
-        color: AppColors.primaryContainer.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+        color: AppColors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.outlineVariant, width: 1.5),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Taxa de Adesão Geral',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.onSurfaceVariant),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'ADESÃO GERAL DO IDOSO',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.onSurfaceVariant,
+                  letterSpacing: 0.5,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  '${(pct * 100).toInt()}% das atividades',
-                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: AppColors.primary),
-                ),
-                const SizedBox(height: 8),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: pct,
-                    minHeight: 8,
-                    backgroundColor: AppColors.outlineVariant,
-                    color: pct >= 0.8 ? Colors.green : (pct >= 0.5 ? Colors.orange : AppColors.error),
+              ),
+              Row(
+                children: [
+                  Icon(
+                    Icons.circle,
+                    size: 10,
+                    color: _isOnline ? Colors.green : AppColors.error,
                   ),
-                ),
-              ],
-            ),
+                  const SizedBox(width: 6),
+                  Text(
+                    _isOnline ? 'Online' : 'Offline',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: _isOnline ? Colors.green : AppColors.error,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          const SizedBox(width: 16),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceContainerLowest,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.outlineVariant),
-            ),
-            child: Column(
-              children: [
-                const Icon(Icons.medication, color: AppColors.medicationsColor, size: 24),
-                const SizedBox(height: 4),
-                const Text('Remédios', style: TextStyle(fontSize: 12, color: AppColors.onSurfaceVariant)),
-                Text(
-                  '$concluidosRemedios/$totalRemedios',
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Stack(
+                alignment: Alignment.center,
+                children: [
+                  SizedBox(
+                    width: 56,
+                    height: 56,
+                    child: CircularProgressIndicator(
+                      value: pct,
+                      strokeWidth: 6,
+                      backgroundColor: AppColors.surfaceContainerHigh,
+                      color: pct >= 0.8
+                          ? Colors.green
+                          : (pct >= 0.5 ? Colors.orange : AppColors.error),
+                    ),
+                  ),
+                  Text(
+                    '${(pct * 100).toInt()}%',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '$concluidos de $total concluídos',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    const Text(
+                      'Histórico total registrado',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceContainerLowest,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.outlineVariant),
+                ),
+                child: Column(
+                  children: [
+                    const Icon(Icons.medication_outlined, color: AppColors.medicationsColor, size: 20),
+                    const SizedBox(height: 4),
+                    const Text('Remédios', style: TextStyle(fontSize: 10, color: AppColors.onSurfaceVariant, fontWeight: FontWeight.bold)),
+                    Text(
+                      '$concluidosRemedios/$totalRemedios',
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -518,34 +591,68 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
   }
 
   Widget _buildSearchAndFilters() {
-    return Column(
-      children: [
-        Container(
-          height: 52,
-          decoration: BoxDecoration(
-            color: AppColors.surfaceContainerLowest,
-            border: Border.all(color: AppColors.outlineVariant),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: TextField(
-            onChanged: (val) {
-              setState(() {
-                _searchQuery = val;
-              });
-            },
-            decoration: const InputDecoration(
-              hintText: 'Pesquisar atividades...',
-              prefixIcon: Icon(Icons.search, color: AppColors.onSurfaceVariant),
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 20),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.outlineVariant, width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            height: 48,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceContainerLowest,
+              border: Border.all(color: AppColors.outlineVariant),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: TextField(
+              onChanged: (val) {
+                _searchDebouncer.call(() {
+                  if (mounted) {
+                    setState(() {
+                      _searchQuery = val;
+                    });
+                  }
+                });
+              },
+              decoration: const InputDecoration(
+                hintText: 'Pesquisar por nome ou categoria...',
+                prefixIcon: Icon(Icons.search, color: AppColors.onSurfaceVariant, size: 20),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              ),
             ),
           ),
-        ),
-        const SizedBox(height: 12),
-        _buildCategoryChips(),
-        const SizedBox(height: 8),
-        _buildStatusChips(),
-      ],
+          const SizedBox(height: 16),
+          const Text(
+            'FILTRAR POR CATEGORIA',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              color: AppColors.onSurfaceVariant,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          _buildCategoryChips(),
+          const SizedBox(height: 16),
+          const Text(
+            'FILTRAR POR STATUS',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              color: AppColors.onSurfaceVariant,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          _buildStatusChips(),
+        ],
+      ),
     );
   }
 
@@ -575,7 +682,7 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
               ),
               selected: isSelected,
               selectedColor: AppColors.primary,
-              backgroundColor: AppColors.surfaceContainerLow,
+              backgroundColor: AppColors.surfaceContainerLowest,
               onSelected: (selected) {
                 if (selected) {
                   setState(() {
@@ -608,7 +715,7 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
             ),
             selected: isSelected,
             selectedColor: AppColors.secondary,
-            backgroundColor: AppColors.surfaceContainerLow,
+            backgroundColor: AppColors.surfaceContainerLowest,
             onSelected: (selected) {
               if (selected) {
                 setState(() {
@@ -684,14 +791,7 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
                   style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.primary),
                 ),
               ),
-              Container(
-                width: 40, height: 40,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.surfaceContainerHigh,
-                ),
-                child: const Icon(Icons.person, size: 20),
-              ),
+              const SizedBox(width: 48),
             ],
           ),
         );
@@ -706,86 +806,161 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
     final concluido = lembrete.concluido;
     final concluidoComFoto = lembrete.concluidoComFoto;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: concluido ? AppColors.tertiaryFixedDim : color, width: 2),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 48, height: 48,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.2),
-              shape: BoxShape.circle,
+    final cardAccentColor = concluido ? Colors.green : color;
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.pushNamed(
+          context,
+          '/supervisor-reminder-detail',
+          arguments: {
+            'title': lembrete.titulo,
+            'time': lembrete.horarioFormatado,
+            'iconData': icon,
+            'accentColor': color,
+            'category': categoryLabel,
+            'lembrete': lembrete,
+          },
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceContainerLowest,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.outlineVariant),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
             ),
-            child: Icon(icon, color: color, size: 24),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  lembrete.titulo, 
-                  style: TextStyle(
-                    fontSize: 16, 
-                    fontWeight: FontWeight.w600, 
-                    color: concluido ? AppColors.onSurfaceVariant : AppColors.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 6,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: color.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(9999),
+          ],
+        ),
+        child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                width: 6,
+                color: cardAccentColor,
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: cardAccentColor.withValues(alpha: 0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(icon, color: cardAccentColor, size: 22),
                       ),
-                      child: Text(categoryLabel, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color)),
-                    ),
-                    Text(lembrete.horarioFormatado, style: const TextStyle(fontSize: 14, color: AppColors.onSurfaceVariant)),
-                    if (concluidoComFoto && lembrete.medicamentoFotoPath != null) ...[
-                      GestureDetector(
-                        onTap: () => _showPhotoDialog(context, lembrete),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppColors.tertiaryFixedDim.withValues(alpha: 0.3),
-                            borderRadius: BorderRadius.circular(9999),
-                            border: Border.all(color: AppColors.tertiaryFixedDim, width: 1),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.photo_camera, size: 12, color: AppColors.onTertiaryFixedVariant),
-                              SizedBox(width: 4),
-                              Text(
-                                'Ver Foto',
-                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: AppColors.onTertiaryFixedVariant),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              lembrete.titulo,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: concluido ? AppColors.onSurfaceVariant : AppColors.onSurface,
+                                decoration: concluido ? TextDecoration.lineThrough : null,
                               ),
-                            ],
-                          ),
+                            ),
+                            const SizedBox(height: 6),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 6,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: color.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    categoryLabel,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: color,
+                                    ),
+                                  ),
+                                ),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.schedule, size: 14, color: AppColors.onSurfaceVariant),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      lembrete.horarioFormatado,
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                if (concluidoComFoto && lembrete.medicamentoFotoPath != null) ...[
+                                  GestureDetector(
+                                    onTap: () => _showPhotoDialog(context, lembrete),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.tertiaryFixedDim.withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(20),
+                                        border: Border.all(color: AppColors.tertiaryFixedDim, width: 1),
+                                      ),
+                                      child: const Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.photo_camera, size: 12, color: AppColors.onTertiaryFixedVariant),
+                                          SizedBox(width: 4),
+                                          Text(
+                                            'Ver Foto',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                              color: AppColors.onTertiaryFixedVariant,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ],
                         ),
                       ),
+                      const SizedBox(width: 8),
+                      if (concluido)
+                        const Icon(Icons.check_circle, color: Colors.green, size: 26)
+                      else
+                        Icon(
+                          Icons.radio_button_unchecked,
+                          color: color.withValues(alpha: 0.4),
+                          size: 26,
+                        ),
                     ],
-                  ],
+                  ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          if (concluido)
-            const Icon(Icons.check_circle, color: AppColors.tertiaryFixedDim, size: 24)
-          else
-            Icon(Icons.circle_outlined, color: color.withValues(alpha: 0.5), size: 24),
-        ],
+        ),
+        ),
       ),
     );
   }

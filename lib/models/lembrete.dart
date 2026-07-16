@@ -50,7 +50,11 @@ class Lembrete {
   final int? diaMes;
   final int? intervaloHoras;
   final String recorrencia;
-  final String urgencia;
+  final DateTime? dataInicio;
+  final DateTime? dataFim;
+  final bool isUsoContinuo;
+  final String? medicamentoInstrucoes;
+  final String? medicamentoAudioTexto;
 
   Lembrete({
     required this.id,
@@ -60,7 +64,12 @@ class Lembrete {
     int? originalHorarioHour,
     int? originalHorarioMinute,
     this.categoria = 'personalizado',
+    this.dataInicio,
+    this.dataFim,
+    this.isUsoContinuo = true,
     this.audioPath,
+    this.medicamentoInstrucoes,
+    this.medicamentoAudioTexto,
     bool concluido = false,
     bool concluidoComFoto = false,
     DateTime? criadoEm,
@@ -78,7 +87,6 @@ class Lembrete {
     this.diaMes,
     this.intervaloHoras,
     this.recorrencia = 'diario',
-    this.urgencia = 'normal',
   }) : criadoEm = criadoEm ?? DateTime.now(),
        originalHorarioHour = originalHorarioHour ?? horarioHour,
        originalHorarioMinute = originalHorarioMinute ?? horarioMinute,
@@ -128,7 +136,11 @@ class Lembrete {
     int? diaMes,
     int? intervaloHoras,
     String? recorrencia,
-    String? urgencia,
+    DateTime? dataInicio,
+    DateTime? dataFim,
+    bool? isUsoContinuo,
+    String? medicamentoInstrucoes,
+    String? medicamentoAudioTexto,
   }) {
     final newStatus =
         status ??
@@ -145,7 +157,8 @@ class Lembrete {
       horarioHour: horarioHour ?? this.horarioHour,
       horarioMinute: horarioMinute ?? this.horarioMinute,
       originalHorarioHour: originalHorarioHour ?? this.originalHorarioHour,
-      originalHorarioMinute: originalHorarioMinute ?? this.originalHorarioMinute,
+      originalHorarioMinute:
+          originalHorarioMinute ?? this.originalHorarioMinute,
       categoria: categoria ?? this.categoria,
       audioPath: audioPath ?? this.audioPath,
       concluido: concluido ?? newStatus.isConcluido,
@@ -166,15 +179,45 @@ class Lembrete {
       diaMes: diaMes ?? this.diaMes,
       intervaloHoras: intervaloHoras ?? this.intervaloHoras,
       recorrencia: recorrencia ?? this.recorrencia,
-      urgencia: urgencia ?? this.urgencia,
+      dataInicio: dataInicio ?? this.dataInicio,
+      dataFim: dataFim ?? this.dataFim,
+      isUsoContinuo: isUsoContinuo ?? this.isUsoContinuo,
+      medicamentoInstrucoes:
+          medicamentoInstrucoes ?? this.medicamentoInstrucoes,
+      medicamentoAudioTexto:
+          medicamentoAudioTexto ?? this.medicamentoAudioTexto,
     );
   }
 
   bool isActiveOn(DateTime date) => isReminderActiveOn(this, date);
 
   static bool isReminderActiveOn(Lembrete lembrete, DateTime date) {
-    if (lembrete.recorrencia == 'diario' || lembrete.repeteTodosOsDias) {
-      return true;
+    final dateOnly = DateTime(date.year, date.month, date.day);
+
+    if (lembrete.dataInicio != null) {
+      final startOnly = DateTime(
+        lembrete.dataInicio!.year,
+        lembrete.dataInicio!.month,
+        lembrete.dataInicio!.day,
+      );
+      if (dateOnly.isBefore(startOnly)) return false;
+    }
+
+    if (lembrete.isUsoContinuo == false && lembrete.dataFim != null) {
+      final endOnly = DateTime(
+        lembrete.dataFim!.year,
+        lembrete.dataFim!.month,
+        lembrete.dataFim!.day,
+      );
+      if (dateOnly.isAfter(endOnly)) return false;
+    }
+
+    if (lembrete.recorrencia == 'unico' || lembrete.lembreteUnico) {
+      final dateKey = '${date.year}-${date.month}-${date.day}';
+      final targetDate = lembrete.dataInicio ?? lembrete.criadoEm;
+      final targetKey =
+          '${targetDate.year}-${targetDate.month}-${targetDate.day}';
+      return dateKey == targetKey;
     }
     if (lembrete.recorrencia == 'semanal' || lembrete.recorrenciaSemanal) {
       return lembrete.diasSemana.contains(date.weekday);
@@ -183,24 +226,16 @@ class Lembrete {
       return (lembrete.diaMes ?? lembrete.criadoEm.day) == date.day;
     }
     if (lembrete.recorrencia == 'quinzenal') {
+      final baseDate = lembrete.dataInicio ?? lembrete.criadoEm;
       final diffDays = DateTime(date.year, date.month, date.day)
-          .difference(
-            DateTime(
-              lembrete.criadoEm.year,
-              lembrete.criadoEm.month,
-              lembrete.criadoEm.day,
-            ),
-          )
+          .difference(DateTime(baseDate.year, baseDate.month, baseDate.day))
           .inDays;
       return diffDays >= 0 && diffDays % 15 == 0;
     }
-    if (lembrete.recorrencia == 'unico' || lembrete.lembreteUnico) {
-      final dateKey = '${date.year}-${date.month}-${date.day}';
-      final createdKey =
-          '${lembrete.criadoEm.year}-${lembrete.criadoEm.month}-${lembrete.criadoEm.day}';
-      return dateKey == createdKey;
-    }
     if (lembrete.recorrencia == 'intervalo' || lembrete.recorrenciaIntervalo) {
+      return true;
+    }
+    if (lembrete.recorrencia == 'diario' || lembrete.repeteTodosOsDias) {
       return true;
     }
     return true;
@@ -232,7 +267,11 @@ class Lembrete {
     'diaMes': diaMes,
     'intervaloHoras': intervaloHoras,
     'recorrencia': recorrencia,
-    'urgencia': urgencia,
+    'dataInicio': dataInicio?.toIso8601String(),
+    'dataFim': dataFim?.toIso8601String(),
+    'isUsoContinuo': isUsoContinuo,
+    'medicamentoInstrucoes': medicamentoInstrucoes,
+    'medicamentoAudioTexto': medicamentoAudioTexto,
   };
 
   factory Lembrete.fromJson(Map<String, dynamic> json) {
@@ -245,8 +284,10 @@ class Lembrete {
       titulo: json['titulo'] as String? ?? '',
       horarioHour: hHour,
       horarioMinute: hMinute,
-      originalHorarioHour: (json['originalHorarioHour'] as num?)?.toInt() ?? hHour,
-      originalHorarioMinute: (json['originalHorarioMinute'] as num?)?.toInt() ?? hMinute,
+      originalHorarioHour:
+          (json['originalHorarioHour'] as num?)?.toInt() ?? hHour,
+      originalHorarioMinute:
+          (json['originalHorarioMinute'] as num?)?.toInt() ?? hMinute,
       categoria: json['categoria'] as String? ?? 'personalizado',
       audioPath: json['audioPath'] as String?,
       concluido: concluido,
@@ -278,7 +319,15 @@ class Lembrete {
       diaMes: (json['diaMes'] as num?)?.toInt(),
       intervaloHoras: (json['intervaloHoras'] as num?)?.toInt(),
       recorrencia: json['recorrencia'] as String? ?? 'diario',
-      urgencia: json['urgencia'] as String? ?? 'normal',
+      dataInicio: json['dataInicio'] != null
+          ? DateTime.tryParse(json['dataInicio'] as String)
+          : null,
+      dataFim: json['dataFim'] != null
+          ? DateTime.tryParse(json['dataFim'] as String)
+          : null,
+      isUsoContinuo: json['isUsoContinuo'] as bool? ?? true,
+      medicamentoInstrucoes: json['medicamentoInstrucoes'] as String?,
+      medicamentoAudioTexto: json['medicamentoAudioTexto'] as String?,
     );
   }
 }

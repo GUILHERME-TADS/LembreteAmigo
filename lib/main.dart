@@ -1,7 +1,8 @@
-import 'dart:async';
+﻿import 'dart:async';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:home_widget/home_widget.dart';
@@ -18,23 +19,22 @@ import 'screens/elderly_onboarding_screen.dart';
 import 'screens/elderly_pairing_screen.dart';
 import 'screens/elderly_profile_screen.dart';
 import 'screens/emergency_alert_screen.dart';
-import 'screens/achievements_screen.dart';
 import 'screens/identify_medication_screen.dart';
-import 'screens/exercise_detail_screen.dart';
+import 'screens/reminder_detail_screen.dart';
 import 'screens/incoming_video_call_screen.dart';
-import 'screens/active_video_call_screen.dart';
 import 'screens/video_call_history_screen.dart';
 import 'screens/forgot_password_screen.dart';
-import 'screens/heart_rate_measure_screen.dart';
-import 'screens/meal_detail_screen.dart';
 import 'screens/medication_confirmation_screen.dart';
-import 'screens/medication_list_screen.dart';
 import 'screens/messages_screen.dart';
 import 'screens/monthly_reports_screen.dart';
 import 'screens/new_reminder_audio_screen.dart';
 import 'screens/new_reminder_screen.dart';
 import 'screens/postpone_confirmation_screen.dart';
 import 'screens/recording_audio_screen.dart';
+import 'screens/medication_bulk_confirmation_screen.dart';
+import 'screens/barcode_scanner_screen.dart';
+import 'screens/effectiveness_feedback_screen.dart';
+import 'services/prescription_parser_service.dart';
 import 'screens/register_elderly_screen.dart';
 import 'screens/registration_success_screen.dart';
 import 'screens/supervisor_dashboard_screen.dart';
@@ -52,10 +52,14 @@ import 'services/offline_sync_service.dart';
 import 'services/session_role_service.dart';
 import 'services/crashlytics_service.dart';
 import 'services/push_notification_service.dart';
+import 'services/video_call_service.dart';
 import 'services/tts_service.dart';
-import 'services/widget_service.dart';
-import 'services/achievement_service.dart';
 import 'services/always_listening_service.dart';
+import 'services/voice_notification_service.dart';
+import 'services/widget_service.dart';
+import 'services/analytics_service.dart';
+import 'services/remote_config_service.dart';
+import 'di/injection.dart';
 
 import 'theme/app_theme.dart';
 import 'widgets/index.dart';
@@ -69,9 +73,7 @@ bool isElderlyOnlyRoute(String routeName) {
     '/elderly-home',
     '/elderly-pairing',
     '/elderly-help',
-    '/heart-rate',
     '/all-reminders',
-    '/medication-list',
     '/active-reminder',
     '/meal-detail',
     '/exercise-detail',
@@ -79,12 +81,9 @@ bool isElderlyOnlyRoute(String routeName) {
     '/medication-confirmation',
     '/take-photo-confirmation',
     '/elderly-profile',
-    '/edit-profile',
     '/recording-audio',
     '/voice-settings',
     '/incoming-video-call',
-    '/active-video-call',
-    '/achievements',
   };
 
   return elderlyRoutes.contains(routeName);
@@ -95,6 +94,7 @@ bool isSupervisorProtectedRoute(String routeName) {
     '/supervisor-dashboard',
     '/supervisor-settings',
     '/supervisor-help',
+    '/effectiveness-feedback',
     '/register-elderly',
     '/detailed-history',
     '/monthly-reports',
@@ -109,11 +109,10 @@ bool isSupervisorProtectedRoute(String routeName) {
 
 bool hasSupervisorAuthSession() {
   try {
-    if (Firebase.apps.isEmpty) {
-      return true; // Bypass auth check in local simulation/dev mode
-    }
-    return FirebaseAuth.instance.currentUser != null;
-  } catch (_) {
+    return Firebase.apps.isNotEmpty &&
+        FirebaseAuth.instance.currentUser != null;
+  } catch (e) {
+    debugPrint('Erro ao verificar sessao de auth: $e');
     return false;
   }
 }
@@ -122,7 +121,13 @@ class _RouteTracker extends NavigatorObserver {
   String? currentRouteName;
 
   void _track(Route<dynamic>? route) {
-    currentRouteName = route?.settings.name;
+    final name = route?.settings.name;
+    currentRouteName = name;
+    if (name != null && name != '/') {
+      try {
+        getIt<AnalyticsService>().logScreenView(screenName: name);
+      } catch (_) {}
+    }
   }
 
   @override
@@ -146,8 +151,23 @@ class _RouteTracker extends NavigatorObserver {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  configureDependencies();
   try {
-    await Firebase.initializeApp();
+    if (kIsWeb) {
+      await Firebase.initializeApp(
+        options: const FirebaseOptions(
+          apiKey: 'AIzaSyDUwOKQDK_Ub03pjJbhkMErpQciKoA0dJE',
+          authDomain: 'lembreteamigo-26fd0.firebaseapp.com',
+          projectId: 'lembreteamigo-26fd0',
+          storageBucket: 'lembreteamigo-26fd0.firebasestorage.app',
+          messagingSenderId: '591702637162',
+          appId: '1:591702637162:web:6dc9980a749fea2d6d2813',
+          measurementId: 'G-53ZH61QRE0',
+        ),
+      );
+    } else {
+      await Firebase.initializeApp();
+    }
     debugPrint('Firebase inicializado com sucesso.');
     await CrashlyticsService.instance.init();
   } catch (e) {
@@ -162,10 +182,35 @@ void main() async {
     debugPrint('Erro ao inicializar TTS. Continuando sem voz: $e');
   }
 
+  try {
+    await AlwaysListeningService.instance.initialize();
+  } catch (e) {
+    debugPrint('Erro ao inicializar AlwaysListeningService: $e');
+  }
+
+  try {
+    await getIt<RemoteConfigService>().init();
+  } catch (e) {
+    debugPrint('Erro ao inicializar RemoteConfig: $e');
+  }
+
   String? pendingPayload;
   if (!kIsWeb) {
     try {
       await NotificationService.instance.init(navigatorKey);
+      NotificationService.instance.onNotificationTapped = (lembreteId) {
+        try {
+          final lembrete = LembreteService.instance.lembretes
+              .where((l) => l.id == lembreteId)
+              .firstOrNull;
+          if (lembrete != null && lembrete.titulo.isNotEmpty) {
+            VoiceNotificationService.instance.speakTitle(
+              lembrete.titulo,
+              categoria: lembrete.categoria,
+            );
+          }
+        } catch (_) {}
+      };
       final launchDetails = await NotificationService.instance
           .getLaunchDetails();
       if (launchDetails != null &&
@@ -180,33 +225,31 @@ void main() async {
       final push = PushNotificationService.instance;
       await push.init();
 
-      push.onVideoCallReceived = (callId, roomName) {
+      push.onVideoCallReceived = (callId, roomName, callType) {
         final currentRoute = _routeTracker.currentRouteName;
         if (currentRoute == '/incoming-video-call' ||
-            currentRoute == '/active-video-call') {
+            MeuApp.isIncomingCallScreenPushing ||
+            VideoCallService.instance.activeCallNotifier.value != null) {
           return;
         }
+        MeuApp.isIncomingCallScreenPushing = true;
         navigatorKey.currentState?.pushNamed(
           '/incoming-video-call',
-          arguments: {'callId': callId, 'roomName': roomName},
-        );
+          arguments: {'callId': callId, 'roomName': roomName, 'callType': callType},
+        ).then((_) {
+          MeuApp.isIncomingCallScreenPushing = false;
+        });
       };
 
-      push.onVideoCallOpenedApp = (callId, roomName) {
+      push.onVideoCallOpenedApp = (callId, roomName, callType) {
         navigatorKey.currentState?.pushNamedAndRemoveUntil(
           '/incoming-video-call',
           (route) => false,
-          arguments: {'callId': callId, 'roomName': roomName},
+          arguments: {'callId': callId, 'roomName': roomName, 'callType': callType},
         );
       };
     } catch (e) {
       debugPrint('Erro ao inicializar push notifications. Continuando sem FCM: $e');
-    }
-    try {
-      await AchievementService.instance.initialize();
-      await AlwaysListeningService.instance.initialize();
-    } catch (e) {
-      debugPrint('Erro ao inicializar servicos: $e');
     }
   }
 
@@ -225,7 +268,9 @@ void main() async {
           navigatorKey.currentState?.pushNamed('/elderly-home');
         }
       });
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Erro ao escutar widget clicks: $e');
+    }
   }
 
   runApp(MeuApp(pendingPayload: pendingPayload));
@@ -235,12 +280,14 @@ class MeuApp extends StatefulWidget {
   final String? pendingPayload;
   const MeuApp({super.key, this.pendingPayload});
 
+  static bool isIncomingCallScreenPushing = false;
+
   @override
   State<MeuApp> createState() => _MeuAppState();
 }
 
 class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
-  Timer? _unlockedReminderTimer;
+
   final Set<String> _openedReminderKeys = {};
   AppLifecycleState _lifecycleState = AppLifecycleState.resumed;
   StreamSubscription<User?>? _authStateSubscription;
@@ -250,32 +297,142 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
   bool _largeButtons = false;
   bool _reduceAnimations = false;
 
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _incomingCallFirestoreSubscription;
+  String? _lastListenedIdosoId;
+  String? _lastListenedSupervisorId;
+  Timer? _listenerRefreshTimer;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     unawaited(OfflineSyncService.instance.startAutoSync());
     _loadAccessibilityPreferences();
-    LembreteService.instance.carregar().then((_) => _openDueReminderIfNeeded());
-    LembreteService.instance.notifier.addListener(_openDueReminderIfNeeded);
-    _unlockedReminderTimer = Timer.periodic(const Duration(seconds: 15), (_) {
-      _loadAccessibilityPreferences();
-      LembreteService.instance.carregar().then((_) => _openDueReminderIfNeeded());
+    LembreteService.instance.carregar().then((_) {
+      _openDueReminderIfNeeded();
+      _startIncomingCallFirestoreListener();
     });
+    LembreteService.instance.notifier.addListener(_openDueReminderIfNeeded);
     try {
       if (Firebase.apps.isNotEmpty) {
         _authStateSubscription =
             FirebaseAuth.instance.authStateChanges().listen((user) async {
-          if (user == null && SessionRoleService.isSupervisor) {
-            await SessionRoleService.logout();
-            navigatorKey.currentState?.pushNamedAndRemoveUntil(
-              '/supervisor-login',
-              (route) => false,
-            );
+          if (user == null) {
+            if (SessionRoleService.isSupervisor) {
+              await SessionRoleService.logout();
+              navigatorKey.currentState?.pushNamedAndRemoveUntil(
+                '/supervisor-login',
+                (route) => false,
+              );
+            } else if (SessionRoleService.isElderly) {
+              try {
+                debugPrint('FCM/Auth: Efetuando login anônimo do Idoso...');
+                await FirebaseAuth.instance.signInAnonymously();
+              } catch (e) {
+                debugPrint('Erro ao efetuar login anônimo do Idoso: $e');
+              }
+            }
           }
+          _startIncomingCallFirestoreListener();
+        }, onError: (e) {
+          debugPrint('Erro no auth state listener: $e');
         });
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Erro ao configurar auth listener: $e');
+    }
+
+    _listenerRefreshTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      _startIncomingCallFirestoreListener();
+    });
+  }
+
+  void _startIncomingCallFirestoreListener() async {
+    if (Firebase.apps.isEmpty) return;
+
+    final idosoId = await SessionRoleService.getActiveIdosoId();
+    final supervisorId = SessionRoleService.isSupervisor
+        ? (FirebaseAuth.instance.currentUser?.uid ?? '')
+        : '';
+
+    if (idosoId == _lastListenedIdosoId &&
+        supervisorId == _lastListenedSupervisorId &&
+        _incomingCallFirestoreSubscription != null) {
+      return;
+    }
+
+    _lastListenedIdosoId = idosoId;
+    _lastListenedSupervisorId = supervisorId;
+
+    await _incomingCallFirestoreSubscription?.cancel();
+    _incomingCallFirestoreSubscription = null;
+
+    Query<Map<String, dynamic>> query = FirebaseFirestore.instance.collection('video_calls');
+
+    if (SessionRoleService.isSupervisor && supervisorId.isNotEmpty) {
+      query = query.where('supervisorId', isEqualTo: supervisorId);
+    } else if (SessionRoleService.isElderly && idosoId.isNotEmpty && idosoId != SessionRoleService.unpairedIdosoId) {
+      query = query.where('idosoId', isEqualTo: idosoId);
+    } else {
+      return;
+    }
+
+    query = query.where('status', isEqualTo: 'ringing');
+
+    _incomingCallFirestoreSubscription = query.snapshots().listen((snapshot) {
+      final docs = snapshot.docs.where((doc) {
+        final initiatedBy = doc.data()['initiatedBy'] as String? ?? 'supervisor';
+        if (SessionRoleService.isSupervisor) {
+          return initiatedBy != 'supervisor';
+        }
+        return initiatedBy == 'supervisor';
+      }).toList();
+
+      if (docs.isNotEmpty) {
+        final doc = docs.first;
+        final data = doc.data();
+
+        // Ignore old ringing calls (created more than 2 minutes ago)
+        final startedAtObj = data['startedAt'];
+        DateTime? startedAt;
+        if (startedAtObj is Timestamp) {
+          startedAt = startedAtObj.toDate();
+        } else if (startedAtObj is String) {
+          startedAt = DateTime.tryParse(startedAtObj);
+        }
+        if (startedAt != null) {
+          final age = DateTime.now().difference(startedAt);
+          if (age.inMinutes > 2) {
+            return;
+          }
+        }
+
+        final callId = doc.id;
+        final roomName = data['roomName'] as String? ?? '';
+        final callType = data['callType'] as String? ?? 'video';
+
+        final currentRoute = _routeTracker.currentRouteName;
+        if (currentRoute == '/incoming-video-call' ||
+            MeuApp.isIncomingCallScreenPushing ||
+            VideoCallService.instance.activeCallNotifier.value != null) {
+          return;
+        }
+
+        MeuApp.isIncomingCallScreenPushing = true;
+        navigatorKey.currentState?.pushNamed(
+          '/incoming-video-call',
+          arguments: {
+            'callId': callId,
+            'roomName': roomName,
+            'callType': callType,
+          },
+        ).then((_) {
+          MeuApp.isIncomingCallScreenPushing = false;
+        });
+      }
+    }, onError: (e) {
+      debugPrint('Erro ao escutar chamadas no Firestore: $e');
+    });
   }
 
   Future<void> _loadAccessibilityPreferences() async {
@@ -307,19 +464,40 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _lifecycleState = state;
     if (state == AppLifecycleState.resumed) {
+      AlwaysListeningService.instance.resumeIfEnabled();
+      LembreteService.instance.resumeSubscriptions();
       _loadAccessibilityPreferences();
       LembreteService.instance.carregar().then((_) {
         OfflineSyncService.instance.syncPendingWrites();
         WidgetService.instance.atualizar();
         _openDueReminderIfNeeded();
+        _startIncomingCallFirestoreListener();
+        _checkElderlyAnonymousAuth();
       });
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      AlwaysListeningService.instance.pauseTemporarily();
+      LembreteService.instance.pauseSubscriptions();
+    }
+  }
+
+  void _checkElderlyAnonymousAuth() async {
+    if (Firebase.apps.isEmpty) return;
+    if (FirebaseAuth.instance.currentUser == null && SessionRoleService.isElderly) {
+      try {
+        debugPrint('Lifecycle: Efetuando login anônimo do Idoso...');
+        await FirebaseAuth.instance.signInAnonymously();
+      } catch (e) {
+        debugPrint('Erro ao efetuar login anônimo do Idoso no lifecycle: $e');
+      }
     }
   }
 
   @override
   void dispose() {
     _authStateSubscription?.cancel();
-    _unlockedReminderTimer?.cancel();
+    _listenerRefreshTimer?.cancel();
+    _incomingCallFirestoreSubscription?.cancel();
     OfflineSyncService.instance.stopAutoSync();
     LembreteService.instance.notifier.removeListener(_openDueReminderIfNeeded);
     WidgetsBinding.instance.removeObserver(this);
@@ -422,7 +600,7 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
       navigatorKey: navigatorKey,
       navigatorObservers: [_routeTracker],
       debugShowCheckedModeBanner: false,
-      theme: (_highContrast ? AppTheme.highContrastTheme : AppTheme.lightTheme)
+      theme: AppTheme.theme
           .copyWith(
             elevatedButtonTheme: ElevatedButtonThemeData(
               style: ElevatedButton.styleFrom(
@@ -492,9 +670,12 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
             page = const ElderlyOnboardingScreen();
             break;
           case '/elderly-home':
-            final args = settings.arguments as Map<String, dynamic>?;
-            final connected = args?['connected'] as bool? ?? false;
-            final speak = args?['speak'] as String?;
+            final elderlyHomeArgs = settings.arguments;
+            final elderlyHomeMap = elderlyHomeArgs is Map<String, dynamic>
+                ? elderlyHomeArgs
+                : null;
+            final connected = elderlyHomeMap?['connected'] as bool? ?? false;
+            final speak = elderlyHomeMap?['speak'] as String?;
             page = ElderlyHomeScreen(
               showConnected: connected,
               speakText: speak,
@@ -509,36 +690,40 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
           case '/messages':
             page = const MessagesScreen();
             break;
-          case '/heart-rate':
-            page = const HeartRateMeasureScreen();
-            break;
           case '/all-reminders':
             page = const AllRemindersScreen();
-            break;
-          case '/medication-list':
-            page = const MedicationListScreen();
             break;
           case '/active-reminder':
             page = const ActiveReminderScreen();
             break;
           case '/meal-detail':
-            page = const MealDetailScreen();
+            page = const ReminderDetailScreen();
             break;
           case '/exercise-detail':
-            page = const ExerciseDetailScreen();
+            page = const ReminderDetailScreen();
             break;
           case '/reinforcement-alert':
             page = const PostponeConfirmationScreen();
             break;
           case '/supervisor-reminder-detail':
-            final args = settings.arguments as Map<String, dynamic>;
-            page = SupervisorReminderDetailScreen(
-              title: args['title'] as String,
-              time: args['time'] as String,
-              iconData: args['iconData'] as IconData,
-              accentColor: args['accentColor'] as Color,
-              category: args['category'] as String,
-            );
+            final args = settings.arguments;
+            if (args is Map<String, dynamic> &&
+                args['title'] is String &&
+                args['time'] is String &&
+                args['iconData'] is IconData &&
+                args['accentColor'] is Color &&
+                args['category'] is String) {
+              page = SupervisorReminderDetailScreen(
+                title: args['title'] as String,
+                time: args['time'] as String,
+                iconData: args['iconData'] as IconData,
+                accentColor: args['accentColor'] as Color,
+                category: args['category'] as String,
+                lembrete: args['lembrete'] as Lembrete?,
+              );
+            } else {
+              page = const SupervisorDashboardScreen();
+            }
             break;
           case '/medication-confirmation':
             page = const MedicationConfirmationScreen();
@@ -553,7 +738,9 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
             page = const EditProfileScreen();
             break;
           case '/new-reminder':
-            page = const NewReminderScreen();
+            final args = settings.arguments;
+            final reminder = args is Lembrete ? args : null;
+            page = NewReminderScreen(lembrete: reminder);
             break;
           case '/new-reminder-audio':
             page = const NewReminderAudioScreen();
@@ -599,17 +786,14 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
             page = const EmergencyAlertScreen();
             break;
           case '/incoming-video-call':
-            final args = settings.arguments as Map<String, dynamic>?;
+            final incomingCallArgs = settings.arguments;
+            final incomingCallMap = incomingCallArgs is Map<String, dynamic>
+                ? incomingCallArgs
+                : null;
             page = IncomingVideoCallScreen(
-              callId: args?['callId'] as String? ?? '',
-              roomName: args?['roomName'] as String? ?? '',
-            );
-            break;
-          case '/active-video-call':
-            final args = settings.arguments as Map<String, dynamic>?;
-            page = ActiveVideoCallScreen(
-              callId: args?['callId'] as String? ?? '',
-              roomName: args?['roomName'] as String? ?? '',
+              callId: incomingCallMap?['callId'] as String? ?? '',
+              roomName: incomingCallMap?['roomName'] as String? ?? '',
+              callType: incomingCallMap?['callType'] as String? ?? 'video',
             );
             break;
           case '/video-call-history':
@@ -621,11 +805,21 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
           case '/voice-settings':
             page = const VoiceSettingsScreen();
             break;
-          case '/achievements':
-            page = const AchievementsScreen();
-            break;
           case '/identify-medication':
             page = const IdentifyMedicationScreen();
+            break;
+          case '/medication-bulk-confirmation':
+            final medicationBulkArgs = settings.arguments;
+            final items = medicationBulkArgs is List<PrescriptionReminderItem>
+                ? medicationBulkArgs
+                : <PrescriptionReminderItem>[];
+            page = MedicationBulkConfirmationScreen(initialItems: items);
+            break;
+          case '/barcode-scanner':
+            page = const BarcodeScannerScreen();
+            break;
+          case '/effectiveness-feedback':
+            page = const EffectivenessFeedbackScreen();
             break;
 
           default:
@@ -667,7 +861,8 @@ class _AppStartupState extends State<_AppStartup> {
         final prefs = await SharedPreferences.getInstance();
         final pairedIdosoId = prefs.getString('paired_idoso_id');
         if (pairedIdosoId != null) {
-          final isPaired = pairedIdosoId != 'idoso_autonomo';
+          final isPaired =
+              await SessionRoleService.isElderlyConnectedToSupervisor();
           navigatorKey.currentState?.pushNamedAndRemoveUntil(
             '/elderly-home',
             (route) => false,

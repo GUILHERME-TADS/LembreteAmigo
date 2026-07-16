@@ -55,9 +55,13 @@ class _MedicationConfirmationScreenState extends State<MedicationConfirmationScr
   }
 
   _ConfirmationConfig get _config {
-    final msg = _message ?? 'Você tomou seu remédio.';
-    
-    if (msg.contains('remédio') || msg.contains('medicamento') || msg.contains('medicação')) {
+    final msg = (_message ?? 'Você tomou seu remédio.').toLowerCase();
+
+    if (msg.contains('remédio') ||
+        msg.contains('remÃ©dio') ||
+        msg.contains('medicamento') ||
+        msg.contains('medicação') ||
+        msg.contains('medicaÃ§Ã£o')) {
       return const _ConfirmationConfig(
         icon: Icons.medication,
         color: AppColors.medicationsColor,
@@ -66,7 +70,11 @@ class _MedicationConfirmationScreenState extends State<MedicationConfirmationScr
         tip: 'Parabéns por seguir seu tratamento!',
         detailedExplanation: 'Muito bem! Você tomou o seu remédio. Parabéns por cuidar da sua saúde! Agora, aperte no botão amarelo abaixo para voltar à tela inicial.',
       );
-    } else if (msg.contains('água') || msg.contains('hidratar') || msg.contains('hidratacao')) {
+    } else if (msg.contains('água') ||
+        msg.contains('Ã¡gua') ||
+        msg.contains('hidratar') ||
+        msg.contains('hidratação') ||
+        msg.contains('hidratacao')) {
       return const _ConfirmationConfig(
         icon: Icons.water_drop,
         color: Color(0xFF0288D1),
@@ -75,7 +83,13 @@ class _MedicationConfirmationScreenState extends State<MedicationConfirmationScr
         tip: 'Parabéns por se manter hidratado!',
         detailedExplanation: 'Muito bem! Você bebeu a sua água. Parabéns por se manter hidratado! Agora, aperte no botão amarelo abaixo para voltar à tela inicial.',
       );
-    } else if (msg.contains('refeição') || msg.contains('comer') || msg.contains('comida') || msg.contains('almoço') || msg.contains('jantar')) {
+    } else if (msg.contains('refeição') ||
+        msg.contains('refeiÃ§Ã£o') ||
+        msg.contains('comer') ||
+        msg.contains('comida') ||
+        msg.contains('almoço') ||
+        msg.contains('almoÃ§o') ||
+        msg.contains('jantar')) {
       return const _ConfirmationConfig(
         icon: Icons.restaurant,
         color: AppColors.mealsColor,
@@ -84,7 +98,11 @@ class _MedicationConfirmationScreenState extends State<MedicationConfirmationScr
         tip: 'Comer nos horários certos cuida do seu corpo!',
         detailedExplanation: 'Muito bem! Você fez a sua refeição. Parabéns por se alimentar direitinho! Agora, aperte no botão amarelo abaixo para voltar à tela inicial.',
       );
-    } else if (msg.contains('exercício') || msg.contains('atividade') || msg.contains('caminhada') || msg.contains('alongamento')) {
+    } else if (msg.contains('exercício') ||
+        msg.contains('exercÃ­cio') ||
+        msg.contains('atividade') ||
+        msg.contains('caminhada') ||
+        msg.contains('alongamento')) {
       return const _ConfirmationConfig(
         icon: Icons.directions_walk,
         color: Color(0xFF2E7D32),

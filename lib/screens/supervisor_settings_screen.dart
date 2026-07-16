@@ -200,28 +200,15 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.arrow_back, color: AppColors.primary),
-                  ),
-                  const Expanded(
-                    child: Text(
-                      'Configurações',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.primary),
-                    ),
-                  ),
-                  const SizedBox(width: 48),
-                ],
-              ),
-              const SizedBox(height: 24),
+        child: Column(
+          children: [
+            _buildTopBar(context),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
@@ -300,7 +287,7 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
                     await SessionRoleService.logout();
                     await LembreteService.instance.reset();
                     await MessageService.instance.reset();
-                    if (mounted) {
+                    if (context.mounted) {
                       Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
                     }
                   },
@@ -311,8 +298,11 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
           ),
         ),
       ),
-    );
-  }
+    ],
+  ),
+),
+);
+}
 
   Widget _settingsGroup(String title, List<Widget> items) {
     return Column(
@@ -362,6 +352,37 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildTopBar(BuildContext context) {
+    return Container(
+      height: 64,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        border: Border(bottom: BorderSide(color: AppColors.outlineVariant)),
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            onPressed: () => Navigator.pop(context),
+            icon: const Icon(Icons.arrow_back, color: AppColors.primary, size: 32),
+          ),
+          const Expanded(
+            child: Text(
+              'Configurações',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w700,
+                color: AppColors.primary,
+              ),
+            ),
+          ),
+          const SizedBox(width: 48),
+        ],
       ),
     );
   }

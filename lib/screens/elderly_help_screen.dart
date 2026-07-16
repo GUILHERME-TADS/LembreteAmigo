@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -8,8 +9,11 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:path_provider/path_provider.dart';
 import '../theme/app_theme.dart';
 import '../services/message_service.dart';
+import '../services/emergency_contact_service.dart';
 import '../services/session_role_service.dart';
 import '../services/tts_service.dart';
+import '../services/location_service.dart';
+import '../services/video_call_service.dart';
 import '../widgets/index.dart';
 
 class ElderlyHelpScreen extends StatefulWidget {
@@ -20,27 +24,54 @@ class ElderlyHelpScreen extends StatefulWidget {
 }
 
 class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
-  int? _lastBpm;
-  String? _lastBpmTimeText;
   final AudioRecorder _audioRecorder = AudioRecorder();
   final AudioPlayer _audioPlayer = AudioPlayer();
   String? _fotoPath;
   String _caregiverName = 'meu ajudante';
-  String? _caregiverPhone;
   String? _caregiverFoto;
+  String? _ambulancePhone;
+  bool _isPaired = false;
 
   @override
   void initState() {
     super.initState();
-    _loadLastBpm();
     _loadProfilePhoto();
     _loadCaregiverInfo();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    _loadAmbulancePhone();
+  }
+
+  Future<void> _loadAmbulancePhone() async {
+    final phone = await EmergencyContactService.instance.getAmbulancePhone();
+    if (mounted) {
+      setState(() => _ambulancePhone = phone);
+    }
+  }
+
+  void _speakIntroVoice(bool isPaired) {
+    if (isPaired) {
       TTSService.instance.falar(
-        'Se precisar de ajuda, aperte o botão de ligar para o seu ajudante, ou veja como está o seu coração no botão de baixo.',
+        'Se precisar de ajuda, aperte o botão de ligar para o seu ajudante.',
         caller: this,
       );
-    });
+    } else {
+      TTSService.instance.falar(
+        'Olá! Esta é a tela de ajuda. Para usar as funções de ligação e recados, você precisa de um cuidador conectado.',
+        caller: this,
+      );
+    }
+  }
+
+  void _speakUnpairedWarning() {
+    TTSService.instance.falar(
+      'Esta opção precisa de um ajudante conectado. Por favor, peça para o seu ajudante conectar o celular dele ao seu.',
+      caller: this,
+    );
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Você precisa de um cuidador conectado para usar esta função.'),
+        backgroundColor: AppColors.error,
+      ),
+    );
   }
 
   Future<void> _loadCaregiverInfo() async {
@@ -49,21 +80,20 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
       final idosoId =
           prefs.getString('paired_idoso_id') ??
           SessionRoleService.unpairedIdosoId;
-      final doc = await FirebaseFirestore.instance
-          .collection('idosos')
-          .doc(idosoId)
-          .get();
+
+      final isPaired = await SessionRoleService.isElderlyConnectedToSupervisor();
+
+      if (mounted) {
+        setState(() {
+          _isPaired = isPaired;
+        });
+        _speakIntroVoice(isPaired);
+      }
+      final doc = await _getElderlyProfileDoc(idosoId);
 
       if (doc.exists && doc.data() != null) {
         final data = doc.data()!;
-        final phone = data['telefone'] ?? '';
         final supervisorId = data['supervisorId'];
-
-        if (mounted) {
-          setState(() {
-            _caregiverPhone = phone;
-          });
-        }
 
         if (supervisorId != null) {
           final supDoc = await FirebaseFirestore.instance
@@ -90,6 +120,18 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
     }
   }
 
+  Future<DocumentSnapshot<Map<String, dynamic>>> _getElderlyProfileDoc(
+    String idosoId,
+  ) async {
+    final profileDoc = await FirebaseFirestore.instance
+        .collection('idoso_perfil')
+        .doc(idosoId)
+        .get();
+    if (profileDoc.exists) return profileDoc;
+
+    return FirebaseFirestore.instance.collection('idosos').doc(idosoId).get();
+  }
+
   @override
   void dispose() {
     TTSService.instance.parar(caller: this);
@@ -104,34 +146,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
         'Ligando para $_caregiverName agora.',
         caller: this,
       );
-
-      String phone = _caregiverPhone ?? '';
-      if (phone.isEmpty) {
-        final prefs = await SharedPreferences.getInstance();
-        final idosoId =
-            prefs.getString('paired_idoso_id') ??
-            SessionRoleService.unpairedIdosoId;
-        final doc = await FirebaseFirestore.instance
-            .collection('idosos')
-            .doc(idosoId)
-            .get();
-
-        if (doc.exists) {
-          phone = doc.data()?['telefone'] ?? '';
-        }
-      }
-
-      if (phone.isEmpty) {
-        phone = '190';
-      }
-
-      final Uri launchUri = Uri(scheme: 'tel', path: phone);
-
-      if (await canLaunchUrl(launchUri)) {
-        await launchUrl(launchUri);
-      } else {
-        throw 'Não foi possível ligar para $phone';
-      }
+      await _initiateCall('voice');
     } catch (e) {
       debugPrint('Erro ao ligar: $e');
     }
@@ -411,19 +426,19 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                             SessionRoleService.unpairedIdosoId;
 
                         String idosoName = 'Idoso';
-                        final doc = await FirebaseFirestore.instance
-                            .collection('idosos')
-                            .doc(idosoId)
-                            .get();
+                        final doc = await _getElderlyProfileDoc(idosoId);
                         if (doc.exists) {
                           idosoName = doc.data()?['nome'] ?? 'Idoso';
                         }
 
-                        await MessageService.instance.sendAudio(
+                        final sent = await MessageService.instance.sendAudio(
                           audioPath: recordedFilePath!,
                           fallbackText: 'Mensagem de áudio enviada',
                           nomeIdoso: idosoName,
                         );
+                        if (!sent) {
+                          throw StateError('Nenhum cuidador conectado para receber a mensagem.');
+                        }
 
                         TTSService.instance.falar(
                           'Mensagem de áudio enviada com sucesso!',
@@ -462,6 +477,14 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
         );
       },
     );
+    try {
+      if (await _audioRecorder.isRecording()) {
+        await _audioRecorder.stop();
+      }
+    } catch (_) {}
+    try {
+      await _audioPlayer.stop();
+    } catch (_) {}
   }
 
   @override
@@ -479,8 +502,6 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                 child: Column(
                   children: [
                     _buildCallButton(context),
-                    const SizedBox(height: 24),
-                    _buildHeartRateCard(context),
                     const SizedBox(height: 24),
                     _buildSecondaryGrid(context),
                     const SizedBox(height: 24),
@@ -519,7 +540,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
               const SizedBox(height: 6),
               const MeExplicaButton(
                 textoExplicacao:
-                    'Olá! Esta é a tela para pedir ajuda. Aqui você pode ligar para quem cuida de você apertando o grande botão verde, ver como está seu coração apertando o botão vermelho com o desenho de um coração, ou enviar um recado por áudio ou texto se precisar de qualquer outra coisa.',
+                    'Olá! Esta é a tela para pedir ajuda. Aqui você pode ligar para quem cuida de você apertando o grande botão amarelo com a foto de quem cuida de você, mandar um recado de voz se precisar de algo, ou usar os botões de emergência abaixo em caso de necessidade urgente.',
               ),
             ],
           ),
@@ -543,15 +564,23 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
   }
 
   Widget _buildCallButton(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: Material(
-        color: AppColors.secondaryContainer,
-        borderRadius: BorderRadius.circular(24),
-        child: InkWell(
+    return Opacity(
+      opacity: _isPaired ? 1.0 : 0.4,
+      child: SizedBox(
+        width: double.infinity,
+        child: Material(
+          color: AppColors.secondaryContainer,
           borderRadius: BorderRadius.circular(24),
-          onTap: _ligarAjudante,
-          child: Container(
+          child: InkWell(
+            borderRadius: BorderRadius.circular(24),
+            onTap: () {
+              if (!_isPaired) {
+                _speakUnpairedWarning();
+                return;
+              }
+              _ligarAjudante();
+            },
+            child: Container(
             padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(24),
@@ -637,157 +666,238 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildSecondaryGrid(BuildContext context) {
     return Column(
       children: [
-        // MANDAR RECADO
-        Material(
-          color: const Color(0xFFE1F5FE), // Soft Blue
-          borderRadius: BorderRadius.circular(16),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(16),
-            onTap: () {
-              TTSService.instance.falar(
-                'Diga o seu recado depois de tocar no botão.',
-                caller: this,
-              );
-              _enviarMensagemDialog();
-            },
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(
-                vertical: 24,
-                horizontal: 20,
-              ),
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: const Color(0xFF0288D1),
-                  width: 3,
-                ),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  Icon(Icons.mic, size: 40, color: Color(0xFF0288D1)),
-                  SizedBox(width: 16),
-                  Expanded(
-                    child: Text(
-                      'Mandar Recado para Ajudante',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF0288D1),
+        // MANDAR / VER RECADOS (Lado a lado)
+        Row(
+          children: [
+            Expanded(
+              child: Opacity(
+                opacity: _isPaired ? 1.0 : 0.4,
+                child: Material(
+                  color: const Color(0xFFE3F2FD), // Soft Blue
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                    onTap: () {
+                      if (!_isPaired) {
+                        _speakUnpairedWarning();
+                        return;
+                      }
+                      TTSService.instance.falar(
+                        'Diga o seu recado depois de tocar no botão.',
+                        caller: this,
+                      );
+                      _enviarMensagemDialog();
+                    },
+                    child: Container(
+                      height: 120,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: const Color(0xFF1565C0),
+                          width: 3,
+                        ),
+                        borderRadius: BorderRadius.circular(AppRadius.lg),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Icon(Icons.mic, size: 36, color: Color(0xFF1565C0)),
+                          SizedBox(height: 8),
+                          Text(
+                            'Mandar\nRecado',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFF1565C0),
+                              height: 1.1,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                ],
+                ),
               ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Opacity(
+                opacity: _isPaired ? 1.0 : 0.4,
+                child: Material(
+                  color: const Color(0xFFE8F5E9), // Soft Green
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                    onTap: () {
+                      if (!_isPaired) {
+                        _speakUnpairedWarning();
+                        return;
+                      }
+                      TTSService.instance.falar(
+                        'Abrindo seus recados do cuidador.',
+                        caller: this,
+                      );
+                      Navigator.pushNamed(context, '/messages');
+                    },
+                    child: Container(
+                      height: 120,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: const Color(0xFF2E7D32),
+                          width: 3,
+                        ),
+                        borderRadius: BorderRadius.circular(AppRadius.lg),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Icon(Icons.chat_bubble, size: 36, color: Color(0xFF2E7D32)),
+                          SizedBox(height: 8),
+                          Text(
+                            'Ver\nRecados',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFF2E7D32),
+                              height: 1.1,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+
+        // SEÇÃO DE SOS & EMERGÊNCIA
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: AppColors.errorContainer.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(AppRadius.xl),
+            border: Border.all(
+              color: AppColors.error.withValues(alpha: 0.3),
+              width: 2,
             ),
           ),
-        ),
-        const SizedBox(height: 16),
-        // VER RECADOS
-        Material(
-          color: const Color(0xFFE8F5E9), // Soft Green
-          borderRadius: BorderRadius.circular(16),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(16),
-            onTap: () {
-              TTSService.instance.falar(
-                'Abrindo seus recados do cuidador.',
-                caller: this,
-              );
-              Navigator.pushNamed(context, '/messages');
-            },
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(
-                vertical: 24,
-                horizontal: 20,
-              ),
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: const Color(0xFF2E7D32),
-                  width: 3,
-                ),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: const [
-                  Icon(Icons.chat_bubble, size: 40, color: Color(0xFF2E7D32)),
-                  SizedBox(width: 16),
-                  Expanded(
-                    child: Text(
-                      'Ver Recados do Ajudante',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF2E7D32),
-                      ),
+                  Icon(Icons.warning, color: AppColors.error, size: 28),
+                  SizedBox(width: 8),
+                  Text(
+                    'SOS - EMERGÊNCIA',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.error,
+                      letterSpacing: 0.5,
                     ),
                   ),
                 ],
               ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        // EMERGÊNCIA
-        Material(
-          color: const Color(0xFFFFEBEE), // Soft Red
-          borderRadius: BorderRadius.circular(16),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(16),
-            onTap: () {
-              TTSService.instance.falar(
-                'Chamando ajuda de emergência! Por favor, aguarde.',
-                caller: this,
-              );
-              Navigator.pushNamed(context, '/emergency-alert');
-            },
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(
-                vertical: 24,
-                horizontal: 20,
-              ),
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: const Color(0xFFC62828),
-                  width: 4,
+              const SizedBox(height: 4),
+              const Text(
+                'Toque para pedir ajuda urgente:',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.onSurfaceVariant,
                 ),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFFC62828).withValues(alpha: 0.15),
-                    blurRadius: 10,
-                    spreadRadius: 2,
-                  ),
-                ],
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  Icon(Icons.campaign, size: 40, color: Color(0xFFC62828)),
-                  SizedBox(width: 16),
-                  Expanded(
-                    child: Text(
-                      'Pedir Ajuda de Emergência',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
-                        color: Color(0xFFC62828),
-                      ),
-                    ),
-                  ),
-                ],
+              const SizedBox(height: 16),
+
+              // CHAMADA DE VOZ (APLICATIVO)
+              Opacity(
+                opacity: _isPaired ? 1.0 : 0.4,
+                child: SeniorButton(
+                  label: 'Chamada de Voz SOS',
+                  icon: Icons.phone_in_talk,
+                  backgroundColor: const Color(0xFF2E7D32), // Green
+                  textColor: Colors.white,
+                  onPressed: () {
+                    if (!_isPaired) {
+                      _speakUnpairedWarning();
+                      return;
+                    }
+                    _initiateCall('voice');
+                  },
+                ),
               ),
-            ),
+              const SizedBox(height: 12),
+
+              // CHAMADA DE VÍDEO (APLICATIVO)
+              Opacity(
+                opacity: _isPaired ? 1.0 : 0.4,
+                child: SeniorButton(
+                  label: 'Chamada de Vídeo SOS',
+                  icon: Icons.videocam,
+                  backgroundColor: const Color(0xFF1565C0), // Dark Blue
+                  textColor: Colors.white,
+                  onPressed: () {
+                    if (!_isPaired) {
+                      _speakUnpairedWarning();
+                      return;
+                    }
+                    _initiateCall('video');
+                  },
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // LIGAR PARA AMBULNCIA
+              if (_ambulancePhone != null) ...[
+              SeniorButton(
+                label: 'Ligar para Ambulância',
+                icon: Icons.local_hospital,
+                backgroundColor: AppColors.error,
+                textColor: Colors.white,
+                onPressed: () {
+                  _confirmarAcaoSOSComContagem(
+                    'Ligar para Ambulância',
+                    'Iniciando ligação para a ambulância',
+                    () => _ligar(_ambulancePhone!),
+                  );
+                },
+              ),
+              const SizedBox(height: 12),
+              ],
+
+              // ENVIAR LOCALIZAÇÃO PARA O CHAT
+              Opacity(
+                opacity: _isPaired ? 1.0 : 0.4,
+                child: SeniorButton(
+                  label: 'Enviar Localização para o Chat',
+                  icon: Icons.location_on,
+                  backgroundColor: const Color(0xFF5E35B1), // Purple
+                  textColor: Colors.white,
+                  onPressed: () {
+                    if (!_isPaired) {
+                      _speakUnpairedWarning();
+                      return;
+                    }
+                    _enviarLocalizacaoChat();
+                  },
+                ),
+              ),
+            ],
           ),
         ),
       ],
@@ -878,24 +988,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
     );
   }
 
-  Future<void> _loadLastBpm() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final bpm = prefs.getInt('last_bpm_value');
-      final timeStr = prefs.getString('last_bpm_time');
-      if (bpm != null && timeStr != null) {
-        final time = DateTime.parse(timeStr);
-        final hour = time.hour.toString().padLeft(2, '0');
-        final minute = time.minute.toString().padLeft(2, '0');
-        final day = time.day.toString().padLeft(2, '0');
-        final month = time.month.toString().padLeft(2, '0');
-        setState(() {
-          _lastBpm = bpm;
-          _lastBpmTimeText = '$day/$month às $hour:$minute';
-        });
-      }
-    } catch (_) {}
-  }
+
 
   Future<void> _loadProfilePhoto() async {
     try {
@@ -911,67 +1004,257 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
     }
   }
 
-  Widget _buildHeartRateCard(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: AppColors.errorContainer.withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.error, width: 3),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(21),
-          onTap: () {
-            TTSService.instance.parar(caller: this);
-            Navigator.pushNamed(
-              context,
-              '/heart-rate',
-            ).then((_) => _loadLastBpm());
-          },
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Row(
-              children: [
-                const Icon(Icons.favorite, color: AppColors.error, size: 56),
-                const SizedBox(width: 20),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Medir o Coração',
+
+
+  void _confirmarAcaoSOSComContagem(
+    String acaoTitulo,
+    String ttsMensagem,
+    VoidCallback acaoConfirmada,
+  ) {
+    _stopAllAudioAndTts();
+
+    int segundosRestantes = 5;
+    Timer? countdownTimer;
+
+    TTSService.instance.falar(
+      '$ttsMensagem em $segundosRestantes segundos. Aperte no botão para cancelar.',
+      caller: this,
+    );
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        final isHighContrast =
+            Theme.of(context).colorScheme.primary == Colors.black;
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            countdownTimer ??= Timer.periodic(const Duration(seconds: 1), (
+              timer,
+            ) {
+              if (segundosRestantes > 1) {
+                if (mounted) {
+                  setDialogState(() {
+                    segundosRestantes--;
+                  });
+                  TTSService.instance.falar('$segundosRestantes', caller: this);
+                }
+              } else {
+                timer.cancel();
+                Navigator.pop(context); // Fechar o diálogo
+                acaoConfirmada(); // Executar a ação
+              }
+            });
+
+            return AlertDialog(
+              backgroundColor: isHighContrast
+                  ? Colors.white
+                  : AppColors.background,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+                side: isHighContrast
+                    ? const BorderSide(color: Colors.black, width: 4)
+                    : BorderSide.none,
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 24,
+                vertical: 24,
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      Icon(Icons.warning, color: AppColors.error, size: 36),
+                      SizedBox(width: 12),
+                      Text(
+                        'ATENÇÃO',
                         style: TextStyle(
                           fontSize: 26,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _lastBpm != null
-                            ? 'Último: $_lastBpm BPM ($_lastBpmTimeText)'
-                            : 'Ver como está o seu coração usando a câmera do celular',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.onSurfaceVariant,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.error,
                         ),
                       ),
                     ],
                   ),
-                ),
-                const Icon(
-                  Icons.arrow_forward_ios,
-                  color: AppColors.primary,
-                  size: 24,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+                  const SizedBox(height: 24),
+                  Text(
+                    acaoTitulo.toUpperCase(),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                      color: isHighContrast ? Colors.black : AppColors.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Container(
+                    width: 120,
+                    height: 120,
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.error, width: 4),
+                    ),
+                    child: Center(
+                      child: Text(
+                        '$segundosRestantes',
+                        style: const TextStyle(
+                          fontSize: 54,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.error,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                  const Text(
+                    'O telefone fará a ação automaticamente.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        countdownTimer?.cancel();
+                        TTSService.instance.parar(caller: this);
+                        Navigator.pop(context);
+                      },
+                      icon: const Icon(Icons.cancel, size: 36),
+                      label: const Text(
+                        'CANCELAR',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: isHighContrast
+                            ? Colors.black
+                            : AppColors.error,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 24),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          side: isHighContrast
+                              ? const BorderSide(color: Colors.white, width: 2)
+                              : BorderSide.none,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    ).then((_) {
+      countdownTimer?.cancel();
+      TTSService.instance.parar(caller: this);
+    });
+  }
+
+  void _stopAllAudioAndTts() {
+    TTSService.instance.parar(caller: this);
+    try {
+      _audioPlayer.stop();
+    } catch (_) {}
+  }
+
+
+
+  void _ligar(String numero) async {
+    final Uri launchUri = Uri(scheme: 'tel', path: numero);
+    if (await canLaunchUrl(launchUri)) {
+      await launchUrl(launchUri);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Não foi possível abrir o discador.')),
+        );
+      }
+    }
+  }
+
+  Future<void> _initiateCall(String callType) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final idosoId = prefs.getString('paired_idoso_id');
+      if (idosoId == null || idosoId.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Nenhum cuidador vinculado.')),
+          );
+        }
+        return;
+      }
+      final callStart = await VideoCallService.instance.initiateCall(
+        idosoId: idosoId,
+        initiatedBy: 'sos',
+        callType: callType,
+      );
+      if (callStart != null && mounted) {
+        await VideoCallService.instance.joinCall(
+          callStart.roomName,
+          callType: callType,
+          callId: callStart.callId,
+        );
+      } else if (mounted) {
+        final label = callType == 'voice' ? 'voz' : 'vídeo';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Não foi possível iniciar chamada de $label.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        final label = callType == 'voice' ? 'voz' : 'vídeo';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao iniciar chamada de $label.')),
+        );
+      }
+    }
+  }
+
+  void _enviarLocalizacaoChat() async {
+    TTSService.instance.falar(
+      'Estou buscando sua localização para enviar ao chat.',
+      caller: this,
     );
+
+    final location = await LocationService.instance.getCurrentSosLocation();
+    final message = location.hasLocation
+        ? 'SOS! Preciso de ajuda urgente. Minha localização: ${location.mapsUrl}'
+        : 'SOS! Preciso de ajuda urgente. Não consegui obter minha localização automaticamente. ${location.errorMessage ?? ''}';
+
+    try {
+      final sent = await MessageService.instance.sendText(message);
+      if (!sent) {
+        throw StateError('Nenhum cuidador conectado para receber a localização.');
+      }
+      const feedback =
+          'Localização enviada para o chat do supervisor com sucesso.';
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text(feedback)),
+        );
+      }
+      TTSService.instance.falar(feedback, caller: this);
+    } catch (e) {
+      final erroMsg = 'Erro ao enviar localização: $e';
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(erroMsg)),
+        );
+      }
+      TTSService.instance.falar('Não foi possível enviar a localização.', caller: this);
+    }
   }
 }

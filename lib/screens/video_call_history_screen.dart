@@ -41,17 +41,15 @@ class _VideoCallHistoryScreenState extends State<VideoCallHistoryScreen> {
 
   Future<void> _startCall() async {
     final idosoId = await SessionRoleService.getActiveIdosoId();
-    final callId = await VideoCallService.instance.initiateCall(
+    final call = await VideoCallService.instance.initiateCall(
       idosoId: idosoId,
+      callType: 'video',
     );
-    if (callId != null && mounted) {
-      Navigator.pushNamed(
-        context,
-        '/active-video-call',
-        arguments: {
-          'callId': callId,
-          'roomName': 'call_${idosoId}_${DateTime.now().millisecondsSinceEpoch}',
-        },
+    if (call != null && mounted) {
+      await VideoCallService.instance.joinCall(
+        call.roomName,
+        callType: 'video',
+        callId: call.callId,
       );
     }
   }
@@ -72,18 +70,20 @@ class _VideoCallHistoryScreenState extends State<VideoCallHistoryScreen> {
             ),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _calls.isEmpty
-              ? _EmptyState(isElderly: isElderly, onStartCall: _startCall)
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _calls.length,
-                  itemBuilder: (context, index) {
-                    final call = _calls[index];
-                    return _CallHistoryTile(call: call);
-                  },
-                ),
+      body: SafeArea(
+        child: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : _calls.isEmpty
+                ? _EmptyState(isElderly: isElderly, onStartCall: _startCall)
+                : ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _calls.length,
+                    itemBuilder: (context, index) {
+                      final call = _calls[index];
+                      return _CallHistoryTile(call: call);
+                    },
+                  ),
+      ),
       floatingActionButton: isElderly
           ? null
           : FloatingActionButton.extended(

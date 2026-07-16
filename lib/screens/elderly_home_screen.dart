@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -12,13 +11,15 @@ import 'package:flutter/material.dart';
 import '../models/lembrete.dart';
 import '../services/lembrete_service.dart';
 import '../services/location_service.dart';
+import '../services/message_service.dart';
+import '../services/emergency_contact_service.dart';
 import '../services/session_role_service.dart';
 import '../services/tts_service.dart';
 import '../services/video_call_service.dart';
-import '../services/achievement_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/audio_path_helper.dart';
 import '../utils/period_helper.dart';
+import '../utils/reminder_state_helper.dart';
 import '../widgets/index.dart';
 
 class ElderlyHomeScreen extends StatefulWidget {
@@ -48,26 +49,17 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
   Timer? _connectivityTimer;
   StreamSubscription? _audioSubscription;
 
-  // Confetti Animations
-  AnimationController? _confettiController;
-  final List<_ConfettiParticle> _confetti = [];
-  bool _allCompletedTriggered = false;
   bool _rotinaDoDiaOnly = false;
-  bool _showWelfareCheckin = false;
   bool _isProcessingAction = false;
-  int _welfareStep = 0;
-  String _selectedMood = '';
-  String _idosoNomeCheckin = '';
   String? _fotoPath;
   AnimationController? _pulseController;
   Animation<double>? _pulseAnimation;
 
   Future<void> _updateConnectionStatus() async {
-    final prefs = await SharedPreferences.getInstance();
-    final pairedIdosoId = prefs.getString('paired_idoso_id');
+    final connected = await SessionRoleService.isElderlyConnectedToSupervisor();
     if (mounted) {
       setState(() {
-        _isConnected = pairedIdosoId != null && pairedIdosoId != 'idoso_autonomo';
+        _isConnected = connected;
       });
     }
   }
@@ -98,33 +90,11 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
       CurvedAnimation(parent: _pulseController!, curve: Curves.easeInOut),
     );
 
-    // Confetti Controller Setup
-    _confettiController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 4),
-    );
-    _confettiController!.addListener(() {
-      if (mounted) {
-        setState(() {
-          for (final p in _confetti) {
-            p.y += p.vy;
-            p.x += p.vx;
-            p.rotation += p.rotationSpeed;
-          }
-        });
-      }
-    });
-
     LembreteService.instance.carregar().then((_) {
       final lembretes = LembreteService.instance.lembretes;
       if (mounted) {
         setState(() {
-          _lembretes = lembretes
-              .where((l) => _isReminderActiveToday(l))
-              .toList();
-          _atualizarProximoLembrete();
-          _checkVictoryConfetti();
-          _checkWelfareStatus();
+          _syncReminderState(lembretes);
         });
       }
     });
@@ -144,149 +114,19 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     final lembretes = LembreteService.instance.lembretes;
     if (mounted) {
       setState(() {
-        _lembretes = lembretes.where((l) => _isReminderActiveToday(l)).toList();
-        _atualizarProximoLembrete();
-        _checkVictoryConfetti();
+        _syncReminderState(lembretes);
       });
     }
   }
 
-  void _checkVictoryConfetti() async {
-    if (mounted) {
-      final route = ModalRoute.of(context);
-      if (route != null && !route.isCurrent) {
-        return;
-      }
-    }
-
-    final allDone =
-        _lembretes.isNotEmpty && _lembretes.every((l) => l.concluido);
-    if (allDone && !_allCompletedTriggered) {
-      _allCompletedTriggered = true;
-
-      final prefs = await SharedPreferences.getInstance();
-      final today = DateTime.now().toIso8601String().substring(0, 10);
-
-      // Evita disparar a mensagem de parabéns múltiplas vezes no mesmo dia
-      final lastVictory = prefs.getString('last_victory_shown_date');
-      if (lastVictory == today) {
-        return;
-      }
-
-      final lastCompletion = prefs.getString('last_completion_date');
-      int streak = prefs.getInt('completion_streak') ?? 0;
-
-      if (lastCompletion != today) {
-        if (lastCompletion ==
-            DateTime.now()
-                .subtract(const Duration(days: 1))
-                .toIso8601String()
-                .substring(0, 10)) {
-          streak += 1;
-        } else {
-          streak = 1;
-        }
-        await prefs.setInt('completion_streak', streak);
-        await prefs.setString('last_completion_date', today);
-      }
-
-      await prefs.setString('last_victory_shown_date', today);
-
-      _startConfetti();
-      _showVictoryDialog(streak);
-
-      unawaited(AchievementService.instance.checkAndUnlock(
-        streakDays: streak,
-        totalCompletions: _lembretes.length,
-        onTimeDays: streak,
-        familyCompleted: _isConnected,
-      ));
-      unawaited(AchievementService.instance.updateProgress(
-        streakDays: streak,
-        totalCompletions: _lembretes.length,
-        onTimeDays: streak,
-      ));
-    } else if (!allDone) {
-    } else if (!allDone) {
-      _allCompletedTriggered = false;
-
-      // Se desmarcar alguma tarefa, permite ganhar os parabéns novamente caso conclua tudo
-      final prefs = await SharedPreferences.getInstance();
-      final today = DateTime.now().toIso8601String().substring(0, 10);
-      if (prefs.getString('last_victory_shown_date') == today) {
-        await prefs.remove('last_victory_shown_date');
-      }
-    }
-  }
-
-  void _startConfetti() {
-    final random = math.Random();
-    _confetti.clear();
-    for (int i = 0; i < 80; i++) {
-      _confetti.add(
-        _ConfettiParticle(
-          x: random.nextDouble() * 400,
-          y: -random.nextDouble() * 200,
-          vx: (random.nextDouble() - 0.5) * 4,
-          vy: random.nextDouble() * 5 + 3,
-          size: random.nextDouble() * 10 + 6,
-          color: [
-            Colors.redAccent,
-            Colors.blueAccent,
-            Colors.greenAccent,
-            Colors.yellowAccent,
-            Colors.orangeAccent,
-            Colors.pinkAccent,
-            Colors.purpleAccent,
-          ][random.nextInt(7)],
-          rotation: random.nextDouble() * math.pi,
-          rotationSpeed: (random.nextDouble() - 0.5) * 0.1,
-        ),
-      );
-    }
-    _confettiController?.forward(from: 0.0);
-  }
-
-  void _atualizarProximoLembrete() {
-    if (_lembretes.isEmpty) {
-      _ultimoLembrete = null;
-      return;
-    }
-    final agora = TimeOfDay.now();
-    final agoraMinutos = agora.hour * 60 + agora.minute;
-
-    final lembretesOrdenados = List<Lembrete>.from(_lembretes)
-      ..sort((a, b) {
-        final aMin = a.horarioHour * 60 + a.horarioMinute;
-        final bMin = b.horarioHour * 60 + b.horarioMinute;
-        return aMin.compareTo(bMin);
-      });
-
-    Lembrete? proximo;
-    for (final l in lembretesOrdenados) {
-      final lMin = l.horarioHour * 60 + l.horarioMinute;
-      if (!l.concluido && lMin >= agoraMinutos) {
-        proximo = l;
-        break;
-      }
-    }
-
-    if (proximo == null) {
-      for (final l in lembretesOrdenados) {
-        if (!l.concluido) {
-          proximo = l;
-          break;
-        }
-      }
-    }
-
-    _ultimoLembrete = proximo ?? lembretesOrdenados.last;
+  void _syncReminderState(Iterable<Lembrete> lembretes) {
+    _lembretes = ReminderStateHelper.activeTodaySorted(lembretes);
+    _ultimoLembrete = ReminderStateHelper.nextReminder(_lembretes);
   }
 
   @override
   void dispose() {
     _connectivityTimer?.cancel();
-    _confettiController?.dispose();
     _pulseController?.dispose();
     _audioSubscription?.cancel();
     LembreteService.instance.notifier.removeListener(_onLembretesChanged);
@@ -295,105 +135,6 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     super.dispose();
   }
 
-  Future<void> _checkWelfareStatus() async {
-    final prefs = await SharedPreferences.getInstance();
-    final today = DateTime.now().toIso8601String().substring(0, 10);
-    final lastCheckin = prefs.getString('last_welfare_checkin_date');
-
-    final jsonStr = prefs.getString('idoso_perfil');
-    String name = '';
-    if (jsonStr != null) {
-      try {
-        final data = jsonDecode(jsonStr);
-        final rawName = data['nome']?.toString() ?? '';
-        if (rawName.isNotEmpty &&
-            rawName != 'Minha Conta' &&
-            rawName != 'Não cadastrado' &&
-            rawName != 'Minha' &&
-            rawName != 'Não') {
-          name = rawName.split(' ').first;
-        }
-      } catch (_) {}
-    }
-
-    if (name.isEmpty) {
-      try {
-        final idosoId = await SessionRoleService.getActiveIdosoId();
-        if (idosoId.isNotEmpty && idosoId != 'idoso_autonomo' && Firebase.apps.isNotEmpty) {
-          final docIdoso = await FirebaseFirestore.instance
-              .collection('idosos')
-              .doc(idosoId)
-              .get();
-          if (docIdoso.exists && docIdoso.data() != null) {
-            final rawName = docIdoso.data()?['nome']?.toString() ?? '';
-            if (rawName.isNotEmpty && rawName != 'Não cadastrado') {
-              name = rawName.split(' ').first;
-            }
-          }
-          
-          if (name.isEmpty) {
-            final docPerfil = await FirebaseFirestore.instance
-                .collection('idoso_perfil')
-                .doc(idosoId)
-                .get();
-            if (docPerfil.exists && docPerfil.data() != null) {
-              final rawName = docPerfil.data()?['nome']?.toString() ?? '';
-              if (rawName.isNotEmpty && rawName != 'Não cadastrado') {
-                name = rawName.split(' ').first;
-              }
-            }
-          }
-        }
-      } catch (e) {
-        debugPrint('Erro ao buscar nome do idoso no Firestore: $e');
-      }
-    }
-
-    if (mounted) {
-      setState(() {
-        if (name.isNotEmpty) {
-          _idosoNomeCheckin = name;
-        }
-        _showWelfareCheckin = (lastCheckin != today);
-      });
-    }
-  }
-
-  Future<void> _registrarWelfareCheckin(String emotion, {String? detail}) async {
-    if ((emotion == 'Mais ou menos' || emotion == 'Preciso de ajuda') && detail == null) {
-      if (mounted) {
-        setState(() {
-          _selectedMood = emotion;
-          _welfareStep = 1;
-        });
-      }
-      return;
-    }
-
-    final String welfareText = detail != null ? '$emotion - $detail' : emotion;
-
-    final prefs = await SharedPreferences.getInstance();
-    final today = DateTime.now().toIso8601String().substring(0, 10);
-    await prefs.setString('last_welfare_checkin_date', today);
-    await LembreteService.instance.registrarWelfareCheckin(welfareText);
-    if (!mounted) return;
-    setState(() {
-      _welfareStep = 2;
-    });
-
-    String feedbackSpeech = 'Obrigado por me contar. Já avisei seu cuidador.';
-    await TTSService.instance.falar(feedbackSpeech, caller: this);
-
-    Timer(const Duration(milliseconds: 2800), () {
-      if (mounted) {
-        setState(() {
-          _showWelfareCheckin = false;
-          _welfareStep = 0;
-          _selectedMood = '';
-        });
-      }
-    });
-  }
 
   Future<void> _loadProfilePhoto() async {
     try {
@@ -448,9 +189,6 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
       return 'Daqui a $minutes ${minutes == 1 ? 'minuto' : 'minutos'}';
     }
   }
-
-  bool _isReminderActiveToday(Lembrete lembrete) =>
-      lembrete.isActiveOn(DateTime.now());
 
   void _ouvirExplicacaoLembrete(Lembrete l) {
     _stopAllAudioAndTts();
@@ -676,37 +414,21 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
   }
 
   void _showSOSModal() async {
-    final prefs = await SharedPreferences.getInstance();
-    final idosoId =
-        prefs.getString('paired_idoso_id') ??
-        SessionRoleService.unpairedIdosoId;
-
-    String phone = '';
-    try {
-      if (Firebase.apps.isNotEmpty) {
-        final doc = await FirebaseFirestore.instance
-            .collection('idosos')
-            .doc(idosoId)
-            .get();
-        if (doc.exists) {
-          phone = doc.data()?['telefone'] ?? '';
-        }
-      }
-    } catch (_) {}
-
-    if (phone.isEmpty) {
-      phone = prefs.getString('emergency_contact_phone') ?? '190';
-    }
-
+    final ambulancePhone =
+        await EmergencyContactService.instance.getAmbulancePhone();
     if (!mounted) return;
 
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (context) {
         final isHighContrast =
             Theme.of(context).colorScheme.primary == Colors.black;
         return Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.9,
+          ),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           decoration: BoxDecoration(
             color: Colors.white,
@@ -724,9 +446,10 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
           ),
           child: SafeArea(
             top: false,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
                 if (!isHighContrast)
                   Container(
                     width: 60,
@@ -742,12 +465,17 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                   children: [
                     const Icon(Icons.warning, color: AppColors.error, size: 32),
                     const SizedBox(width: 12),
-                    Text(
+                    Flexible(
+                      child: Text(
                       'SOS - EMERGÊNCIA',
+                      textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.w900,
-                        color: isHighContrast ? Colors.black : AppColors.error,
+                        color: isHighContrast
+                            ? Colors.black
+                            : AppColors.error,
+                      ),
                       ),
                     ),
                   ],
@@ -766,155 +494,94 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                 ),
                 const SizedBox(height: 24),
 
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
+                Opacity(
+                  opacity: _isConnected ? 1.0 : 0.4,
+                  child: SeniorButton(
+                    label: 'Chamada de Voz SOS',
+                    icon: Icons.phone_in_talk,
+                    backgroundColor: const Color(0xFF2E7D32),
+                    textColor: Colors.white,
                     onPressed: () {
+                      if (!_isConnected) {
+                        _speakUnpairedWarning();
+                        return;
+                      }
                       Navigator.pop(context);
                       _confirmarAcaoSOSComContagem(
-                        'Ligar para Ajudante',
-                        'Iniciando ligação para o ajudante',
-                        () => _ligar(phone),
+                        'Chamada de Voz SOS',
+                        'Iniciando chamada de voz para o ajudante',
+                        () => _initiateCall('voice'),
                       );
                     },
-                    icon: const Icon(Icons.person, size: 28),
-                    label: const Text(
-                      'LIGAR PARA AJUDANTE',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isHighContrast
-                          ? Colors.black
-                          : Colors.orange,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 20),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        side: isHighContrast
-                            ? const BorderSide(color: Colors.black, width: 2)
-                            : BorderSide.none,
-                      ),
-                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
 
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
+                Opacity(
+                  opacity: _isConnected ? 1.0 : 0.4,
+                  child: SeniorButton(
+                    label: 'Chamada de Vídeo SOS',
+                    icon: Icons.videocam,
+                    backgroundColor: const Color(0xFF1565C0),
+                    textColor: Colors.white,
                     onPressed: () {
+                      if (!_isConnected) {
+                        _speakUnpairedWarning();
+                        return;
+                      }
                       Navigator.pop(context);
                       _confirmarAcaoSOSComContagem(
-                        'Chamada de Vídeo',
+                        'Chamada de Vídeo SOS',
                         'Iniciando chamada de vídeo para o ajudante',
-                        _initiateVideoCall,
+                        () => _initiateCall('video'),
                       );
                     },
-                    icon: const Icon(Icons.videocam, size: 28),
-                    label: const Text(
-                      'CHAMADA DE VÍDEO',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isHighContrast
-                          ? Colors.black
-                          : const Color(0xFF1565C0),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 20),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        side: isHighContrast
-                            ? const BorderSide(color: Colors.black, width: 2)
-                            : BorderSide.none,
-                      ),
-                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
 
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _confirmarAcaoSOSComContagem(
-                        'Ligar para SAMU',
-                        'Iniciando ligação para o SAMU no 1 9 2',
-                        () => _ligar('192'),
-                      );
-                    },
-                    icon: const Icon(Icons.local_hospital, size: 28),
-                    label: const Text(
-                      'LIGAR PARA SAMU (192)',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isHighContrast
-                          ? Colors.black
-                          : AppColors.error,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 20),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        side: isHighContrast
-                            ? const BorderSide(color: Colors.black, width: 2)
-                            : BorderSide.none,
-                      ),
-                    ),
-                  ),
+                if (ambulancePhone != null) ...[
+                SeniorButton(
+                  label: 'Ligar para Ambulância',
+                  icon: Icons.local_hospital,
+                  backgroundColor: AppColors.error,
+                  textColor: Colors.white,
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _confirmarAcaoSOSComContagem(
+                      'Ligar para Ambulância',
+                      'Iniciando ligação para a ambulância',
+                      () => _ligar(ambulancePhone!),
+                    );
+                  },
                 ),
                 const SizedBox(height: 12),
+                ],
 
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
+                Opacity(
+                  opacity: _isConnected ? 1.0 : 0.4,
+                  child: SeniorButton(
+                    label: 'Enviar Localização para o Chat',
+                    icon: Icons.location_on,
+                    backgroundColor: const Color(0xFF5E35B1),
+                    textColor: Colors.white,
                     onPressed: () {
+                      if (!_isConnected) {
+                        _speakUnpairedWarning();
+                        return;
+                      }
                       Navigator.pop(context);
                       _confirmarAcaoSOSComContagem(
                         'Enviar Localização',
-                        'Enviando sua localização para o ajudante',
-                        () => _enviarSMSLocalizacao(phone),
+                        'Enviando sua localização para o chat do ajudante',
+                        _enviarLocalizacaoChat,
                       );
                     },
-                    icon: const Icon(Icons.location_on, size: 28),
-                    label: const Text(
-                      'ENVIAR SMS COM LOCALIZAÇÃO',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isHighContrast
-                          ? Colors.black
-                          : Colors.white,
-                      foregroundColor: isHighContrast
-                          ? Colors.white
-                          : AppColors.primary,
-                      padding: const EdgeInsets.symmetric(vertical: 20),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        side: BorderSide(
-                          color: isHighContrast
-                              ? Colors.black
-                              : AppColors.primary,
-                          width: 2,
-                        ),
-                      ),
-                    ),
                   ),
                 ),
                 const SizedBox(height: 24),
-              ],
+                ],
+              ),
             ),
           ),
         );
@@ -935,7 +602,20 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     }
   }
 
-  Future<void> _initiateVideoCall() async {
+  void _speakUnpairedWarning() {
+    TTSService.instance.falar(
+      'Esta opção precisa de um ajudante conectado. Por favor, peça para o seu ajudante conectar o celular dele ao seu.',
+      caller: this,
+    );
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Você precisa de um cuidador conectado para usar esta função.'),
+        backgroundColor: AppColors.error,
+      ),
+    );
+  }
+
+  Future<void> _initiateCall(String callType) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final idosoId = prefs.getString('paired_idoso_id');
@@ -947,159 +627,66 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
         }
         return;
       }
-      final callId = await VideoCallService.instance.initiateCall(
+      final callStart = await VideoCallService.instance.initiateCall(
         idosoId: idosoId,
-        initiatedBy: 'idoso',
+        initiatedBy: 'sos',
+        callType: callType,
       );
-      if (callId != null && mounted) {
-        Navigator.pushNamed(context, '/active-video-call', arguments: {
-          'callId': callId,
-          'roomName': 'call_${idosoId}_${DateTime.now().millisecondsSinceEpoch}',
-        });
+      if (callStart != null && mounted) {
+        await VideoCallService.instance.joinCall(
+          callStart.roomName,
+          callType: callType,
+          callId: callStart.callId,
+        );
+      } else if (mounted) {
+        final label = callType == 'voice' ? 'voz' : 'vídeo';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Não foi possível iniciar chamada de $label.')),
+        );
       }
     } catch (e) {
       if (mounted) {
+        final label = callType == 'voice' ? 'voz' : 'vídeo';
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Erro ao iniciar chamada de vídeo.')),
+          SnackBar(content: Text('Erro ao iniciar chamada de $label.')),
         );
       }
     }
   }
 
-  void _enviarSMSLocalizacao(String supervisorPhone) async {
+  void _enviarLocalizacaoChat() async {
     TTSService.instance.falar(
-      'Estou buscando sua localizacao para enviar o pedido de ajuda.',
+      'Estou buscando sua localização para enviar ao chat.',
       caller: this,
     );
 
     final location = await LocationService.instance.getCurrentSosLocation();
     final message = location.hasLocation
-        ? 'SOS! Preciso de ajuda urgente. Minha localizacao: ${location.mapsUrl}'
-        : 'SOS! Preciso de ajuda urgente. Nao consegui enviar minha localizacao automaticamente. ${location.errorMessage ?? ''}';
+        ? 'SOS! Preciso de ajuda urgente. Minha localização: ${location.mapsUrl}'
+        : 'SOS! Preciso de ajuda urgente. Não consegui obter minha localização automaticamente. ${location.errorMessage ?? ''}';
 
-    final Uri smsUri = Uri(
-      scheme: 'sms',
-      path: supervisorPhone,
-      queryParameters: <String, String>{'body': message},
-    );
-
-    if (await canLaunchUrl(smsUri)) {
-      await launchUrl(smsUri);
-      const feedback =
-          'O aplicativo de mensagens foi aberto. Toque em enviar para concluir o pedido de ajuda.';
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text(feedback)));
+    try {
+      final sent = await MessageService.instance.sendText(message);
+      if (!sent) {
+        throw StateError('Nenhum cuidador conectado para receber a localização.');
       }
-      TTSService.instance.falar(feedback, caller: this);
-    } else {
+      const feedback =
+          'Localização enviada para o chat do supervisor com sucesso.';
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              location.hasLocation
-                  ? 'Nao foi possivel abrir o SMS com a localizacao.'
-                  : 'Nao foi possivel abrir o SMS. ${location.errorMessage ?? ''}',
-            ),
-          ),
-        );
-        TTSService.instance.falar(
-          'Nao foi possivel abrir o aplicativo de mensagens.',
-          caller: this,
+          const SnackBar(content: Text(feedback)),
         );
       }
-    }
-  }
-
-  void _showVictoryDialog(int streak) {
-    TTSService.instance.falar(
-      'Parabéns! Você concluiu toda a sua rotina de hoje! Continue assim para manter sua saúde excelente!',
-      caller: this,
-    );
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: AppColors.background,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-          ),
-          title: Row(
-            children: const [
-              Icon(Icons.emoji_events, color: Colors.amber, size: 36),
-              SizedBox(width: 12),
-              Text(
-                'Parabéns!',
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
-                ),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Você completou todos os seus lembretes de hoje!',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 20,
-                  color: AppColors.onSurface,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.amber[100],
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.local_fire_department,
-                      color: Colors.orange,
-                      size: 36,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Sequência: $streak ${streak == 1 ? 'dia' : 'dias'}!',
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.orange,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.tertiaryFixedDim,
-              ),
-              child: const Text(
-                'OK',
-                style: TextStyle(
-                  fontSize: 18,
-                  color: AppColors.onTertiaryFixed,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
+      TTSService.instance.falar(feedback, caller: this);
+    } catch (e) {
+      final erroMsg = 'Erro ao enviar localização: $e';
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(erroMsg)),
         );
-      },
-    );
+      }
+      TTSService.instance.falar('Não foi possível enviar a localização.', caller: this);
+    }
   }
 
   Widget _buildRotinaToggle() {
@@ -1167,292 +754,9 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     );
   }
 
-  Widget _buildWelfareCheckinCard() {
-    if (_welfareStep == 2) {
-      return _buildConfirmationStep();
-    }
-    if (_welfareStep == 1) {
-      return _buildDetailStep();
-    }
-    return _buildMoodStep();
-  }
 
-  Widget _buildMoodStep() {
-    final greetingText = _idosoNomeCheckin.trim().isEmpty
-        ? 'Como você está hoje?'
-        : '$_idosoNomeCheckin, como você está hoje?';
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.primaryFixed,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.primaryFixedDim, width: 2),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: const BoxDecoration(
-                  color: AppColors.primary,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.favorite,
-                  color: Colors.white,
-                  size: 28,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  greetingText,
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.onPrimaryFixed,
-                    height: 1.25,
-                  ),
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.volume_up, color: AppColors.primary, size: 28),
-                onPressed: () {
-                  final textToSpeak = _idosoNomeCheckin.trim().isEmpty
-                      ? 'Como você está hoje? Selecione uma das opções abaixo.'
-                      : '$_idosoNomeCheckin, como você está hoje? Selecione uma das opções abaixo.';
-                  TTSService.instance.falar(textToSpeak, caller: this);
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              _welfareOption('Bem', '😊', Colors.green.shade100, Colors.green.shade800),
-              const SizedBox(width: 8),
-              _welfareOption('Mais ou menos', '😐', Colors.orange.shade100, Colors.orange.shade800),
-              const SizedBox(width: 8),
-              _welfareOption('Preciso de ajuda', '🆘', Colors.red.shade100, Colors.red.shade900),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
 
-  Widget _welfareOption(String label, String emoji, Color btnBgColor, Color btnTextColor) {
-    return Expanded(
-      child: ElevatedButton(
-        onPressed: () => _registrarWelfareCheckin(label),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: btnBgColor,
-          foregroundColor: btnTextColor,
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
-          elevation: 2,
-          shadowColor: Colors.black26,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: btnTextColor.withValues(alpha: 0.3), width: 2),
-          ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(emoji, style: const TextStyle(fontSize: 32)),
-            const SizedBox(height: 6),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w900,
-                color: btnTextColor,
-                height: 1.15,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
-  Widget _buildDetailStep() {
-    final titleText = _selectedMood == 'Preciso de ajuda'
-        ? 'O que está acontecendo?'
-        : 'O que você está sentindo?';
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.primaryFixed,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.primaryFixedDim, width: 2),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: const BoxDecoration(
-                  color: AppColors.primary,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.help_outline,
-                  color: Colors.white,
-                  size: 28,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  titleText,
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.onPrimaryFixed,
-                    height: 1.25,
-                  ),
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.volume_up, color: AppColors.primary, size: 28),
-                onPressed: () {
-                  final textToSpeak = _selectedMood == 'Preciso de ajuda'
-                      ? 'O que está acontecendo? Selecione uma das opções: dor física, tristeza ou solidão, cansaço ou outro motivo.'
-                      : 'O que você está sentindo? Selecione uma das opções: dor física, tristeza ou solidão, cansaço ou outro motivo.';
-                  TTSService.instance.falar(textToSpeak, caller: this);
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _detailOption('Dor física', '🩹'),
-          const SizedBox(height: 8),
-          _detailOption('Tristeza / Solidão', '😢'),
-          const SizedBox(height: 8),
-          _detailOption('Cansaço', '🥱'),
-          const SizedBox(height: 8),
-          _detailOption('Outro motivo', '❓'),
-          const SizedBox(height: 16),
-          Align(
-            alignment: Alignment.center,
-            child: TextButton.icon(
-              onPressed: () {
-                if (mounted) {
-                  setState(() {
-                    _welfareStep = 0;
-                    _selectedMood = '';
-                  });
-                }
-              },
-              icon: const Icon(Icons.arrow_back, color: AppColors.primary),
-              label: const Text(
-                'Voltar',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _detailOption(String label, String emoji) {
-    return ElevatedButton(
-      onPressed: () => _registrarWelfareCheckin(_selectedMood, detail: label),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.surfaceContainerLowest,
-        foregroundColor: AppColors.primary,
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-        elevation: 2,
-        shadowColor: Colors.black12,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: AppColors.primaryFixedDim, width: 2),
-        ),
-      ),
-      child: Row(
-        children: [
-          Text(emoji, style: const TextStyle(fontSize: 26)),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ),
-          const Icon(Icons.arrow_forward_ios, size: 16, color: AppColors.primary),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildConfirmationStep() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 18),
-      decoration: BoxDecoration(
-        color: Colors.green.shade50,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.green.shade300, width: 2),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.green.shade100,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.check_circle_outline,
-              color: Colors.green.shade700,
-              size: 48,
-            ),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Check-in Enviado!',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w900,
-              color: Colors.green,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Obrigado por responder. Seu cuidador já foi avisado.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.green.shade800,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Future<void> _checkConnection() async {
     if (kIsWeb) {
@@ -1483,6 +787,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
   }
 
   void _stopAllAudioAndTts() {
+    if (!mounted) return;
     if (_isPlaying) {
       _audioPlayer.stop();
       setState(() {
@@ -2446,10 +1751,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                           _buildConnectedBadge(),
                           const SizedBox(height: 12),
                         ],
-                        if (_showWelfareCheckin) ...[
-                          _buildWelfareCheckinCard(),
-                          const SizedBox(height: 16),
-                        ],
+
                         _buildVoiceButton(),
                         const SizedBox(height: 24),
                         Text(
@@ -2477,16 +1779,6 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
           ),
           bottomNavigationBar: _buildBottomNav(),
         ),
-        if (_confettiController != null && _confettiController!.value < 1.0)
-          IgnorePointer(
-            child: CustomPaint(
-              size: Size.infinite,
-              painter: _ConfettiPainter(
-                particles: _confetti,
-                animationValue: _confettiController!.value,
-              ),
-            ),
-          ),
       ],
     );
   }
@@ -2532,7 +1824,6 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                 await Navigator.pushNamed(context, '/elderly-profile');
                 await _updateConnectionStatus();
                 _loadProfilePhoto();
-                _checkWelfareStatus();
               } finally {
                 if (mounted) {
                   setState(() => _isProcessingAction = false);
@@ -2635,7 +1926,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
           ),
           const SizedBox(width: 8),
           Text(
-            _isOnline ? 'Conectado' : 'Sem Internet',
+            _isOnline ? 'Cuidador conectado' : 'Cuidador conectado, sem internet',
             style: TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.w700,
@@ -2735,206 +2026,6 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     }
 
     final remainingTime = _tempoRestante(lembrete);
-
-    if (_pulseAnimation == null) {
-      return Container(
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: AppColors.surfaceContainerLowest,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: isHighContrast
-                ? Colors.black
-                : categoryColor.withValues(alpha: 0.5),
-            width: isHighContrast ? 4.0 : 3.5,
-          ),
-          boxShadow: isHighContrast
-              ? null
-              : [
-                  BoxShadow(
-                    color: categoryColor.withValues(alpha: 0.15),
-                    blurRadius: 12,
-                    spreadRadius: 1,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Container(width: 16, color: categoryColor),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 20,
-                      horizontal: 8,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: isHighContrast
-                                    ? Colors.black
-                                    : categoryColor.withValues(alpha: 0.12),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                categoryIcon,
-                                color: isHighContrast
-                                    ? Colors.white
-                                    : categoryColor,
-                                size: 32,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'SUA PRÓXIMA TAREFA',
-                                    style: TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w900,
-                                      letterSpacing: 0,
-                                      color: isHighContrast
-                                          ? Colors.black
-                                          : categoryColor,
-                                    ),
-                                  ),
-                                  if (remainingTime.isNotEmpty) ...[
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      remainingTime.toUpperCase(),
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w900,
-                                        color: isHighContrast
-                                            ? Colors.black
-                                            : Colors.red[700],
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          '${lembrete.titulo} — ${lembrete.horarioFormatado}',
-                          style: TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w900,
-                            color: isHighContrast
-                                ? Colors.black
-                                : AppColors.primary,
-                            height: 1.2,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                onPressed: () =>
-                                    _ouvirExplicacaoLembrete(lembrete),
-                                icon: const Icon(Icons.volume_up, size: 24),
-                                label: const FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  child: Text(
-                                    'OUVIR EXPLICAÇÃO',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: isHighContrast
-                                      ? Colors.yellow
-                                      : AppColors.secondaryContainer,
-                                  foregroundColor: isHighContrast
-                                      ? Colors.black
-                                      : AppColors.onSecondaryContainer,
-                                  elevation: 0,
-                                  side: isHighContrast
-                                      ? const BorderSide(
-                                          color: Colors.black,
-                                          width: 2,
-                                        )
-                                      : null,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            if (lembrete.audioPath != null) ...[
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: ElevatedButton.icon(
-                                  onPressed: () => _playAudio(lembrete.audioPath!),
-                                  icon: Icon(
-                                    _isPlaying
-                                        ? Icons.stop
-                                        : Icons.play_arrow,
-                                    size: 24,
-                                  ),
-                                  label: const FittedBox(
-                                    fit: BoxFit.scaleDown,
-                                    child: Text(
-                                      'OUVIR VOZ',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: isHighContrast
-                                        ? Colors.white
-                                        : AppColors.primary.withValues(
-                                            alpha: 0.1,
-                                          ),
-                                    foregroundColor: isHighContrast
-                                        ? Colors.black
-                                        : AppColors.primary,
-                                    elevation: 0,
-                                    side: isHighContrast
-                                        ? const BorderSide(
-                                            color: Colors.black,
-                                            width: 2.5,
-                                          )
-                                        : null,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
 
     return AnimatedBuilder(
       animation: _pulseAnimation!,
@@ -3173,18 +2264,6 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _bottomNavItem(Icons.home, 'Início', true, null),
-              _bottomNavItem(Icons.emoji_events, 'Medalhas', false, () async {
-                if (_isProcessingAction) return;
-                setState(() => _isProcessingAction = true);
-                try {
-                  _stopAllAudioAndTts();
-                  await Navigator.pushNamed(context, '/achievements');
-                } finally {
-                  if (mounted) {
-                    setState(() => _isProcessingAction = false);
-                  }
-                }
-              }),
               _bottomNavItem(Icons.list_alt, 'Lembretes', false, () async {
                 if (_isProcessingAction) return;
                 setState(() => _isProcessingAction = true);
@@ -3255,28 +2334,6 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
   }
 }
 
-class _ConfettiParticle {
-  double x;
-  double y;
-  double vx;
-  double vy;
-  double size;
-  Color color;
-  double rotation;
-  double rotationSpeed;
-
-  _ConfettiParticle({
-    required this.x,
-    required this.y,
-    required this.vx,
-    required this.vy,
-    required this.size,
-    required this.color,
-    required this.rotation,
-    required this.rotationSpeed,
-  });
-}
-
 class _PeriodSection {
   final String title;
   final String subtitle;
@@ -3291,41 +2348,4 @@ class _PeriodSection {
     required this.color,
     required this.reminders,
   });
-}
-
-class _ConfettiPainter extends CustomPainter {
-  final List<_ConfettiParticle> particles;
-  final double animationValue;
-
-  _ConfettiPainter({required this.particles, required this.animationValue});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (animationValue >= 1.0) return;
-    final paint = Paint()..style = PaintingStyle.fill;
-
-    for (final p in particles) {
-      final double screenX = (p.x / 400) * size.width;
-      if (p.y > size.height) continue;
-
-      canvas.save();
-      canvas.translate(screenX, p.y);
-      canvas.rotate(p.rotation);
-
-      paint.color = p.color;
-      canvas.drawRect(
-        Rect.fromCenter(
-          center: Offset.zero,
-          width: p.size,
-          height: p.size * 0.6,
-        ),
-        paint,
-      );
-
-      canvas.restore();
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _ConfettiPainter oldDelegate) => true;
 }

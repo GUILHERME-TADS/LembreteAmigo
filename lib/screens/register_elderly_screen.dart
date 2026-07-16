@@ -15,15 +15,11 @@ class RegisterElderlyScreen extends StatefulWidget {
 }
 
 class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
-  final TextEditingController _codeController = TextEditingController();
-  final FocusNode _pinFocusNode = FocusNode();
+  final List<TextEditingController> _controllers = List.generate(6, (_) => TextEditingController());
+  final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
   bool _isLoading = false;
   String? _pairedIdosoId;
   String? _pairedIdosoName;
-
-  // Blinking cursor state
-  Timer? _cursorTimer;
-  bool _cursorVisible = true;
 
   bool get _useFirebase {
     try {
@@ -33,39 +29,34 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
     }
   }
 
+  String get _fullCode => _controllers.map((c) => c.text).join();
+
   @override
   void initState() {
     super.initState();
     _loadPairedIdoso();
-    _pinFocusNode.addListener(_onFocusChange);
-  }
 
-  void _onFocusChange() {
-    if (_pinFocusNode.hasFocus) {
-      _startCursorTimer();
-    } else {
-      _stopCursorTimer();
-    }
-  }
-
-  void _startCursorTimer() {
-    _cursorTimer?.cancel();
-    _cursorTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
-      if (mounted) {
-        setState(() {
-          _cursorVisible = !_cursorVisible;
-        });
-      }
-    });
-  }
-
-  void _stopCursorTimer() {
-    _cursorTimer?.cancel();
-    _cursorTimer = null;
-    if (mounted) {
-      setState(() {
-        _cursorVisible = false;
+    for (int i = 0; i < 6; i++) {
+      _focusNodes[i].addListener(() {
+        if (_focusNodes[i].hasFocus) {
+          _controllers[i].selection = TextSelection(
+            baseOffset: 0,
+            extentOffset: _controllers[i].text.length,
+          );
+        }
+        if (mounted) setState(() {});
       });
+
+      _focusNodes[i].onKeyEvent = (node, event) {
+        if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.backspace) {
+          if (_controllers[i].text.isEmpty && i > 0) {
+            _controllers[i - 1].clear();
+            _focusNodes[i - 1].requestFocus();
+            return KeyEventResult.handled;
+          }
+        }
+        return KeyEventResult.ignored;
+      };
     }
   }
 
@@ -103,10 +94,12 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
 
   @override
   void dispose() {
-    _codeController.dispose();
-    _pinFocusNode.removeListener(_onFocusChange);
-    _pinFocusNode.dispose();
-    _cursorTimer?.cancel();
+    for (final c in _controllers) {
+      c.dispose();
+    }
+    for (final f in _focusNodes) {
+      f.dispose();
+    }
     super.dispose();
   }
 
@@ -153,7 +146,7 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
       if (currentUser == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Faca login novamente antes de vincular um idoso.'),
+            content: Text('Faça login novamente antes de desconectar um idoso.'),
           ),
         );
         return;
@@ -165,10 +158,23 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
     try {
       if (_pairedIdosoId != null) {
         if (_useFirebase) {
-          await FirebaseFirestore.instance
-              .collection('idoso_perfil')
-              .doc(_pairedIdosoId)
-              .update({'supervisorId': null, 'status': 'pending'});
+          final batch = FirebaseFirestore.instance.batch();
+          batch.set(
+            FirebaseFirestore.instance.collection('idoso_perfil').doc(_pairedIdosoId!),
+            {
+              'supervisorId': null,
+              'status': 'pending',
+              'pairingCode': null,
+              'pairingCodeExpires': null,
+            },
+            SetOptions(merge: true),
+          );
+          batch.set(
+            FirebaseFirestore.instance.collection('idosos').doc(_pairedIdosoId),
+            {'supervisorId': null, 'status': 'pending'},
+            SetOptions(merge: true),
+          );
+          await batch.commit();
         }
       }
       final prefs = await SharedPreferences.getInstance();
@@ -181,7 +187,9 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
           ),
         );
       }
-      _codeController.clear();
+      for (final c in _controllers) {
+        c.clear();
+      }
       await _loadPairedIdoso();
     } catch (e) {
       if (mounted) {
@@ -195,7 +203,7 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
   }
 
   void _cadastrar() async {
-    final code = _codeController.text.trim();
+    final code = _fullCode.trim();
 
     if (code.length != 6) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -209,11 +217,48 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
     }
 
     if (!_useFirebase) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'O Firebase não está ativo. Conecte-se à internet para realizar o vínculo.',
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('selected_idoso_id', 'idoso_simulado');
+      await _loadPairedIdoso();
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
+          title: const Text(
+            'Vínculo Realizado (Simulado)!',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: AppColors.primary,
+            ),
+          ),
+          content: const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.check_circle, size: 64, color: Colors.green),
+              SizedBox(height: 16),
+              Text(
+                'O dispositivo do idoso foi vinculado com sucesso ao seu painel (modo simulado).',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+              },
+              child: const Text(
+                'Concluir',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
         ),
       );
       return;
@@ -282,6 +327,9 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
         if (latestData['status'] != 'pending') {
           throw StateError('Codigo ja utilizado.');
         }
+        if (latestData['pairingCode'] != code) {
+          throw StateError('Codigo alterado. Gere um novo codigo.');
+        }
 
         final latestExpiresStr = latestData['pairingCodeExpires'] as String?;
         final latestExpires = latestExpiresStr == null
@@ -294,6 +342,8 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
         final updateData = {
           'supervisorId': currentUser.uid,
           'status': 'active',
+          'pairingCode': null,
+          'pairingCodeExpires': null,
         };
 
         transaction.update(doc.reference, updateData);
@@ -362,104 +412,85 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
   }
 
   Widget _buildPinInput() {
-    return Stack(
-      children: [
-        // Hidden TextField that captures input
-        Opacity(
-          opacity: 0.0,
-          child: SizedBox(
-            height: 60,
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: List.generate(6, (index) {
+        final controller = _controllers[index];
+        final focusNode = _focusNodes[index];
+        final isFocused = focusNode.hasFocus;
+        final hasDigit = controller.text.isNotEmpty;
+
+        return Flexible(
+          child: Container(
+            height: 58,
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+            constraints: const BoxConstraints(maxWidth: 48),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceContainerLowest,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isFocused
+                    ? AppColors.primary
+                    : (hasDigit ? AppColors.secondary : AppColors.outlineVariant),
+                width: isFocused ? 2.5 : 1.5,
+              ),
+              boxShadow: isFocused
+                  ? [
+                      BoxShadow(
+                        color: AppColors.primary.withValues(alpha: 0.15),
+                        blurRadius: 6,
+                        spreadRadius: 1,
+                      ),
+                    ]
+                  : null,
+            ),
             child: TextField(
-              controller: _codeController,
-              focusNode: _pinFocusNode,
+              controller: controller,
+              focusNode: focusNode,
               keyboardType: TextInputType.number,
+              textAlign: TextAlign.center,
+              showCursor: true,
+              cursorColor: AppColors.primary,
+              cursorWidth: 2.5,
+              cursorHeight: 28,
+              style: const TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primary,
+              ),
+              decoration: const InputDecoration(
+                border: InputBorder.none,
+                counterText: '',
+                contentPadding: EdgeInsets.zero,
+              ),
               inputFormatters: [
                 FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(6),
+                LengthLimitingTextInputFormatter(2),
               ],
               onChanged: (val) {
+                if (val.isNotEmpty) {
+                  if (val.length > 1) {
+                    final newChar = val.substring(val.length - 1);
+                    controller.text = newChar;
+                    controller.selection = TextSelection.fromPosition(
+                      TextPosition(offset: newChar.length),
+                    );
+                  }
+                  if (index < 5) {
+                    _focusNodes[index + 1].requestFocus();
+                  }
+                } else {
+                  if (index > 0) {
+                    _focusNodes[index - 1].requestFocus();
+                  }
+                }
                 setState(() {});
               },
             ),
           ),
-        ),
-        // Row of 6 styled squares
-        GestureDetector(
-          onTap: () {
-            _pinFocusNode.requestFocus();
-          },
-          behavior: HitTestBehavior.opaque,
-          child: Container(
-            width: double.infinity,
-            height: 60,
-            color: Colors.transparent,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: List.generate(6, (index) {
-                final text = _codeController.text;
-                final hasDigit = index < text.length;
-                final digit = hasDigit ? text[index] : '';
-                final isFocused =
-                    _pinFocusNode.hasFocus && index == text.length;
-
-                Widget childWidget;
-                if (hasDigit) {
-                  childWidget = Text(
-                    digit,
-                    style: const TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
-                    ),
-                  );
-                } else if (isFocused && _cursorVisible) {
-                  childWidget = Container(
-                    width: 2.5,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  );
-                } else {
-                  childWidget = const SizedBox.shrink();
-                }
-
-                return Flexible(
-                  child: Container(
-                    height: 58,
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    constraints: const BoxConstraints(maxWidth: 48),
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceContainerLowest,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: isFocused
-                            ? AppColors.primary
-                            : (hasDigit
-                                  ? AppColors.secondary
-                                  : AppColors.outlineVariant),
-                        width: isFocused ? 2.5 : 1.5,
-                      ),
-                      boxShadow: isFocused
-                          ? [
-                              BoxShadow(
-                                color: AppColors.primary.withValues(alpha: 0.15),
-                                blurRadius: 6,
-                                spreadRadius: 1,
-                              ),
-                            ]
-                          : null,
-                    ),
-                    child: childWidget,
-                  ),
-                );
-              }),
-            ),
-          ),
-        ),
-      ],
+        );
+      }),
     );
   }
 
@@ -468,43 +499,15 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(
-                      Icons.arrow_back,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  const Expanded(
-                    child: Text(
-                      'Lembrete Amigo',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ),
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: const BoxDecoration(
-                      color: AppColors.primaryContainer,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.person, size: 20),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 32),
+        child: Column(
+          children: [
+            _buildTopBar(context),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
               if (_pairedIdosoId != null) ...[
                 Container(
                   width: double.infinity,
@@ -636,6 +639,52 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
             ],
           ),
         ),
+      ),
+    ],
+  ),
+),
+);
+}
+
+  Widget _buildTopBar(BuildContext context) {
+    return Container(
+      height: 64,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        border: Border(bottom: BorderSide(color: AppColors.outlineVariant)),
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            onPressed: () => Navigator.pop(context),
+            icon: const Icon(
+              Icons.arrow_back,
+              color: AppColors.primary,
+              size: 32,
+            ),
+          ),
+          const Expanded(
+            child: Text(
+              'Lembrete Amigo',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w700,
+                color: AppColors.primary,
+              ),
+            ),
+          ),
+          Container(
+            width: 40,
+            height: 40,
+            decoration: const BoxDecoration(
+              color: AppColors.primaryContainer,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.person, size: 20, color: AppColors.primary),
+          ),
+        ],
       ),
     );
   }

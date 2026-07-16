@@ -51,7 +51,7 @@ class MedicationIdentifierService {
         'imageBase64': imageBase64,
       });
 
-      final data = result.data as Map<String, dynamic>;
+      final data = Map<String, dynamic>.from(result.data as Map);
       return MedicationIdentifierResult.fromJson(data);
     } catch (e) {
       return MedicationIdentifierResult(

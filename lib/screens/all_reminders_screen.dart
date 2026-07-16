@@ -7,6 +7,7 @@ import '../services/tts_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/index.dart';
 import '../utils/period_helper.dart';
+import '../utils/reminder_state_helper.dart';
 
 class AllRemindersScreen extends StatefulWidget {
   const AllRemindersScreen({super.key});
@@ -20,30 +21,37 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
   String _selectedCategory = 'todos';
   bool _showCompleted = true;
   bool _showOnlyPending = false;
+  bool _isLoadingReminders = true;
   String? _fotoPath;
 
   @override
   void initState() {
     super.initState();
     TTSService.instance.init();
-    _loadReminders();
+    _loadRemindersFromService();
     _loadProfilePhoto();
     LembreteService.instance.notifier.addListener(_onLembretesChanged);
   }
 
-  bool _isReminderActiveToday(Lembrete lembrete) =>
-      lembrete.isActiveOn(DateTime.now());
-
   void _loadReminders() {
-    final list = LembreteService.instance.lembretes
-        .where((l) => _isReminderActiveToday(l))
-        .toList();
-    list.sort((a, b) {
-      final aMin = a.horarioHour * 60 + a.horarioMinute;
-      final bMin = b.horarioHour * 60 + b.horarioMinute;
-      return aMin.compareTo(bMin);
-    });
-    _voiceReminders = list;
+    _voiceReminders = ReminderStateHelper.activeTodaySorted(
+      LembreteService.instance.lembretes,
+    );
+  }
+
+  Future<void> _loadRemindersFromService() async {
+    setState(() => _isLoadingReminders = true);
+    try {
+      await LembreteService.instance.carregar();
+    } catch (e) {
+      debugPrint('Erro ao carregar lembretes na tela do idoso: $e');
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _loadReminders();
+        _isLoadingReminders = false;
+      });
+    }
   }
 
   void _onLembretesChanged() {
@@ -205,31 +213,70 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
           final (icon, iconBg, accentColor) = _categoriaIcon(r.categoria);
           return Padding(
             padding: const EdgeInsets.only(bottom: 12),
-            child: ReminderWithAudio(
-              icon: icon,
-              iconBg: iconBg,
-              iconColor: Colors.white,
-              accentColor: accentColor,
-              title: r.titulo,
-              time: r.horarioFormatado,
-              audioPath: r.audioPath,
-              status: reminderVisualStatusFromLembrete(r),
-              onTap: () {
-                _stopAllAudioAndTts();
-                if (r.categoria == 'medicacao' && !r.concluido) {
-                  Navigator.pushNamed(
-                    context,
-                    '/take-photo-confirmation',
-                    arguments: r.id,
-                  );
-                } else {
-                  if (!r.concluido) {
-                    SystemSound.play(SystemSoundType.click);
-                    HapticFeedback.vibrate();
-                  }
-                  LembreteService.instance.alternarConclusao(r.id);
-                }
-              },
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppColors.surfaceContainerLowest,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.outlineVariant, width: 2),
+              ),
+              child: Column(
+                children: [
+                  ReminderWithAudio(
+                    icon: icon,
+                    iconBg: iconBg,
+                    iconColor: Colors.white,
+                    accentColor: accentColor,
+                    title: r.titulo,
+                    time: r.horarioFormatado,
+                    audioPath: r.audioPath == 'ia_generated' ? null : r.audioPath,
+                    ttsText: r.audioPath == 'ia_generated' ? r.medicamentoAudioTexto : null,
+                    status: reminderVisualStatusFromLembrete(r),
+                    onTap: () {
+                      final visualStatus = reminderVisualStatusFromLembrete(r);
+                      if (visualStatus == ReminderStatus.postponed ||
+                          visualStatus == ReminderStatus.missed) {
+                        return;
+                      }
+                      _stopAllAudioAndTts();
+                      if (r.categoria == 'medicacao' && !r.concluido) {
+                        Navigator.pushNamed(
+                          context,
+                          '/take-photo-confirmation',
+                          arguments: r.id,
+                        );
+                      } else {
+                        if (!r.concluido) {
+                          SystemSound.play(SystemSoundType.click);
+                          HapticFeedback.vibrate();
+                        }
+                        LembreteService.instance.alternarConclusao(r.id);
+                      }
+                    },
+                  ),
+                  if (r.medicamentoInstrucoes != null && r.medicamentoInstrucoes!.isNotEmpty) ...[
+                    const Divider(height: 1, color: AppColors.outlineVariant, thickness: 2),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.info_outline, size: 20, color: AppColors.primary),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Instrução: ${r.medicamentoInstrucoes}',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
           );
         }),
@@ -262,6 +309,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
     final completedList = _showOnlyPending
         ? <Lembrete>[]
         : filteredList.where((r) => r.concluido).toList();
+    final audioSummaryList = _showOnlyPending ? pending : filteredList;
 
     final madrugadaList = _getByPeriod(pending, 'madrugada');
     final manhaList = _getByPeriod(pending, 'manha');
@@ -277,7 +325,9 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
             const VolumeWarningBanner(),
             _buildTopBar(context),
             Expanded(
-              child: SingleChildScrollView(
+              child: _isLoadingReminders
+                  ? const Center(child: CircularProgressIndicator())
+                  : SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -329,7 +379,9 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                             Row(
                               children: [
                                 Icon(
-                                  isAllDone ? Icons.stars : Icons.emoji_events,
+                                  isAllDone
+                                      ? Icons.check_circle
+                                      : Icons.trending_up,
                                   color: isAllDone
                                       ? AppColors.tertiaryFixed
                                       : AppColors.secondaryContainer,
@@ -452,7 +504,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                                 _showOnlyPending = val;
                               });
                             },
-                            activeColor: AppColors.primary,
+                            activeThumbColor: AppColors.primary,
                           ),
                         ],
                       ),
@@ -520,10 +572,12 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                         ),
                       ),
 
-                    if (filteredList.isNotEmpty)
+                    if (audioSummaryList.isNotEmpty)
                       AudioPlayerCard(
                         subtitle: _selectedCategory == 'todos'
-                            ? 'Ouça todas as tarefas de hoje'
+                            ? (_showOnlyPending
+                                ? 'Ouça as tarefas que ainda faltam'
+                                : 'Ouça todas as tarefas de hoje')
                             : 'Ouça tarefas de ${_selectedCategory == 'medicacao'
                                   ? 'remédios'
                                   : _selectedCategory == 'refeicoes'
@@ -531,9 +585,6 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                                   : _selectedCategory == 'exercicio'
                                   ? 'exercícios'
                                   : 'água'}',
-                        audioPath: filteredList.isNotEmpty
-                            ? filteredList.last.audioPath
-                            : null,
                         textsToSpeak: () {
                           final catLabel = _selectedCategory == 'medicacao'
                               ? 'remédios'
@@ -544,14 +595,16 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                               : _selectedCategory == 'hidratacao'
                               ? 'lembretes de água'
                               : 'tarefas';
-                          final introText = filteredList.isEmpty
+                          final audioListDone = audioSummaryList.isNotEmpty &&
+                              audioSummaryList.every((l) => l.concluido);
+                          final introText = audioSummaryList.isEmpty
                               ? 'Você não tem tarefas nesta categoria.'
-                              : isAllDone
+                              : audioListDone
                               ? 'Muito bem! Você já fez todas as suas $catLabel de hoje!'
                               : 'Aqui estão suas $catLabel de hoje:';
                           return [
                             introText,
-                            ...filteredList.map((l) {
+                            ...audioSummaryList.map((l) {
                               final statusSuffix = l.concluido
                                   ? ' já está pronto.'
                                   : l.status == LembreteStatus.adiado
@@ -700,14 +753,10 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                                 accentColor: accentColor,
                                 title: r.titulo,
                                 time: r.horarioFormatado,
-                                audioPath: r.audioPath,
+                                audioPath: r.audioPath == 'ia_generated' ? null : r.audioPath,
+                                ttsText: r.audioPath == 'ia_generated' ? r.medicamentoAudioTexto : null,
                                 status: reminderVisualStatusFromLembrete(r),
-                                onTap: () {
-                                  _stopAllAudioAndTts();
-                                  LembreteService.instance.alternarConclusao(
-                                    r.id,
-                                  );
-                                },
+                                onTap: () {},
                               ),
                             ),
                           );
@@ -722,7 +771,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                         child: Column(
                           children: [
                             Icon(
-                              Icons.notifications_none,
+                              Icons.notifications_off,
                               size: 64,
                               color: AppColors.outlineVariant,
                             ),

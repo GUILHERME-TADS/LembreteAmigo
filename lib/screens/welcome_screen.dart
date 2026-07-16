@@ -118,7 +118,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                     prefs.getString('paired_idoso_id');
                                 if (!mounted) return;
                                 if (pairedIdosoId != null) {
-                                  final isPaired = pairedIdosoId != 'idoso_autonomo';
+                                  final isPaired = await SessionRoleService
+                                      .isElderlyConnectedToSupervisor();
                                   Navigator.pushNamedAndRemoveUntil(
                                     context,
                                     '/elderly-home',

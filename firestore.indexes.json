@@ -1,0 +1,77 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "lembretes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "idosoId", "order": "ASCENDING" },
+        { "fieldPath": "horarioHour", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "lembretes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "idosoId", "order": "ASCENDING" },
+        { "fieldPath": "horarioMinute", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "lembretes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "idosoId", "order": "ASCENDING" },
+        { "fieldPath": "criadoEm", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "lembrete_eventos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "idosoId", "order": "ASCENDING" },
+        { "fieldPath": "registradoEm", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "mensagens",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "idosoId", "order": "ASCENDING" },
+        { "fieldPath": "criadoEm", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "video_calls",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "idosoId", "order": "ASCENDING" },
+        { "fieldPath": "startedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "video_calls",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "supervisorId", "order": "ASCENDING" },
+        { "fieldPath": "startedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "video_calls",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "idosoId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "video_calls",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "supervisorId", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

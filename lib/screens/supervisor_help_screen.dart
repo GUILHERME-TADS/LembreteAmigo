@@ -31,22 +31,17 @@ class _SupervisorHelpScreenState extends State<SupervisorHelpScreen> {
     FAQItem(
       category: 'Gerenciar Lembretes',
       question: 'Como cadastrar um lembrete com áudio familiar?',
-      answer: 'Ao criar um lembrete, toque no botão do microfone na seção "Áudio Personalizado". Grave uma frase curta e familiar. Essa gravação tocará no celular do idoso logo no início do aviso.',
+      answer: 'Ao criar um lembrete, selecione "Grave Voz" na seção "Áudio do Idoso" e use o microfone para gravar uma frase curta e familiar. Essa gravação tocará no celular do idoso logo no início do aviso.',
     ),
     FAQItem(
       category: 'Gerenciar Lembretes',
       question: 'Como associar a foto real do remédio?',
       answer: 'Selecione a categoria "Remédio" e toque na área "Tirar Foto do Remédio". Capture a embalagem ou comprimido para que o idoso consiga identificá-lo visualmente com facilidade.',
     ),
-    FAQItem(
-      category: 'Gerenciar Lembretes',
-      question: 'Como configurar lembretes de intervalo (ex: a cada 6h)?',
-      answer: 'No campo "Repetição do Lembrete", selecione a opção "A cada X horas" e defina o intervalo desejado no menu suspenso que aparecerá logo abaixo.',
-    ),
     // Histórico e Relatórios
     FAQItem(
       category: 'Histórico e Relatórios',
-      question: 'Como conferir se o idoso tomou a pílula correta?',
+      question: 'Como conferir se o idoso tomou o remédio correto?',
       answer: 'Acesse a tela "Histórico" no menu inferior. Se o lembrete foi concluído com foto, você verá um botão "Ver Foto". Toque nele para abrir a imagem de confirmação tirada pelo idoso.',
     ),
     FAQItem(
@@ -55,11 +50,6 @@ class _SupervisorHelpScreenState extends State<SupervisorHelpScreen> {
       answer: 'Clique em "Relatórios Mensais" no menu lateral (Drawer) ou no botão correspondente no histórico para ver gráficos coloridos de cumprimento da rotina do idoso.',
     ),
     // Monitoramento de Saúde
-    FAQItem(
-      category: 'Monitoramento de Saúde',
-      question: 'De onde vêm as medições de batimentos cardíacos (BPM)?',
-      answer: 'As medições de BPM são feitas na tela do idoso por meio da leitura óptica do dedo na câmera traseira com o flash ativado, gerando o sinal em tempo real.',
-    ),
     FAQItem(
       category: 'Monitoramento de Saúde',
       question: 'O que significa o indicador de bateria no painel?',
@@ -92,14 +82,14 @@ class _SupervisorHelpScreenState extends State<SupervisorHelpScreen> {
           },
           {
             'title': '2. Criar Lembretes',
-            'desc': 'Configure remédios, refeições ou hidratação. Grave sua própria voz e tire foto real da pílula para ajudar na identificação.',
+            'desc': 'Configure remédios, refeições ou hidratação. Grave sua própria voz e tire foto real do remédio para ajudar na identificação.',
             'icon': Icons.add_circle_outline,
             'color': AppColors.secondary,
           },
           {
             'title': '3. Monitoramento & SOS',
-            'desc': 'Acompanhe batimentos (BPM), bateria e alertas do radar. Se o idoso pedir ajuda (SOS), você receberá um aviso sonoro imediato.',
-            'icon': Icons.favorite,
+            'desc': 'Acompanhe a bateria e alertas do radar. Se o idoso pedir ajuda (SOS), você receberá um aviso sonoro imediato.',
+            'icon': Icons.warning_amber,
             'color': AppColors.error,
           },
         ];
@@ -526,16 +516,7 @@ class _SupervisorHelpScreenState extends State<SupervisorHelpScreen> {
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-              Container(
-                width: 48,
-                height: 48,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.fromBorderSide(BorderSide(color: AppColors.primaryContainer, width: 2)),
-                ),
-                child: const Icon(Icons.person, color: AppColors.primaryContainer),
-              ),
+              const SizedBox(width: 48),
             ],
           ),
         );

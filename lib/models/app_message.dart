@@ -8,6 +8,7 @@ class AppMessage {
   final String? audioPath;
   final DateTime criadoEm;
   final bool lido;
+  final int? duracaoSegundos;
 
   const AppMessage({
     required this.id,
@@ -19,6 +20,7 @@ class AppMessage {
     this.audioPath,
     required this.criadoEm,
     this.lido = false,
+    this.duracaoSegundos,
   });
 
   AppMessage copyWith({bool? lido}) {
@@ -32,6 +34,7 @@ class AppMessage {
       audioPath: audioPath,
       criadoEm: criadoEm,
       lido: lido ?? this.lido,
+      duracaoSegundos: duracaoSegundos,
     );
   }
 
@@ -45,6 +48,7 @@ class AppMessage {
     'audioPath': audioPath,
     'criadoEm': criadoEm.toIso8601String(),
     'lido': lido,
+    'duracaoSegundos': duracaoSegundos,
   };
 
   factory AppMessage.fromJson(Map<String, dynamic> json) {
@@ -62,6 +66,7 @@ class AppMessage {
           DateTime.tryParse(json['criadoEm'] as String? ?? '') ??
           DateTime.now(),
       lido: json['lido'] as bool? ?? false,
+      duracaoSegundos: json['duracaoSegundos'] as int?,
     );
   }
 }

@@ -37,6 +37,7 @@ class _TakePhotoConfirmationScreenState
   bool _hasSpokenExplanation = false;
   CameraLensDirection _lensDirection = CameraLensDirection.back;
   String? _cameraErrorMessage;
+  bool _isTakingPhoto = false;
 
   bool get _useFirebase {
     try {
@@ -106,7 +107,7 @@ class _TakePhotoConfirmationScreenState
         if (mounted) {
           setState(() {
             _cameraErrorMessage =
-                'Nenhuma camera foi encontrada neste aparelho.';
+                'Nenhuma câmera foi encontrada neste aparelho.';
           });
         }
         debugPrint('Nenhuma câmera encontrada.');
@@ -138,7 +139,7 @@ class _TakePhotoConfirmationScreenState
         setState(() {
           _isCameraInitialized = false;
           _cameraErrorMessage =
-              'Nao foi possivel abrir a camera. Verifique a permissao e tente novamente.';
+              'Não foi possível abrir a câmera. Verifique a permissão e tente novamente.';
         });
       }
       debugPrint('Erro ao inicializar câmera: $e');
@@ -158,6 +159,7 @@ class _TakePhotoConfirmationScreenState
   }
 
   Future<void> _capturePhoto(String? lembreteId) async {
+    if (_isTakingPhoto || _isCaptured) return;
     if (_cameraController == null || !_cameraController!.value.isInitialized) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -170,6 +172,7 @@ class _TakePhotoConfirmationScreenState
       return;
     }
     try {
+      _isTakingPhoto = true;
       setState(() {
         _isFlashActive = true;
       });
@@ -188,6 +191,7 @@ class _TakePhotoConfirmationScreenState
     } catch (e) {
       debugPrint('Erro ao tirar foto: $e');
     } finally {
+      _isTakingPhoto = false;
       Future.delayed(const Duration(milliseconds: 150), () {
         if (mounted) {
           setState(() {
@@ -289,43 +293,46 @@ class _TakePhotoConfirmationScreenState
           }
         }
       },
-      child: Scaffold(
-        backgroundColor: Colors.black,
-        body: SafeArea(
-          child: Stack(
-            children: [
-              Column(
-                children: [
-                  const VolumeWarningBanner(),
-                  _buildTopBar(context),
-                  const MeExplicaButton(
-                    textoExplicacao:
-                        'Olá! Esta é a tela para tirar foto. Mostre a tarefa que você fez para a câmera e aperte o botão redondo no meio para tirar a foto. Se a foto ficar boa, aperte o botão de Confirmar.',
-                  ),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: !_isCaptured
-                          ? () => _capturePhoto(lembreteId)
-                          : null,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          if (!_isCaptured)
-                            _buildCameraViewfinder()
-                          else
-                            _buildPhotoPreview(),
+      child: PopScope(
+        canPop: !_isUploading,
+        onPopInvokedWithResult: (didPop, result) {
+          if (didPop) return;
+          TTSService.instance.parar(caller: this);
+        },
+        child: Scaffold(
+          backgroundColor: Colors.black,
+          body: SafeArea(
+            child: Stack(
+              children: [
+                Column(
+                  children: [
+                    const VolumeWarningBanner(),
+                    _buildTopBar(context),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: !_isCaptured
+                            ? () => _capturePhoto(lembreteId)
+                            : null,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            if (!_isCaptured)
+                              _buildCameraViewfinder()
+                            else
+                              _buildPhotoPreview(),
 
-                          if (!_isCaptured) _buildSilhouetteOverlay(lembreteId),
+                            if (!_isCaptured) _buildSilhouetteOverlay(lembreteId),
 
-                          if (_isFlashActive) Container(color: Colors.white),
-                        ],
+                            if (_isFlashActive) Container(color: Colors.white),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                  _buildControlPanel(context, lembreteId),
-                ],
-              ),
-            ],
+                    _buildControlPanel(context, lembreteId),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -340,10 +347,12 @@ class _TakePhotoConfirmationScreenState
         children: [
           IconButton(
             icon: const Icon(Icons.close, color: Colors.white, size: 36),
-            onPressed: () {
-              TTSService.instance.parar(caller: this);
-              Navigator.pop(context);
-            },
+            onPressed: _isUploading
+                ? null
+                : () {
+                    TTSService.instance.parar(caller: this);
+                    Navigator.pop(context);
+                  },
           ),
           const Expanded(
             child: Text(

@@ -1,22 +1,25 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_core/firebase_core.dart';
 import '../theme/app_theme.dart';
 import '../services/session_role_service.dart';
 import '../services/video_call_service.dart';
 import '../services/tts_service.dart';
+import '../models/video_call.dart';
 
 class IncomingVideoCallScreen extends StatefulWidget {
   final String callId;
   final String roomName;
+  final String callType;
 
   const IncomingVideoCallScreen({
     super.key,
     required this.callId,
     required this.roomName,
+    this.callType = 'video',
   });
 
   @override
@@ -26,7 +29,6 @@ class IncomingVideoCallScreen extends StatefulWidget {
 
 class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen> {
   String _callerName = '';
-  final AudioPlayer _ringtonePlayer = AudioPlayer();
   Timer? _vibrateTimer;
   bool _accepted = false;
 
@@ -34,13 +36,33 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen> {
   void initState() {
     super.initState();
     _loadCallerName();
-    _playRingtone();
     VideoCallService.instance.watchCall(widget.callId);
+    VideoCallService.instance.activeCallNotifier.addListener(_onActiveCallChanged);
+    _startVibration();
+  }
+
+  void _startVibration() {
+    _vibrateTimer = Timer.periodic(const Duration(milliseconds: 1500), (_) {
+      HapticFeedback.vibrate();
+    });
+  }
+
+  void _onActiveCallChanged() {
+    final activeCall = VideoCallService.instance.activeCallNotifier.value;
+    if (activeCall == null ||
+        activeCall.status == VideoCallStatus.ended ||
+        activeCall.status == VideoCallStatus.declined) {
+      _vibrateTimer?.cancel();
+      if (mounted && !_accepted) {
+        Navigator.of(context).pop();
+      }
+    }
   }
 
   @override
   void dispose() {
-    _ringtonePlayer.dispose();
+    VideoCallService.instance.activeCallNotifier.removeListener(_onActiveCallChanged);
+    TTSService.instance.parar(caller: this);
     _vibrateTimer?.cancel();
     super.dispose();
   }
@@ -50,8 +72,41 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen> {
       final prefs = await SharedPreferences.getInstance();
 
       if (SessionRoleService.isElderly) {
-        // Busca nome do supervisor
-        final nome = prefs.getString('caregiver_name') ?? 'Cuidador';
+        String nome = prefs.getString('caregiver_name') ?? 'Cuidador';
+        bool useFirebase = false;
+        try {
+          useFirebase = Firebase.apps.isNotEmpty;
+        } catch (_) {}
+
+        if (useFirebase) {
+          final idosoId = await SessionRoleService.getActiveIdosoId();
+          final perfilDoc = await FirebaseFirestore.instance
+              .collection('idoso_perfil')
+              .doc(idosoId)
+              .get();
+          String? supervisorId =
+              perfilDoc.data()?['supervisorId'] as String?;
+          if (supervisorId == null || supervisorId.isEmpty) {
+            final idosoDoc = await FirebaseFirestore.instance
+                .collection('idosos')
+                .doc(idosoId)
+                .get();
+            supervisorId = idosoDoc.data()?['supervisorId'] as String?;
+          }
+
+          if (supervisorId != null && supervisorId.isNotEmpty) {
+            final supervisorDoc = await FirebaseFirestore.instance
+                .collection('supervisores')
+                .doc(supervisorId)
+                .get();
+            final supervisorName = supervisorDoc.data()?['nome'] as String?;
+            if (supervisorName != null && supervisorName.isNotEmpty) {
+              nome = supervisorName;
+              await prefs.setString('caregiver_name', supervisorName);
+            }
+          }
+        }
+
         if (mounted) setState(() => _callerName = nome);
       } else {
         // Busca nome do idoso
@@ -80,41 +135,30 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen> {
 
     // TTS announce
     try {
+      final isVoice = widget.callType == 'voice';
+      final callName = isVoice ? 'voz' : 'vídeo';
       final msg = SessionRoleService.isElderly
-          ? '$_callerName está chamando você por vídeo! Toque no botão verde para atender.'
-          : 'Chamada de vídeo de $_callerName.';
-      await TTSService.instance.falar(msg);
+          ? '$_callerName está chamando você por $callName! Toque no botão verde para atender.'
+          : 'Chamada de $callName de $_callerName.';
+      await TTSService.instance.falar(msg, caller: this);
     } catch (_) {}
   }
 
-  Future<void> _playRingtone() async {
-    try {
-      await _ringtonePlayer.play(
-        AssetSource('sounds/ringtone.mp3'),
-        volume: 1.0,
-      );
-    } catch (_) {
-      // Ringtone asset opcional
-    }
-  }
-
   Future<void> _accept() async {
+    _vibrateTimer?.cancel();
     setState(() => _accepted = true);
-    await _ringtonePlayer.stop();
     await VideoCallService.instance.acceptCall(widget.callId);
     if (!mounted) return;
-    Navigator.pushReplacementNamed(
-      context,
-      '/active-video-call',
-      arguments: {
-        'callId': widget.callId,
-        'roomName': widget.roomName,
-      },
+    Navigator.pop(context);
+    await VideoCallService.instance.joinCall(
+      widget.roomName,
+      callType: widget.callType,
+      callId: widget.callId,
     );
   }
 
   Future<void> _decline() async {
-    await _ringtonePlayer.stop();
+    _vibrateTimer?.cancel();
     await VideoCallService.instance.declineCall(widget.callId);
     if (mounted) Navigator.pop(context);
   }
@@ -149,7 +193,7 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen> {
                     ),
                   ),
                   child: Icon(
-                    Icons.videocam,
+                    widget.callType == 'voice' ? Icons.phone_in_talk : Icons.videocam,
                     size: isElderly ? 80 : 60,
                     color: AppColors.primary,
                   ),
@@ -159,7 +203,7 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen> {
 
                 // Caller name
                 Text(
-                  _callerName.isNotEmpty ? _callerName : 'Chamada de Vídeo',
+                  _callerName.isNotEmpty ? _callerName : (widget.callType == 'voice' ? 'Chamada de Voz' : 'Chamada de Vídeo'),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: isElderly ? 36 : 28,
@@ -172,7 +216,7 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen> {
                 const SizedBox(height: 8),
 
                 Text(
-                  'Chamada de Vídeo',
+                  widget.callType == 'voice' ? 'Chamada de Voz' : 'Chamada de Vídeo',
                   style: TextStyle(
                     fontSize: isElderly ? 24 : 18,
                     fontWeight: FontWeight.w600,
@@ -197,7 +241,7 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen> {
                     const SizedBox(width: 48),
                     // Accept
                     _CallActionButton(
-                      icon: Icons.videocam,
+                      icon: widget.callType == 'voice' ? Icons.phone : Icons.videocam,
                       label: 'Atender',
                       color: const Color(0xFF2E7D32),
                       onPressed: _accepted ? null : _accept,

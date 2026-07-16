@@ -7,14 +7,14 @@ import '../utils/period_helper.dart';
 import '../widgets/volume_warning_banner.dart';
 import '../widgets/me_explica_button.dart';
 
-class ExerciseDetailScreen extends StatefulWidget {
-  const ExerciseDetailScreen({super.key});
+class ReminderDetailScreen extends StatefulWidget {
+  const ReminderDetailScreen({super.key});
 
   @override
-  State<ExerciseDetailScreen> createState() => _ExerciseDetailScreenState();
+  State<ReminderDetailScreen> createState() => _ReminderDetailScreenState();
 }
 
-class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
+class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
   Lembrete? _lembrete;
   bool _hasSpoken = false;
 
@@ -36,17 +36,68 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
     super.dispose();
   }
 
+  _ReminderCategoryConfig get _config {
+    final cat = _lembrete?.categoria ?? '';
+    if (cat == 'refeicoes') {
+      return _ReminderCategoryConfig(
+        icon: Icons.restaurant,
+        color: AppColors.mealsColor,
+        topBarTitle: 'Hora de Comer',
+        defaultTitle: 'HORA DE COMER',
+        defaultSubtitle: _lembrete != null
+            ? 'Refeição agendada para às ${_lembrete!.horarioFormatado}. Bom apetite!'
+            : 'Sua refeição está pronta. Bom apetite!',
+        detailedExplanation:
+            'Olá, esta é a tela de detalhes da sua refeição. Aqui você pode ver qual refeição foi programada e o horário dela. Se for comer agora, aperte o botão verde escrito ENTENDI. Se quiser comer mais tarde, aperte o botão amarelo escrito ADIAR.',
+        spokenText: (l, timeStr) =>
+            'Hora de comer. ${l.titulo} agendado para às $timeStr. Por favor, faça sua refeição.',
+        defaultSpokenText: () => 'Hora de comer. Sua refeição está pronta. Bom apetite!',
+      );
+    } else if (cat == 'exercicio') {
+      return _ReminderCategoryConfig(
+        icon: Icons.directions_walk,
+        color: AppColors.tertiaryContainer,
+        topBarTitle: 'Vamos nos Mexer',
+        defaultTitle: 'HORA DO EXERCÍCIO',
+        defaultSubtitle: _lembrete != null
+            ? 'Atividade física agendada para às ${_lembrete!.horarioFormatado}. Vamos lá!'
+            : 'Vamos nos movimentar!',
+        detailedExplanation:
+            'Olá, esta é a tela de detalhes do seu exercício. Aqui você pode ver o nome do exercício e o horário programado. Se for realizar a atividade agora, aperte o botão verde escrito ENTENDI. Se quiser fazer mais tarde, aperte o botão amarelo escrito ADIAR.',
+        spokenText: (l, timeStr) =>
+            'Hora de se mexer. ${l.titulo} agendado para às $timeStr. Vamos nos movimentar.',
+        defaultSpokenText: () => 'Hora de se exercitar. Vamos nos movimentar!',
+      );
+    } else {
+      return _ReminderCategoryConfig(
+        icon: Icons.alarm,
+        color: AppColors.primary,
+        topBarTitle: 'Detalhes do Lembrete',
+        defaultTitle: 'LEMBRETE',
+        defaultSubtitle: _lembrete != null
+            ? 'Lembrete agendado para às ${_lembrete!.horarioFormatado}.'
+            : 'Atenção ao seu lembrete!',
+        detailedExplanation:
+            'Olá, esta é a tela de detalhes do seu lembrete. Se for realizar a atividade agora, aperte o botão verde escrito ENTENDI. Se quiser fazer mais tarde, aperte o botão amarelo escrito ADIAR.',
+        spokenText: (l, timeStr) =>
+            'Atenção ao seu lembrete. ${l.titulo} agendado para às $timeStr.',
+        defaultSpokenText: () => 'Atenção ao seu lembrete!',
+      );
+    }
+  }
+
   void _speak() {
     _hasSpoken = true;
+    final cfg = _config;
     if (_lembrete != null) {
       final timeStr = PeriodHelper.getSpokenTime(_lembrete!.horarioHour, _lembrete!.horarioMinute);
       TTSService.instance.falar(
-        'Hora de se mexer. ${_lembrete!.titulo} agendado para às $timeStr. Vamos nos movimentar.',
+        cfg.spokenText(_lembrete!, timeStr),
         caller: this,
       );
     } else {
       TTSService.instance.falar(
-        'Hora de se exercitar. Vamos nos movimentar!',
+        cfg.defaultSpokenText(),
         caller: this,
       );
     }
@@ -54,10 +105,8 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final title = _lembrete?.titulo ?? 'HORA DO EXERCÍCIO';
-    final subtitle = _lembrete != null 
-        ? 'Atividade física agendada para às ${_lembrete!.horarioFormatado}. Vamos lá!'
-        : 'Vamos nos movimentar!';
+    final cfg = _config;
+    final title = _lembrete?.titulo ?? cfg.defaultTitle;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -65,13 +114,13 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
         child: Column(
           children: [
             const VolumeWarningBanner(),
-            _buildTopBar(context),
+            _buildTopBar(context, cfg),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
                 child: Column(
                   children: [
-                    _buildPulsingIcon(),
+                    _buildPulsingIcon(cfg),
                     const SizedBox(height: 32),
                     Text(
                       title.toUpperCase(),
@@ -85,7 +134,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      subtitle,
+                      cfg.defaultSubtitle,
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         fontSize: 24,
@@ -95,8 +144,8 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    const MeExplicaButton(
-                      textoExplicacao: 'Olá, esta é a tela de detalhes do seu exercício. Aqui você pode ver o nome do exercício e o horário programado. Se for realizar a atividade agora, aperte o botão verde escrito ENTENDI. Se quiser fazer mais tarde, aperte o botão amarelo escrito ADIAR.',
+                    MeExplicaButton(
+                      textoExplicacao: cfg.detailedExplanation,
                     ),
                     const SizedBox(height: 48),
                     SizedBox(
@@ -116,7 +165,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                           style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
                         ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.tertiaryContainer,
+                          backgroundColor: cfg.color,
                           foregroundColor: AppColors.onPrimary,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
@@ -151,14 +200,14 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                 ),
               ),
             ),
-            _buildSpeakerIndicator(),
+            _buildSpeakerIndicator(cfg),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildTopBar(BuildContext context) {
+  Widget _buildTopBar(BuildContext context, _ReminderCategoryConfig cfg) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       constraints: const BoxConstraints(minHeight: 64),
@@ -173,19 +222,19 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
               Navigator.pop(context);
             },
             borderRadius: BorderRadius.circular(12),
-            child: const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              child: Icon(Icons.arrow_back, color: AppColors.tertiaryContainer, size: 36),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: Icon(Icons.arrow_back, color: cfg.color, size: 36),
             ),
           ),
-          const Expanded(
+          Expanded(
             child: Text(
-              'Vamos nos Mexer',
+              cfg.topBarTitle,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.tertiaryContainer),
+              style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: cfg.color),
             ),
           ),
-          const Icon(Icons.volume_up, color: AppColors.tertiaryContainer, size: 28),
+          Icon(Icons.volume_up, color: cfg.color, size: 28),
           const SizedBox(width: 8),
           SizedBox(
             height: 24,
@@ -195,7 +244,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                 height: [16, 24, 12, 20][i].toDouble(),
                 margin: const EdgeInsets.symmetric(horizontal: 2),
                 decoration: BoxDecoration(
-                  color: AppColors.tertiaryContainer,
+                  color: cfg.color,
                   borderRadius: BorderRadius.circular(2),
                 ),
               )),
@@ -206,31 +255,31 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
     );
   }
 
-  Widget _buildPulsingIcon() {
+  Widget _buildPulsingIcon(_ReminderCategoryConfig cfg) {
     return Stack(
       alignment: Alignment.center,
       children: [
         Container(
           width: 180, height: 180,
           decoration: BoxDecoration(
-            color: AppColors.tertiaryContainer.withValues(alpha: 0.15),
+            color: cfg.color.withValues(alpha: 0.15),
             shape: BoxShape.circle,
           ),
         ),
         Container(
           width: 140, height: 140,
           decoration: BoxDecoration(
-            color: AppColors.tertiaryContainer.withValues(alpha: 0.3),
+            color: cfg.color.withValues(alpha: 0.3),
             shape: BoxShape.circle,
-            border: Border.all(color: AppColors.tertiaryContainer, width: 4),
+            border: Border.all(color: cfg.color, width: 4),
           ),
-          child: const Icon(Icons.directions_walk, size: 72, color: AppColors.tertiaryContainer),
+          child: Icon(cfg.icon, size: 72, color: cfg.color),
         ),
       ],
     );
   }
 
-  Widget _buildSpeakerIndicator() {
+  Widget _buildSpeakerIndicator(_ReminderCategoryConfig cfg) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       child: Row(
@@ -242,14 +291,14 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
               color: AppColors.surfaceContainerLow,
               borderRadius: BorderRadius.circular(9999),
             ),
-            child: const Row(
+            child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.hearing, size: 16, color: AppColors.tertiaryContainer),
-                SizedBox(width: 8),
+                Icon(Icons.hearing, size: 16, color: cfg.color),
+                const SizedBox(width: 8),
                 Text(
                   'ALTO-FALANTE ATIVO',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: AppColors.tertiaryContainer),
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: cfg.color),
                 ),
               ],
             ),
@@ -258,4 +307,26 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
       ),
     );
   }
+}
+
+class _ReminderCategoryConfig {
+  final IconData icon;
+  final Color color;
+  final String topBarTitle;
+  final String defaultTitle;
+  final String defaultSubtitle;
+  final String detailedExplanation;
+  final String Function(Lembrete lembrete, String timeStr) spokenText;
+  final String Function() defaultSpokenText;
+
+  const _ReminderCategoryConfig({
+    required this.icon,
+    required this.color,
+    required this.topBarTitle,
+    required this.defaultTitle,
+    required this.defaultSubtitle,
+    required this.detailedExplanation,
+    required this.spokenText,
+    required this.defaultSpokenText,
+  });
 }

@@ -71,7 +71,7 @@ class PhotoGalleryScreen extends StatelessWidget {
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.arrow_back, color: AppColors.primary, size: 28),
+            icon: const Icon(Icons.arrow_back, color: AppColors.primary, size: 36),
             onPressed: () => Navigator.of(context).pop(),
           ),
           const SizedBox(width: 8),

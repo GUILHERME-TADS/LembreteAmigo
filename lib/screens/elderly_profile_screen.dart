@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -27,10 +27,9 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
   String _dataNasc = 'Não informada';
   String _telefone = 'Não informado';
   String _endereco = 'Não informado';
-  List<String> _condicoes = [];
   String? _fotoPath;
   bool _isLoading = true;
-  bool _isAutonomous = false;
+  bool _isConnectionActive = false;
 
 
   bool get _useFirebase {
@@ -62,10 +61,19 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
     await LembreteService.instance.carregar();
     try {
       final prefs = await SharedPreferences.getInstance();
-      final pairedId = prefs.getString('paired_idoso_id');
+
+      String status = 'pending';
+      final jsonStr = prefs.getString('idoso_perfil');
+      if (jsonStr != null) {
+        try {
+          final data = jsonDecode(jsonStr) as Map<String, dynamic>;
+          status = data['status'] as String? ?? 'pending';
+        } catch (_) {}
+      }
+
       if (mounted) {
         setState(() {
-          _isAutonomous = (pairedId == 'idoso_autonomo');
+          _isConnectionActive = status == 'active';
         });
       }
 
@@ -74,9 +82,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
       String dataNasc = 'Não informada';
       String telefone = 'Não informado';
       String endereco = 'Não informado';
-      List<String> condicoes = [];
 
-      final jsonStr = prefs.getString('idoso_perfil');
       final localFoto = prefs.getString('idoso_foto_path');
 
       if (jsonStr != null) {
@@ -93,7 +99,6 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
         endereco = (data['endereco'] as String?)?.isNotEmpty == true
             ? data['endereco'] as String
             : 'Não informado';
-        condicoes = List<String>.from(data['condicoes'] as List? ?? []);
       }
 
       String? fotoPath = reloadPhoto ? localFoto : _fotoPath;
@@ -136,9 +141,6 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
               final v = data['endereco']?.toString() ?? '';
               if (isRealValue(v)) endereco = v;
             }
-            if (condicoes.isEmpty && data['condicoes'] != null) {
-              condicoes = List<String>.from(data['condicoes'] as List);
-            }
           }
 
           if (docPerfil.exists && docPerfil.data() != null) {
@@ -159,8 +161,28 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
               final v = data['endereco']?.toString() ?? '';
               if (isRealValue(v)) endereco = v;
             }
-            if (condicoes.isEmpty && data['condicoes'] != null) {
-              condicoes = List<String>.from(data['condicoes'] as List);
+
+            final firestoreStatus = data['status'] as String? ?? 'pending';
+            final firestoreSupervisorId = data['supervisorId'] as String?;
+
+            // Save updated connection fields to cache
+            final jsonStr = prefs.getString('idoso_perfil');
+            if (jsonStr != null) {
+              try {
+                final localData = jsonDecode(jsonStr) as Map<String, dynamic>;
+                localData['status'] = firestoreStatus;
+                localData['supervisorId'] = firestoreSupervisorId;
+                await prefs.setString('idoso_perfil', jsonEncode(localData));
+              } catch (_) {}
+            }
+
+            if (mounted) {
+              setState(() {
+                _isConnectionActive = firestoreStatus == 'active';
+              });
+            }
+            if (firestoreStatus == 'active' && firestoreSupervisorId != null) {
+              await prefs.setBool('elderly_autonomous_mode', false);
             }
           }
 
@@ -183,6 +205,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
               if (firestoreFoto != null && firestoreFoto.isNotEmpty) {
                 fotoPath = firestoreFoto;
                 if (firestoreFoto.startsWith('avatar_') ||
+                    firestoreFoto.startsWith('http') ||
                     File(firestoreFoto).existsSync()) {
                   await prefs.setString('idoso_foto_path', firestoreFoto);
                 }
@@ -202,7 +225,6 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
           _dataNasc = dataNasc;
           _telefone = telefone;
           _endereco = endereco;
-          _condicoes = condicoes;
           _fotoPath = fotoPath;
           _isLoading = false;
         });
@@ -249,33 +271,68 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final docId = prefs.getString('paired_idoso_id');
+      Object? syncError;
       if (docId != null && docId != 'idoso_autonomo') {
         if (_useFirebase) {
-          await FirebaseFirestore.instance
-              .collection('idoso_perfil')
-              .doc(docId)
-              .update({
+          try {
+            final batch = FirebaseFirestore.instance.batch();
+            batch.set(
+              FirebaseFirestore.instance.collection('idoso_perfil').doc(docId),
+              {
                 'supervisorId': null,
                 'status': 'pending',
                 'pairingCode': null,
-              });
+                'pairingCodeExpires': null,
+              },
+              SetOptions(merge: true),
+            );
+            batch.set(
+              FirebaseFirestore.instance.collection('idosos').doc(docId),
+              {
+                'supervisorId': null,
+                'status': 'pending',
+                'pairingCode': null,
+                'pairingCodeExpires': null,
+              },
+              SetOptions(merge: true),
+            );
+            await batch.commit();
+          } catch (e) {
+            syncError = e;
+            debugPrint('Erro ao sincronizar desvinculo na nuvem: $e');
+          }
         }
       }
       await prefs.setString('paired_idoso_id', 'idoso_autonomo');
-      
+      await prefs.setBool('elderly_autonomous_mode', true);
+
       final jsonStr = prefs.getString('idoso_perfil');
       if (jsonStr != null) {
         final Map<String, dynamic> data = jsonDecode(jsonStr) as Map<String, dynamic>;
         data['status'] = 'pending';
+        data['supervisorId'] = null;
         await prefs.setString('idoso_perfil', jsonEncode(data));
       }
 
-      await TTSService.instance.falar('Aplicativo desconectado com sucesso.', caller: this);
+      final message = syncError == null
+          ? 'Aplicativo desconectado com sucesso.'
+          : 'Ajudante desconectado neste aparelho. A sincronizacao com a nuvem sera tentada novamente quando houver conexao.';
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+      }
+      await TTSService.instance.falar(message, caller: this);
       await _loadProfile();
     } catch (e) {
       debugPrint('Erro ao desvincular: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao desconectar ajudante: $e')),
+        );
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -546,7 +603,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
             icon: const Icon(
               Icons.arrow_back,
               color: AppColors.primary,
-              size: 28,
+              size: 36,
             ),
           ),
           const Spacer(),
@@ -770,36 +827,6 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                             'Seu Endereço',
                             _endereco,
                           ),
-                          const SizedBox(height: 24),
-                          _sectionTitle('Condições de Saúde'),
-                          const SizedBox(height: 12),
-                          if (_condicoes.isEmpty)
-                            const Align(
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                'Nenhuma condição registrada.',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: AppColors.onSurfaceVariant,
-                                ),
-                              ),
-                            )
-                          else
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
-                                children: _condicoes.map((c) {
-                                  return _chip(
-                                    c,
-                                    AppColors.secondaryContainer,
-                                    AppColors.onSecondaryContainer,
-                                  );
-                                }).toList(),
-                              ),
-                            ),
-                          const SizedBox(height: 24),
                           _sectionTitle(
                             'Medicamentos em Uso (Remédios cadastrados)',
                           ),
@@ -837,7 +864,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                             ),
                             child: Column(
                               children: [
-                                if (_isAutonomous) ...[
+                                if (!_isConnectionActive) ...[
                                   SizedBox(
                                     width: double.infinity,
                                     height: 64,
@@ -950,6 +977,45 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                                 SizedBox(
                                   width: double.infinity,
                                   height: 64,
+                                  child: ElevatedButton(
+                                    onPressed: () async {
+                                      TTSService.instance.parar(caller: this);
+                                      await Navigator.pushNamed(
+                                        context,
+                                        '/voice-settings',
+                                      );
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppColors.secondaryContainer,
+                                      foregroundColor: AppColors.onSecondaryFixed,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                    child: const Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.record_voice_over, size: 28),
+                                        SizedBox(width: 12),
+                                        Flexible(
+                                          child: Text(
+                                            'VOZ E ESCUTA DO ALEX',
+                                            textAlign: TextAlign.center,
+                                            style: TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 64,
                                   child: OutlinedButton(
                                     onPressed: () async {
                                       TTSService.instance.parar(caller: this);
@@ -1040,34 +1106,6 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
     TTSService.instance.falar('$label: $value', caller: this);
   }
 
-  IconData _getConditionIcon(String condition) {
-    final lower = condition.toLowerCase();
-    if (lower.contains('diabet') ||
-        lower.contains('açúcar') ||
-        lower.contains('glic')) {
-      return Icons.bloodtype;
-    }
-    if (lower.contains('press') ||
-        lower.contains('hiperten') ||
-        lower.contains('coraç')) {
-      return Icons.favorite;
-    }
-    if (lower.contains('colesterol')) {
-      return Icons.speed;
-    }
-    if (lower.contains('artrite') ||
-        lower.contains('osso') ||
-        lower.contains('coluna')) {
-      return Icons.accessibility_new;
-    }
-    if (lower.contains('alzheimer') ||
-        lower.contains('memór') ||
-        lower.contains('demên')) {
-      return Icons.psychology;
-    }
-    return Icons.health_and_safety;
-  }
-
   Widget _infoRow(IconData icon, String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -1124,45 +1162,6 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                     Icons.volume_up,
                     size: 16,
                     color: AppColors.primary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _chip(String label, Color bg, Color fg) {
-    final icon = _getConditionIcon(label);
-    return Container(
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(9999),
-        border: Border.all(color: fg.withValues(alpha: 0.15), width: 1.5),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(9999),
-          onTap: () => TTSService.instance.falar(
-            'Condição de saúde: $label',
-            caller: this,
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, size: 20, color: fg),
-                const SizedBox(width: 8),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: fg,
                   ),
                 ),
               ],

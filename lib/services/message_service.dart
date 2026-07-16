@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/app_message.dart';
 import '../utils/audio_path_helper.dart';
+import '../utils/web_upload_helper.dart';
 import 'offline_sync_service.dart';
 import 'secure_cache_service.dart';
 import 'session_role_service.dart';
@@ -116,13 +117,20 @@ class MessageService {
 
   Future<bool> _checkConnection() async {
     final idosoId = await getActiveIdosoId();
-    return idosoId != SessionRoleService.unpairedIdosoId;
+    if (idosoId == SessionRoleService.unpairedIdosoId) return false;
+    if (SessionRoleService.isSupervisor) {
+      return SessionRoleService.isSupervisorConnected();
+    }
+    if (SessionRoleService.isElderly) {
+      return SessionRoleService.isElderlyConnectedToSupervisor();
+    }
+    return false;
   }
 
-  Future<void> sendText(String text) async {
-    if (!await _checkConnection()) return;
+  Future<bool> sendText(String text) async {
+    if (!await _checkConnection()) return false;
     final trimmed = text.trim();
-    if (trimmed.isEmpty) return;
+    if (trimmed.isEmpty) return false;
 
     final idosoId = await getActiveIdosoId();
     final message = AppMessage(
@@ -135,14 +143,16 @@ class MessageService {
       criadoEm: DateTime.now(),
     );
     await saveOutgoing(message);
+    return true;
   }
 
-  Future<void> sendAudio({
+  Future<bool> sendAudio({
     required String audioPath,
     required String fallbackText,
+    int? duracaoSegundos,
     String? nomeIdoso,
   }) async {
-    if (!await _checkConnection()) return;
+    if (!await _checkConnection()) return false;
     final idosoId = await getActiveIdosoId();
     final messageId = 'msg_${DateTime.now().microsecondsSinceEpoch}';
     final storedAudioPath = await _uploadAudioIfNeeded(
@@ -159,8 +169,10 @@ class MessageService {
       texto: fallbackText,
       audioPath: storedAudioPath,
       criadoEm: DateTime.now(),
+      duracaoSegundos: duracaoSegundos,
     );
     await saveOutgoing(message);
+    return true;
   }
 
 
@@ -170,6 +182,28 @@ class MessageService {
     required String messageId,
   }) async {
     if (!_useFirebase || isRemoteAudioPath(audioPath)) return audioPath;
+
+    if (kIsWeb) {
+      try {
+        final bytes = await fetchBlobBytes(audioPath);
+        if (bytes == null) {
+          throw StateError('Não foi possível ler os bytes do blob no Web.');
+        }
+        final ref = FirebaseStorage.instance
+            .ref()
+            .child('message_audio')
+            .child(idosoId)
+            .child('$messageId.m4a');
+        final snapshot = await ref.putData(
+          bytes,
+          SettableMetadata(contentType: 'audio/mp4'),
+        );
+        return await snapshot.ref.getDownloadURL();
+      } catch (e) {
+        debugPrint('Erro ao fazer upload do audio no Web: $e');
+        return audioPath;
+      }
+    }
 
     final file = File(audioPath);
     if (!await file.exists()) {
@@ -186,6 +220,22 @@ class MessageService {
       SettableMetadata(contentType: 'audio/mp4'),
     );
     return snapshot.ref.getDownloadURL();
+  }
+
+  Future<void> deleteMessage(String id) async {
+    final idx = _messages.indexWhere((message) => message.id == id);
+    if (idx == -1) return;
+    final message = _messages[idx];
+    _messages.removeAt(idx);
+    await _saveLocal(message.idosoId);
+    notifier.value = List.from(_messages);
+
+    if (_useFirebase) {
+      await FirebaseFirestore.instance
+          .collection('mensagens')
+          .doc(id)
+          .delete();
+    }
   }
 
   Future<void> saveOutgoing(AppMessage message) async {

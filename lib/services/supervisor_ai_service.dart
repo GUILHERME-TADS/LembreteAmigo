@@ -1,11 +1,8 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
-import '../models/lembrete.dart';
-import '../models/lembrete_evento.dart';
 import '../models/smart_alert.dart';
 import 'lembrete_service.dart';
 import 'smart_alert_service.dart';
-import 'health_service.dart';
 
 class SupervisorInsights {
   final String summary;
@@ -50,7 +47,7 @@ class SupervisorAIService {
                 'categoria': l.categoria,
                 'concluido': l.concluido,
                 'recorrencia': l.recorrencia,
-                'urgencia': l.urgencia,
+                'urgencia': 'critico',
               })
           .toList(),
       'eventos': eventos
@@ -70,24 +67,8 @@ class SupervisorAIService {
             'criadoEm': a.createdAt.toIso8601String(),
             'minutosAtraso': a.minutesLate,
           }).toList(),
-      'batimentos': _buildBpmData(),
-    };
-  }
 
-  Map<String, dynamic> _buildBpmData() {
-    try {
-      final healthService = HealthService.instance;
-      final bpm = healthService.bpmHistory.isNotEmpty
-          ? healthService.bpmHistory.last
-          : null;
-      final history = healthService.bpmHistory;
-      return {
-        'ultimoBPM': bpm?.toString() ?? 'N/A',
-        'historico': history,
-      };
-    } catch (e) {
-      return {'ultimoBPM': 'N/A', 'historico': []};
-    }
+    };
   }
 
   SupervisorInsights _buildFallbackSummary() {
@@ -139,7 +120,7 @@ class SupervisorAIService {
         'elderlyData': _buildElderlyData(),
       });
 
-      final data = result.data as Map<String, dynamic>;
+      final data = Map<String, dynamic>.from(result.data as Map);
       return SupervisorInsights(
         summary: data['summary'] as String? ?? '',
         insights: _toStringList(data['insights']),
@@ -157,5 +138,42 @@ class SupervisorAIService {
       return value.map((e) => e.toString()).toList();
     }
     return [];
+  }
+
+  Future<Map<String, String>?> generateReportInsights({
+    required String idosoName,
+    required int adesaoGeral,
+    required int totalAtividades,
+    required int concluidas,
+    required int naoFeitas,
+    required int medicacaoPct,
+    required int refeicoesPct,
+    required int exercicioPct,
+    required int hidratacaoPct,
+  }) async {
+    try {
+      final functions = FirebaseFunctions.instance;
+      final callable = functions.httpsCallable('generateReportInsights');
+      final result = await callable.call({
+        'idosoName': idosoName,
+        'adesaoGeral': adesaoGeral,
+        'totalAtividades': totalAtividades,
+        'concluidas': concluidas,
+        'naoFeitas': naoFeitas,
+        'medicacaoPct': medicacaoPct,
+        'refeicoesPct': refeicoesPct,
+        'exercicioPct': exercicioPct,
+        'hidratacaoPct': hidratacaoPct,
+      });
+
+      final data = Map<String, dynamic>.from(result.data as Map);
+      return {
+        'resumoFamiliar': data['resumoFamiliar'] as String? ?? '',
+        'pontoAtencao': data['pontoAtencao'] as String? ?? '',
+      };
+    } catch (e) {
+      debugPrint('Error calling generateReportInsights: $e');
+      return null;
+    }
   }
 }

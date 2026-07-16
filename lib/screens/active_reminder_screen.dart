@@ -47,18 +47,26 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
   void _buscarLembrete() {
     if (_lembreteId == null) return;
     try {
-      final l = LembreteService.instance.lembretes.firstWhere(
+      final match = LembreteService.instance.lembretes.where(
         (item) => item.id == _lembreteId,
       );
+      if (match.isEmpty) {
+        if (LembreteService.instance.lembretes.isNotEmpty && mounted) {
+          setState(() => _notFound = true);
+        }
+        return;
+      }
 
-      // Se o lembrete foi concluído remotamente, fecha a tela e para o alarme
+      final l = match.first;
       if (l.concluido && lembrete != null) {
         _isSpeakingLoopActive = false;
         _isLoopPaused = false;
+        _noResponseTimer?.cancel();
+        _urgencyReinforcementTimer?.cancel();
         VibrationService.stopVibration();
         _familyAudioPlayer.stop();
         TTSService.instance.parar(caller: this);
-        if (mounted) {
+        if (mounted && (ModalRoute.of(context)?.isCurrent ?? false)) {
           Navigator.pop(context);
         }
         return;
@@ -71,7 +79,8 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
       if (!_isSpeakingLoopActive) {
         _startReminderLoop(l);
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Erro ao buscar lembrete no ActiveReminderScreen: $e');
       if (LembreteService.instance.lembretes.isNotEmpty && mounted) {
         setState(() => _notFound = true);
       }
@@ -86,8 +95,8 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
     // Start parallel vibration loop
     _startVibrationLoop();
 
-    // Critical reinforcement check
-    if (l.urgencia == 'critico') {
+    // Critical reinforcement check only for medication category
+    if (l.categoria == 'medicacao') {
       _urgencyReinforcementTimer = Timer(const Duration(minutes: 2), () async {
         if (mounted && _isSpeakingLoopActive && !l.concluido) {
           _isSpeakingLoopActive = false;
@@ -128,15 +137,11 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
         continue;
       }
 
-      final isCrit = l.urgencia == 'critico';
-      final isImp = l.urgencia == 'importante';
-      final prefix = isCrit
-          ? 'ALERTA URGENTE E ESSENCIAL! Por favor, faça agora: '
-          : (isImp
-                ? 'Aviso importante! Está na hora de: '
-                : 'Atenção! Está na hora de: ');
+      final prefix = 'ALERTA URGENTE E ESSENCIAL! Por favor, faça agora: ';
 
-      if (l.categoria == 'medicacao') {
+      if (l.medicamentoAudioTexto != null && l.medicamentoAudioTexto!.isNotEmpty) {
+        _speakText = l.medicamentoAudioTexto!;
+      } else if (l.categoria == 'medicacao') {
         _speakText = '$prefix tomar o seu remédio: ${l.titulo}.';
       } else if (l.categoria == 'refeicoes') {
         _speakText = '$prefix comer: ${l.titulo}. Faça a sua refeição.';
@@ -154,7 +159,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
       if (!mounted || !_isSpeakingLoopActive || _isLoopPaused) continue;
       await TTSService.instance.falar(_speakText, caller: this);
 
-      final waitSeconds = isCrit ? 2 : (isImp ? 3 : 4);
+      final waitSeconds = 2;
       for (int i = 0; i < (waitSeconds * 10); i++) {
         if (!mounted || !_isSpeakingLoopActive || _isLoopPaused) break;
         await Future.delayed(const Duration(milliseconds: 100));
@@ -163,16 +168,12 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
   }
 
   Duration _noResponseLimit(Lembrete l) {
-    if (l.urgencia == 'critico') return const Duration(minutes: 2);
-    if (l.urgencia == 'importante' || l.categoria == 'medicacao') {
-      return const Duration(minutes: 10);
-    }
-    return const Duration(minutes: 20);
+    return const Duration(minutes: 2);
   }
 
   Future<void> _playFamilyAudioIfAvailable(Lembrete l) async {
     final path = l.audioPath;
-    if (path == null || path.isEmpty) return;
+    if (path == null || path.isEmpty || path == 'ia_generated') return;
     if (!await audioPathExists(path)) return;
 
     StreamSubscription? sub;
@@ -202,30 +203,22 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
 
   Future<void> _startVibrationLoop() async {
     while (mounted && _isSpeakingLoopActive) {
-      if (_isLoopPaused) {
-        await Future.delayed(const Duration(milliseconds: 500));
-        continue;
-      }
-
-      final isCrit = lembrete?.urgencia == 'critico';
-      final isImp = lembrete?.urgencia == 'importante';
-
-      await VibrationService.startVibration();
-      if (isCrit) {
-        await Future.delayed(const Duration(seconds: 4));
-      } else if (isImp) {
-        await VibrationService.stopVibration();
-        await Future.delayed(const Duration(milliseconds: 150));
-        await VibrationService.startVibration();
-        await Future.delayed(const Duration(milliseconds: 400));
-      } else {
-        for (int i = 0; i < 10; i++) {
-          if (!mounted || !_isSpeakingLoopActive || _isLoopPaused) break;
-          await Future.delayed(const Duration(milliseconds: 200));
+      try {
+        if (_isLoopPaused) {
+          await Future.delayed(const Duration(milliseconds: 500));
+          continue;
         }
+
+        await VibrationService.startVibration();
+        await Future.delayed(const Duration(seconds: 4));
+        await VibrationService.stopVibration();
+        await Future.delayed(const Duration(milliseconds: 200));
+      } catch (e) {
+        debugPrint('Erro no loop de vibracao: $e');
+        await VibrationService.stopVibration();
+        _isSpeakingLoopActive = false;
+        break;
       }
-      await VibrationService.stopVibration();
-      await Future.delayed(Duration(milliseconds: isCrit ? 200 : 1000));
     }
   }
 
@@ -524,11 +517,11 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
 
   @override
   void dispose() {
+    _isSpeakingLoopActive = false;
+    _isLoopPaused = false;
     _urgencyReinforcementTimer?.cancel();
     _noResponseTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
-    _isSpeakingLoopActive = false;
-    _isLoopPaused = false;
     VibrationService.stopVibration();
     _familyAudioPlayer.dispose();
     _speech.stop();
@@ -723,34 +716,22 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                             const SizedBox(height: 32),
                             Builder(
                               builder: (context) {
-                                final isCrit = lembrete?.urgencia == 'critico';
-                                final isImp =
-                                    lembrete?.urgencia == 'importante';
-
                                 final border = isHighContrast
                                     ? Border.all(
-                                        color: isCrit ? Colors.red : Colors.black,
+                                        color: Colors.red,
                                         width: 4,
                                       )
                                     : Border.all(
-                                        color: isCrit
-                                            ? Colors.red
-                                            : isImp
-                                            ? Colors.orange
-                                            : iconColor.withValues(alpha: 0.3),
-                                        width: isCrit ? 6 : (isImp ? 4 : 3),
+                                        color: Colors.red,
+                                        width: 6,
                                       );
 
                                 final shadow = isHighContrast
                                     ? null
                                     : [
                                         BoxShadow(
-                                          color: isCrit
-                                              ? Colors.red.withValues(alpha: 0.25)
-                                              : isImp
-                                              ? Colors.orange.withValues(alpha: 0.18)
-                                              : iconColor.withValues(alpha: 0.1),
-                                          blurRadius: isCrit ? 24 : 16,
+                                          color: Colors.red.withValues(alpha: 0.25),
+                                          blurRadius: 24,
                                           offset: const Offset(0, 8),
                                         ),
                                       ];
@@ -866,8 +847,13 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                             // Play recorded audio if caregiver left a voice message
                             if (lembrete?.audioPath != null) ...[
                               AudioPlayerCard(
-                                audioPath: lembrete!.audioPath!,
-                                subtitle: 'Mensagem de voz do seu cuidador',
+                                audioPath: lembrete!.audioPath == 'ia_generated' ? null : lembrete!.audioPath,
+                                textsToSpeak: lembrete!.audioPath == 'ia_generated' && lembrete!.medicamentoAudioTexto != null
+                                    ? [lembrete!.medicamentoAudioTexto!]
+                                    : null,
+                                subtitle: lembrete!.audioPath == 'ia_generated'
+                                    ? 'Explicação do remédio por IA'
+                                    : 'Mensagem de voz do seu cuidador',
                               ),
                               const SizedBox(height: 24),
                             ],
@@ -960,29 +946,35 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                         _isLoopPaused = false;
                                       }
                                     } else {
-                                      _isSpeakingLoopActive = false;
                                       if (lembrete != null) {
-                                        LembreteService.instance
-                                            .alternarConclusao(lembrete!.id)
-                                            .catchError((e) {
-                                          debugPrint(
-                                            'Erro ao concluir lembrete: $e',
+                                        try {
+                                          await LembreteService.instance.alternarConclusao(lembrete!.id);
+                                          _isSpeakingLoopActive = false;
+                                          final feedbackMsg =
+                                              lembrete?.categoria == 'hidratacao'
+                                                  ? 'Você bebeu sua água.'
+                                                  : lembrete?.categoria == 'refeicoes'
+                                                      ? 'Você fez sua refeição.'
+                                                      : lembrete?.categoria == 'exercicio'
+                                                          ? 'Você fez seu exercício.'
+                                                          : 'Você concluiu sua atividade.';
+                                          navigator.pushNamedAndRemoveUntil(
+                                            '/medication-confirmation',
+                                            (route) => false,
+                                            arguments: feedbackMsg,
                                           );
-                                        });
+                                        } catch (e) {
+                                          debugPrint('Erro ao concluir lembrete: $e');
+                                          if (mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(
+                                                content: Text('Erro ao concluir lembrete: $e'),
+                                                backgroundColor: AppColors.error,
+                                              ),
+                                            );
+                                          }
+                                        }
                                       }
-                                      final feedbackMsg =
-                                          lembrete?.categoria == 'hidratacao'
-                                              ? 'Você bebeu sua água.'
-                                              : lembrete?.categoria == 'refeicoes'
-                                                  ? 'Você fez sua refeição.'
-                                                  : lembrete?.categoria == 'exercicio'
-                                                      ? 'Você fez seu exercício.'
-                                                      : 'Você concluiu sua atividade.';
-                                      navigator.pushNamedAndRemoveUntil(
-                                        '/medication-confirmation',
-                                        (route) => false,
-                                        arguments: feedbackMsg,
-                                      );
                                     }
                                   } finally {
                                     if (mounted) {
@@ -1020,7 +1012,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                               width: double.infinity,
                               height: 72,
                               child: ElevatedButton.icon(
-                                onPressed: () {
+                                onPressed: () async {
                                   if (_isProcessingAction) return;
                                   setState(() => _isProcessingAction = true);
                                   try {
@@ -1033,26 +1025,32 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                     final navigator = Navigator.of(context);
                                     final categoria = lembrete?.categoria;
                                     if (lembrete != null) {
-                                      NotificationService.instance
+                                      await NotificationService.instance
                                           .cancelar(lembrete!.id)
                                           .catchError((e) {
                                         debugPrint(
                                           'Erro ao cancelar notificacao: $e',
                                         );
                                       });
-                                      LembreteService.instance
-                                          .adiar(lembrete!.id, 10)
-                                          .catchError((e) {
-                                        debugPrint(
-                                          'Erro ao adiar lembrete: $e',
+                                      try {
+                                        await LembreteService.instance.adiar(lembrete!.id, 10);
+                                        navigator.pushNamedAndRemoveUntil(
+                                          '/reinforcement-alert',
+                                          (route) => false,
+                                          arguments: {'categoria': categoria},
                                         );
-                                      });
+                                      } catch (e) {
+                                        debugPrint('Erro ao adiar lembrete: $e');
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text('Erro ao adiar lembrete: $e'),
+                                              backgroundColor: AppColors.error,
+                                            ),
+                                          );
+                                        }
+                                      }
                                     }
-                                    navigator.pushNamedAndRemoveUntil(
-                                      '/reinforcement-alert',
-                                      (route) => false,
-                                      arguments: {'categoria': categoria},
-                                    );
                                   } finally {
                                     if (mounted) {
                                       setState(() => _isProcessingAction = false);
@@ -1087,7 +1085,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                               width: double.infinity,
                               height: 72,
                               child: ElevatedButton.icon(
-                                onPressed: () {
+                                onPressed: () async {
                                   if (_isProcessingAction) return;
                                   setState(() => _isProcessingAction = true);
                                   try {
@@ -1097,32 +1095,38 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                     TTSService.instance.parar();
                                     final navigator = Navigator.of(context);
                                     if (lembrete != null) {
-                                      NotificationService.instance
+                                      await NotificationService.instance
                                           .cancelar(lembrete!.id)
                                           .catchError((e) {
                                         debugPrint(
                                           'Erro ao cancelar notificacao: $e',
                                         );
                                       });
-                                      LembreteService.instance
-                                          .registrarDificuldade(
-                                            lembrete!.id,
-                                            'O idoso informou que nao conseguiu realizar a atividade.',
-                                          )
-                                          .catchError((e) {
-                                        debugPrint(
-                                          'Erro ao registrar dificuldade: $e',
+                                      try {
+                                        await LembreteService.instance.registrarDificuldade(
+                                          lembrete!.id,
+                                          'O idoso informou que nao conseguiu realizar a atividade.',
                                         );
-                                      });
+                                        navigator.pushNamedAndRemoveUntil(
+                                          '/reinforcement-alert',
+                                          (route) => false,
+                                          arguments: {
+                                            'categoria': lembrete?.categoria,
+                                            'tipo': 'dificuldade',
+                                          },
+                                        );
+                                      } catch (e) {
+                                        debugPrint('Erro ao registrar dificuldade: $e');
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text('Erro ao registrar dificuldade: $e'),
+                                              backgroundColor: AppColors.error,
+                                            ),
+                                          );
+                                        }
+                                      }
                                     }
-                                    navigator.pushNamedAndRemoveUntil(
-                                      '/reinforcement-alert',
-                                      (route) => false,
-                                      arguments: {
-                                        'categoria': lembrete?.categoria,
-                                        'tipo': 'dificuldade',
-                                      },
-                                    );
                                   } finally {
                                     if (mounted) {
                                       setState(() => _isProcessingAction = false);

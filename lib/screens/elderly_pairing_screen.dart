@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../theme/app_theme.dart';
 import '../services/tts_service.dart';
@@ -65,6 +66,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('paired_idoso_id', 'idoso_autonomo');
+      await prefs.setBool('elderly_autonomous_mode', true);
 
       final jsonStr = prefs.getString('idoso_perfil');
       final Map<String, dynamic> localPerfil = jsonStr != null
@@ -75,7 +77,6 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
       localPerfil.putIfAbsent('dataNascimento', () => '01/01/1950');
       localPerfil.putIfAbsent('telefone', () => '');
       localPerfil.putIfAbsent('endereco', () => '');
-      localPerfil.putIfAbsent('condicoes', () => <dynamic>[]);
       localPerfil.putIfAbsent('fotoPath', () => null);
 
       await prefs.setString('idoso_perfil', jsonEncode(localPerfil));
@@ -114,10 +115,8 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
       return;
     }
 
-    final random = math.Random();
-    final code = (100000 + random.nextInt(900000)).toString();
-
     try {
+      final code = await _generateUniquePairingCode();
       final prefs = await SharedPreferences.getInstance();
       
       final jsonStr = prefs.getString('idoso_perfil');
@@ -129,17 +128,25 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
       localPerfil.putIfAbsent('dataNascimento', () => '');
       localPerfil.putIfAbsent('telefone', () => '');
       localPerfil.putIfAbsent('endereco', () => '');
-      localPerfil.putIfAbsent('condicoes', () => <String>[]);
       localPerfil.putIfAbsent('fotoPath', () => null);
       localPerfil['status'] = 'pending';
       localPerfil['pairingCode'] = code;
       localPerfil['pairingCodeExpires'] = DateTime.now().add(const Duration(hours: 2)).toIso8601String();
 
-      final docRef = await FirebaseFirestore.instance
+      User? user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        final userCredential = await FirebaseAuth.instance.signInAnonymously();
+        user = userCredential.user;
+      }
+      final uid = user!.uid;
+
+      await FirebaseFirestore.instance
           .collection('idoso_perfil')
-          .add(localPerfil);
+          .doc(uid)
+          .set(localPerfil);
       
-      await prefs.setString('paired_idoso_id', docRef.id);
+      await prefs.setString('paired_idoso_id', uid);
+      await prefs.setBool('elderly_autonomous_mode', true);
       await prefs.setString('idoso_perfil', jsonEncode(localPerfil));
 
       if (!mounted) return;
@@ -152,7 +159,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
       _profileSubscription?.cancel();
       _profileSubscription = FirebaseFirestore.instance
           .collection('idoso_perfil')
-          .doc(docRef.id)
+          .doc(uid)
           .snapshots()
           .listen((snapshot) async {
         if (snapshot.exists && snapshot.data() != null) {
@@ -173,11 +180,13 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
               merged['supervisorId'] = data['supervisorId'];
             }
 
-            for (final key in ['nome', 'dataNascimento', 'telefone', 'endereco', 'condicoes', 'fotoPath']) {
+            for (final key in ['nome', 'dataNascimento', 'telefone', 'endereco', 'fotoPath']) {
               merged.putIfAbsent(key, () => data[key]);
             }
 
             await prefsInstance.setString('idoso_perfil', jsonEncode(merged));
+            await prefsInstance.setString('paired_idoso_id', uid);
+            await prefsInstance.setBool('elderly_autonomous_mode', false);
 
             final fotoPath = data['fotoPath'] as String?;
             if (fotoPath != null && fotoPath.isNotEmpty) {
@@ -203,6 +212,21 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
         _isLoading = false;
       });
     }
+  }
+
+  Future<String> _generateUniquePairingCode() async {
+    final random = math.Random.secure();
+    for (var attempt = 0; attempt < 8; attempt++) {
+      final code = (100000 + random.nextInt(900000)).toString();
+      final existing = await FirebaseFirestore.instance
+          .collection('idoso_perfil')
+          .where('pairingCode', isEqualTo: code)
+          .where('status', isEqualTo: 'pending')
+          .limit(1)
+          .get();
+      if (existing.docs.isEmpty) return code;
+    }
+    throw StateError('Nao foi possivel gerar um codigo unico.');
   }
 
   void _handleSuccess() async {

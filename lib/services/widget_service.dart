@@ -38,7 +38,6 @@ class WidgetService {
           horarioHour: l.horarioHour,
           horarioMinute: l.horarioMinute,
           categoria: l.categoria,
-          urgencia: l.urgencia,
         ));
         if (pendentes.length >= 3) break;
       }

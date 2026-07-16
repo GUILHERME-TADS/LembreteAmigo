@@ -20,25 +20,19 @@ class _ElderlyOnboardingScreenState extends State<ElderlyOnboardingScreen> {
       icon: Icons.waving_hand,
       title: 'Bem-vindo ao\nLembrete Amigo!',
       subtitle: 'Eu sou o Alex, assistente virtual que vai te ajudar no dia a dia.',
-      ttsMessage: 'Ola, seja muito bem-vindo! Eu sou o Alex, seu assistente virtual. Vou te ajudar a lembrar dos seus compromissos e atividades.',
+      ttsMessage: 'Olá, seja muito bem-vindo! Eu sou o Alex, seu assistente virtual. Vou te ajudar a lembrar dos seus compromissos e atividades.',
     ),
     _OnboardingStep(
       icon: Icons.campaign,
       title: 'Lembretes\nem Voz Alta',
-      subtitle: 'O aplicativo vai falar com voce sobre remedios, refeicoes, exercicios e muito mais.',
-      ttsMessage: 'Eu vou falar os seus lembretes em voz alta para facilitar o seu dia. Voce vai ouvir sobre remedios, refeicoes, exercicios e outros cuidados.',
+      subtitle: 'O aplicativo vai falar com você sobre remédios, refeições, exercícios e muito mais.',
+      ttsMessage: 'Eu vou falar os seus lembretes em voz alta para facilitar o seu dia. Você vai ouvir sobre remédios, refeições, exercícios e outros cuidados.',
     ),
     _OnboardingStep(
       icon: Icons.mic,
       title: 'Comandos\nde Voz',
-      subtitle: 'Responda falando! Diga "ja tomei", "adiar" ou "me explica" que eu entendo.',
-      ttsMessage: 'Voce pode responder falando comigo. Diga "ja tomei" quando concluir algo, "adiar" para deixar para depois, ou "me explica" que eu repito a informacao.',
-    ),
-    _OnboardingStep(
-      icon: Icons.emergency,
-      title: 'Botao de\nEmergencia',
-      subtitle: 'Se precisar de ajuda, aperte o botao vermelho. Sua familia sera avisada.',
-      ttsMessage: 'Se voce precisar de ajuda, aperte o botao vermelho de emergencia. Sua familia e cuidadores serao avisados imediatamente.',
+      subtitle: 'Responda falando! Diga "já tomei", "adiar" ou "me explica" que eu entendo.',
+      ttsMessage: 'Você pode responder falando comigo. Diga "já tomei" quando concluir algo, "adiar" para deixar para depois, ou "me explica" que eu repito a informação.',
     ),
   ];
 
@@ -104,7 +98,11 @@ class _ElderlyOnboardingScreenState extends State<ElderlyOnboardingScreen> {
                   InkWell(
                     onTap: () {
                       TTSService.instance.parar(caller: this);
-                      Navigator.pop(context);
+                      Navigator.pushNamedAndRemoveUntil(
+                        context,
+                        '/welcome',
+                        (route) => false,
+                      );
                     },
                     borderRadius: BorderRadius.circular(12),
                     child: const Padding(

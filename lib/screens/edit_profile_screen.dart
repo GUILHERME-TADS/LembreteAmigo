@@ -22,11 +22,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _birthDateController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _ambulancePhoneController =
+      TextEditingController();
   final TextEditingController _addressController = TextEditingController();
 
-  final List<String> _selectedConditions = [];
   bool _isLoading = true;
   bool _isSaving = false;
+  String? _activeIdosoId;
 
   bool get _useFirebase {
     try {
@@ -50,21 +52,28 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   void dispose() {
+    TTSService.instance.parar(caller: this);
     _nameController.dispose();
     _birthDateController.dispose();
     _phoneController.dispose();
+    _ambulancePhoneController.dispose();
     _addressController.dispose();
     super.dispose();
   }
 
   Future<void> _loadCurrentProfile() async {
     try {
+      final idosoId = await _resolveEditableIdosoId();
+      if (idosoId == null) {
+        return;
+      }
+
       final prefs = await SharedPreferences.getInstance();
       String nome = '';
       String dataNasc = '';
       String telefone = '';
+      String ambulancePhone = '';
       String endereco = '';
-      List<String> condicoes = [];
 
       // 1. Sempre carrega os dados locais como fallback/inicialização
       final jsonStr = prefs.getString('idoso_perfil');
@@ -73,16 +82,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         nome = data['nome'] as String? ?? nome;
         dataNasc = data['dataNascimento'] as String? ?? dataNasc;
         telefone = data['telefone'] as String? ?? telefone;
+        ambulancePhone =
+            data['ambulancia_telefone'] as String? ?? ambulancePhone;
         endereco = data['endereco'] as String? ?? endereco;
-        if (data['condicoes'] != null) {
-          condicoes = List<String>.from(data['condicoes'] as List);
-        }
       }
 
       // 2. Se o Firebase estiver ativo, tenta sincronizar e atualizar com o banco remoto
       if (_useFirebase) {
         try {
-          final idosoId = await SessionRoleService.getActiveIdosoId();
           final docPerfil = await FirebaseFirestore.instance
               .collection('idoso_perfil')
               .doc(idosoId)
@@ -97,10 +104,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             nome = data['nome'] as String? ?? nome;
             dataNasc = data['dataNascimento'] as String? ?? dataNasc;
             telefone = data['telefone'] as String? ?? telefone;
+            ambulancePhone =
+                data['ambulancia_telefone'] as String? ?? ambulancePhone;
             endereco = data['endereco'] as String? ?? endereco;
-            if (data['condicoes'] != null) {
-              condicoes = List<String>.from(data['condicoes'] as List);
-            }
           }
 
           if (docPerfil.exists && docPerfil.data() != null) {
@@ -108,10 +114,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             nome = data['nome'] as String? ?? nome;
             dataNasc = data['dataNascimento'] as String? ?? dataNasc;
             telefone = data['telefone'] as String? ?? telefone;
+            ambulancePhone =
+                data['ambulancia_telefone'] as String? ?? ambulancePhone;
             endereco = data['endereco'] as String? ?? endereco;
-            if (data['condicoes'] != null) {
-              condicoes = List<String>.from(data['condicoes'] as List);
-            }
           }
         } catch (firebaseError) {
           debugPrint(
@@ -125,9 +130,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           _nameController.text = nome;
           _birthDateController.text = dataNasc;
           _phoneController.text = telefone;
+          _ambulancePhoneController.text = ambulancePhone;
           _addressController.text = endereco;
-          _selectedConditions.clear();
-          _selectedConditions.addAll(condicoes);
           _isLoading = false;
         });
       }
@@ -139,20 +143,52 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
   }
 
-  void _toggleCondition(String condition) {
-    setState(() {
-      if (_selectedConditions.contains(condition)) {
-        _selectedConditions.remove(condition);
-      } else {
-        _selectedConditions.add(condition);
+  Future<String?> _resolveEditableIdosoId() async {
+    await SessionRoleService.load();
+    final idosoId = await SessionRoleService.getActiveIdosoId();
+
+    if (SessionRoleService.isSupervisor) {
+      final isConnected = await SessionRoleService.isSupervisorConnected();
+      if (!isConnected || idosoId == SessionRoleService.unpairedIdosoId) {
+        if (mounted) {
+          setState(() => _isLoading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Conecte um dispositivo de idoso antes de alterar os dados.',
+              ),
+              backgroundColor: AppColors.error,
+            ),
+          );
+          Navigator.pop(context);
+        }
+        return null;
       }
-    });
+    }
+
+    if (idosoId.isEmpty || idosoId == SessionRoleService.unpairedIdosoId) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Nenhum perfil de idoso encontrado para editar.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+        Navigator.pop(context);
+      }
+      return null;
+    }
+
+    _activeIdosoId = idosoId;
+    return idosoId;
   }
 
   Future<void> _salvar() async {
     final nome = _nameController.text.trim();
     final dataNasc = _birthDateController.text.trim();
     final telefone = _phoneController.text.trim();
+    final ambulancePhone = _ambulancePhoneController.text.trim();
     final endereco = _addressController.text.trim();
 
     if (nome.isEmpty) {
@@ -197,6 +233,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       return;
     }
 
+    if (ambulancePhone.isNotEmpty && !phoneRegex.hasMatch(ambulancePhone)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Por favor, digite um telefone de ambulância válido.'),
+        ),
+      );
+      TTSService.instance.falar(
+        'Por favor, digite um telefone de ambulância válido.',
+        caller: this,
+      );
+      return;
+    }
+
     TTSService.instance.falar(
       'Salvando suas informações, por favor aguarde...',
       caller: this,
@@ -204,16 +253,43 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     setState(() => _isSaving = true);
 
     final prefs = await SharedPreferences.getInstance();
-    final idosoId = await SessionRoleService.getActiveIdosoId();
+    final idosoId = _activeIdosoId ?? await _resolveEditableIdosoId();
+    if (idosoId == null) {
+      if (mounted) setState(() => _isSaving = false);
+      return;
+    }
 
-    final perfil = {
-      'nome': nome,
-      'dataNascimento': dataNasc,
-      'telefone': telefone,
-      'endereco': endereco,
-      'condicoes': _selectedConditions,
-      'status': 'active',
-    };
+    final Map<String, dynamic> perfil = {};
+
+    final jsonStr = prefs.getString('idoso_perfil');
+    if (jsonStr != null) {
+      try {
+        final existing = jsonDecode(jsonStr) as Map<String, dynamic>;
+        perfil.addAll(existing);
+      } catch (_) {}
+    }
+
+    if (_useFirebase) {
+      try {
+        final docPerfil = await FirebaseFirestore.instance
+            .collection('idoso_perfil')
+            .doc(idosoId)
+            .get();
+        if (docPerfil.exists && docPerfil.data() != null) {
+          perfil.addAll(docPerfil.data()!);
+        }
+      } catch (_) {}
+    }
+
+    perfil['nome'] = nome;
+    perfil['dataNascimento'] = dataNasc;
+    perfil['telefone'] = telefone;
+    perfil['ambulancia_telefone'] = ambulancePhone;
+    perfil['endereco'] = endereco;
+    perfil.remove('condicoes');
+    if (!SessionRoleService.isSupervisor) {
+      perfil.putIfAbsent('status', () => 'pending');
+    }
 
     try {
       // Salva localmente primeiro
@@ -281,7 +357,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             icon: const Icon(
               Icons.arrow_back,
               color: AppColors.primary,
-              size: 28,
+              size: 36,
             ),
           ),
           const Spacer(),
@@ -365,6 +441,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           ),
                           const SizedBox(height: 24),
                           SeniorInputField(
+                            label: 'Telefone da Ambulância',
+                            placeholder: 'Número local da ambulância',
+                            prefixIcon: Icons.local_hospital,
+                            controller: _ambulancePhoneController,
+                            keyboardType: TextInputType.phone,
+                            inputFormatters: [PhoneInputFormatter()],
+                            onTapAudio: () => TTSService.instance.falar(
+                              'Digite o telefone da ambulância da sua cidade. Se deixar vazio, a opção de ligar para ambulância não aparece no SOS.',
+                              caller: this,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          SeniorInputField(
                             label: 'Endereço',
                             placeholder: 'Rua, número, bairro',
                             prefixIcon: Icons.location_on,
@@ -373,27 +462,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               'Digite o nome da sua rua e o número da sua casa.',
                               caller: this,
                             ),
-                          ),
-                          const SizedBox(height: 24),
-                          const Text(
-                            'CONDIÇÕES DE SAÚDE',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.05,
-                              color: AppColors.onSurfaceVariant,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: [
-                              _healthChip('Hipertensão'),
-                              _healthChip('Diabetes'),
-                              _healthChip('Colesterol'),
-                              _healthChip('Outros'),
-                            ],
                           ),
                           const SizedBox(height: 40),
                           SizedBox(
@@ -438,65 +506,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
-  Widget _healthChip(String label) {
-    final selected = _selectedConditions.contains(label);
-    IconData icon = Icons.health_and_safety;
-    if (label.contains('Diabetes')) {
-      icon = Icons.bloodtype;
-    } else if (label.contains('Hipertensão')) {
-      icon = Icons.favorite;
-    } else if (label.contains('Colesterol')) {
-      icon = Icons.speed;
-    } else if (label.contains('Outros')) {
-      icon = Icons.add_moderator;
-    }
-
-    return GestureDetector(
-      onTap: () {
-        TTSService.instance.falar(
-          'Condição de saúde: $label. ${selected ? "Removida" : "Adicionada"}',
-          caller: this,
-        );
-        _toggleCondition(label);
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: selected
-              ? AppColors.secondaryContainer
-              : AppColors.surfaceContainerLowest,
-          borderRadius: BorderRadius.circular(9999),
-          border: Border.all(
-            color: selected ? AppColors.secondary : AppColors.outlineVariant,
-            width: selected ? 2 : 1,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 20,
-              color: selected
-                  ? AppColors.onSecondaryContainer
-                  : AppColors.onSurfaceVariant,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: selected
-                    ? AppColors.onSecondaryContainer
-                    : AppColors.onSurface,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 class DateInputFormatter extends TextInputFormatter {

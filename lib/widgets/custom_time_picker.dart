@@ -1,4 +1,4 @@
-import 'dart:math' as math;
+﻿import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
@@ -132,7 +132,7 @@ class _CustomTimePickerDialogState extends State<CustomTimePickerDialog> {
                     onDecrement: () => _adjustHour(-1),
                     label: 'HORA',
                   ),
-                  
+
                   // Dois pontos separadores piscando levemente
                   Container(
                     margin: const EdgeInsets.symmetric(horizontal: 12),
@@ -159,7 +159,7 @@ class _CustomTimePickerDialogState extends State<CustomTimePickerDialog> {
                 ],
               ),
               const SizedBox(height: 12),
-              
+
               // Legenda para ajuste fino
               const Text(
                 'Dica: Nos minutos, os botões grandes alteram de 5 em 5.\nToque nos números para digitar o horário exato.',
@@ -280,16 +280,16 @@ class _CustomTimePickerDialogState extends State<CustomTimePickerDialog> {
           ),
         ),
         const SizedBox(height: 6),
-        
+
         // Botão Incrementar Principal (+)
         _buildRoundButton(
           icon: Icons.add,
           onTap: onIncrement,
           heroTag: 'inc_$label',
         ),
-        
+
         const SizedBox(height: 12),
-        
+
         // Mostrador numérico estilizado como cartão
         GestureDetector(
           onTap: () async {
@@ -365,7 +365,7 @@ class _CustomTimePickerDialogState extends State<CustomTimePickerDialog> {
                     ),
                   ),
                 ),
-                
+
                 // Botões de ajuste fino discretos (+) e (-) na borda do card, se houver
                 if (onIncrementFine != null && onDecrementFine != null) ...[
                   Positioned(
@@ -405,9 +405,9 @@ class _CustomTimePickerDialogState extends State<CustomTimePickerDialog> {
             ),
           ),
         ),
-        
+
         const SizedBox(height: 12),
-        
+
         // Botão Decrementar Principal (-)
         _buildRoundButton(
           icon: Icons.remove,
@@ -559,7 +559,7 @@ class ClockFacePainter extends CustomPainter {
       textPainter.paint(canvas, Offset(x, y));
     });
 
-    // 3. Ângulos dos ponteiros (corrigidos para o topo do relógio -90 graus)
+    // 3. ngulos dos ponteiros (corrigidos para o topo do relógio -90 graus)
     final double hourAngle = ((hour % 12) * 30 + (minute * 0.5)) * math.pi / 180 - math.pi / 2;
     final double minuteAngle = (minute * 6) * math.pi / 180 - math.pi / 2;
 

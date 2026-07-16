@@ -1,0 +1,83 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function isSupervisorOf(userId) {
+      return isAuth() && firestore.exists(
+        /databases/(default)/documents/idoso_perfil/$(userId)
+      ) && firestore.get(
+        /databases/(default)/documents/idoso_perfil/$(userId)
+      ).data.supervisorId == request.auth.uid;
+    }
+
+    function canAccessElderlyData(idosoId) {
+      return isAuth() && (
+        request.auth.uid == idosoId ||
+        isSupervisorOf(idosoId)
+      );
+    }
+
+    // Audio recordings for reminders: reminder_audio/{idosoId}/{fileName}
+    match /reminder_audio/{idosoId}/{fileName} {
+      allow read: if canAccessElderlyData(idosoId);
+      allow write: if canAccessElderlyData(idosoId) &&
+        fileName.matches('.*\\.(mp3|wav|m4a|ogg|aac)$') &&
+        request.resource.size < 10 * 1024 * 1024;
+      allow delete: if canAccessElderlyData(idosoId);
+    }
+
+    // Medication photos: reminder_photos/{idosoId}/{fileName}
+    match /reminder_photos/{idosoId}/{fileName} {
+      allow read: if canAccessElderlyData(idosoId);
+      allow write: if canAccessElderlyData(idosoId) &&
+        fileName.matches('.*\\.(jpg|jpeg|png|webp)$') &&
+        request.resource.size < 5 * 1024 * 1024;
+      allow delete: if canAccessElderlyData(idosoId);
+    }
+
+    // Confirmation photos (medication taken): confirmation_photos/{idosoId}/{fileName}
+    match /confirmation_photos/{idosoId}/{fileName} {
+      allow read: if canAccessElderlyData(idosoId);
+      allow write: if canAccessElderlyData(idosoId) &&
+        fileName.matches('.*\\.(jpg|jpeg|png|webp)$') &&
+        request.resource.size < 5 * 1024 * 1024;
+      allow delete: if canAccessElderlyData(idosoId);
+    }
+
+    // Voice messages: message_audio/{idosoId}/{fileName}
+    match /message_audio/{idosoId}/{fileName} {
+      allow read: if canAccessElderlyData(idosoId);
+      allow write: if canAccessElderlyData(idosoId) &&
+        fileName.matches('.*\\.(mp3|wav|m4a|ogg|aac)$') &&
+        request.resource.size < 10 * 1024 * 1024;
+      allow delete: if false;
+    }
+
+    // Profile photos: perfis/{idosoId}/{fileName}
+    match /perfis/{idosoId}/{fileName} {
+      allow read: if canAccessElderlyData(idosoId);
+      allow write: if canAccessElderlyData(idosoId) &&
+        fileName.matches('.*\\.(jpg|jpeg|png|webp)$') &&
+        request.resource.size < 5 * 1024 * 1024;
+      allow delete: if canAccessElderlyData(idosoId);
+    }
+
+    // Supervisor profile photos: perfis_supervisor/{supervisorId}/{fileName}
+    match /perfis_supervisor/{supervisorId}/{fileName} {
+      allow read: if request.auth != null && request.auth.uid == supervisorId;
+      allow write: if request.auth != null && request.auth.uid == supervisorId &&
+        fileName.matches('.*\\.(jpg|jpeg|png|webp)$') &&
+        request.resource.size < 5 * 1024 * 1024;
+      allow delete: if request.auth != null && request.auth.uid == supervisorId;
+    }
+
+    // Deny all other paths
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

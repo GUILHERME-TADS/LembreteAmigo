@@ -18,6 +18,7 @@ class EmergencyAlertScreen extends StatefulWidget {
 class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
   String _idosoName = 'Idoso';
   String _idosoPhone = '';
+  String? _idosoFoto;
 
   @override
   void initState() {
@@ -40,10 +41,11 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
             .collection('idosos')
             .doc(idosoId)
             .get();
-        if (doc.exists && mounted) {
+        if (doc.exists && doc.data() != null && mounted) {
           setState(() {
             _idosoName = doc.data()?['nome'] ?? 'Idoso';
             _idosoPhone = doc.data()?['telefone'] ?? '';
+            _idosoFoto = doc.data()?['fotoPath'] as String?;
           });
           return;
         }
@@ -52,11 +54,14 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
       // Fallback local simulation
       final jsonStr = prefs.getString('idoso_perfil');
       if (jsonStr != null) {
-        final data = jsonDecode(jsonStr) as Map<String, dynamic>;
+        final decoded = jsonDecode(jsonStr);
+        if (decoded is! Map) return;
+        final data = Map<String, dynamic>.from(decoded);
         if (mounted) {
           setState(() {
             _idosoName = data['nome'] as String? ?? 'Idoso';
             _idosoPhone = data['telefone'] as String? ?? '';
+            _idosoFoto = data['fotoPath'] as String?;
           });
         }
       }
@@ -66,8 +71,16 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
   }
 
   Future<void> _fazerLigacao() async {
-    final String phoneNumber = _idosoPhone.isNotEmpty ? _idosoPhone : '190';
-    final Uri launchUri = Uri(scheme: 'tel', path: phoneNumber);
+    if (_idosoPhone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Telefone do idoso não cadastrado. Adicione um telefone nas configurações.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+    final Uri launchUri = Uri(scheme: 'tel', path: _idosoPhone);
     try {
       if (await canLaunchUrl(launchUri)) {
         await launchUrl(launchUri);
@@ -119,7 +132,7 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
                             children: [
                               Icon(Icons.error, color: Colors.white, size: 28),
                               SizedBox(width: 12),
-                              Expanded(
+                               Expanded(
                                 child: Text(
                                   'ALERTA CRÍTICO',
                                   maxLines: 1,
@@ -143,12 +156,20 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
                             shape: BoxShape.circle,
                             color: AppColors.surfaceContainerHigh,
                             border: Border.all(color: AppColors.outlineVariant),
+                            image: _idosoFoto != null && _idosoFoto!.isNotEmpty
+                                ? DecorationImage(
+                                    image: NetworkImage(_idosoFoto!),
+                                    fit: BoxFit.cover,
+                                  )
+                                : null,
                           ),
-                          child: const Icon(
-                            Icons.person,
-                            size: 48,
-                            color: AppColors.onSurfaceVariant,
-                          ),
+                          child: _idosoFoto == null || _idosoFoto!.isEmpty
+                              ? const Icon(
+                                  Icons.person,
+                                  size: 48,
+                                  color: AppColors.onSurfaceVariant,
+                                )
+                              : null,
                         ),
                         const SizedBox(height: 12),
                         Text(
@@ -266,7 +287,7 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
             icon: const Icon(
               Icons.arrow_back,
               color: AppColors.onSurface,
-              size: 28,
+              size: 36,
             ),
             onPressed: () => Navigator.pop(context),
           ),

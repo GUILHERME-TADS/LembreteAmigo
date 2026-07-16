@@ -1,0 +1,214 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // === HELPER FUNCTIONS ===
+
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function isSupervisor() {
+      return isAuth() && exists(
+        /databases/$(database)/documents/supervisores/$(request.auth.uid)
+      );
+    }
+
+    function isElderly() {
+      return isAuth() && (
+        exists(/databases/$(database)/documents/idosos/$(request.auth.uid)) ||
+        exists(/databases/$(database)/documents/idoso_perfil/$(request.auth.uid))
+      );
+    }
+
+    function isOwner(userId) {
+      return isAuth() && request.auth.uid == userId;
+    }
+
+    function isLinkedSupervisor(idosoId) {
+      return isAuth() && (
+        get(/databases/$(database)/documents/idoso_perfil/$(idosoId)).data.supervisorId == request.auth.uid
+      );
+    }
+
+    function isLinkedSupervisorAfter(idosoId) {
+      return isAuth() && (
+        getAfter(/databases/$(database)/documents/idoso_perfil/$(idosoId)).data.supervisorId == request.auth.uid
+      );
+    }
+
+    function canAccessIdosoData(idosoId) {
+      return isOwner(idosoId) || isLinkedSupervisor(idosoId);
+    }
+
+    function docHasFieldIdosoId() {
+      return resource != null && resource.data.keys().hasAny(['idosoId']);
+    }
+
+    function requestHasIdosoId() {
+      return request.resource != null && request.resource.data.keys().hasAny(['idosoId']);
+    }
+
+    function requestIdosoIdUnchanged() {
+      return request.resource != null &&
+        request.resource.data.idosoId == resource.data.idosoId;
+    }
+
+    function requestSupervisorIdUnchanged() {
+      return request.resource != null &&
+        request.resource.data.supervisorId == resource.data.supervisorId;
+    }
+
+    function isPendingPairingProfile() {
+      return resource != null &&
+        resource.data.status == 'pending' &&
+        resource.data.keys().hasAny(['pairingCode', 'pairingCodeExpires']);
+    }
+
+    function isSupervisorPairingClaim(idosoId) {
+      return isSupervisor() &&
+        resource != null &&
+        resource.data.status == 'pending' &&
+        request.resource.data.status == 'active' &&
+        request.resource.data.supervisorId == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['supervisorId', 'status']);
+    }
+
+
+    // === ELDERLY PROFILES ===
+
+    match /idosos/{idosoId} {
+      allow read: if canAccessIdosoData(idosoId);
+      allow create: if isOwner(idosoId) || isLinkedSupervisorAfter(idosoId);
+      allow update: if canAccessIdosoData(idosoId) ||
+        isLinkedSupervisorAfter(idosoId);
+      allow delete: if false;
+    }
+
+    match /idoso_perfil/{idosoId} {
+      allow read: if canAccessIdosoData(idosoId) ||
+        (isSupervisor() && isPendingPairingProfile());
+      allow create: if isOwner(idosoId);
+      allow update: if canAccessIdosoData(idosoId) ||
+        isSupervisorPairingClaim(idosoId);
+      allow delete: if false;
+    }
+
+
+    // === SUPERVISOR PROFILES ===
+
+    match /supervisores/{supervisorId} {
+      allow read: if isOwner(supervisorId);
+      allow create: if isOwner(supervisorId);
+      allow update: if isOwner(supervisorId);
+      allow delete: if false;
+    }
+
+
+    // === REMINDERS ===
+
+    match /lembretes/{lembreteId} {
+      allow read: if isAuth() && docHasFieldIdosoId() &&
+        canAccessIdosoData(resource.data.idosoId);
+      allow create: if isAuth() && requestHasIdosoId() &&
+        canAccessIdosoData(request.resource.data.idosoId);
+      allow update: if isAuth() && docHasFieldIdosoId() &&
+        canAccessIdosoData(resource.data.idosoId) &&
+        requestIdosoIdUnchanged();
+      allow delete: if isAuth() && docHasFieldIdosoId() &&
+        canAccessIdosoData(resource.data.idosoId);
+    }
+
+    match /lembrete_eventos/{eventoId} {
+      allow read: if isAuth() && docHasFieldIdosoId() &&
+        canAccessIdosoData(resource.data.idosoId);
+      allow create: if isAuth() && requestHasIdosoId() &&
+        canAccessIdosoData(request.resource.data.idosoId);
+      allow update: if false;
+      allow delete: if false;
+    }
+
+
+    // === MESSAGES ===
+
+    match /mensagens/{msgId} {
+      allow read: if isAuth() && docHasFieldIdosoId() &&
+        canAccessIdosoData(resource.data.idosoId);
+      allow create: if isAuth() && requestHasIdosoId() &&
+        canAccessIdosoData(request.resource.data.idosoId);
+      allow update: if isAuth() && docHasFieldIdosoId() &&
+        canAccessIdosoData(resource.data.idosoId) &&
+        requestIdosoIdUnchanged();
+      allow delete: if isAuth() && docHasFieldIdosoId() &&
+        canAccessIdosoData(resource.data.idosoId);
+    }
+
+
+    // === VIDEO CALLS ===
+
+    match /video_calls/{callId} {
+      allow read: if isAuth() && (
+        canAccessIdosoData(resource.data.idosoId) ||
+        isOwner(resource.data.supervisorId)
+      );
+      allow create: if isAuth() && requestHasIdosoId() && (
+        isOwner(request.resource.data.idosoId) ||
+        isLinkedSupervisor(request.resource.data.idosoId)
+      );
+      allow update: if isAuth() && (
+        canAccessIdosoData(resource.data.idosoId) ||
+        isOwner(resource.data.supervisorId)
+      ) && requestIdosoIdUnchanged() &&
+        requestSupervisorIdUnchanged();
+      allow delete: if false;
+    }
+
+
+    // === HEALTH METRICS ===
+
+    match /health_metrics/{idosoId} {
+      allow read: if canAccessIdosoData(idosoId);
+      allow write: if isOwner(idosoId);
+    }
+
+
+    // === DEVICE DIAGNOSTICS ===
+
+    match /device_diagnostics/{idosoId} {
+      allow read: if canAccessIdosoData(idosoId);
+      allow write: if isOwner(idosoId);
+    }
+
+
+    // === FCM TOKENS ===
+
+    match /fcm_tokens/{docId} {
+      allow read: if isAuth() && (
+        docId == 'elderly_' + request.auth.uid ||
+        docId == 'supervisor_' + request.auth.uid
+      );
+      allow create: if isAuth() && (
+        docId == 'elderly_' + request.auth.uid ||
+        docId == 'supervisor_' + request.auth.uid
+      );
+      allow update: if isAuth() && (
+        docId == 'elderly_' + request.auth.uid ||
+        docId == 'supervisor_' + request.auth.uid
+      );
+      allow delete: if false;
+    }
+
+
+    // === EMERGENCY ALERTS ===
+
+    match /alertas/{alertaId} {
+      allow create: if isAuth() && requestHasIdosoId() &&
+        canAccessIdosoData(request.resource.data.idosoId);
+      allow read: if isAuth() && docHasFieldIdosoId() &&
+        canAccessIdosoData(resource.data.idosoId);
+      allow update: if false;
+      allow delete: if false;
+    }
+  }
+}

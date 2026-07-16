@@ -21,16 +21,18 @@ class DeviceDiagnostics {
       };
 
   factory DeviceDiagnostics.fromJson(Map<String, dynamic> json) {
-    final rawBarriers = json['barriers'] as List? ?? const [];
+    final rawBarriers =
+        json['barriers'] is List ? json['barriers'] as List : const [];
     final barriers = rawBarriers
-        .map((item) => DeviceBarrier.fromJson(Map<String, dynamic>.from(item as Map)))
+        .whereType<Map>()
+        .map((item) => DeviceBarrier.fromJson(Map<String, dynamic>.from(item)))
         .toList();
     final updatedAtStr = json['updatedAt'] as String?;
     final updatedAt = updatedAtStr != null ? DateTime.tryParse(updatedAtStr) : null;
 
     return DeviceDiagnostics(
       barriers: barriers,
-      batteryLevel: json['batteryLevel'] as int?,
+      batteryLevel: (json['batteryLevel'] as num?)?.toInt(),
       batteryState: json['batteryState'] as String?,
       updatedAt: updatedAt,
     );

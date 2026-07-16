@@ -50,8 +50,8 @@ class DeviceBarrier {
       detectedAt:
           DateTime.tryParse(json['detectedAt'] as String? ?? '') ??
           DateTime.now(),
-      priority: json['priority'] as int? ?? 0,
-      value: json['value'] as int?,
+      priority: (json['priority'] as num?)?.toInt() ?? 0,
+      value: (json['value'] as num?)?.toInt(),
     );
   }
 

@@ -254,7 +254,8 @@ class DeviceBarrierService {
       } else if (decoded is List) {
         final list = decoded;
         final barriers = list
-            .map((item) => DeviceBarrier.fromJson(Map<String, dynamic>.from(item as Map)))
+            .whereType<Map>()
+            .map((item) => DeviceBarrier.fromJson(Map<String, dynamic>.from(item)))
             .toList();
         return DeviceDiagnostics(barriers: barriers);
       }
@@ -307,15 +308,17 @@ class DeviceBarrierService {
             );
           }
 
-          final data = snapshot.data()!;
+          final data = Map<String, dynamic>.from(snapshot.data()!);
           final updatedAt = DateTime.tryParse(
             data['updatedAt'] as String? ?? '',
           );
-          final rawBarriers = data['barriers'] as List? ?? const [];
+          final rawBarriers =
+              data['barriers'] is List ? data['barriers'] as List : const [];
           final barriers = rawBarriers
+              .whereType<Map>()
               .map(
                 (item) => DeviceBarrier.fromJson(
-                  Map<String, dynamic>.from(item as Map),
+                  Map<String, dynamic>.from(item),
                 ),
               )
               .toList();
@@ -331,7 +334,7 @@ class DeviceBarrierService {
 
           barriers.sort((a, b) => b.priority.compareTo(a.priority));
 
-          final batteryLevel = data['batteryLevel'] as int?;
+          final batteryLevel = (data['batteryLevel'] as num?)?.toInt();
           final batteryState = data['batteryState'] as String?;
 
           return DeviceDiagnostics(

@@ -66,14 +66,18 @@ class _SupervisorRegisterScreenState extends State<SupervisorRegisterScreen> {
       try {
         final credential = await FirebaseAuth.instance
             .createUserWithEmailAndPassword(email: email, password: password);
+        final user = credential.user;
+        if (user == null) {
+          throw StateError('Conta criada sem usuario autenticado.');
+        }
 
         try {
-          await credential.user!.updateDisplayName(name);
+          await user.updateDisplayName(name);
         } catch (_) {}
 
         await FirebaseFirestore.instance
             .collection('supervisores')
-            .doc(credential.user!.uid)
+            .doc(user.uid)
             .set({
               'nome': name,
               'email': email,

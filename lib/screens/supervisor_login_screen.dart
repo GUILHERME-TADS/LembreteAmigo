@@ -13,7 +13,6 @@ class SupervisorLoginScreen extends StatefulWidget {
 }
 
 class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
-  bool _obscurePassword = true;
   bool _isLoading = false;
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
@@ -190,95 +189,30 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
                         controller: _emailController,
                       ),
                       const SizedBox(height: 24),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text(
-                                'SENHA',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.05,
-                                  color: AppColors.onSurfaceVariant,
-                                ),
-                              ),
-                              Flexible(
-                                child: Align(
-                                  alignment: Alignment.centerRight,
-                                  child: TextButton(
-                                    onPressed: () => Navigator.pushNamed(
-                                      context,
-                                      '/forgot-password',
-                                    ),
-                                    child: const Text(
-                                      'Esqueci minha senha',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w700,
-                                        letterSpacing: 0.05,
-                                        color: AppColors.primary,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
+                      SeniorInputField(
+                        label: 'Senha',
+                        placeholder: '••••••••',
+                        prefixIcon: Icons.lock,
+                        isPassword: true,
+                        controller: _passwordController,
+                      ),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: () => Navigator.pushNamed(
+                            context,
+                            '/forgot-password',
                           ),
-                          const SizedBox(height: 8),
-                          Container(
-                            constraints: const BoxConstraints(minHeight: 64),
-                            padding: const EdgeInsets.symmetric(vertical: 4),
-                            decoration: BoxDecoration(
-                              color: AppColors.surfaceContainerLow,
-                              border: Border.all(
-                                color: AppColors.outlineVariant,
-                              ),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Row(
-                              children: [
-                                const Padding(
-                                  padding: EdgeInsets.only(left: 16),
-                                  child: Icon(
-                                    Icons.lock,
-                                    color: AppColors.outline,
-                                  ),
-                                ),
-                                Expanded(
-                                  child: TextField(
-                                    controller: _passwordController,
-                                    obscureText: _obscurePassword,
-                                    style: const TextStyle(fontSize: 18),
-                                    decoration: const InputDecoration(
-                                      hintText: '••••••••',
-                                      border: InputBorder.none,
-                                      contentPadding: EdgeInsets.symmetric(
-                                        horizontal: 16,
-                                        vertical: 8,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                IconButton(
-                                  onPressed: () => setState(
-                                    () => _obscurePassword = !_obscurePassword,
-                                  ),
-                                  icon: Icon(
-                                    _obscurePassword
-                                        ? Icons.visibility
-                                        : Icons.visibility_off,
-                                    color: AppColors.outline,
-                                  ),
-                                ),
-                              ],
+                          child: const Text(
+                            'Esqueci minha senha',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.05,
+                              color: AppColors.primary,
                             ),
                           ),
-                        ],
+                        ),
                       ),
                       const SizedBox(height: 24),
                       SizedBox(
@@ -374,7 +308,7 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
                                 context: context,
                                 title: 'Política de Privacidade',
                                 content:
-                                    'Sua privacidade é nossa prioridade. Todos os dados cadastrados, incluindo histórico de medicamentos e check-ins de saúde, são criptografados e armazenados com segurança. Não compartilhamos informações pessoais com terceiros.',
+                                    'Sua privacidade é nossa prioridade. Todos os dados cadastrados, incluindo histórico de medicamentos e alertas de rotina, são criptografados e armazenados com segurança. Não compartilhamos informações pessoais com terceiros.',
                                 icon: Icons.security_outlined,
                               );
                             },

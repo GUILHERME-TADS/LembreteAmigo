@@ -21,6 +21,7 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
 
   bool _isListening = false;
   bool _hasRecorded = false;
+  bool _isSaving = false;
   String _transcricao = '';
   String? _selectedCategory;
 
@@ -47,7 +48,34 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
         _falarConfirmacao();
       }
     } else {
-      final available = await _speech.initialize();
+      final available = await _speech.initialize(
+        onError: (error) {
+          debugPrint('Speech STT Error: $error');
+          if (mounted) {
+            setState(() {
+              _isListening = false;
+            });
+          }
+        },
+        onStatus: (status) {
+          debugPrint('Speech STT Status: $status');
+          if (status == 'notListening' || status == 'done') {
+            if (mounted) {
+              final shouldConfirm =
+                  _transcricao.trim().isNotEmpty && !_hasRecorded;
+              setState(() {
+                _isListening = false;
+                if (shouldConfirm) {
+                  _hasRecorded = true;
+                }
+              });
+              if (shouldConfirm) {
+                _falarConfirmacao();
+              }
+            }
+          }
+        },
+      );
       if (!available) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -68,12 +96,23 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
       _speech.listen(
         onResult: (result) {
           final words = result.recognizedWords;
+          final detectedCategory = _detectarCategoriaAutomaticamente(words);
+          if (!mounted) return;
           setState(() {
             _transcricao = words;
-            _detectarCategoriaAutomaticamente(words);
+            if (detectedCategory != null) {
+              _selectedCategory = detectedCategory;
+            }
           });
           if (result.finalResult) {
             SystemSound.play(SystemSoundType.click);
+            if (words.isNotEmpty && mounted) {
+              setState(() {
+                _isListening = false;
+                _hasRecorded = true;
+              });
+              _falarConfirmacao();
+            }
           }
         },
         listenOptions: stt.SpeechListenOptions(
@@ -84,7 +123,7 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
     }
   }
 
-  void _detectarCategoriaAutomaticamente(String texto) {
+  String? _detectarCategoriaAutomaticamente(String texto) {
     final lower = texto.toLowerCase();
     
     final medicacaoKeywords = [
@@ -118,28 +157,25 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
 
     for (final kw in medicacaoKeywords) {
       if (lower.contains(kw)) {
-        setState(() => _selectedCategory = 'medicacao');
-        return;
+        return 'medicacao';
       }
     }
     for (final kw in hidratacaoKeywords) {
       if (lower.contains(kw)) {
-        setState(() => _selectedCategory = 'hidratacao');
-        return;
+        return 'hidratacao';
       }
     }
     for (final kw in refeicoesKeywords) {
       if (lower.contains(kw)) {
-        setState(() => _selectedCategory = 'refeicoes');
-        return;
+        return 'refeicoes';
       }
     }
     for (final kw in exercicioKeywords) {
       if (lower.contains(kw)) {
-        setState(() => _selectedCategory = 'exercicio');
-        return;
+        return 'exercicio';
       }
     }
+    return null;
   }
 
   static const Map<String, int> _numerosPorExtenso = {
@@ -420,6 +456,8 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
   }
 
   void _salvarLembrete((int, int, String) extraido) async {
+    if (_isSaving) return;
+    setState(() => _isSaving = true);
     final now = DateTime.now();
     final titulo = extraido.$3.isNotEmpty ? extraido.$3 : _transcricao;
 
@@ -430,9 +468,15 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
       horarioMinute: extraido.$2,
       categoria: _selectedCategory ?? 'personalizado',
     );
-    await LembreteService.instance.adicionar(lembrete);
-    if (!mounted) return;
-    Navigator.pop(context, lembrete);
+    try {
+      await LembreteService.instance.adicionar(lembrete);
+      if (!mounted) return;
+      Navigator.pop(context, lembrete);
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
   }
 
   @override
@@ -476,11 +520,11 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
             child: SizedBox(
               height: 80,
               child: ElevatedButton.icon(
-                onPressed: () => _salvarLembrete(horario),
+                onPressed: _isSaving ? null : () => _salvarLembrete(horario),
                 icon: const Icon(Icons.check_circle_outline, size: 28),
-                label: const Text(
-                  'Sim, está correto',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                label: Text(
+                  _isSaving ? 'Salvando...' : 'Sim, está correto',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
                   textAlign: TextAlign.center,
                 ),
                 style: ElevatedButton.styleFrom(
@@ -542,7 +586,7 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
                       TTSService.instance.parar(caller: this);
                       Navigator.pop(context);
                     },
-                    icon: const Icon(Icons.arrow_back, color: AppColors.primary),
+                    icon: const Icon(Icons.arrow_back, color: AppColors.primary, size: 36),
                   ),
                   const Expanded(
                     child: Text(

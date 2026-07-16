@@ -157,13 +157,24 @@ class AppTheme {
     fill: 1.0,
   );
 
-  static ThemeData get lightTheme => ThemeData(
+  static ThemeData get theme => ThemeData(
     useMaterial3: true,
     brightness: Brightness.light,
     fontFamily: AppTypography.fontFamily,
     textTheme: _boldTextTheme,
     iconTheme: _boldIconTheme,
     primaryIconTheme: _boldIconTheme,
+    appBarTheme: const AppBarTheme(
+      backgroundColor: AppColors.surface,
+      foregroundColor: AppColors.primary,
+      elevation: 0,
+      centerTitle: true,
+      titleTextStyle: TextStyle(
+        fontFamily: AppTypography.fontFamily,
+        fontSize: 24,
+        fontWeight: FontWeight.bold,
+      ),
+    ),
     colorScheme: ColorScheme(
       brightness: Brightness.light,
       primary: AppColors.primary,
@@ -191,41 +202,5 @@ class AppTheme {
       surfaceTint: AppColors.surfaceTint,
     ),
     scaffoldBackgroundColor: AppColors.surface,
-  );
-
-  static ThemeData get highContrastTheme => ThemeData(
-    useMaterial3: true,
-    brightness: Brightness.light,
-    fontFamily: AppTypography.fontFamily,
-    textTheme: _boldTextTheme,
-    iconTheme: _boldIconTheme,
-    primaryIconTheme: _boldIconTheme,
-    colorScheme: const ColorScheme(
-      brightness: Brightness.light,
-      primary: Colors.black,
-      onPrimary: Colors.white,
-      primaryContainer: Colors.black,
-      onPrimaryContainer: Colors.yellow,
-      secondary: Colors.black,
-      onSecondary: Colors.yellow,
-      secondaryContainer: Colors.yellow,
-      onSecondaryContainer: Colors.black,
-      tertiary: Colors.black,
-      onTertiary: Colors.white,
-      tertiaryContainer: Colors.black,
-      onTertiaryContainer: Colors.greenAccent,
-      error: Colors.red,
-      onError: Colors.white,
-      errorContainer: Colors.red,
-      onErrorContainer: Colors.white,
-      surface: Colors.white,
-      onSurface: Colors.black,
-      onSurfaceVariant: Colors.black,
-      outline: Colors.black,
-      outlineVariant: Colors.black,
-      inverseSurface: Colors.black,
-      surfaceTint: Colors.black,
-    ),
-    scaffoldBackgroundColor: Colors.white,
   );
 }

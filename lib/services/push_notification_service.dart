@@ -24,12 +24,12 @@ class PushNotificationService {
 
   Stream<RemoteMessage> get onMessage => _messageController.stream;
 
-  /// Callback disparado quando chega uma notificação de chamada de vídeo.
-  /// Recebe (callId, roomName).
-  void Function(String callId, String roomName)? onVideoCallReceived;
+  /// Callback disparado quando chega uma notificação de chamada de vídeo/voz.
+  /// Recebe (callId, roomName, callType).
+  void Function(String callId, String roomName, String callType)? onVideoCallReceived;
 
-  /// Callback disparado quando o app é aberto via notificação de vídeo.
-  void Function(String callId, String roomName)? onVideoCallOpenedApp;
+  /// Callback disparado quando o app é aberto via notificação de vídeo/voz.
+  void Function(String callId, String roomName, String callType)? onVideoCallOpenedApp;
 
   bool get _useFirebase {
     try {
@@ -83,7 +83,7 @@ class PushNotificationService {
           : await SessionRoleService.getActiveIdosoId();
       if (id.isEmpty) return;
 
-      final role = SessionRoleService.isSupervisor ? 'supervisor' : 'idoso';
+      final role = SessionRoleService.isSupervisor ? 'supervisor' : 'elderly';
       await FirebaseFirestore.instance
           .collection('fcm_tokens')
           .doc('${role}_$id')
@@ -98,6 +98,8 @@ class PushNotificationService {
     }
   }
 
+  Future<void> saveCurrentToken() => _saveToken();
+
   String? get currentToken => _currentToken;
 
   void _handleVideoCallMessage(RemoteMessage message, {required bool fromBackground}) {
@@ -105,12 +107,13 @@ class PushNotificationService {
 
     final callId = message.data['callId'] as String?;
     final roomName = message.data['roomName'] as String?;
+    final callType = message.data['callType'] as String? ?? 'video';
     if (callId == null || roomName == null) return;
 
     if (fromBackground) {
-      onVideoCallOpenedApp?.call(callId, roomName);
+      onVideoCallOpenedApp?.call(callId, roomName, callType);
     } else {
-      onVideoCallReceived?.call(callId, roomName);
+      onVideoCallReceived?.call(callId, roomName, callType);
     }
   }
 }

@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
+import '../utils/web_upload_helper.dart';
 
 import '../models/offline_write.dart';
 import 'secure_cache_service.dart';
@@ -304,6 +305,13 @@ class OfflineSyncService {
     return uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
   }
 
+  bool _isUploadableLocalPath(String path) {
+    return path.isNotEmpty &&
+        !_isRemotePath(path) &&
+        path != 'ia_generated' &&
+        !path.startsWith('assets/');
+  }
+
   Future<OfflineWrite> _uploadPendingFilesIfNeeded(OfflineWrite write) async {
     if (write.collection == 'lembretes') {
       final data = Map<String, dynamic>.from(write.data);
@@ -311,7 +319,7 @@ class OfflineSyncService {
       final lembreteId = write.docId;
 
       final audioPath = data['audioPath'] as String?;
-      if (audioPath != null && audioPath.isNotEmpty && !_isRemotePath(audioPath)) {
+      if (audioPath != null && _isUploadableLocalPath(audioPath)) {
         final remoteUrl = await _uploadToStorage(
           localPath: audioPath,
           destinationPath: 'reminder_audio/$idosoId/$lembreteId.m4a',
@@ -323,7 +331,7 @@ class OfflineSyncService {
       }
 
       final fotoPath = data['medicamentoFotoPath'] as String?;
-      if (fotoPath != null && fotoPath.isNotEmpty && !_isRemotePath(fotoPath)) {
+      if (fotoPath != null && _isUploadableLocalPath(fotoPath)) {
         final isConfirmation = data['status'] == 'concluido_com_foto' || 
             (write.action == OfflineWriteAction.update && data['concluidoComFoto'] == true);
         final folder = isConfirmation ? 'confirmation_photos' : 'reminder_photos';
@@ -346,7 +354,7 @@ class OfflineSyncService {
       final messageId = write.docId;
 
       final audioPath = data['audioPath'] as String?;
-      if (audioPath != null && audioPath.isNotEmpty && !_isRemotePath(audioPath)) {
+      if (audioPath != null && _isUploadableLocalPath(audioPath)) {
         final remoteUrl = await _uploadToStorage(
           localPath: audioPath,
           destinationPath: 'message_audio/$idosoId/$messageId.m4a',
@@ -369,8 +377,21 @@ class OfflineSyncService {
     required String contentType,
   }) async {
     if (kIsWeb) {
-      debugPrint('Upload de arquivo local nao suportado no Web.');
-      return null;
+      try {
+        final bytes = await fetchBlobBytes(localPath);
+        if (bytes == null) {
+          throw StateError('Não foi possível ler os bytes do blob no Web.');
+        }
+        final ref = FirebaseStorage.instance.ref().child(destinationPath);
+        final snapshot = await ref.putData(
+          bytes,
+          SettableMetadata(contentType: contentType),
+        );
+        return await snapshot.ref.getDownloadURL();
+      } catch (e) {
+        debugPrint('Erro ao fazer upload de $localPath no Web: $e');
+        return null;
+      }
     }
     final file = File(localPath);
     if (!await file.exists()) {
@@ -387,5 +408,13 @@ class OfflineSyncService {
       debugPrint('Erro ao fazer upload de $localPath para $destinationPath: $e');
       rethrow;
     }
+  }
+
+  Future<Set<String>> getPendingDeletes(String collection) async {
+    final queue = await loadQueue();
+    return queue
+        .where((w) => w.collection == collection && w.action == OfflineWriteAction.delete)
+        .map((w) => w.docId)
+        .toSet();
   }
 }

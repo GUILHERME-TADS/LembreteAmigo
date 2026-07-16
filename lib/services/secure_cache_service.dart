@@ -1,14 +1,12 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SecureCacheService {
   SecureCacheService._();
   static final SecureCacheService instance = SecureCacheService._();
 
-  static const MethodChannel _channel = MethodChannel(
-    'com.example.lembretes_app/secure_cache',
-  );
+  final FlutterSecureStorage _secure = const FlutterSecureStorage();
 
   Future<String?> read(String key) async {
     if (kIsWeb) {
@@ -17,17 +15,12 @@ class SecureCacheService {
     }
 
     try {
-      final value = await _channel.invokeMethod<String>('read', {'key': key});
-      if (value != null) return value;
-    } on MissingPluginException {
-      debugPrint('Secure cache nativo indisponivel para leitura.');
-    } on PlatformException catch (e) {
-      debugPrint('Falha ao ler cache seguro: ${e.message}');
+      return await _secure.read(key: key);
     } catch (e) {
-      debugPrint('Falha inesperada ao ler cache seguro: $e');
+      debugPrint('Falha ao ler cache seguro: $e');
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString(key);
     }
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(key);
   }
 
   Future<void> write(String key, String value) async {
@@ -38,22 +31,12 @@ class SecureCacheService {
     }
 
     try {
-      await _channel.invokeMethod<void>('write', {
-        'key': key,
-        'value': value,
-      });
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(key);
-      return;
-    } on MissingPluginException {
-      debugPrint('Secure cache nativo indisponivel para gravacao.');
-    } on PlatformException catch (e) {
-      debugPrint('Falha ao gravar cache seguro: ${e.message}');
+      await _secure.write(key: key, value: value);
     } catch (e) {
-      debugPrint('Falha inesperada ao gravar cache seguro: $e');
+      debugPrint('Falha ao gravar cache seguro: $e');
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(key, value);
     }
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(key, value);
   }
 
   Future<void> delete(String key) async {
@@ -64,15 +47,11 @@ class SecureCacheService {
     }
 
     try {
-      await _channel.invokeMethod<void>('delete', {'key': key});
-    } on MissingPluginException {
-      debugPrint('Secure cache nativo indisponivel para exclusao.');
-    } on PlatformException catch (e) {
-      debugPrint('Falha ao excluir cache seguro: ${e.message}');
+      await _secure.delete(key: key);
     } catch (e) {
-      debugPrint('Falha inesperada ao excluir cache seguro: $e');
+      debugPrint('Falha ao excluir cache seguro: $e');
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(key);
     }
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(key);
   }
 }

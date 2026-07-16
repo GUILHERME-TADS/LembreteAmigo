@@ -46,14 +46,14 @@
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Este aplicativo precisa da câmera para medir seus batimentos cardíacos através da ponta do seu dedo.</string>
+	<string>Este aplicativo precisa da camera para medir seus batimentos cardiacos pela ponta do seu dedo.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Este aplicativo precisa acessar sua galeria para escolher fotos de perfil e imagens de medicamentos.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Este aplicativo precisa do microfone para gravar recados de voz e responder lembretes por voz.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>Este aplicativo usa reconhecimento de fala para permitir que você responda aos lembretes por voz.</string>
+	<string>Este aplicativo usa reconhecimento de fala para permitir que voce responda aos lembretes por voz.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Este aplicativo usa sua localização apenas quando você envia um pedido de SOS para ajudar seu cuidador a encontrar você.</string>
+	<string>Este aplicativo usa sua localizacao apenas quando voce envia um pedido de SOS para ajudar seu cuidador a encontrar voce.</string>
 </dict>
 </plist>

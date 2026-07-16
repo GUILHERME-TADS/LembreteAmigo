@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../theme/app_theme.dart';
+import '../widgets/senior_button.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -40,20 +41,42 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               child: Padding(
                 padding: const EdgeInsets.all(20),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 80),
-                    Container(
-                      width: 64,
-                      height: 64,
-                      decoration: BoxDecoration(
-                        color: AppColors.secondaryContainer,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(
-                        Icons.lock_reset,
-                        color: AppColors.onSecondaryContainer,
-                        size: 36,
-                      ),
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(
+                            Icons.arrow_back,
+                            color: AppColors.primary,
+                            size: 32,
+                          ),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                        const Spacer(),
+                        const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.health_and_safety,
+                              size: 40,
+                              color: AppColors.primary,
+                            ),
+                            SizedBox(width: 8),
+                            Text(
+                              'Cuidador',
+                              style: TextStyle(
+                                fontSize: 32,
+                                fontWeight: FontWeight.w800,
+                                height: 1.2,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const Spacer(),
+                        const SizedBox(width: 48),
+                      ],
                     ),
                     const SizedBox(height: 24),
                     const Text(
@@ -65,10 +88,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         color: AppColors.primary,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                     const Text(
                       'Insira seu e-mail de supervisor cadastrado para enviarmos as instruções de redefinição.',
-                      textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w400,
@@ -77,7 +99,24 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       ),
                     ),
                     const SizedBox(height: 32),
-                    _buildEmailField(),
+                    SeniorInputField(
+                      label: 'E-mail',
+                      placeholder: 'nome@exemplo.com',
+                      prefixIcon: Icons.mail,
+                      controller: _emailController,
+                    ),
+                    const SizedBox(height: 8),
+                    const Padding(
+                      padding: EdgeInsets.only(left: 4),
+                      child: Text(
+                        'Verifique se o e-mail inserido é o mesmo utilizado no seu ID de Supervisor.',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w400,
+                          color: AppColors.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 32),
                     SizedBox(
                       width: double.infinity,
@@ -88,34 +127,39 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                             ? const SizedBox(
                                 width: 24,
                                 height: 24,
-                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  color: AppColors.primary,
+                                  strokeWidth: 2,
+                                ),
                               )
                             : const Icon(Icons.chevron_right),
                         label: Text(
                           _isLoading ? 'Enviando...' : 'Enviar Link',
-                          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: AppColors.onPrimary,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          backgroundColor: AppColors.secondaryContainer,
+                          foregroundColor: AppColors.onSecondaryFixed,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 24),
-                    TextButton.icon(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.arrow_back, color: AppColors.primary),
-                      label: const Text(
-                        'Voltar ao Login',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.primary),
+                    const SizedBox(height: 32),
+                    const Center(
+                      child: Text(
+                        'Proteção de dados em conformidade com a LGPD.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w400,
+                          color: AppColors.onSurfaceVariant,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 48),
-                    const Text(
-                      'Proteção de dados em conformidade com a LGPD.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w400, color: AppColors.onSurfaceVariant),
                     ),
                     const SizedBox(height: 24),
                   ],
@@ -126,59 +170,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           if (_showSuccess) _buildSuccessOverlay(),
         ],
       ),
-    );
-  }
-
-  Widget _buildEmailField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'E-mail',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.05,
-            color: AppColors.onSurface,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          height: 64,
-          decoration: BoxDecoration(
-            color: AppColors.surfaceContainerLowest,
-            border: Border.all(color: AppColors.outlineVariant),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            children: [
-              const Padding(
-                padding: EdgeInsets.only(left: 16),
-                child: Icon(Icons.mail, color: AppColors.outline),
-              ),
-              Expanded(
-                child: TextField(
-                  controller: _emailController,
-                  style: const TextStyle(fontSize: 18),
-                  decoration: const InputDecoration(
-                    hintText: 'nome@exemplo.com',
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 16),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
-        const Padding(
-          padding: EdgeInsets.only(left: 4),
-          child: Text(
-            'Verifique se o e-mail inserido é o mesmo utilizado no seu ID de Supervisor.',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w400, color: AppColors.onSurfaceVariant),
-          ),
-        ),
-      ],
     );
   }
 

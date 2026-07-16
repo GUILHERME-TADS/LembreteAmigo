@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -13,7 +13,6 @@ import '../models/lembrete.dart';
 import '../models/lembrete_evento.dart';
 import '../models/smart_alert.dart';
 import '../services/device_barrier_service.dart';
-import '../services/health_service.dart';
 import '../services/supervisor_ai_service.dart';
 import '../services/lembrete_service.dart';
 import '../services/session_role_service.dart';
@@ -21,6 +20,7 @@ import '../services/smart_alert_service.dart';
 import '../services/message_service.dart';
 import '../services/video_call_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/reminder_state_helper.dart';
 import '../widgets/skeleton_loading.dart';
 import '../widgets/audio_player_card.dart';
 import '../widgets/reminder_with_audio.dart';
@@ -29,7 +29,6 @@ import '../widgets/supervisor_drawer.dart';
 import 'photo_gallery_screen.dart';
 import '../widgets/charts/adherence_trend_chart.dart';
 import '../widgets/charts/category_distribution_chart.dart';
-import '../widgets/charts/bpm_history_chart.dart';
 import '../widgets/charts/weekly_comparison_chart.dart';
 
 class SupervisorDashboardScreen extends StatefulWidget {
@@ -41,13 +40,9 @@ class SupervisorDashboardScreen extends StatefulWidget {
 }
 
 class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
-  int? _lastBpm;
-  bool _isLoadingBpm = true;
-  StreamSubscription<int?>? _bpmSubscription;
   StreamSubscription<DeviceDiagnostics>? _deviceBarrierSubscription;
   Timer? _smartAlertTimer;
   String _nomeIdoso = 'Idoso';
-  String _telefoneIdoso = '';
   String _enderecoIdoso = '';
   String _selectedCategoryFilter = 'Todos';
   final TextEditingController _quickMessageController = TextEditingController();
@@ -59,7 +54,6 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   List<SmartAlert> _smartAlerts = [];
   Map<DateTime, double> _dailyAdherence = {};
-  List<BpmReading> _bpmReadings = [];
   int _currentWeekCompleted = 0;
   int _currentWeekTotal = 0;
   int _previousWeekCompleted = 0;
@@ -95,7 +89,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     }
     await _checkSupervisorConnection();
     if (_isConnected) {
-      await _loadBpmAndLembretes();
+      await _loadLembretesAndProfile();
       _startDeviceBarrierWatcher();
       LembreteService.instance.notifier.removeListener(_onLembretesChanged);
       LembreteService.instance.notifier.addListener(_onLembretesChanged);
@@ -106,43 +100,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
         SmartAlertService.instance.atualizar(
           LembreteService.instance.lembretes,
           eventos: LembreteService.instance.eventos,
-          bpm: _lastBpm,
         );
       });
-      await _bpmSubscription?.cancel();
-      _bpmSubscription = HealthService.instance.obterMetricasStream().listen(
-        (bpm) {
-          if (mounted) {
-            setState(() {
-              _lastBpm = bpm;
-              _isLoadingBpm = false;
-              if (bpm != null) {
-                _bpmReadings.add(BpmReading(bpm: bpm, time: DateTime.now()));
-                if (_bpmReadings.length > 20) {
-                  _bpmReadings = _bpmReadings.sublist(_bpmReadings.length - 20);
-                }
-              }
-            });
-            SmartAlertService.instance.atualizar(
-              LembreteService.instance.lembretes,
-              eventos: LembreteService.instance.eventos,
-              bpm: bpm,
-            );
-          }
-        },
-        onError: (error) {
-          debugPrint('Erro ao escutar BPM no Firestore: $error');
-          if (mounted) {
-            setState(() => _isLoadingBpm = false);
-          }
-        },
-      );
-    } else {
-      if (mounted) {
-        setState(() {
-          _isLoadingBpm = false;
-        });
-      }
     }
     if (mounted) {
       setState(() {
@@ -161,7 +120,6 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
 
   @override
   void dispose() {
-    _bpmSubscription?.cancel();
     _deviceBarrierSubscription?.cancel();
     _smartAlertTimer?.cancel();
     LembreteService.instance.notifier.removeListener(_onLembretesChanged);
@@ -174,7 +132,6 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     SmartAlertService.instance.atualizar(
       LembreteService.instance.lembretes,
       eventos: LembreteService.instance.eventos,
-      bpm: _lastBpm,
     );
     _computeChartData();
     if (mounted) setState(() {});
@@ -207,22 +164,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       }
     }
 
-    _bpmReadings = [];
-    final bpmEvents = eventos
-        .where((e) =>
-            e.observacao != null &&
-            e.observacao!.contains('BPM'))
-        .toList()
-      ..sort((a, b) => a.registradoEm.compareTo(b.registradoEm));
-    for (final e in bpmEvents.take(20)) {
-      final bpm = int.tryParse(e.observacao!.replaceAll(RegExp(r'[^0-9]'), ''));
-      if (bpm != null) {
-        _bpmReadings.add(BpmReading(bpm: bpm, time: e.registradoEm));
-      }
-    }
-    if (bpmEvents.isEmpty && _lastBpm != null) {
-      _bpmReadings.add(BpmReading(bpm: _lastBpm!, time: now));
-    }
+
 
     final weekStart = DateTime(now.year, now.month, now.day - 6);
     final twoWeeksAgo = DateTime(now.year, now.month, now.day - 13);
@@ -282,38 +224,43 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
         );
   }
 
-  Future<void> _loadBpmAndLembretes() async {
+  Future<void> _loadLembretesAndProfile() async {
     if (!_isConnected) return;
     await LembreteService.instance.carregar();
     await SmartAlertService.instance.atualizar(
       LembreteService.instance.lembretes,
       eventos: LembreteService.instance.eventos,
-      bpm: _lastBpm,
     );
     try {
       final prefs = await SharedPreferences.getInstance();
-      final bpm = prefs.getInt('last_bpm_value');
       final idosoId = await SessionRoleService.getActiveIdosoId();
 
       String nome = 'Idoso';
-      String telefone = '';
       String endereco = '';
       if (_useFirebase) {
-        final doc = await FirebaseFirestore.instance
+        final docPerfil = await FirebaseFirestore.instance
             .collection('idoso_perfil')
             .doc(idosoId)
             .get();
-        if (doc.exists && doc.data() != null) {
-          nome = doc.data()!['nome'] as String? ?? 'Idoso';
-          telefone = doc.data()!['telefone'] as String? ?? '';
-          endereco = doc.data()!['endereco'] as String? ?? '';
+        final docIdoso = await FirebaseFirestore.instance
+            .collection('idosos')
+            .doc(idosoId)
+            .get();
+        if (docIdoso.exists && docIdoso.data() != null) {
+          final data = docIdoso.data()!;
+          nome = data['nome'] as String? ?? nome;
+          endereco = data['endereco'] as String? ?? endereco;
+        }
+        if (docPerfil.exists && docPerfil.data() != null) {
+          final data = docPerfil.data()!;
+          nome = data['nome'] as String? ?? nome;
+          endereco = data['endereco'] as String? ?? endereco;
         }
       } else {
         final jsonStr = prefs.getString('idoso_perfil');
         if (jsonStr != null) {
           final data = jsonDecode(jsonStr) as Map<String, dynamic>;
           nome = data['nome'] as String? ?? 'Idoso';
-          telefone = data['telefone'] as String? ?? '';
           endereco = data['endereco'] as String? ?? '';
         }
       }
@@ -322,27 +269,17 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
         await SmartAlertService.instance.atualizar(
           LembreteService.instance.lembretes,
           eventos: LembreteService.instance.eventos,
-          bpm: bpm,
         );
         _computeChartData();
         if (!mounted) return;
         setState(() {
-          _lastBpm = bpm;
-          _isLoadingBpm = false;
           _nomeIdoso = nome.split(' ').first;
-          _telefoneIdoso = telefone;
           _enderecoIdoso = endereco;
           _smartAlerts = SmartAlertService.instance.alerts;
         });
       }
       _loadAIInsights();
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _isLoadingBpm = false;
-        });
-      }
-    }
+    } catch (_) {}
   }
 
   Future<void> _loadAIInsights() async {
@@ -358,7 +295,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     }
   }
 
-  Future<void> _initiateVideoCall() async {
+  Future<void> _initiateCall(String callType) async {
     if (!_isConnected) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -369,25 +306,29 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     }
     try {
       final idosoId = await SessionRoleService.getActiveIdosoId();
-      final callId = await VideoCallService.instance.initiateCall(
+      final callStart = await VideoCallService.instance.initiateCall(
         idosoId: idosoId,
+        callType: callType,
       );
-      if (callId == null && mounted) {
+      if (callStart == null && mounted) {
+        final label = callType == 'voice' ? 'voz' : 'vídeo';
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Erro ao iniciar chamada.')),
+          SnackBar(content: Text('Erro ao iniciar chamada de $label.')),
         );
         return;
       }
-      if (mounted && callId != null) {
-        Navigator.pushNamed(context, '/active-video-call', arguments: {
-          'callId': callId,
-          'roomName': 'call_${idosoId}_${DateTime.now().millisecondsSinceEpoch}',
-        });
+      if (mounted && callStart != null) {
+        await VideoCallService.instance.joinCall(
+          callStart.roomName,
+          callType: callType,
+          callId: callStart.callId,
+        );
       }
     } catch (e) {
       if (mounted) {
+        final label = callType == 'voice' ? 'voz' : 'vídeo';
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Erro ao iniciar chamada de vídeo.')),
+          SnackBar(content: Text('Erro ao iniciar chamada de $label.')),
         );
       }
     }
@@ -398,7 +339,10 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     if (text.isEmpty) return;
     setState(() => _sendingQuickMessage = true);
     try {
-      await MessageService.instance.sendText(text);
+      final sent = await MessageService.instance.sendText(text);
+      if (!sent) {
+        throw StateError('Nenhum idoso conectado para receber a mensagem.');
+      }
       _quickMessageController.clear();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -427,9 +371,12 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   Future<void> _enviarReforco(BuildContext context, Lembrete lembrete) async {
     setState(() => _refortIsLoading = true);
     try {
-      await MessageService.instance.sendText(
+      final sent = await MessageService.instance.sendText(
         'Reforco do cuidador: $_nomeIdoso, por favor confira agora o lembrete "${lembrete.titulo}".',
       );
+      if (!sent) {
+        throw StateError('Nenhum idoso conectado para receber o reforco.');
+      }
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -495,10 +442,6 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                       padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
                       child: Column(
                         children: [
-                          _buildTodayWelfareStatusSection(),
-                          const SizedBox(height: 24),
-                          _buildMoodHistoryChart(),
-                          const SizedBox(height: 24),
                           _buildAISummarySection(),
                           const SizedBox(height: 24),
                           _buildSmartAlertsSection(),
@@ -512,8 +455,6 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                           _buildAdherenceChartSection(),
                           const SizedBox(height: 24),
                           _buildWeeklyComparisonSection(),
-                          const SizedBox(height: 24),
-                          _buildHealthSnapshot(),
                           const SizedBox(height: 24),
                           _buildCategoryChartSection(),
                           const SizedBox(height: 24),
@@ -580,7 +521,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
               ),
               const SizedBox(height: 12),
               const Text(
-                'Para receber e visualizar as informações em tempo real (lembretes, alertas e batimentos cardíacos), você precisa conectar o seu painel ao dispositivo do idoso utilizando o código de 6 dígitos gerado no aplicativo dele.',
+                'Para receber e visualizar as informações em tempo real (lembretes e alertas), você precisa conectar o seu painel ao dispositivo do idoso utilizando o código de 6 dígitos gerado no aplicativo dele.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 16,
@@ -627,6 +568,12 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
 
 
   Widget _buildTopBar(BuildContext context) {
+    final lembretes = LembreteService.instance.lembretes;
+    final temAlerta = _isConnected && lembretes.any((l) {
+      final status = reminderVisualStatusFromLembrete(l);
+      return status == ReminderStatus.late || status == ReminderStatus.missed;
+    });
+
     return Container(
       height: 64,
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -651,21 +598,35 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
               ),
             ),
           ),
-          Icon(
-            _useFirebase ? Icons.cloud_done : Icons.cloud_off,
-            color: _useFirebase ? Colors.green : AppColors.outline,
-            size: 20,
-          ),
-          const SizedBox(width: 14),
+
           GestureDetector(
-            onTap: () => Navigator.pushNamed(context, '/emergency-alert'),
+            onTap: () {
+              if (temAlerta) {
+                Navigator.pushNamed(context, '/emergency-alert');
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Nenhum alerta crítico ativo no momento.'),
+                    backgroundColor: AppColors.primary,
+                  ),
+                );
+              }
+            },
             child: Container(
               padding: const EdgeInsets.all(6),
-              decoration: const BoxDecoration(
-                color: AppColors.errorContainer,
+              decoration: BoxDecoration(
+                color: temAlerta
+                    ? AppColors.errorContainer
+                    : AppColors.outlineVariant.withValues(alpha: 0.3),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.warning_amber, color: AppColors.error, size: 24),
+              child: Icon(
+                Icons.warning_amber,
+                color: temAlerta
+                    ? AppColors.error
+                    : AppColors.outline.withValues(alpha: 0.6),
+                size: 24,
+              ),
             ),
           ),
         ],
@@ -1283,41 +1244,36 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                         color: AppColors.onSurface,
                       ),
                     ),
-                    if (_telefoneIdoso.isNotEmpty)
-                      GestureDetector(
-                        onTap: () async {
-                          final Uri launchUri = Uri(scheme: 'tel', path: _telefoneIdoso);
-                          if (await canLaunchUrl(launchUri)) {
-                            await launchUrl(launchUri);
-                          }
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryContainer.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: AppColors.primary, width: 1.5),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.phone, color: AppColors.primary, size: 16),
-                              SizedBox(width: 4),
-                              Text(
-                                'Ligar',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.primary,
-                                ),
+
+                    GestureDetector(
+                      onTap: () => _initiateCall('voice'),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryContainer.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: AppColors.primary, width: 1.5),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.phone_in_talk, color: AppColors.primary, size: 16),
+                            SizedBox(width: 4),
+                            Text(
+                              'Áudio',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ),
+                    ),
                     const SizedBox(width: 8),
                     GestureDetector(
-                      onTap: _initiateVideoCall,
+                      onTap: () => _initiateCall('video'),
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
@@ -1501,85 +1457,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     );
   }
 
-  Widget _buildHealthSnapshot() {
-    final bpmText = _isLoadingBpm
-        ? '--'
-        : (_lastBpm != null ? '$_lastBpm' : '--');
-    final statusText = _isLoadingBpm
-        ? 'CARREGANDO'
-        : (_lastBpm != null ? 'LIDO DA CÂMERA' : 'SEM MEDIÇÃO');
 
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: AppColors.primaryContainer,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        children: [
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              color: AppColors.onPrimaryContainer.withValues(alpha: 0.2),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.favorite,
-              size: 32,
-              color: AppColors.onPrimaryContainer,
-            ),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Ritmo Cardíaco',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w700,
-              color: AppColors.onPrimaryContainer,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            bpmText,
-            style: const TextStyle(
-              fontSize: 48,
-              fontWeight: FontWeight.w800,
-              color: AppColors.onPrimaryContainer,
-            ),
-          ),
-          Text(
-            'BPM • $statusText',
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.05,
-              color: AppColors.onPrimaryContainer,
-            ),
-          ),
-          if (_lastBpm != null && !_isLoadingBpm) ...[
-            const SizedBox(height: 16),
-            EcgHeartbeatWidget(bpm: _lastBpm!),
-          ],
-          if (_bpmReadings.length >= 2) ...[
-            const SizedBox(height: 20),
-            const Divider(color: AppColors.onPrimaryContainer, height: 1),
-            const SizedBox(height: 16),
-            const Text(
-              'Histórico de Medições',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: AppColors.onPrimaryContainer,
-              ),
-            ),
-            const SizedBox(height: 12),
-            BpmHistoryChart(readings: _bpmReadings),
-          ],
-        ],
-      ),
-    );
-  }
 
   Widget _buildCategoryFilters() {
     final Map<String, String> categories = {
@@ -1623,7 +1501,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   }
 
   Widget _buildTodayReminders(BuildContext context) {
-    final rawList = LembreteService.instance.lembretes;
+    final rawList = ReminderStateHelper.activeTodaySorted(
+      LembreteService.instance.lembretes,
+    );
     final filteredList = _selectedCategoryFilter == 'Todos'
         ? rawList
         : rawList.where((l) => l.categoria == _selectedCategoryFilter).toList();
@@ -1753,7 +1633,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                       time: lembrete.horarioFormatado,
                       status: status,
                       accentColor: accentColor,
-                      audioPath: lembrete.audioPath,
+                      audioPath: lembrete.audioPath == 'ia_generated' ? null : lembrete.audioPath,
+                      ttsText: lembrete.audioPath == 'ia_generated' ? lembrete.medicamentoAudioTexto : null,
                       onTap: () {
                         Navigator.pushNamed(
                           context,
@@ -1764,6 +1645,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                             'iconData': icon,
                             'accentColor': accentColor,
                             'category': categoryLabel,
+                            'lembrete': lembrete,
                           },
                         );
                       },
@@ -2211,418 +2093,5 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     );
   }
 
-  /// Builds the 7-day mood history chart for the supervisor dashboard.
-  Widget _buildMoodHistoryChart() {
-    final now = DateTime.now();
-    final eventos = LembreteService.instance.eventos
-        .where((e) => e.categoria == 'bem_estar')
-        .toList();
 
-    // Build a map: dateKey -> last observacao of that day
-    final Map<String, String?> moodByDay = {};
-    for (final e in eventos) {
-      final key =
-          '${e.registradoEm.year}-${e.registradoEm.month.toString().padLeft(2, '0')}-${e.registradoEm.day.toString().padLeft(2, '0')}';
-      // Keep the most recent entry per day
-      if (!moodByDay.containsKey(key)) {
-        moodByDay[key] = e.observacao;
-      }
-    }
-
-    final dayLabels = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.outlineVariant, width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.mood, color: AppColors.primary, size: 22),
-              const SizedBox(width: 8),
-              const Text(
-                'Humor — Últimos 7 dias',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.onSurface,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: List.generate(7, (index) {
-              // index 0 = 6 days ago, index 6 = today
-              final day = DateTime(
-                  now.year, now.month, now.day - (6 - index));
-              final key =
-                  '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
-              final mood = moodByDay[key];
-              final dayLabel = dayLabels[day.weekday % 7];
-              final isToday = index == 6;
-
-              Color circleColor;
-              String emoji;
-              String tooltip;
-
-              if (mood == null) {
-                circleColor = AppColors.surfaceContainerHigh;
-                emoji = '—';
-                tooltip = 'Sem check-in';
-              } else if (mood.contains('Preciso de ajuda')) {
-                circleColor = AppColors.errorContainer;
-                emoji = '🔴';
-                tooltip = mood;
-              } else if (mood.contains('Mais ou menos')) {
-                circleColor = const Color(0xFFFFF9C4);
-                emoji = '🟡';
-                tooltip = mood;
-              } else {
-                circleColor = AppColors.tertiaryFixed;
-                emoji = '🟢';
-                tooltip = mood;
-              }
-
-              return Tooltip(
-                message: tooltip,
-                child: Column(
-                  children: [
-                    Container(
-                      width: 38,
-                      height: 38,
-                      decoration: BoxDecoration(
-                        color: circleColor,
-                        shape: BoxShape.circle,
-                        border: isToday
-                            ? Border.all(
-                                color: AppColors.primary, width: 2.5)
-                            : Border.all(
-                                color: AppColors.outlineVariant, width: 1),
-                      ),
-                      child: Center(
-                        child: mood == null
-                            ? Text(
-                                '—',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: AppColors.outline,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              )
-                            : Text(
-                                emoji,
-                                style:
-                                    const TextStyle(fontSize: 18),
-                              ),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      dayLabel,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: isToday
-                            ? FontWeight.w900
-                            : FontWeight.w500,
-                        color: isToday
-                            ? AppColors.primary
-                            : AppColors.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }),
-          ),
-          const SizedBox(height: 12),
-          // Legend
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _moodLegendItem('🟢', 'Bem', AppColors.tertiaryFixed),
-              const SizedBox(width: 12),
-              _moodLegendItem('🟡', 'Mais ou menos',
-                  const Color(0xFFFFF9C4)),
-              const SizedBox(width: 12),
-              _moodLegendItem('🔴', 'Preciso de ajuda',
-                  AppColors.errorContainer),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _moodLegendItem(String emoji, String label, Color color) {
-    return Row(
-      children: [
-        Container(
-          width: 14,
-          height: 14,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 4),
-        Text(
-          label,
-          style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: AppColors.onSurfaceVariant),
-        ),
-      ],
-    );
-  }
-
-  LembreteEvento? _getTodayWelfareCheckin() {
-    final now = DateTime.now();
-    final todayEvents = LembreteService.instance.eventos.where((e) {
-      return e.categoria == 'bem_estar' &&
-          e.registradoEm.year == now.year &&
-          e.registradoEm.month == now.month &&
-          e.registradoEm.day == now.day;
-    }).toList();
-    if (todayEvents.isEmpty) return null;
-    todayEvents.sort((a, b) => b.registradoEm.compareTo(a.registradoEm));
-    return todayEvents.first;
-  }
-
-  Widget _buildTodayWelfareStatusSection() {
-    final todayCheckin = _getTodayWelfareCheckin();
-
-    Color bgColor;
-    Color borderColor;
-    Color textColor;
-    Color iconColor;
-    IconData icon;
-    String statusTitle;
-    String statusDesc;
-
-    if (todayCheckin == null) {
-      bgColor = AppColors.surfaceContainerHigh;
-      borderColor = AppColors.outlineVariant;
-      textColor = AppColors.onSurfaceVariant;
-      iconColor = AppColors.outline;
-      icon = Icons.calendar_today;
-      statusTitle = 'Check-in de Hoje';
-      statusDesc = 'O idoso ainda não realizou o check-in de bem-estar hoje.';
-    } else {
-      final obs = todayCheckin.observacao ?? '';
-      if (obs.contains('Preciso de ajuda')) {
-        bgColor = AppColors.errorContainer;
-        borderColor = AppColors.error.withValues(alpha: 0.5);
-        textColor = AppColors.error;
-        iconColor = AppColors.error;
-        icon = Icons.warning;
-        statusTitle = 'Atenção: Idoso precisa de ajuda!';
-        statusDesc = 'Resposta do idoso: "$obs"';
-      } else if (obs.contains('Mais ou menos')) {
-        bgColor = AppColors.secondaryFixed;
-        borderColor = AppColors.onSecondaryFixedVariant.withValues(alpha: 0.5);
-        textColor = AppColors.onSecondaryFixed;
-        iconColor = AppColors.onSecondaryFixedVariant;
-        icon = Icons.sentiment_neutral;
-        statusTitle = 'Check-in: Indisposto';
-        statusDesc = 'Resposta do idoso: "$obs"';
-      } else {
-        bgColor = AppColors.tertiaryFixed;
-        borderColor = AppColors.onTertiaryFixedVariant.withValues(alpha: 0.5);
-        textColor = AppColors.onTertiaryFixed;
-        iconColor = AppColors.onTertiaryFixedVariant;
-        icon = Icons.sentiment_very_satisfied;
-        statusTitle = 'Check-in: Tudo bem!';
-        statusDesc = 'O idoso respondeu que está se sentindo bem hoje.';
-      }
-    }
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: borderColor, width: 2),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: iconColor.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: iconColor, size: 28),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  statusTitle,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                    color: textColor,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  statusDesc,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: textColor.withValues(alpha: 0.85),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class EcgHeartbeatWidget extends StatefulWidget {
-  final int bpm;
-  const EcgHeartbeatWidget({super.key, required this.bpm});
-
-  @override
-  State<EcgHeartbeatWidget> createState() => _EcgHeartbeatWidgetState();
-}
-
-class _EcgHeartbeatWidgetState extends State<EcgHeartbeatWidget>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  final List<double> _points = [];
-  int _tickCount = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-        vsync: this, duration: const Duration(seconds: 1))
-      ..repeat();
-    _controller.addListener(_updatePoints);
-    for (int i = 0; i < 60; i++) {
-      _points.add(0.0);
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _updatePoints() {
-    _tickCount++;
-    double base = 0.0;
-    int period = (3600 ~/ (widget.bpm > 0 ? widget.bpm : 70)).clamp(20, 100);
-    int phase = _tickCount % period;
-
-    if (phase == 0) {
-      base = 4.0;
-    } else if (phase == 2) {
-      base = -4.0;
-    } else if (phase == 4) {
-      base = 32.0;
-    } else if (phase == 6) {
-      base = -10.0;
-    } else if (phase == 10) {
-      base = 6.0;
-    } else {
-      base = (phase % 4 == 0) ? 0.6 : ((phase % 5 == 0) ? -0.6 : 0.0);
-    }
-
-    if (mounted) {
-      setState(() {
-        _points.removeAt(0);
-        _points.add(base);
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 70,
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.white24),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: CustomPaint(
-          painter: EcgPainter(_points),
-        ),
-      ),
-    );
-  }
-}
-
-class EcgPainter extends CustomPainter {
-  final List<double> dataPoints;
-  EcgPainter(this.dataPoints);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.greenAccent
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5
-      ..strokeCap = StrokeCap.round;
-
-    final gridPaint = Paint()
-      ..color = Colors.greenAccent.withValues(alpha: 0.1)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.5;
-
-    const gridSpacing = 12.0;
-    for (double x = 0; x < size.width; x += gridSpacing) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), gridPaint);
-    }
-    for (double y = 0; y < size.height; y += gridSpacing) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
-    }
-
-    if (dataPoints.isEmpty) return;
-
-    final path = Path();
-    final double step = size.width / (dataPoints.length - 1);
-
-    path.moveTo(0, size.height / 2 - dataPoints[0]);
-    for (int i = 1; i < dataPoints.length; i++) {
-      path.lineTo(i * step, size.height / 2 - dataPoints[i]);
-    }
-
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant EcgPainter oldDelegate) => true;
 }

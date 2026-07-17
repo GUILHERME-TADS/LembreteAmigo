@@ -114,100 +114,108 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
       if (_useFirebase) {
         try {
           final idosoId = await SessionRoleService.getActiveIdosoId();
-          final docPerfil = await FirebaseFirestore.instance
-              .collection('idoso_perfil')
-              .doc(idosoId)
-              .get();
-          final docIdoso = await FirebaseFirestore.instance
-              .collection('idosos')
-              .doc(idosoId)
-              .get();
-
-          if (docIdoso.exists && docIdoso.data() != null) {
-            final data = docIdoso.data()!;
-            if (!isRealValue(nome)) {
-              final v = data['nome']?.toString() ?? '';
-              if (isRealValue(v)) nome = v;
-            }
-            if (!isRealValue(dataNasc)) {
-              final v = data['dataNascimento']?.toString() ?? '';
-              if (isRealValue(v)) dataNasc = v;
-            }
-            if (!isRealValue(telefone)) {
-              final v = data['telefone']?.toString() ?? '';
-              if (isRealValue(v)) telefone = v;
-            }
-            if (!isRealValue(endereco)) {
-              final v = data['endereco']?.toString() ?? '';
-              if (isRealValue(v)) endereco = v;
-            }
-          }
-
-          if (docPerfil.exists && docPerfil.data() != null) {
-            final data = docPerfil.data()!;
-            if (!isRealValue(nome)) {
-              final v = data['nome']?.toString() ?? '';
-              if (isRealValue(v)) nome = v;
-            }
-            if (!isRealValue(dataNasc)) {
-              final v = data['dataNascimento']?.toString() ?? '';
-              if (isRealValue(v)) dataNasc = v;
-            }
-            if (!isRealValue(telefone)) {
-              final v = data['telefone']?.toString() ?? '';
-              if (isRealValue(v)) telefone = v;
-            }
-            if (!isRealValue(endereco)) {
-              final v = data['endereco']?.toString() ?? '';
-              if (isRealValue(v)) endereco = v;
-            }
-
-            final firestoreStatus = data['status'] as String? ?? 'pending';
-            final firestoreSupervisorId = data['supervisorId'] as String?;
-
-            // Save updated connection fields to cache
-            final jsonStr = prefs.getString('idoso_perfil');
-            if (jsonStr != null) {
-              try {
-                final localData = jsonDecode(jsonStr) as Map<String, dynamic>;
-                localData['status'] = firestoreStatus;
-                localData['supervisorId'] = firestoreSupervisorId;
-                await prefs.setString('idoso_perfil', jsonEncode(localData));
-              } catch (_) {}
-            }
-
+          if (SessionRoleService.isLocalOnlyIdosoId(idosoId)) {
             if (mounted) {
               setState(() {
-                _isConnectionActive = firestoreStatus == 'active';
+                _isConnectionActive = false;
               });
             }
-            if (firestoreStatus == 'active' && firestoreSupervisorId != null) {
-              await prefs.setBool('elderly_autonomous_mode', false);
+          } else {
+            final docPerfil = await FirebaseFirestore.instance
+                .collection('idoso_perfil')
+                .doc(idosoId)
+                .get();
+            final docIdoso = await FirebaseFirestore.instance
+                .collection('idosos')
+                .doc(idosoId)
+                .get();
+
+            if (docIdoso.exists && docIdoso.data() != null) {
+              final data = docIdoso.data()!;
+              if (!isRealValue(nome)) {
+                final v = data['nome']?.toString() ?? '';
+                if (isRealValue(v)) nome = v;
+              }
+              if (!isRealValue(dataNasc)) {
+                final v = data['dataNascimento']?.toString() ?? '';
+                if (isRealValue(v)) dataNasc = v;
+              }
+              if (!isRealValue(telefone)) {
+                final v = data['telefone']?.toString() ?? '';
+                if (isRealValue(v)) telefone = v;
+              }
+              if (!isRealValue(endereco)) {
+                final v = data['endereco']?.toString() ?? '';
+                if (isRealValue(v)) endereco = v;
+              }
             }
-          }
 
-          if (reloadPhoto) {
-            // Smart local-first photo path sync
-            bool isLocalFile =
-                localFoto != null && !localFoto.startsWith('avatar_');
-            bool localFileExists = isLocalFile && File(localFoto).existsSync();
+            if (docPerfil.exists && docPerfil.data() != null) {
+              final data = docPerfil.data()!;
+              if (!isRealValue(nome)) {
+                final v = data['nome']?.toString() ?? '';
+                if (isRealValue(v)) nome = v;
+              }
+              if (!isRealValue(dataNasc)) {
+                final v = data['dataNascimento']?.toString() ?? '';
+                if (isRealValue(v)) dataNasc = v;
+              }
+              if (!isRealValue(telefone)) {
+                final v = data['telefone']?.toString() ?? '';
+                if (isRealValue(v)) telefone = v;
+              }
+              if (!isRealValue(endereco)) {
+                final v = data['endereco']?.toString() ?? '';
+                if (isRealValue(v)) endereco = v;
+              }
 
-            if (!localFileExists) {
-              String? firestoreFoto;
-              if (docIdoso.exists && docIdoso.data() != null) {
-                final data = docIdoso.data()!;
-                firestoreFoto = data['fotoPath'] as String?;
+              final firestoreStatus = data['status'] as String? ?? 'pending';
+              final firestoreSupervisorId = data['supervisorId'] as String?;
+
+              // Save updated connection fields to cache
+              final jsonStr = prefs.getString('idoso_perfil');
+              if (jsonStr != null) {
+                try {
+                  final localData = jsonDecode(jsonStr) as Map<String, dynamic>;
+                  localData['status'] = firestoreStatus;
+                  localData['supervisorId'] = firestoreSupervisorId;
+                  await prefs.setString('idoso_perfil', jsonEncode(localData));
+                } catch (_) {}
               }
-              if (docPerfil.exists && docPerfil.data() != null) {
-                final data = docPerfil.data()!;
-                firestoreFoto = data['fotoPath'] as String? ?? firestoreFoto;
+
+              if (mounted) {
+                setState(() {
+                  _isConnectionActive = firestoreStatus == 'active';
+                });
               }
-              if (firestoreFoto != null && firestoreFoto.isNotEmpty) {
-                fotoPath = firestoreFoto;
-                if (firestoreFoto.startsWith('avatar_') ||
-                    firestoreFoto.startsWith('http') ||
-                    File(firestoreFoto).existsSync()) {
-                  await prefs.setString('idoso_foto_path', firestoreFoto);
+              if (firestoreStatus == 'active' && firestoreSupervisorId != null) {
+                await prefs.setBool('elderly_autonomous_mode', false);
+              }
+            }
+
+            if (reloadPhoto) {
+              // Smart local-first photo path sync
+              bool isLocalFile =
+                  localFoto != null && !localFoto.startsWith('avatar_');
+              bool localFileExists = isLocalFile && File(localFoto).existsSync();
+
+              if (!localFileExists) {
+                String? firestoreFoto;
+                if (docIdoso.exists && docIdoso.data() != null) {
+                  final data = docIdoso.data()!;
+                  firestoreFoto = data['fotoPath'] as String?;
+                }
+                if (docPerfil.exists && docPerfil.data() != null) {
+                  final data = docPerfil.data()!;
+                  firestoreFoto = data['fotoPath'] as String? ?? firestoreFoto;
+                }
+                if (firestoreFoto != null && firestoreFoto.isNotEmpty) {
+                  fotoPath = firestoreFoto;
+                  if (firestoreFoto.startsWith('avatar_') ||
+                      firestoreFoto.startsWith('http') ||
+                      File(firestoreFoto).existsSync()) {
+                    await prefs.setString('idoso_foto_path', firestoreFoto);
+                  }
                 }
               }
             }
@@ -272,7 +280,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
       final prefs = await SharedPreferences.getInstance();
       final docId = prefs.getString('paired_idoso_id');
       Object? syncError;
-      if (docId != null && docId != 'idoso_autonomo') {
+      if (!SessionRoleService.isLocalOnlyIdosoId(docId)) {
         if (_useFirebase) {
           try {
             final batch = FirebaseFirestore.instance.batch();

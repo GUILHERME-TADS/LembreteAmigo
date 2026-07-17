@@ -381,40 +381,6 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
                             child: CircularProgressIndicator(color: AppColors.primary),
                           )
                         else if (_pairingCode != null) ...[
-                          Center(
-                            child: Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: AppColors.primary, width: 2),
-                              ),
-                              child: Image.network(
-                                'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=$_pairingCode',
-                                width: 160,
-                                height: 160,
-                                errorBuilder: (context, error, stackTrace) => Container(
-                                  width: 160,
-                                  height: 160,
-                                  color: AppColors.surfaceContainerHigh,
-                                  child: const Icon(
-                                    Icons.qr_code_2,
-                                    size: 80,
-                                    color: AppColors.outline,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          const Text(
-                            'Ou diga estes números para ele:',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.onSurfaceVariant,
-                            ),
-                          ),
                           const SizedBox(height: 12),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,

@@ -35,7 +35,7 @@ class EmergencyContactService {
     if (Firebase.apps.isEmpty) return null;
 
     final idosoId = await SessionRoleService.getActiveIdosoId();
-    if (idosoId.isEmpty || idosoId == SessionRoleService.unpairedIdosoId) {
+    if (SessionRoleService.isLocalOnlyIdosoId(idosoId)) {
       return null;
     }
 

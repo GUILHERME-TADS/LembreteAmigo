@@ -393,7 +393,8 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
 
     if (SessionRoleService.isSupervisor && supervisorId.isNotEmpty) {
       query = query.where('supervisorId', isEqualTo: supervisorId);
-    } else if (SessionRoleService.isElderly && idosoId.isNotEmpty && idosoId != SessionRoleService.unpairedIdosoId) {
+    } else if (SessionRoleService.isElderly &&
+        !SessionRoleService.isLocalOnlyIdosoId(idosoId)) {
       query = query.where('idosoId', isEqualTo: idosoId);
     } else {
       return;

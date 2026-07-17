@@ -82,7 +82,11 @@ class PushNotificationService {
       final id = SessionRoleService.isSupervisor
           ? FirebaseAuth.instance.currentUser?.uid ?? ''
           : await SessionRoleService.getVerifiedActiveIdosoId() ?? '';
-      if (id.isEmpty) return;
+      if (id.isEmpty ||
+          (!SessionRoleService.isSupervisor &&
+              SessionRoleService.isLocalOnlyIdosoId(id))) {
+        return;
+      }
 
       final role = SessionRoleService.isSupervisor ? 'supervisor' : 'elderly';
       await FirebaseFirestore.instance

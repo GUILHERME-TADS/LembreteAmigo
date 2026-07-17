@@ -58,7 +58,7 @@ class _SupervisorEditElderlyProfileScreenState
     final idosoId = await SessionRoleService.getActiveIdosoId();
     final isConnected = await SessionRoleService.isSupervisorConnected();
 
-    if (!isConnected || idosoId == SessionRoleService.unpairedIdosoId) {
+    if (!isConnected || SessionRoleService.isLocalOnlyIdosoId(idosoId)) {
       if (!mounted) return;
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(

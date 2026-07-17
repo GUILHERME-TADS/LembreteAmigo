@@ -41,12 +41,7 @@ class MessageService {
   }
 
   bool _canSyncIdosoId(String? idosoId) {
-    return _useFirebase &&
-        idosoId != null &&
-        idosoId.isNotEmpty &&
-        idosoId != SessionRoleService.unpairedIdosoId &&
-        idosoId != 'idoso_autonomo' &&
-        idosoId != 'idoso_simulado';
+    return _useFirebase && !SessionRoleService.isLocalOnlyIdosoId(idosoId);
   }
 
   Future<String> getActiveIdosoId() async {
@@ -69,7 +64,7 @@ class MessageService {
   Future<void> load() async {
     if (SessionRoleService.isSupervisor) {
       final idosoId = await getActiveIdosoId();
-      if (idosoId == SessionRoleService.unpairedIdosoId) {
+      if (SessionRoleService.isLocalOnlyIdosoId(idosoId)) {
         await _messagesSubscription?.cancel();
         _messagesSubscription = null;
         _messages.clear();

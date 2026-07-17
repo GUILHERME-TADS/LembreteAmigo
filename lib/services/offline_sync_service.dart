@@ -210,6 +210,10 @@ class OfflineSyncService {
           continue;
         }
 
+        if (_isLocalOnlyWrite(write)) {
+          continue;
+        }
+
         try {
           final updatedWrite = await _uploadPendingFilesIfNeeded(write);
           await _apply(updatedWrite).timeout(_writeTimeout);
@@ -267,6 +271,12 @@ class OfflineSyncService {
       return true;
     }
     return error.toString().contains('permission-denied');
+  }
+
+  bool _isLocalOnlyWrite(OfflineWrite write) {
+    if (!write.data.containsKey('idosoId')) return false;
+    final idosoId = write.data['idosoId'] as String?;
+    return SessionRoleService.isLocalOnlyIdosoId(idosoId);
   }
 
   Future<void> _apply(OfflineWrite write) {

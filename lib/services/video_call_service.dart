@@ -141,7 +141,7 @@ class VideoCallService {
         return 'Supervisor';
       } else {
         final idosoId = await SessionRoleService.getActiveIdosoId();
-        if (idosoId != SessionRoleService.unpairedIdosoId) {
+        if (!SessionRoleService.isLocalOnlyIdosoId(idosoId)) {
           final doc = await FirebaseFirestore.instance
               .collection('idoso_perfil')
               .doc(idosoId)

@@ -11,6 +11,7 @@ class SessionRoleService {
   static const String elderly = 'elderly';
   static const String supervisor = 'supervisor';
   static const String unpairedIdosoId = 'idoso_sem_vinculo';
+  static const String autonomousIdosoId = 'idoso_autonomo';
 
   static String? _activeRole;
   static bool _lastVerificationFailedByError = false;
@@ -18,6 +19,12 @@ class SessionRoleService {
   static String? get activeRole => _activeRole;
   static bool get isSupervisor => _activeRole == supervisor;
   static bool get isElderly => _activeRole == elderly;
+  static bool isLocalOnlyIdosoId(String? idosoId) =>
+      idosoId == null ||
+      idosoId.isEmpty ||
+      idosoId == unpairedIdosoId ||
+      idosoId == autonomousIdosoId ||
+      idosoId == 'idoso_simulado';
 
   static Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();
@@ -67,13 +74,9 @@ class SessionRoleService {
   static Future<String?> getVerifiedActiveIdosoId() async {
     _lastVerificationFailedByError = false;
     final idosoId = await getActiveIdosoIdOrNull();
-    if (idosoId == null ||
-        idosoId == unpairedIdosoId ||
-        idosoId == 'idoso_simulado') {
+    if (isLocalOnlyIdosoId(idosoId)) {
       return idosoId;
     }
-
-    if (idosoId == 'idoso_autonomo') return idosoId;
 
     if (Firebase.apps.isEmpty) return idosoId;
 
@@ -109,8 +112,7 @@ class SessionRoleService {
   static Future<bool> canUseActiveIdoso({bool allowOfflineCache = false}) async {
     final verified = await getVerifiedActiveIdosoId();
     if (verified != null &&
-        verified != unpairedIdosoId &&
-        verified != 'idoso_simulado') {
+        !isLocalOnlyIdosoId(verified)) {
       return true;
     }
     if (!allowOfflineCache) return false;
@@ -130,10 +132,7 @@ class SessionRoleService {
   static Future<bool> isElderlyConnectedToSupervisor() async {
     final prefs = await SharedPreferences.getInstance();
     final idosoId = prefs.getString('paired_idoso_id');
-    if (idosoId == null ||
-        idosoId.isEmpty ||
-        idosoId == unpairedIdosoId ||
-        idosoId == 'idoso_autonomo') {
+    if (isLocalOnlyIdosoId(idosoId)) {
       return false;
     }
 
@@ -177,7 +176,7 @@ class SessionRoleService {
     if (!isSupervisor) return false;
 
     final idosoId = await getActiveIdosoIdOrNull();
-    if (idosoId == null || idosoId == unpairedIdosoId) {
+    if (isLocalOnlyIdosoId(idosoId)) {
       return false;
     }
 
@@ -187,7 +186,7 @@ class SessionRoleService {
     } catch (_) {}
 
     if (!useFirebase) {
-      return idosoId != unpairedIdosoId;
+      return !isLocalOnlyIdosoId(idosoId);
     }
 
     var currentUser = FirebaseAuth.instance.currentUser;

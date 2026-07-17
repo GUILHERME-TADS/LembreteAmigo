@@ -49,22 +49,32 @@ class LembreteService {
   }
 
   bool _canSyncIdosoId(String? idosoId) {
-    return _useFirebase &&
-        idosoId != null &&
-        idosoId.isNotEmpty &&
-        idosoId != SessionRoleService.unpairedIdosoId &&
-        idosoId != 'idoso_autonomo' &&
-        idosoId != 'idoso_simulado';
+    return _useFirebase && !SessionRoleService.isLocalOnlyIdosoId(idosoId);
   }
 
   Future<String> _getActiveIdosoId() async {
     return SessionRoleService.getActiveIdosoId();
   }
 
+  String? _cacheIdosoId(String? idosoId) {
+    if (idosoId == null || idosoId.isEmpty) return null;
+    if (SessionRoleService.isLocalOnlyIdosoId(idosoId)) {
+      return SessionRoleService.autonomousIdosoId;
+    }
+    return idosoId;
+  }
+
+  bool _matchesActiveIdosoId(String? itemIdosoId, String? activeIdosoId) {
+    final activeCacheId = _cacheIdosoId(activeIdosoId);
+    if (activeCacheId == null) return true;
+    if (itemIdosoId == null || itemIdosoId.isEmpty) return true;
+    return _cacheIdosoId(itemIdosoId) == activeCacheId;
+  }
+
   Future<void> carregar() async {
     if (SessionRoleService.isSupervisor) {
       final idosoId = await _getActiveIdosoId();
-      if (idosoId == SessionRoleService.unpairedIdosoId) {
+      if (SessionRoleService.isLocalOnlyIdosoId(idosoId)) {
         await _lembretesSubscription?.cancel();
         _lembretesSubscription = null;
         await _eventosSubscription?.cancel();
@@ -138,9 +148,10 @@ class LembreteService {
   Future<void> _executarCarregar(String idosoId) async {
     await _carregarCacheLocal(activeIdosoId: idosoId);
     await OfflineSyncService.instance.loadQueue();
-    await OfflineSyncService.instance.syncPendingWrites();
 
     if (!_canSyncIdosoId(idosoId)) return;
+
+    await OfflineSyncService.instance.syncPendingWrites();
 
     await _lembretesSubscription?.cancel();
     _lembretesSubscription = FirebaseFirestore.instance
@@ -214,15 +225,48 @@ class LembreteService {
         });
   }
 
-  String _lembretesCacheKey(String? idosoId) =>
-      idosoId == null ? 'lembretes' : 'lembretes_$idosoId';
+  String _lembretesCacheKey(String? idosoId) {
+    final cacheIdosoId = _cacheIdosoId(idosoId);
+    return cacheIdosoId == null ? 'lembretes' : 'lembretes_$cacheIdosoId';
+  }
 
-  String _eventosCacheKey(String? idosoId) =>
-      idosoId == null ? 'lembretes_eventos' : 'lembretes_eventos_$idosoId';
+  String _eventosCacheKey(String? idosoId) {
+    final cacheIdosoId = _cacheIdosoId(idosoId);
+    return cacheIdosoId == null
+        ? 'lembretes_eventos'
+        : 'lembretes_eventos_$cacheIdosoId';
+  }
 
-  String _dayCheckKey(String? idosoId) => idosoId == null
-      ? 'ultimo_dia_verificado'
-      : 'ultimo_dia_verificado_$idosoId';
+  String _dayCheckKey(String? idosoId) {
+    final cacheIdosoId = _cacheIdosoId(idosoId);
+    return cacheIdosoId == null
+        ? 'ultimo_dia_verificado'
+        : 'ultimo_dia_verificado_$cacheIdosoId';
+  }
+
+  List<String> _lembretesCacheKeysForRead(String? activeIdosoId) {
+    final keys = <String>[_lembretesCacheKey(activeIdosoId)];
+    if (SessionRoleService.isLocalOnlyIdosoId(activeIdosoId)) {
+      keys.addAll([
+        'lembretes_idoso_sem_vinculo',
+        'lembretes_idoso_simulado',
+        'lembretes',
+      ]);
+    }
+    return keys.toSet().toList();
+  }
+
+  List<String> _eventosCacheKeysForRead(String? activeIdosoId) {
+    final keys = <String>[_eventosCacheKey(activeIdosoId)];
+    if (SessionRoleService.isLocalOnlyIdosoId(activeIdosoId)) {
+      keys.addAll([
+        'lembretes_eventos_idoso_sem_vinculo',
+        'lembretes_eventos_idoso_simulado',
+        'lembretes_eventos',
+      ]);
+    }
+    return keys.toSet().toList();
+  }
 
   Future<List<dynamic>?> _readListCache(
     List<String> keys,
@@ -245,19 +289,22 @@ class LembreteService {
 
   Future<void> _carregarCacheLocal({String? activeIdosoId}) async {
     if (SessionRoleService.isSupervisor) return;
-    final lembretesCache = await _readListCache([
-      _lembretesCacheKey(activeIdosoId),
+    final lembretesCache = await _readListCache(
+      _lembretesCacheKeysForRead(activeIdosoId),
       'lembretes',
-    ], 'lembretes');
+    );
     if (lembretesCache != null) {
       final lembretes = <Lembrete>[];
       for (final item in lembretesCache) {
         try {
           final lembrete = Lembrete.fromJson(item as Map<String, dynamic>);
-          if (activeIdosoId == null ||
-              lembrete.idosoId == null ||
-              lembrete.idosoId == activeIdosoId) {
-            lembretes.add(lembrete);
+          if (_matchesActiveIdosoId(lembrete.idosoId, activeIdosoId)) {
+            final normalizedIdosoId = _cacheIdosoId(lembrete.idosoId);
+            lembretes.add(
+              normalizedIdosoId != lembrete.idosoId
+                  ? lembrete.copyWith(idosoId: normalizedIdosoId)
+                  : lembrete,
+            );
           }
         } catch (e) {
           debugPrint('Lembrete local invalido ignorado: $e');
@@ -270,10 +317,10 @@ class LembreteService {
 
     await _verificarEFiltrarViradaDoDia();
 
-    final eventosCache = await _readListCache([
-      _eventosCacheKey(activeIdosoId),
-      'lembretes_eventos',
-    ], 'eventos');
+    final eventosCache = await _readListCache(
+      _eventosCacheKeysForRead(activeIdosoId),
+      'eventos',
+    );
     if (eventosCache != null) {
       final eventos = <LembreteEvento>[];
       for (final item in eventosCache) {
@@ -281,9 +328,7 @@ class LembreteService {
           final evento = LembreteEvento.fromJson(
             item as Map<String, dynamic>,
           );
-          if (activeIdosoId == null ||
-              evento.idosoId == null ||
-              evento.idosoId == activeIdosoId) {
+          if (_matchesActiveIdosoId(evento.idosoId, activeIdosoId)) {
             eventos.add(evento);
           }
         } catch (e) {
@@ -443,6 +488,7 @@ class LembreteService {
     final local = _findLocal(id);
     if (local != null) return local;
     if (!_useFirebase) return null;
+    if (!_canSyncIdosoId(await _getActiveIdosoId())) return null;
 
     try {
       final doc = await FirebaseFirestore.instance
@@ -536,6 +582,14 @@ class LembreteService {
   }
 
   Future<bool> _checkConnection() async {
+    if (SessionRoleService.isElderly) {
+      final idosoId = await _getActiveIdosoId();
+      if (idosoId == SessionRoleService.autonomousIdosoId ||
+          idosoId == 'idoso_simulado') {
+        return true;
+      }
+    }
+
     final canUse = await SessionRoleService.canUseActiveIdoso(
       allowOfflineCache: true,
     );

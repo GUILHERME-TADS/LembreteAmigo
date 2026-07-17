@@ -232,7 +232,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     if (SessionRoleService.isSupervisor) {
       final isConnected = await SessionRoleService.isSupervisorConnected();
-      if (!isConnected || idosoId == SessionRoleService.unpairedIdosoId) {
+      if (!isConnected || SessionRoleService.isLocalOnlyIdosoId(idosoId)) {
         if (mounted) {
           setState(() => _isLoading = false);
           ScaffoldMessenger.of(context).showSnackBar(
@@ -249,7 +249,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
     }
 
-    if (idosoId.isEmpty || idosoId == SessionRoleService.unpairedIdosoId) {
+    if (SessionRoleService.isLocalOnlyIdosoId(idosoId)) {
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(

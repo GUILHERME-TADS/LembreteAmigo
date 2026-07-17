@@ -96,8 +96,8 @@ class _AlexFloatingHelpButtonState extends State<AlexFloatingHelpButton>
           children: [
             // Speech bubble next to Alex
             Positioned(
-              right: 76,
-              bottom: 12,
+              right: 80,
+              bottom: 10,
               child: AnimatedOpacity(
                 duration: const Duration(milliseconds: 250),
                 opacity: 1.0,
@@ -105,12 +105,12 @@ class _AlexFloatingHelpButtonState extends State<AlexFloatingHelpButton>
                   onTap: () => _handleTap(isThisSpeaking),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
+                      horizontal: 20,
+                      vertical: 14,
                     ),
                     decoration: BoxDecoration(
                       color: isThisSpeaking
-                          ? AppColors.secondaryFixed
+                          ? AppColors.error
                           : AppColors.primary,
                       borderRadius: const BorderRadius.only(
                         topLeft: Radius.circular(20),
@@ -130,21 +130,20 @@ class _AlexFloatingHelpButtonState extends State<AlexFloatingHelpButton>
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          isThisSpeaking ? Icons.stop_circle : Icons.volume_up,
-                          color: isThisSpeaking
-                              ? AppColors.onSecondaryFixedVariant
-                              : Colors.white,
-                          size: 20,
+                          isThisSpeaking
+                              ? Icons.stop_circle_rounded
+                              : Icons.volume_up_rounded,
+                          color: Colors.white,
+                          size: 24,
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          isThisSpeaking ? 'Parar de ouvir' : 'Me explica',
-                          style: TextStyle(
-                            color: isThisSpeaking
-                                ? AppColors.onSecondaryFixedVariant
-                                : Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
+                          isThisSpeaking ? 'PARAR DE OUVIR' : 'ME EXPLICA',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.5,
                           ),
                         ),
                       ],

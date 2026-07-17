@@ -307,6 +307,8 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
                                 children: [
                                   Text(
                                     widget.title,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
                                       fontSize: 28,
                                       fontWeight: FontWeight.w700,

@@ -915,8 +915,8 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
       }
     }
 
-    const double nodeSize = 64.0;
-    final Widget innerWidget = Icon(icon, size: 32.0, color: iconColor);
+    const double nodeSize = 40.0;
+    final Widget innerWidget = Icon(icon, size: 22.0, color: iconColor);
 
     return Container(
       width: nodeSize,
@@ -930,7 +930,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
               : (lembrete.concluido
                     ? AppColors.onTertiaryFixedVariant
                     : Colors.white),
-          width: 3,
+          width: 2.5,
         ),
         boxShadow: isHighContrast
             ? null
@@ -948,20 +948,20 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
           innerWidget,
           if (lembrete.concluido)
             Positioned(
-              right: 0,
-              bottom: 0,
+              right: -2,
+              bottom: -2,
               child: Container(
-                padding: const EdgeInsets.all(2),
+                padding: const EdgeInsets.all(1),
                 decoration: BoxDecoration(
                   color: isHighContrast
                       ? Colors.black
                       : const Color(0xFF005312),
                   shape: BoxShape.circle,
                   border: isHighContrast
-                      ? Border.all(color: Colors.white, width: 2)
+                      ? Border.all(color: Colors.white, width: 1.5)
                       : null,
                 ),
-                child: const Icon(Icons.check, color: Colors.white, size: 16),
+                child: const Icon(Icons.check, color: Colors.white, size: 10),
               ),
             ),
         ],
@@ -1101,13 +1101,13 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               child: Row(
                 children: [
                   // Foto ou Ícone da Categoria no lado esquerdo
                   Container(
-                    width: 60,
-                    height: 60,
+                    width: 44,
+                    height: 44,
                     decoration: BoxDecoration(
                       color: isHighContrast
                           ? Colors.black
@@ -1139,7 +1139,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                       ? Icons.directions_walk
                                       : Icons.notifications,
                                   color: isHighContrast ? Colors.white : accentColor,
-                                  size: 28,
+                                  size: 22,
                                 );
                               },
                             )
@@ -1154,32 +1154,37 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                   ? Icons.directions_walk
                                   : Icons.notifications,
                               color: isHighContrast ? Colors.white : accentColor,
-                              size: 28,
+                              size: 22,
                             ),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           lembrete.titulo,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 22,
+                            fontSize: 18,
                             fontWeight: FontWeight.w700,
                             color: titleColor,
+                            height: 1.2,
                             decoration: lembrete.concluido
                                 ? TextDecoration.lineThrough
                                 : null,
                           ),
                         ),
                         if (subtitle != statusText) ...[
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 2),
                           Text(
                             subtitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 16,
+                              fontSize: 13,
                               fontWeight: FontWeight.w500,
                               color: isHighContrast
                                   ? Colors.black
@@ -1192,13 +1197,13 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                       ],
                     ),
                   ),
-                  const SizedBox(width: 24),
+                  const SizedBox(width: 6),
                   if (lembrete.audioPath != null) ...[
                     GestureDetector(
                       onTap: () => _playAudio(lembrete.audioPath!),
                       child: Container(
-                        width: 64,
-                        height: 64,
+                        width: 44,
+                        height: 44,
                         decoration: BoxDecoration(
                           color:
                               _isPlaying &&
@@ -1212,14 +1217,14 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                     ? Colors.white
                                     : accentColor.withValues(alpha: 0.1)),
                           shape: BoxShape.rectangle,
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(10),
                           border: Border.all(
                             color: isHighContrast
                                 ? Colors.black
                                 : (lembrete.status == LembreteStatus.adiado
                                       ? AppColors.onSecondaryFixedVariant
                                       : accentColor),
-                            width: 3,
+                            width: 2,
                           ),
                         ),
                         child: Icon(
@@ -1231,11 +1236,11 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                               : (lembrete.status == LembreteStatus.adiado
                                     ? AppColors.onSecondaryFixedVariant
                                     : accentColor),
-                          size: 36,
+                          size: 26,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 24),
+                    const SizedBox(width: 6),
                   ],
                   GestureDetector(
                     onTap: () async {
@@ -1258,8 +1263,8 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                       }
                     },
                     child: Container(
-                      width: 64,
-                      height: 64,
+                      width: 44,
+                      height: 44,
                       decoration: BoxDecoration(
                         color: lembrete.concluido
                             ? (isHighContrast
@@ -1277,7 +1282,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                   ? Colors.white
                                   : accentColor.withValues(alpha: 0.1)),
                         shape: BoxShape.rectangle,
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(10),
                         border: Border.all(
                           color: isHighContrast
                               ? Colors.black
@@ -1292,7 +1297,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                               LembreteStatus.precisaDeAjuda)
                                     ? AppColors.onError
                                     : accentColor),
-                          width: 3,
+                          width: 2,
                         ),
                       ),
                       child:
@@ -1320,12 +1325,12 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                         ? Colors.black
                                         : AppColors.onSecondaryFixedVariant)
                                   : Colors.white,
-                              size: 36,
+                              size: 26,
                             )
                           : Icon(
                               Icons.radio_button_unchecked,
                               color: isHighContrast ? Colors.black : accentColor,
-                              size: 36,
+                              size: 26,
                             ),
                     ),
                   ),
@@ -1665,9 +1670,9 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Container(
-                        width: 100,
+                        width: 72,
                         alignment: Alignment.center,
-                        padding: const EdgeInsets.only(right: 8),
+                        padding: const EdgeInsets.only(right: 4),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.center,
@@ -1677,11 +1682,11 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                               color: isHighContrast
                                   ? Colors.black
                                   : section.color,
-                              size: 28,
+                              size: 26,
                             ),
                             const SizedBox(height: 6),
                             Container(
-                              padding: const EdgeInsets.all(8),
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
                               decoration: BoxDecoration(
                                 color: isHighContrast
                                     ? Colors.black
@@ -1697,7 +1702,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                               child: Text(
                                 lembrete.horarioFormatado,
                                 style: TextStyle(
-                                  fontSize: 18,
+                                  fontSize: 15,
                                   fontWeight: FontWeight.w800,
                                   color: isHighContrast
                                       ? Colors.white
@@ -1709,7 +1714,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                         ),
                       ),
                       SizedBox(
-                        width: 76,
+                        width: 48,
                         child: Column(
                           children: [
                             Expanded(

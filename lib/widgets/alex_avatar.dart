@@ -218,41 +218,55 @@ class _AlexAvatarState extends State<AlexAvatar> with TickerProviderStateMixin {
                   right: size * 0.11,
                   top: size * 0.11,
                   bottom: size * 0.11,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 250),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          Color(0xFFFFFFFF),
-                          Color(0xFFF3F7FA),
-                        ],
-                      ),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: borderColor,
-                        width: size * 0.05,
-                      ),
-                      boxShadow: [
-                        // Thin dark outline to increase contrast of the status border
-                        BoxShadow(
-                          color: const Color(0xFF0F1A2C),
-                          spreadRadius: 1.5,
-                          blurRadius: 0,
+                  child: AnimatedBuilder(
+                    animation: _animationController,
+                    builder: (context, child) {
+                      final scale = _animationController.value;
+                      final double glowIntensity = isSpeaking ? scale : 0.0;
+                      return AnimatedContainer(
+                        duration: const Duration(milliseconds: 250),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Color(0xFFFFFFFF),
+                              Color(0xFFF3F7FA),
+                            ],
+                          ),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: borderColor,
+                            width: size * 0.05,
+                          ),
+                          boxShadow: [
+                            // Thin dark outline to increase contrast of the status border
+                            BoxShadow(
+                              color: const Color(0xFF0F1A2C),
+                              spreadRadius: 1.5,
+                              blurRadius: 0,
+                            ),
+                            BoxShadow(
+                              color: widget.isListening
+                                  ? const Color(0xFF0061A4).withValues(alpha: 0.35)
+                                  : isSpeaking
+                                      ? const Color(0xFFFCD400).withValues(
+                                          alpha: 0.35 + (glowIntensity * 0.25),
+                                        )
+                                      : Colors.black.withValues(alpha: 0.08),
+                              blurRadius: isActiveState
+                                  ? size * (0.12 + (glowIntensity * 0.08))
+                                  : size * 0.06,
+                              spreadRadius: isActiveState
+                                  ? size * (0.02 + (glowIntensity * 0.03))
+                                  : 0,
+                              offset: Offset(0, size * 0.03),
+                            ),
+                          ],
                         ),
-                        BoxShadow(
-                          color: widget.isListening
-                              ? const Color(0xFF0061A4).withValues(alpha: 0.35)
-                              : isSpeaking
-                                  ? const Color(0xFFFCD400).withValues(alpha: 0.35)
-                                  : Colors.black.withValues(alpha: 0.08),
-                          blurRadius: isActiveState ? size * 0.12 : size * 0.06,
-                          spreadRadius: isActiveState ? size * 0.02 : 0,
-                          offset: Offset(0, size * 0.03),
-                        ),
-                      ],
-                    ),
+                        child: child,
+                      );
+                    },
                     child: Stack(
                       alignment: Alignment.center,
                       children: [
@@ -447,18 +461,18 @@ class _AlexAvatarState extends State<AlexAvatar> with TickerProviderStateMixin {
   Widget _buildEye(bool isSpeaking, bool isListening, double size) {
     if (_isBlinking && !isSpeaking && !isListening) {
       return CustomPaint(
-        size: Size(size * 0.09, size * 0.02),
+        size: Size(size * 0.10, size * 0.02),
         painter: _BlinkEyePainter(
           color: const Color(0xFF0F1A2C),
-          strokeWidth: size * 0.022,
+          strokeWidth: size * 0.024,
         ),
       );
     }
 
     if (isListening) {
       return Container(
-        width: size * 0.09,
-        height: size * 0.09,
+        width: size * 0.10,
+        height: size * 0.10,
         decoration: const BoxDecoration(
           color: Color(0xFF0F1A2C),
           shape: BoxShape.circle,
@@ -479,17 +493,17 @@ class _AlexAvatarState extends State<AlexAvatar> with TickerProviderStateMixin {
 
     if (isSpeaking) {
       return CustomPaint(
-        size: Size(size * 0.09, size * 0.045),
+        size: Size(size * 0.10, size * 0.05),
         painter: _HappyEyePainter(
           color: const Color(0xFF0F1A2C),
-          strokeWidth: size * 0.022,
+          strokeWidth: size * 0.024,
         ),
       );
     }
 
     return Container(
-      width: size * 0.09,
-      height: size * 0.09,
+      width: size * 0.10,
+      height: size * 0.10,
       decoration: const BoxDecoration(
         color: Color(0xFF0F1A2C),
         shape: BoxShape.circle,
@@ -497,8 +511,8 @@ class _AlexAvatarState extends State<AlexAvatar> with TickerProviderStateMixin {
       child: Align(
         alignment: const Alignment(0.3, -0.3),
         child: Container(
-          width: size * 0.025,
-          height: size * 0.025,
+          width: size * 0.03,
+          height: size * 0.03,
           decoration: const BoxDecoration(
             color: Colors.white,
             shape: BoxShape.circle,
@@ -511,8 +525,8 @@ class _AlexAvatarState extends State<AlexAvatar> with TickerProviderStateMixin {
   Widget _buildMouth(bool isSpeaking, bool isListening, double scale, double size) {
     if (isListening) {
       return Container(
-        width: size * 0.09,
-        height: size * 0.09,
+        width: size * 0.11,
+        height: size * 0.11,
         decoration: BoxDecoration(
           color: const Color(0xFFBA1A1A),
           shape: BoxShape.circle,
@@ -522,9 +536,9 @@ class _AlexAvatarState extends State<AlexAvatar> with TickerProviderStateMixin {
     }
 
     if (isSpeaking) {
-      final heightFactor = 0.035 + (scale * 0.075);
+      final heightFactor = 0.04 + (scale * 0.09);
       return Container(
-        width: size * 0.13,
+        width: size * 0.15,
         height: size * heightFactor,
         decoration: BoxDecoration(
           color: const Color(0xFFBA1A1A),
@@ -535,10 +549,10 @@ class _AlexAvatarState extends State<AlexAvatar> with TickerProviderStateMixin {
     }
 
     return CustomPaint(
-      size: Size(size * 0.14, size * 0.07),
+      size: Size(size * 0.16, size * 0.08),
       painter: _SmilePainter(
         color: const Color(0xFF0F1A2C),
-        strokeWidth: size * 0.02,
+        strokeWidth: size * 0.022,
       ),
     );
   }

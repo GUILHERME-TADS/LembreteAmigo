@@ -9,7 +9,7 @@ void main() {
     late List<LembreteEvento> eventos;
 
     setUp(() {
-      final now = DateTime(2026, 7, 9, 15, 0, 0);
+      final now = DateTime.now();
       eventos = [
         LembreteEvento(
           id: '1',
@@ -17,7 +17,7 @@ void main() {
           titulo: 'Tomar Losartana',
           categoria: 'medicacao',
           status: LembreteStatus.concluido,
-          registradoEm: DateTime(2026, 7, 9, 8, 0),
+          registradoEm: now.subtract(const Duration(hours: 6)),
         ),
         LembreteEvento(
           id: '2',
@@ -25,7 +25,7 @@ void main() {
           titulo: 'Tomar Losartana',
           categoria: 'medicacao',
           status: LembreteStatus.concluido,
-          registradoEm: DateTime(2026, 7, 8, 8, 0),
+          registradoEm: now.subtract(const Duration(days: 1)),
         ),
         LembreteEvento(
           id: '3',
@@ -33,7 +33,7 @@ void main() {
           titulo: 'Beber agua',
           categoria: 'hidratacao',
           status: LembreteStatus.pendente,
-          registradoEm: DateTime(2026, 7, 9, 10, 0),
+          registradoEm: now.subtract(const Duration(hours: 4)),
         ),
         LembreteEvento(
           id: '4',
@@ -41,7 +41,7 @@ void main() {
           titulo: 'Caminhar',
           categoria: 'exercicio',
           status: LembreteStatus.concluido,
-          registradoEm: DateTime(2026, 7, 7, 9, 0),
+          registradoEm: now.subtract(const Duration(days: 2)),
         ),
         LembreteEvento(
           id: '5',
@@ -49,7 +49,7 @@ void main() {
           titulo: 'Cafe da manha',
           categoria: 'refeicoes',
           status: LembreteStatus.concluido,
-          registradoEm: DateTime(2026, 7, 9, 7, 0),
+          registradoEm: now.subtract(const Duration(hours: 8)),
         ),
         LembreteEvento(
           id: '6',
@@ -57,7 +57,7 @@ void main() {
           titulo: 'Almoco',
           categoria: 'refeicoes',
           status: LembreteStatus.perdido,
-          registradoEm: DateTime(2026, 7, 9, 12, 0),
+          registradoEm: now.subtract(const Duration(hours: 3)),
         ),
       ];
     });

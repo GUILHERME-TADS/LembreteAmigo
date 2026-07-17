@@ -694,7 +694,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  'Rotina Completa',
+                  'Tudo de Hoje',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 16,
@@ -719,7 +719,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  'O Que Falta Hoje',
+                  'Falta Fazer',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 16,
@@ -926,19 +926,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     }
 
     const double nodeSize = 64.0;
-    Widget innerWidget;
-    if (isMed) {
-      innerWidget = Center(
-        child: PillVisualizer(
-          forma: lembrete.medicamentoForma,
-          cor: lembrete.medicamentoCor,
-          size: 40.0,
-          fotoPath: lembrete.medicamentoFotoPath,
-        ),
-      );
-    } else {
-      innerWidget = Icon(icon, size: 32.0, color: iconColor);
-    }
+    final Widget innerWidget = Icon(icon, size: 32.0, color: iconColor);
 
     return Container(
       width: nodeSize,
@@ -1048,14 +1036,14 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
               : accentColor);
 
     final String barText = lembrete.concluido
-        ? 'PRONTO!'
+        ? 'Pronto!'
         : lembrete.status == LembreteStatus.adiado
-        ? 'MAIS TARDE'
+        ? 'Mais tarde'
         : lembrete.status == LembreteStatus.perdido
-        ? 'NAO DEU'
+        ? 'Não deu'
         : isAtrasado
-        ? 'PASSOU DA HORA'
-        : 'FALTA FAZER';
+        ? 'Atrasado'
+        : 'Falta fazer';
 
     final IconData barIcon = lembrete.concluido
         ? Icons.check_circle
@@ -1397,7 +1385,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
 
     final sections = [
       _PeriodSection(
-        title: 'MADRUGADA',
+        title: 'Madrugada',
         subtitle: '00:00 - 05:59',
         icon: Icons.nightlight_round,
         color: PeriodHelper.getPeriodColor(2),
@@ -1406,7 +1394,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
             .toList(),
       ),
       _PeriodSection(
-        title: 'MANHA',
+        title: 'Manhã',
         subtitle: '06:00 - 11:59',
         icon: Icons.wb_sunny,
         color: PeriodHelper.getPeriodColor(8),
@@ -1415,7 +1403,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
             .toList(),
       ),
       _PeriodSection(
-        title: 'TARDE',
+        title: 'Tarde',
         subtitle: '12:00 - 17:59',
         icon: Icons.wb_twilight,
         color: PeriodHelper.getPeriodColor(14),
@@ -1424,7 +1412,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
             .toList(),
       ),
       _PeriodSection(
-        title: 'NOITE',
+        title: 'Noite',
         subtitle: '18:00 - 23:59',
         icon: Icons.bedtime,
         color: PeriodHelper.getPeriodColor(20),
@@ -1451,13 +1439,13 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     final done = section.reminders.where((l) => l.concluido).length;
 
     final totalOriginal = allSorted.where((l) {
-      if (section.title == 'MADRUGADA') {
+      if (section.title == 'Madrugada') {
         return l.horarioHour >= 0 && l.horarioHour < 6;
       }
-      if (section.title == 'MANHA') {
+      if (section.title == 'Manhã') {
         return l.horarioHour >= 6 && l.horarioHour < 12;
       }
-      if (section.title == 'TARDE') {
+      if (section.title == 'Tarde') {
         return l.horarioHour >= 12 && l.horarioHour < 18;
       }
       return l.horarioHour >= 18 && l.horarioHour < 24;

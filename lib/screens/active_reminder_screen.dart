@@ -801,12 +801,12 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                           mainAxisAlignment:
                                               MainAxisAlignment.center,
                                           children: [
-                                            PillVisualizer(
-                                              forma: lembrete?.medicamentoForma,
-                                              cor: lembrete?.medicamentoCor,
-                                              fotoPath:
-                                                  lembrete?.medicamentoFotoPath,
+                                            Icon(
+                                              Icons.medication,
                                               size: 80,
+                                              color: isHighContrast
+                                                  ? Colors.black
+                                                  : AppColors.medicationsColor,
                                             ),
                                             const SizedBox(width: 16),
                                             Column(

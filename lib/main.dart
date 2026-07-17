@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -83,6 +83,7 @@ bool isElderlyOnlyRoute(String routeName) {
     '/medication-confirmation',
     '/take-photo-confirmation',
     '/elderly-profile',
+    '/edit-profile',
     '/recording-audio',
     '/voice-settings',
     '/incoming-video-call',

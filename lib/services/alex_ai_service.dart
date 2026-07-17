@@ -87,13 +87,72 @@ class AlexAIService {
     final normalized = _normalizeSpeech(text);
     if (normalized.isEmpty) {
       return _localResponse(
-        'Desculpe, nao entendi. Pode falar de novo mais devagar?',
+        'Desculpe, não entendi. Pode falar de novo mais devagar?',
         'general',
       );
     }
 
+    // 1. Desejo de Conclusão / Já tomei
+    if (normalized.contains('tomei') ||
+        normalized.contains('feito') ||
+        normalized.contains('pronto') ||
+        normalized.contains('conclui') ||
+        normalized.contains('concluido') ||
+        normalized.contains('botei pra dentro') ||
+        normalized.contains('ja fiz') ||
+        normalized.contains('fiz')) {
+      return _localResponse(
+        'Tudo bem! Já marquei essa tarefa como feita e avisei seu ajudante.',
+        'complete_reminder',
+        confidence: 0.9,
+      );
+    }
+
+    // 2. Desejo de Adiar / Mais tarde
+    if (normalized.contains('depois') ||
+        normalized.contains('mais tarde') ||
+        normalized.contains('adiar') ||
+        normalized.contains('dormir') ||
+        normalized.contains('espera')) {
+      return _localResponse(
+        'Entendido. Vou deixar essa tarefa para mais tarde e te lembro daqui a pouco.',
+        'postpone_reminder',
+        confidence: 0.9,
+      );
+    }
+
+    // 3. Desejo de Explicação
+    if (normalized.contains('explica') ||
+        normalized.contains('diz ai') ||
+        normalized.contains('fala de novo') ||
+        normalized.contains('nao ouvi') ||
+        normalized.contains('repete') ||
+        normalized.contains('o que e')) {
+      return _localResponse(
+        'Eu vou ler as tarefas para você. Se quiser ouvir os detalhes de alguma, aperte em cima dela.',
+        'list_reminders',
+        confidence: 0.9,
+      );
+    }
+
+    // 4. Emergência / Socorro
+    if (normalized.contains('socorro') ||
+        normalized.contains('ajuda') ||
+        normalized.contains('dor') ||
+        normalized.contains('mal') ||
+        normalized.contains('sos') ||
+        normalized.contains('ligar') ||
+        normalized.contains('cuidador') ||
+        normalized.contains('ajudante')) {
+      return _localResponse(
+        'Estou abrindo os botões de emergência na tela. Fique calmo, já estou te ajudando.',
+        'emergency',
+        confidence: 0.9,
+      );
+    }
+
     return _localResponse(
-      'Desculpe, ainda nao sei responder a essa pergunta.',
+      'Desculpe, ainda não sei fazer isso sozinho. Se quiser ligar para o ajudante, diga socorro ou ajuda.',
       'general',
     );
   }

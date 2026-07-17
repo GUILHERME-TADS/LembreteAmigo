@@ -729,7 +729,7 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
                                 },
                                 icon: const Icon(Icons.volume_up, size: 28),
                                 label: const Text(
-                                  'OUVIR O LEMBRETE',
+                                  'Ouvir o lembrete',
                                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                                 ),
                                 style: ElevatedButton.styleFrom(

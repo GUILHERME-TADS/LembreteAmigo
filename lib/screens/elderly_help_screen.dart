@@ -421,7 +421,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                     ),
                   ),
                   child: const Text(
-                    'VOLTAR',
+                    'Voltar',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -475,7 +475,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                       backgroundColor: AppColors.secondaryContainer,
                     ),
                     child: const Text(
-                      'ENVIAR RECADO',
+                      'Enviar recado',
                       style: TextStyle(
                         fontSize: 18,
                         color: AppColors.onSecondaryContainer,
@@ -576,116 +576,220 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
   }
 
   Widget _buildCallButton(BuildContext context) {
-    return Opacity(
-      opacity: _isPaired ? 1.0 : 0.4,
-      child: SizedBox(
-        width: double.infinity,
-        child: Material(
-          color: AppColors.secondaryContainer,
-          borderRadius: BorderRadius.circular(24),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(24),
-            onTap: () {
-              if (!_isPaired) {
-                _speakUnpairedWarning();
-                return;
-              }
-              _ligarAjudante();
-            },
-            child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
-            decoration: BoxDecoration(
+    return Column(
+      children: [
+        Opacity(
+          opacity: _isPaired ? 1.0 : 0.4,
+          child: SizedBox(
+            width: double.infinity,
+            child: Material(
+              color: AppColors.secondaryContainer,
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: AppColors.secondary, width: 4),
-            ),
-            child: Column(
-              children: [
-                SizedBox(
-                  width: 140,
-                  height: 140,
-                  child: Stack(
+              child: InkWell(
+                borderRadius: BorderRadius.circular(24),
+                onTap: () {
+                  if (!_isPaired) {
+                    _speakUnpairedWarning();
+                    return;
+                  }
+                  _ligarAjudante();
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: AppColors.secondary, width: 4),
+                  ),
+                  child: Column(
                     children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          color: AppColors.primaryContainer,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 6),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Colors.black12,
-                              blurRadius: 12,
-                              offset: Offset(0, 6),
+                      SizedBox(
+                        width: 140,
+                        height: 140,
+                        child: Stack(
+                          children: [
+                            Container(
+                              decoration: BoxDecoration(
+                                color: AppColors.primaryContainer,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white, width: 6),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: Colors.black12,
+                                    blurRadius: 12,
+                                    offset: Offset(0, 6),
+                                  ),
+                                ],
+                              ),
+                              child: Center(
+                                child:
+                                    _caregiverFoto != null &&
+                                        _caregiverFoto!.isNotEmpty
+                                    ? ClipRRect(
+                                        borderRadius: BorderRadius.circular(70),
+                                        child: Image.network(
+                                          _caregiverFoto!,
+                                          width: 128,
+                                          height: 128,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (_, __, ___) => const Icon(
+                                            Icons.person,
+                                            size: 80,
+                                            color: AppColors.onPrimaryContainer,
+                                          ),
+                                        ),
+                                      )
+                                    : const Icon(
+                                        Icons.person,
+                                        size: 80,
+                                        color: AppColors.onPrimaryContainer,
+                                      ),
+                              ),
+                            ),
+                            Positioned(
+                              bottom: 0,
+                              right: 0,
+                              child: Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFF2E7D32), // Green
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.call,
+                                  color: Colors.white,
+                                  size: 28,
+                                ),
+                              ),
                             ),
                           ],
                         ),
-                        child: Center(
-                          child:
-                              _caregiverFoto != null &&
-                                  _caregiverFoto!.isNotEmpty
-                              ? ClipRRect(
-                                  borderRadius: BorderRadius.circular(70),
-                                  child: Image.network(
-                                    _caregiverFoto!,
-                                    width: 128,
-                                    height: 128,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => const Icon(
-                                      Icons.person,
-                                      size: 80,
-                                      color: AppColors.onPrimaryContainer,
-                                    ),
-                                  ),
-                                )
-                              : const Icon(
-                                  Icons.person,
-                                  size: 80,
-                                  color: AppColors.onPrimaryContainer,
-                                ),
-                        ),
                       ),
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: const BoxDecoration(
-                            color: Color(0xFF2E7D32), // Green
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.call,
-                            color: Colors.white,
-                            size: 28,
-                          ),
+                      const SizedBox(height: 20),
+                      Text(
+                        'Ligar para $_caregiverName',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
+                          height: 1.2,
+                          color: AppColors.onSecondaryContainer,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 20),
-                Text(
-                  'Ligar para $_caregiverName',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w800,
-                    height: 1.2,
-                    color: AppColors.onSecondaryContainer,
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ),
-      ),
-    ),
-  );
-}
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: Opacity(
+                opacity: _isPaired ? 1.0 : 0.4,
+                child: Material(
+                  color: const Color(0xFFE8F5E9), // Soft Green
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                    onTap: () {
+                      if (!_isPaired) {
+                        _speakUnpairedWarning();
+                        return;
+                      }
+                      _initiateCall('video');
+                    },
+                    child: Container(
+                      height: 110,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: const Color(0xFF2E7D32),
+                          width: 3,
+                        ),
+                        borderRadius: BorderRadius.circular(AppRadius.lg),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Icon(Icons.videocam, size: 36, color: Color(0xFF2E7D32)),
+                          SizedBox(height: 6),
+                          Text(
+                            'Chamada\nde Vídeo',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFF2E7D32),
+                              height: 1.1,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Opacity(
+                opacity: _isPaired ? 1.0 : 0.4,
+                child: Material(
+                  color: const Color(0xFFF3E5F5), // Soft Purple
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                    onTap: () {
+                      if (!_isPaired) {
+                        _speakUnpairedWarning();
+                        return;
+                      }
+                      _enviarLocalizacaoChat();
+                    },
+                    child: Container(
+                      height: 110,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: const Color(0xFF7B1FA2),
+                          width: 3,
+                        ),
+                        borderRadius: BorderRadius.circular(AppRadius.lg),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Icon(Icons.location_on, size: 36, color: Color(0xFF7B1FA2)),
+                          SizedBox(height: 6),
+                          Text(
+                            'Dizer onde\nestou',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFF7B1FA2),
+                              height: 1.1,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
 
   Widget _buildSecondaryGrid(BuildContext context) {
     return Column(
       children: [
-        // MANDAR / VER RECADOS (Lado a lado)
+        // MENSAGENS E RECADOS (Lado a lado - Azul)
         Row(
           children: [
             Expanded(
@@ -708,7 +812,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                       _enviarMensagemDialog();
                     },
                     child: Container(
-                      height: 120,
+                      height: 110,
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         border: Border.all(
@@ -721,12 +825,12 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: const [
                           Icon(Icons.mic, size: 36, color: Color(0xFF1565C0)),
-                          SizedBox(height: 8),
+                          SizedBox(height: 6),
                           Text(
-                            'Mandar\nRecado',
+                            'Falar\nRecado',
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              fontSize: 18,
+                              fontSize: 16,
                               fontWeight: FontWeight.w900,
                               color: Color(0xFF1565C0),
                               height: 1.1,
@@ -744,7 +848,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
               child: Opacity(
                 opacity: _isPaired ? 1.0 : 0.4,
                 child: Material(
-                  color: const Color(0xFFE8F5E9), // Soft Green
+                  color: const Color(0xFFE3F2FD), // Soft Blue
                   borderRadius: BorderRadius.circular(AppRadius.lg),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -760,11 +864,11 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                       Navigator.pushNamed(context, '/messages');
                     },
                     child: Container(
-                      height: 120,
+                      height: 110,
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         border: Border.all(
-                          color: const Color(0xFF2E7D32),
+                          color: const Color(0xFF1565C0),
                           width: 3,
                         ),
                         borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -772,15 +876,15 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: const [
-                          Icon(Icons.chat_bubble, size: 36, color: Color(0xFF2E7D32)),
-                          SizedBox(height: 8),
+                          Icon(Icons.chat_bubble, size: 36, color: Color(0xFF1565C0)),
+                          SizedBox(height: 6),
                           Text(
-                            'Ver\nRecados',
+                            'Ouvir\nRecados',
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              fontSize: 18,
+                              fontSize: 16,
                               fontWeight: FontWeight.w900,
-                              color: Color(0xFF2E7D32),
+                              color: Color(0xFF1565C0),
                               height: 1.1,
                             ),
                           ),
@@ -795,101 +899,61 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
         ),
         const SizedBox(height: 24),
 
-        // MENU DE AJUDA
+        // CASO DE EMERGÊNCIA (Vermelho)
         Container(
           width: double.infinity,
-          decoration: BoxDecoration(
-            color: AppColors.surfaceContainerLowest,
-            borderRadius: BorderRadius.circular(AppRadius.xl),
-            border: Border.all(
-              color: AppColors.primary.withValues(alpha: 0.12),
-              width: 2,
-            ),
-          ),
           padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFEBEE), // Soft Red
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: AppColors.error, width: 4),
+          ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: const [
-                  Icon(Icons.support_agent, color: AppColors.primary, size: 28),
+                  Icon(Icons.warning_amber_rounded, color: AppColors.error, size: 32),
                   SizedBox(width: 8),
                   Text(
-                    'Outras formas de ajuda',
+                    'Caso de Emergência',
                     style: TextStyle(
-                      fontSize: 18,
+                      fontSize: 20,
                       fontWeight: FontWeight.w900,
-                      color: AppColors.primary,
+                      color: AppColors.error,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 4),
-              const Text(
-                'Escolha o que você precisa:',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.onSurfaceVariant,
-                ),
-              ),
               const SizedBox(height: 16),
-
-              // CHAMADA DE VÍDEO (APLICATIVO)
-              Opacity(
-                opacity: _isPaired ? 1.0 : 0.4,
-                child: SeniorButton(
-                  label: 'Fazer chamada de vídeo',
-                  icon: Icons.videocam,
-                  backgroundColor: const Color(0xFF1565C0), // Dark Blue
-                  textColor: Colors.white,
+              SizedBox(
+                width: double.infinity,
+                height: 72,
+                child: ElevatedButton.icon(
                   onPressed: () {
-                    if (!_isPaired) {
-                      _speakUnpairedWarning();
+                    final ambulancePhone = _ambulancePhone;
+                    if (ambulancePhone == null || ambulancePhone.isEmpty) {
+                      _showAmbulancePhoneMissingWarning();
                       return;
                     }
-                    _initiateCall('video');
+                    _confirmarAcaoSOSComContagem(
+                      'Ligar para Ambulância',
+                      'Iniciando ligação para a ambulância',
+                      () => _ligar(ambulancePhone),
+                    );
                   },
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              // LIGAR PARA AMBULANCIA
-              SeniorButton(
-                label: 'Ligar para Ambulância',
-                icon: Icons.local_hospital,
-                backgroundColor: const Color(0xFF6D4C41),
-                textColor: Colors.white,
-                onPressed: () {
-                  final ambulancePhone = _ambulancePhone;
-                  if (ambulancePhone == null || ambulancePhone.isEmpty) {
-                    _showAmbulancePhoneMissingWarning();
-                    return;
-                  }
-                  _confirmarAcaoSOSComContagem(
-                    'Ligar para Ambulância',
-                    'Iniciando ligação para a ambulância',
-                    () => _ligar(ambulancePhone),
-                  );
-                },
-              ),
-              const SizedBox(height: 12),
-
-              // ENVIAR LOCALIZACAO PARA O CHAT
-              Opacity(
-                opacity: _isPaired ? 1.0 : 0.4,
-                child: SeniorButton(
-                  label: 'Enviar minha localização',
-                  icon: Icons.location_on,
-                  backgroundColor: const Color(0xFF5E35B1), // Purple
-                  textColor: Colors.white,
-                  onPressed: () {
-                    if (!_isPaired) {
-                      _speakUnpairedWarning();
-                      return;
-                    }
-                    _enviarLocalizacaoChat();
-                  },
+                  icon: const Icon(Icons.local_hospital, size: 32, color: Colors.white),
+                  label: const Text(
+                    'Ligar para Ambulância (192)',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.error,
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -1064,7 +1128,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                       Icon(Icons.warning, color: AppColors.error, size: 36),
                       SizedBox(width: 12),
                       Text(
-                        'ATENCAO',
+                        'Atenção',
                         style: TextStyle(
                           fontSize: 26,
                           fontWeight: FontWeight.w900,
@@ -1124,7 +1188,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                       },
                       icon: const Icon(Icons.cancel, size: 36),
                       label: const Text(
-                        'CANCELAR',
+                        'Cancelar',
                         style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.w900,

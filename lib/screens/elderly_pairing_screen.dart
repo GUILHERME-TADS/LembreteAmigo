@@ -216,17 +216,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
 
   Future<String> _generateUniquePairingCode() async {
     final random = math.Random.secure();
-    for (var attempt = 0; attempt < 8; attempt++) {
-      final code = (100000 + random.nextInt(900000)).toString();
-      final existing = await FirebaseFirestore.instance
-          .collection('idoso_perfil')
-          .where('pairingCode', isEqualTo: code)
-          .where('status', isEqualTo: 'pending')
-          .limit(1)
-          .get();
-      if (existing.docs.isEmpty) return code;
-    }
-    throw StateError('Nao foi possivel gerar um codigo unico.');
+    return (100000 + random.nextInt(900000)).toString();
   }
 
   void _handleSuccess() async {
@@ -321,7 +311,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
                       ),
                       const SizedBox(height: 24),
                       SeniorButton(
-                        label: 'USAR SOZINHO',
+                        label: 'Usar sozinho',
                         icon: Icons.person_outline,
                         backgroundColor: AppColors.secondaryContainer,
                         textColor: AppColors.onSecondaryContainer,
@@ -329,7 +319,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
                       ),
                       const SizedBox(height: 24),
                       SeniorButton(
-                        label: 'CONECTAR COM AJUDANTE',
+                        label: 'Usar com ajudante',
                         icon: Icons.supervisor_account,
                         backgroundColor: AppColors.primary,
                         textColor: Colors.white,
@@ -441,7 +431,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
                           onPressed: _generatePairingCode,
                           icon: const Icon(Icons.refresh, size: 28),
                           label: const Text(
-                            'GERAR NOVO CÓDIGO',
+                            'Gerar novo código',
                             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                           ),
                           style: OutlinedButton.styleFrom(

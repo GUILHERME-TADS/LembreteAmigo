@@ -58,10 +58,8 @@ class _MedicationConfirmationScreenState extends State<MedicationConfirmationScr
     final msg = (_message ?? 'Você tomou seu remédio.').toLowerCase();
 
     if (msg.contains('remédio') ||
-        msg.contains('remÃ©dio') ||
         msg.contains('medicamento') ||
-        msg.contains('medicação') ||
-        msg.contains('medicaÃ§Ã£o')) {
+        msg.contains('medicação')) {
       return const _ConfirmationConfig(
         icon: Icons.medication,
         color: AppColors.medicationsColor,
@@ -71,7 +69,6 @@ class _MedicationConfirmationScreenState extends State<MedicationConfirmationScr
         detailedExplanation: 'Muito bem! Você tomou o seu remédio. Parabéns por cuidar da sua saúde! Agora, aperte no botão amarelo abaixo para voltar à tela inicial.',
       );
     } else if (msg.contains('água') ||
-        msg.contains('Ã¡gua') ||
         msg.contains('hidratar') ||
         msg.contains('hidratação') ||
         msg.contains('hidratacao')) {
@@ -84,11 +81,9 @@ class _MedicationConfirmationScreenState extends State<MedicationConfirmationScr
         detailedExplanation: 'Muito bem! Você bebeu a sua água. Parabéns por se manter hidratado! Agora, aperte no botão amarelo abaixo para voltar à tela inicial.',
       );
     } else if (msg.contains('refeição') ||
-        msg.contains('refeiÃ§Ã£o') ||
         msg.contains('comer') ||
         msg.contains('comida') ||
         msg.contains('almoço') ||
-        msg.contains('almoÃ§o') ||
         msg.contains('jantar')) {
       return const _ConfirmationConfig(
         icon: Icons.restaurant,
@@ -99,7 +94,6 @@ class _MedicationConfirmationScreenState extends State<MedicationConfirmationScr
         detailedExplanation: 'Muito bem! Você fez a sua refeição. Parabéns por se alimentar direitinho! Agora, aperte no botão amarelo abaixo para voltar à tela inicial.',
       );
     } else if (msg.contains('exercício') ||
-        msg.contains('exercÃ­cio') ||
         msg.contains('atividade') ||
         msg.contains('caminhada') ||
         msg.contains('alongamento')) {

@@ -2,10 +2,12 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // === HELPER FUNCTIONS ===
-
     function isAuth() {
       return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuth() && request.auth.uid == userId;
     }
 
     function isSupervisor() {
@@ -21,27 +23,18 @@ service cloud.firestore {
       );
     }
 
-    function isOwner(userId) {
-      return isAuth() && request.auth.uid == userId;
-    }
-
     function isLinkedSupervisor(idosoId) {
-      return isAuth() && (
-        get(/databases/$(database)/documents/idoso_perfil/$(idosoId)).data.supervisorId == request.auth.uid
-      );
-    }
-
-    function isLinkedSupervisorAfter(idosoId) {
-      return isAuth() && (
-        getAfter(/databases/$(database)/documents/idoso_perfil/$(idosoId)).data.supervisorId == request.auth.uid
-      );
+      return isAuth() &&
+        exists(/databases/$(database)/documents/idoso_perfil/$(idosoId)) &&
+        get(/databases/$(database)/documents/idoso_perfil/$(idosoId)).data.supervisorId == request.auth.uid &&
+        get(/databases/$(database)/documents/idoso_perfil/$(idosoId)).data.status == 'active';
     }
 
     function canAccessIdosoData(idosoId) {
       return isOwner(idosoId) || isLinkedSupervisor(idosoId);
     }
 
-    function docHasFieldIdosoId() {
+    function docHasIdosoId() {
       return resource != null && resource.data.keys().hasAny(['idosoId']);
     }
 
@@ -49,163 +42,453 @@ service cloud.firestore {
       return request.resource != null && request.resource.data.keys().hasAny(['idosoId']);
     }
 
-    function requestIdosoIdUnchanged() {
-      return request.resource != null &&
-        request.resource.data.idosoId == resource.data.idosoId;
+    function idosoIdUnchanged() {
+      return request.resource.data.idosoId == resource.data.idosoId;
     }
 
-    function requestSupervisorIdUnchanged() {
-      return request.resource != null &&
-        request.resource.data.supervisorId == resource.data.supervisorId;
+    function supervisorIdUnchanged() {
+      return request.resource.data.supervisorId == resource.data.supervisorId;
     }
 
-    function isPendingPairingProfile() {
-      return resource != null &&
-        resource.data.status == 'pending' &&
-        resource.data.keys().hasAny(['pairingCode', 'pairingCodeExpires']);
+    function isNonEmptyString(value, max) {
+      return value is string && value.size() > 0 && value.size() <= max;
     }
 
-    function isSupervisorPairingClaim(idosoId) {
+    function isOptionalString(data, field, max) {
+      return !data.keys().hasAny([field]) ||
+        data[field] == null ||
+        (data[field] is string && data[field].size() <= max);
+    }
+
+    function isOptionalBool(data, field) {
+      return !data.keys().hasAny([field]) || data[field] is bool;
+    }
+
+    function isOptionalInt(data, field, min, max) {
+      return !data.keys().hasAny([field]) ||
+        (data[field] is int && data[field] >= min && data[field] <= max);
+    }
+
+    function isOptionalList(data, field, max) {
+      return !data.keys().hasAny([field]) ||
+        (data[field] is list && data[field].size() <= max);
+    }
+
+    function isIsoStringOrTimestamp(value) {
+      return value is string || value is timestamp;
+    }
+
+    function isOptionalIsoStringOrTimestamp(data, field) {
+      return !data.keys().hasAny([field]) ||
+        data[field] == null ||
+        isIsoStringOrTimestamp(data[field]);
+    }
+
+    function validRole(value) {
+      return value in ['elderly', 'supervisor'];
+    }
+
+    function validReminderStatus(value) {
+      return value in [
+        'pendente',
+        'concluido',
+        'concluido_com_foto',
+        'adiado',
+        'perdido',
+        'confirmado_pelo_cuidador'
+      ];
+    }
+
+    function validCategory(value) {
+      return value in [
+        'medicacao',
+        'refeicoes',
+        'exercicio',
+        'hidratacao',
+        'personalizado'
+      ];
+    }
+
+    function validReminder(data) {
+      return data.keys().hasOnly([
+        'id',
+        'titulo',
+        'horarioHour',
+        'horarioMinute',
+        'originalHorarioHour',
+        'originalHorarioMinute',
+        'categoria',
+        'audioPath',
+        'concluido',
+        'concluidoComFoto',
+        'criadoEm',
+        'medicamentoForma',
+        'medicamentoCor',
+        'medicamentoFotoPath',
+        'idosoId',
+        'status',
+        'repeteTodosOsDias',
+        'recorrenciaSemanal',
+        'recorrenciaMensal',
+        'recorrenciaIntervalo',
+        'lembreteUnico',
+        'diasSemana',
+        'diaMes',
+        'intervaloHoras',
+        'recorrencia',
+        'dataInicio',
+        'dataFim',
+        'isUsoContinuo',
+        'medicamentoInstrucoes',
+        'medicamentoAudioTexto'
+      ]) &&
+      isNonEmptyString(data.id, 128) &&
+      isNonEmptyString(data.titulo, 200) &&
+      data.horarioHour is int && data.horarioHour >= 0 && data.horarioHour <= 23 &&
+      data.horarioMinute is int && data.horarioMinute >= 0 && data.horarioMinute <= 59 &&
+      isNonEmptyString(data.idosoId, 128) &&
+      data.status is string && validReminderStatus(data.status) &&
+      data.categoria is string && validCategory(data.categoria) &&
+      isOptionalInt(data, 'originalHorarioHour', 0, 23) &&
+      isOptionalInt(data, 'originalHorarioMinute', 0, 59) &&
+      isOptionalString(data, 'audioPath', 2048) &&
+      isOptionalString(data, 'medicamentoForma', 100) &&
+      isOptionalString(data, 'medicamentoCor', 100) &&
+      isOptionalString(data, 'medicamentoFotoPath', 2048) &&
+      isOptionalString(data, 'recorrencia', 30) &&
+      isOptionalString(data, 'medicamentoInstrucoes', 1000) &&
+      isOptionalString(data, 'medicamentoAudioTexto', 1000) &&
+      isOptionalBool(data, 'concluido') &&
+      isOptionalBool(data, 'concluidoComFoto') &&
+      isOptionalBool(data, 'repeteTodosOsDias') &&
+      isOptionalBool(data, 'recorrenciaSemanal') &&
+      isOptionalBool(data, 'recorrenciaMensal') &&
+      isOptionalBool(data, 'recorrenciaIntervalo') &&
+      isOptionalBool(data, 'lembreteUnico') &&
+      isOptionalBool(data, 'isUsoContinuo') &&
+      isOptionalList(data, 'diasSemana', 7) &&
+      isOptionalInt(data, 'diaMes', 1, 31) &&
+      isOptionalInt(data, 'intervaloHoras', 1, 24) &&
+      isOptionalIsoStringOrTimestamp(data, 'criadoEm') &&
+      isOptionalIsoStringOrTimestamp(data, 'dataInicio') &&
+      isOptionalIsoStringOrTimestamp(data, 'dataFim');
+    }
+
+    function validReminderPatch(data) {
+      return validReminder(data) && idosoIdUnchanged();
+    }
+
+    function validEvent(data) {
+      return data.keys().hasOnly([
+        'id',
+        'lembreteId',
+        'titulo',
+        'categoria',
+        'status',
+        'registradoEm',
+        'idosoId',
+        'observacao'
+      ]) &&
+      isNonEmptyString(data.id, 160) &&
+      isNonEmptyString(data.lembreteId, 128) &&
+      isNonEmptyString(data.titulo, 200) &&
+      isNonEmptyString(data.idosoId, 128) &&
+      data.categoria is string && validCategory(data.categoria) &&
+      data.status is string && validReminderStatus(data.status) &&
+      isOptionalString(data, 'observacao', 500) &&
+      isOptionalIsoStringOrTimestamp(data, 'registradoEm');
+    }
+
+    function validMessage(data) {
+      return data.keys().hasOnly([
+        'id',
+        'idosoId',
+        'nomeIdoso',
+        'senderRole',
+        'tipo',
+        'texto',
+        'audioPath',
+        'criadoEm',
+        'lido',
+        'duracaoSegundos'
+      ]) &&
+      isNonEmptyString(data.id, 128) &&
+      isNonEmptyString(data.idosoId, 128) &&
+      isOptionalString(data, 'nomeIdoso', 120) &&
+      data.senderRole is string && validRole(data.senderRole) &&
+      data.tipo in ['texto', 'audio'] &&
+      data.texto is string && data.texto.size() <= 2000 &&
+      isOptionalString(data, 'audioPath', 2048) &&
+      isOptionalBool(data, 'lido') &&
+      isOptionalInt(data, 'duracaoSegundos', 0, 3600) &&
+      isOptionalIsoStringOrTimestamp(data, 'criadoEm');
+    }
+
+    function validMessageUpdate() {
+      return validMessage(request.resource.data) &&
+        idosoIdUnchanged() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lido']);
+    }
+
+    function validVideoCallStatus(value) {
+      return value in ['ringing', 'connected', 'ended', 'declined', 'missed'];
+    }
+
+    function validVideoCall(data) {
+      return data.keys().hasOnly([
+        'roomName',
+        'idosoId',
+        'supervisorId',
+        'status',
+        'initiatedBy',
+        'callType',
+        'startedAt',
+        'endedAt',
+        'durationSeconds'
+      ]) &&
+      isNonEmptyString(data.roomName, 96) &&
+      isNonEmptyString(data.idosoId, 128) &&
+      isNonEmptyString(data.supervisorId, 128) &&
+      data.status is string && validVideoCallStatus(data.status) &&
+      data.initiatedBy in ['supervisor', 'idoso', 'sos'] &&
+      data.callType in ['video', 'voice'] &&
+      isOptionalIsoStringOrTimestamp(data, 'startedAt') &&
+      isOptionalIsoStringOrTimestamp(data, 'endedAt') &&
+      isOptionalInt(data, 'durationSeconds', 0, 86400);
+    }
+
+    function validVideoCallUpdate() {
+      return validVideoCall(request.resource.data) &&
+        idosoIdUnchanged() &&
+        supervisorIdUnchanged() &&
+        request.resource.data.roomName == resource.data.roomName &&
+        request.resource.data.initiatedBy == resource.data.initiatedBy &&
+        request.resource.data.callType == resource.data.callType &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'endedAt', 'durationSeconds']) &&
+        (
+          resource.data.status == 'ringing' ||
+          resource.data.status == 'connected'
+        );
+    }
+
+    function validProfile(data) {
+      return data.keys().hasOnly([
+        'nome',
+        'idade',
+        'telefone',
+        'ambulancia_telefone',
+        'dataNascimento',
+        'endereco',
+        'fotoPath',
+        'supervisorId',
+        'status',
+        'pairingCode',
+        'pairingCodeExpires',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      isOptionalString(data, 'nome', 120) &&
+      isOptionalInt(data, 'idade', 0, 130) &&
+      isOptionalString(data, 'telefone', 30) &&
+      isOptionalString(data, 'ambulancia_telefone', 30) &&
+      isOptionalString(data, 'dataNascimento', 30) &&
+      isOptionalString(data, 'endereco', 300) &&
+      isOptionalString(data, 'fotoPath', 2048) &&
+      isOptionalString(data, 'supervisorId', 128) &&
+      (!data.keys().hasAny(['status']) || data.status in ['pending', 'active', 'inactive']) &&
+      isOptionalString(data, 'pairingCode', 20) &&
+      isOptionalIsoStringOrTimestamp(data, 'pairingCodeExpires') &&
+      isOptionalIsoStringOrTimestamp(data, 'createdAt') &&
+      isOptionalIsoStringOrTimestamp(data, 'updatedAt');
+    }
+
+    function validPairingClaim() {
       return isSupervisor() &&
-        resource != null &&
         resource.data.status == 'pending' &&
         request.resource.data.status == 'active' &&
         request.resource.data.supervisorId == request.auth.uid &&
         request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['supervisorId', 'status']);
+          .hasOnly(['supervisorId', 'status', 'pairingCode', 'pairingCodeExpires']);
     }
 
+    function validSupervisorProfile(data) {
+      return data.keys().hasOnly([
+        'nome',
+        'email',
+        'telefone',
+        'fotoPath',
+        'criadoEm',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      isOptionalString(data, 'nome', 120) &&
+      isOptionalString(data, 'email', 254) &&
+      isOptionalString(data, 'telefone', 30) &&
+      isOptionalString(data, 'fotoPath', 2048) &&
+      isOptionalIsoStringOrTimestamp(data, 'criadoEm') &&
+      isOptionalIsoStringOrTimestamp(data, 'createdAt') &&
+      isOptionalIsoStringOrTimestamp(data, 'updatedAt');
+    }
 
-    // === ELDERLY PROFILES ===
+    function validToken(data, expectedRole, expectedUserId) {
+      return data.keys().hasOnly(['token', 'role', 'userId', 'updatedAt']) &&
+        isNonEmptyString(data.token, 4096) &&
+        data.role == expectedRole &&
+        data.userId == expectedUserId &&
+        isOptionalIsoStringOrTimestamp(data, 'updatedAt');
+    }
+
+    function validAlert(data) {
+      return data.keys().hasAny(['idosoId']) &&
+        data.keys().hasOnly([
+          'id',
+          'idosoId',
+          'tipo',
+          'titulo',
+          'mensagem',
+          'createdAt',
+          'criadoEm',
+          'status'
+        ]) &&
+        isNonEmptyString(data.idosoId, 128) &&
+        isOptionalString(data, 'id', 128) &&
+        isOptionalString(data, 'tipo', 50) &&
+        isOptionalString(data, 'titulo', 200) &&
+        isOptionalString(data, 'mensagem', 1000) &&
+        isOptionalString(data, 'status', 50) &&
+        isOptionalIsoStringOrTimestamp(data, 'createdAt') &&
+        isOptionalIsoStringOrTimestamp(data, 'criadoEm');
+    }
 
     match /idosos/{idosoId} {
       allow read: if canAccessIdosoData(idosoId);
-      allow create: if isOwner(idosoId) || isLinkedSupervisorAfter(idosoId);
-      allow update: if canAccessIdosoData(idosoId) ||
-        isLinkedSupervisorAfter(idosoId);
+      allow create: if (isOwner(idosoId) || isLinkedSupervisor(idosoId)) &&
+        validProfile(request.resource.data);
+      allow update: if canAccessIdosoData(idosoId) && validProfile(request.resource.data);
       allow delete: if false;
     }
 
     match /idoso_perfil/{idosoId} {
       allow read: if canAccessIdosoData(idosoId) ||
-        (isSupervisor() && isPendingPairingProfile());
-      allow create: if isOwner(idosoId);
-      allow update: if canAccessIdosoData(idosoId) ||
-        isSupervisorPairingClaim(idosoId);
+        (isSupervisor() && resource.data.status == 'pending');
+      allow create: if isOwner(idosoId) && validProfile(request.resource.data);
+      allow update: if (
+        canAccessIdosoData(idosoId) && validProfile(request.resource.data)
+      ) || validPairingClaim();
       allow delete: if false;
     }
-
-
-    // === SUPERVISOR PROFILES ===
 
     match /supervisores/{supervisorId} {
       allow read: if isOwner(supervisorId);
-      allow create: if isOwner(supervisorId);
-      allow update: if isOwner(supervisorId);
+      allow create: if isOwner(supervisorId) && validSupervisorProfile(request.resource.data);
+      allow update: if isOwner(supervisorId) && validSupervisorProfile(request.resource.data);
       allow delete: if false;
     }
 
-
-    // === REMINDERS ===
-
     match /lembretes/{lembreteId} {
-      allow read: if isAuth() && docHasFieldIdosoId() &&
+      allow read: if isAuth() && docHasIdosoId() &&
         canAccessIdosoData(resource.data.idosoId);
       allow create: if isAuth() && requestHasIdosoId() &&
-        canAccessIdosoData(request.resource.data.idosoId);
-      allow update: if isAuth() && docHasFieldIdosoId() &&
+        canAccessIdosoData(request.resource.data.idosoId) &&
+        validReminder(request.resource.data);
+      allow update: if isAuth() && docHasIdosoId() &&
         canAccessIdosoData(resource.data.idosoId) &&
-        requestIdosoIdUnchanged();
-      allow delete: if isAuth() && docHasFieldIdosoId() &&
+        validReminderPatch(request.resource.data);
+      allow delete: if isAuth() && docHasIdosoId() &&
         canAccessIdosoData(resource.data.idosoId);
     }
 
     match /lembrete_eventos/{eventoId} {
-      allow read: if isAuth() && docHasFieldIdosoId() &&
+      allow read: if isAuth() && docHasIdosoId() &&
         canAccessIdosoData(resource.data.idosoId);
       allow create: if isAuth() && requestHasIdosoId() &&
-        canAccessIdosoData(request.resource.data.idosoId);
+        canAccessIdosoData(request.resource.data.idosoId) &&
+        validEvent(request.resource.data);
       allow update: if false;
       allow delete: if false;
     }
 
-
-    // === MESSAGES ===
-
     match /mensagens/{msgId} {
-      allow read: if isAuth() && docHasFieldIdosoId() &&
+      allow read: if isAuth() && docHasIdosoId() &&
         canAccessIdosoData(resource.data.idosoId);
       allow create: if isAuth() && requestHasIdosoId() &&
-        canAccessIdosoData(request.resource.data.idosoId);
-      allow update: if isAuth() && docHasFieldIdosoId() &&
+        canAccessIdosoData(request.resource.data.idosoId) &&
+        validMessage(request.resource.data);
+      allow update: if isAuth() && docHasIdosoId() &&
         canAccessIdosoData(resource.data.idosoId) &&
-        requestIdosoIdUnchanged();
-      allow delete: if isAuth() && docHasFieldIdosoId() &&
-        canAccessIdosoData(resource.data.idosoId);
+        validMessageUpdate();
+      allow delete: if false;
     }
-
-
-    // === VIDEO CALLS ===
 
     match /video_calls/{callId} {
       allow read: if isAuth() && (
         canAccessIdosoData(resource.data.idosoId) ||
         isOwner(resource.data.supervisorId)
       );
-      allow create: if isAuth() && requestHasIdosoId() && (
-        isOwner(request.resource.data.idosoId) ||
-        isLinkedSupervisor(request.resource.data.idosoId)
-      );
+      allow create: if isAuth() && requestHasIdosoId() &&
+        validVideoCall(request.resource.data) &&
+        (
+          isOwner(request.resource.data.idosoId) ||
+          isLinkedSupervisor(request.resource.data.idosoId)
+        ) &&
+        request.resource.data.status == 'ringing';
       allow update: if isAuth() && (
         canAccessIdosoData(resource.data.idosoId) ||
         isOwner(resource.data.supervisorId)
-      ) && requestIdosoIdUnchanged() &&
-        requestSupervisorIdUnchanged();
+      ) && validVideoCallUpdate();
       allow delete: if false;
     }
 
-
-    // === HEALTH METRICS ===
-
     match /health_metrics/{idosoId} {
       allow read: if canAccessIdosoData(idosoId);
-      allow write: if isOwner(idosoId);
+      allow write: if isOwner(idosoId) &&
+        request.resource.data.keys().hasOnly([
+          'updatedAt',
+          'metrics',
+          'score',
+          'notes'
+        ]);
     }
-
-
-    // === DEVICE DIAGNOSTICS ===
 
     match /device_diagnostics/{idosoId} {
       allow read: if canAccessIdosoData(idosoId);
-      allow write: if isOwner(idosoId);
+      allow write: if isOwner(idosoId) &&
+        request.resource.data.keys().hasOnly([
+          'barriers',
+          'batteryLevel',
+          'batteryState',
+          'updatedAt'
+        ]) &&
+        isOptionalList(request.resource.data, 'barriers', 20) &&
+        isOptionalInt(request.resource.data, 'batteryLevel', 0, 100) &&
+        isOptionalString(request.resource.data, 'batteryState', 40) &&
+        isOptionalIsoStringOrTimestamp(request.resource.data, 'updatedAt');
     }
-
-
-    // === FCM TOKENS ===
 
     match /fcm_tokens/{docId} {
       allow read: if isAuth() && (
         docId == 'elderly_' + request.auth.uid ||
         docId == 'supervisor_' + request.auth.uid
       );
-      allow create: if isAuth() && (
-        docId == 'elderly_' + request.auth.uid ||
-        docId == 'supervisor_' + request.auth.uid
-      );
-      allow update: if isAuth() && (
-        docId == 'elderly_' + request.auth.uid ||
-        docId == 'supervisor_' + request.auth.uid
+      allow create, update: if isAuth() && (
+        (
+          docId == 'elderly_' + request.auth.uid &&
+          validToken(request.resource.data, 'elderly', request.auth.uid)
+        ) ||
+        (
+          docId == 'supervisor_' + request.auth.uid &&
+          validToken(request.resource.data, 'supervisor', request.auth.uid)
+        )
       );
       allow delete: if false;
     }
 
-
-    // === EMERGENCY ALERTS ===
-
     match /alertas/{alertaId} {
       allow create: if isAuth() && requestHasIdosoId() &&
-        canAccessIdosoData(request.resource.data.idosoId);
-      allow read: if isAuth() && docHasFieldIdosoId() &&
+        canAccessIdosoData(request.resource.data.idosoId) &&
+        validAlert(request.resource.data);
+      allow read: if isAuth() && docHasIdosoId() &&
         canAccessIdosoData(resource.data.idosoId);
       allow update: if false;
       allow delete: if false;

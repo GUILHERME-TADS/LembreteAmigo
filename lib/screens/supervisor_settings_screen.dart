@@ -130,10 +130,11 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
       final file = File(image.path);
       final ref = FirebaseStorage.instance
           .ref()
-          .child('profile_photos')
-          .child('supervisor_$uid.jpg');
+          .child('perfis_supervisor')
+          .child(uid)
+          .child('profile.jpg');
 
-      await ref.putFile(file);
+      await ref.putFile(file, SettableMetadata(contentType: 'image/jpeg'));
       final downloadUrl = await ref.getDownloadURL();
 
       if (Firebase.apps.isNotEmpty) {
@@ -175,8 +176,9 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
         try {
           final ref = FirebaseStorage.instance
               .ref()
-              .child('profile_photos')
-              .child('supervisor_$uid.jpg');
+              .child('perfis_supervisor')
+              .child(uid)
+              .child('profile.jpg');
           await ref.delete();
         } catch (_) {}
       }

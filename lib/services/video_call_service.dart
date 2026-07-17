@@ -11,6 +11,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../models/video_call.dart';
 import '../utils/web_window_helper.dart';
+import 'app_status_service.dart';
 import 'session_role_service.dart';
 
 // Removed VideoCallToken as it's no longer needed for Jitsi
@@ -39,8 +40,20 @@ class VideoCallService {
 
   Future<void> joinCall(String roomName, {required String callType, String? callId}) async {
     try {
+      if (callId != null) {
+        final canJoin = await _canJoinCall(callId, roomName);
+        if (!canJoin) {
+          AppStatusService.instance.report(
+            id: 'video-call-denied',
+            title: 'Chamada bloqueada',
+            message: 'Nao foi possivel confirmar permissao para entrar nesta chamada.',
+            severity: AppStatusSeverity.critical,
+          );
+          return;
+        }
+      }
       final displayName = await getMyDisplayName();
-      debugPrint('Jitsi debug: Entrando na chamada. Tipo: $callType, Sala: $roomName, ID: $callId, Nome: $displayName, Web: $kIsWeb');
+      debugPrint('Jitsi: entrando na chamada. Tipo: $callType, ID: $callId, Web: $kIsWeb');
 
       if (callId != null) {
         watchCall(callId);
@@ -50,7 +63,6 @@ class VideoCallService {
         final isVoice = callType == 'voice';
         final encodedName = Uri.encodeComponent(displayName);
         final url = 'https://meet.ffmuc.net/$roomName#config.prejoinPageEnabled=false&config.prejoinConfig.enabled=false&config.startWithVideoMuted=$isVoice&userInfo.displayName="$encodedName"';
-        debugPrint('Jitsi debug Web URL: $url');
         openJitsiWeb(url, callId, (id) => endCall(id));
         return;
       }
@@ -153,8 +165,36 @@ class VideoCallService {
 
   String _generateRoomName(String idosoId) {
     final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final random = Random().nextInt(99999).toString().padLeft(5, '0');
-    return 'call_${idosoId}_$timestamp$random';
+    final random = Random.secure().nextInt(1 << 32).toRadixString(16);
+    return 'call_${timestamp}_$random';
+  }
+
+  Future<bool> _canJoinCall(String callId, String roomName) async {
+    if (!_useFirebase) return false;
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('video_calls')
+          .doc(callId)
+          .get()
+          .timeout(const Duration(seconds: 5));
+      final data = doc.data();
+      if (!doc.exists || data == null) return false;
+      if (data['roomName'] != roomName) return false;
+      final status = data['status'] as String? ?? '';
+      if (status != 'ringing' && status != 'connected') return false;
+
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      final idosoId = data['idosoId'] as String? ?? '';
+      final supervisorId = data['supervisorId'] as String? ?? '';
+      if (uid != null && (uid == idosoId || uid == supervisorId)) {
+        return true;
+      }
+      final verifiedIdoso = await SessionRoleService.getVerifiedActiveIdosoId();
+      return verifiedIdoso != null && verifiedIdoso == idosoId;
+    } catch (e) {
+      debugPrint('Erro ao validar entrada na chamada: $e');
+      return false;
+    }
   }
 
   Future<VideoCallStart?> initiateCall({
@@ -164,6 +204,17 @@ class VideoCallService {
   }) async {
     if (!_useFirebase) {
       debugPrint('Chamada nao iniciada: Firebase indisponivel para notificar o outro aparelho.');
+      return null;
+    }
+
+    final canUse = await SessionRoleService.canUseActiveIdoso();
+    if (!canUse) {
+      AppStatusService.instance.report(
+        id: 'video-call-invalid-session',
+        title: 'Chamada indisponivel',
+        message: 'Confirme o vinculo entre os aparelhos antes de iniciar chamada.',
+        severity: AppStatusSeverity.critical,
+      );
       return null;
     }
 

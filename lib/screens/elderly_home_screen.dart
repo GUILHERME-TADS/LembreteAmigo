@@ -241,23 +241,6 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     TTSService.instance.falar(text, caller: this);
   }
 
-  Widget _buildSOSFAB() {
-    return FloatingActionButton.extended(
-      onPressed: _showSOSModal,
-      backgroundColor: AppColors.error,
-      foregroundColor: Colors.white,
-      icon: const Icon(Icons.emergency, size: 28),
-      label: const Text(
-        'SOS',
-        style: TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.w900,
-          letterSpacing: 0,
-        ),
-      ),
-    );
-  }
-
   void _confirmarAcaoSOSComContagem(
     String acaoTitulo,
     String ttsMensagem,
@@ -265,7 +248,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
   ) {
     _stopAllAudioAndTts();
 
-    int segundosRestantes = 5;
+    int segundosRestantes = 10;
     Timer? countdownTimer;
 
     TTSService.instance.falar(
@@ -321,7 +304,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                       Icon(Icons.warning, color: AppColors.error, size: 36),
                       SizedBox(width: 12),
                       Text(
-                        'ATENÇÃO',
+                        'ATENCAO',
                         style: TextStyle(
                           fontSize: 26,
                           fontWeight: FontWeight.w900,
@@ -1069,7 +1052,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
         : lembrete.status == LembreteStatus.adiado
         ? 'MAIS TARDE'
         : lembrete.status == LembreteStatus.perdido
-        ? 'NÃO DEU'
+        ? 'NAO DEU'
         : isAtrasado
         ? 'PASSOU DA HORA'
         : 'FALTA FAZER';
@@ -1423,7 +1406,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
             .toList(),
       ),
       _PeriodSection(
-        title: 'MANHÃ',
+        title: 'MANHA',
         subtitle: '06:00 - 11:59',
         icon: Icons.wb_sunny,
         color: PeriodHelper.getPeriodColor(8),
@@ -1471,7 +1454,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
       if (section.title == 'MADRUGADA') {
         return l.horarioHour >= 0 && l.horarioHour < 6;
       }
-      if (section.title == 'MANHÃ') {
+      if (section.title == 'MANHA') {
         return l.horarioHour >= 6 && l.horarioHour < 12;
       }
       if (section.title == 'TARDE') {
@@ -1734,8 +1717,6 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
       children: [
         Scaffold(
           backgroundColor: bgColor,
-          floatingActionButton: _buildSOSFAB(),
-          floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
           body: SafeArea(
             child: Column(
               children: [
@@ -2150,7 +2131,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                   label: const FittedBox(
                                     fit: BoxFit.scaleDown,
                                     child: Text(
-                                      'OUVIR EXPLICAÇÃO',
+                                      'OUVIR EXPLICACAO',
                                       style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.bold,

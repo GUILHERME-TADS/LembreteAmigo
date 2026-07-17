@@ -14,6 +14,7 @@ import '../utils/web_upload_helper.dart';
 import 'offline_sync_service.dart';
 import 'secure_cache_service.dart';
 import 'session_role_service.dart';
+import 'app_status_service.dart';
 
 class MessageService {
   MessageService._();
@@ -36,6 +37,15 @@ class MessageService {
     } catch (_) {
       return false;
     }
+  }
+
+  bool _canSyncIdosoId(String? idosoId) {
+    return _useFirebase &&
+        idosoId != null &&
+        idosoId.isNotEmpty &&
+        idosoId != SessionRoleService.unpairedIdosoId &&
+        idosoId != 'idoso_autonomo' &&
+        idosoId != 'idoso_simulado';
   }
 
   Future<String> getActiveIdosoId() async {
@@ -82,7 +92,7 @@ class MessageService {
     _loadedIdosoId = idosoId;
     await _loadLocal(idosoId);
 
-    if (!_useFirebase) return;
+    if (!_canSyncIdosoId(idosoId)) return;
     _messagesSubscription = FirebaseFirestore.instance
         .collection('mensagens')
         .where('idosoId', isEqualTo: idosoId)
@@ -116,15 +126,16 @@ class MessageService {
 
 
   Future<bool> _checkConnection() async {
-    final idosoId = await getActiveIdosoId();
-    if (idosoId == SessionRoleService.unpairedIdosoId) return false;
-    if (SessionRoleService.isSupervisor) {
-      return SessionRoleService.isSupervisorConnected();
+    final canUse = await SessionRoleService.canUseActiveIdoso();
+    if (!canUse) {
+      AppStatusService.instance.report(
+        id: 'messages-invalid-session',
+        title: 'Mensagens bloqueadas',
+        message: 'Confirme o vinculo entre os aparelhos antes de enviar mensagens.',
+        severity: AppStatusSeverity.critical,
+      );
     }
-    if (SessionRoleService.isElderly) {
-      return SessionRoleService.isElderlyConnectedToSupervisor();
-    }
-    return false;
+    return canUse;
   }
 
   Future<bool> sendText(String text) async {
@@ -181,7 +192,9 @@ class MessageService {
     required String idosoId,
     required String messageId,
   }) async {
-    if (!_useFirebase || isRemoteAudioPath(audioPath)) return audioPath;
+    if (!_canSyncIdosoId(idosoId) || isRemoteAudioPath(audioPath)) {
+      return audioPath;
+    }
 
     if (kIsWeb) {
       try {
@@ -201,6 +214,11 @@ class MessageService {
         return await snapshot.ref.getDownloadURL();
       } catch (e) {
         debugPrint('Erro ao fazer upload do audio no Web: $e');
+        AppStatusService.instance.report(
+          id: 'message-audio-pending',
+          title: 'Audio pendente',
+          message: 'A mensagem de audio sera enviada completamente quando sincronizar.',
+        );
         return audioPath;
       }
     }
@@ -230,12 +248,12 @@ class MessageService {
     await _saveLocal(message.idosoId);
     notifier.value = List.from(_messages);
 
-    if (_useFirebase) {
-      await FirebaseFirestore.instance
-          .collection('mensagens')
-          .doc(id)
-          .delete();
-    }
+    AppStatusService.instance.report(
+      id: 'message-local-delete',
+      title: 'Mensagem ocultada neste aparelho',
+      message: 'O historico remoto de mensagens e preservado por seguranca.',
+      severity: AppStatusSeverity.info,
+    );
   }
 
   Future<void> saveOutgoing(AppMessage message) async {
@@ -243,7 +261,7 @@ class MessageService {
     await _saveLocal(message.idosoId);
     notifier.value = List.from(_messages);
 
-    if (_useFirebase) {
+    if (_canSyncIdosoId(message.idosoId)) {
       await OfflineSyncService.instance.setOrQueue(
         'mensagens',
         message.id,
@@ -259,7 +277,7 @@ class MessageService {
     await _saveLocal(_messages[idx].idosoId);
     notifier.value = List.from(_messages);
 
-    if (_useFirebase) {
+    if (_canSyncIdosoId(_messages[idx].idosoId)) {
       await OfflineSyncService.instance.updateOrQueue('mensagens', id, {
         'lido': true,
       });

@@ -97,7 +97,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
 
     // Critical reinforcement check only for medication category
     if (l.categoria == 'medicacao') {
-      _urgencyReinforcementTimer = Timer(const Duration(minutes: 2), () async {
+      _urgencyReinforcementTimer = Timer(const Duration(minutes: 5), () async {
         if (mounted && _isSpeakingLoopActive && !l.concluido) {
           _isSpeakingLoopActive = false;
           VibrationService.stopVibration();
@@ -159,7 +159,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
       if (!mounted || !_isSpeakingLoopActive || _isLoopPaused) continue;
       await TTSService.instance.falar(_speakText, caller: this);
 
-      final waitSeconds = 2;
+      final waitSeconds = 12;
       for (int i = 0; i < (waitSeconds * 10); i++) {
         if (!mounted || !_isSpeakingLoopActive || _isLoopPaused) break;
         await Future.delayed(const Duration(milliseconds: 100));
@@ -168,7 +168,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
   }
 
   Duration _noResponseLimit(Lembrete l) {
-    return const Duration(minutes: 2);
+    return const Duration(minutes: 5);
   }
 
   Future<void> _playFamilyAudioIfAvailable(Lembrete l) async {
@@ -646,23 +646,23 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
     if (lembrete!.categoria == 'medicacao') {
       titleText = 'HORA DO REMÉDIO';
       subtitleText = 'Por favor, tome seu remédio agora.';
-      confirmButtonText = 'ENTENDI, VOU TOMAR!';
+      confirmButtonText = 'JA TOMEI';
     } else if (lembrete!.categoria == 'refeicoes') {
       titleText = 'HORA DE COMER';
       subtitleText = 'Por favor, faça sua refeição agora.';
-      confirmButtonText = 'ENTENDI, VOU COMER!';
+      confirmButtonText = 'JA COMI';
     } else if (lembrete!.categoria == 'hidratacao') {
       titleText = 'HORA DE BEBER ÁGUA';
       subtitleText = 'Por favor, beba um copo de água agora.';
-      confirmButtonText = 'ENTENDI, VOU BEBER!';
+      confirmButtonText = 'JA BEBI';
     } else if (lembrete!.categoria == 'exercicio') {
       titleText = 'HORA DO EXERCÍCIO';
       subtitleText = 'Por favor, faça sua atividade física agora.';
-      confirmButtonText = 'ENTENDI, VOU FAZER!';
+      confirmButtonText = 'JA FIZ';
     } else {
       titleText = 'HORA DO LEMBRETE';
       subtitleText = 'Por favor, faça esta atividade agora.';
-      confirmButtonText = 'ENTENDI, VOU FAZER!';
+      confirmButtonText = 'JA FIZ';
     }
 
     final isHighContrast = Theme.of(context).colorScheme.primary == Colors.black;
@@ -705,7 +705,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                             const SizedBox(height: 16),
                             const MeExplicaButton(
                               textoExplicacao:
-                                  'Olá! Esta tela avisa que está na hora de uma tarefa. Se você puder fazer agora, aperte o botão verde grande que começa com ENTENDI. Se quiser fazer depois, aperte ME AVISE EM 10 MINUTOS. Se precisar de ajuda, aperte NÃO CONSEGUI FAZER.',
+                                  'Esta tela mostra o que você precisa fazer agora. Aperte JA FIZ quando terminar. Aperte DAQUI A POUCO para lembrar depois. Aperte PRECISO DE AJUDA se não conseguir.',
                             ),
                             const SizedBox(height: 24),
                             _buildPulsingMedication(
@@ -903,7 +903,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                             ),
                             const SizedBox(height: 16),
 
-                            // BOTÃO CONFIRMAR (ENTENDI)
+                            // BOTAO CONFIRMAR (ENTENDI)
                             SizedBox(
                               width: double.infinity,
                               height: 80,
@@ -1007,7 +1007,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                             ),
                             const SizedBox(height: 20),
 
-                            // BOTÃO ADIAR
+                            // BOTAO ADIAR
                             SizedBox(
                               width: double.infinity,
                               height: 72,
@@ -1061,7 +1061,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                 label: const FittedBox(
                                   fit: BoxFit.scaleDown,
                                   child: Text(
-                                    'ME AVISE EM 10 MINUTOS',
+                                    'DAQUI A POUCO',
                                     maxLines: 1,
                                     style: TextStyle(
                                       fontSize: 20,
@@ -1137,7 +1137,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                 label: const FittedBox(
                                   fit: BoxFit.scaleDown,
                                   child: Text(
-                                    'NÃO CONSEGUI FAZER',
+                                    'PRECISO DE AJUDA',
                                     maxLines: 1,
                                     style: TextStyle(
                                       fontSize: 20,

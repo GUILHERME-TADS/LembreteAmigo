@@ -287,6 +287,17 @@ function createGeminiModel(modelName, config) {
   });
 }
 
+function appendMedicalDisclaimer(text) {
+  const disclaimer =
+    " Esta orientacao e apenas informativa e nao substitui a avaliacao de " +
+    "um medico ou farmaceutico. Em caso de duvida, reacao adversa ou " +
+    "interacao importante, procure um profissional de saude.";
+  const safeText = String(text || "").trim();
+  if (!safeText) return disclaimer.trim();
+  if (safeText.toLowerCase().includes("nao substitui")) return safeText;
+  return `${safeText}${disclaimer}`;
+}
+
 
 // =============================================================================
 // ALEX CHAT (Elderly Assistant)
@@ -1343,13 +1354,18 @@ exports.analyzeMedication = onCall(
             .slice(0, 1000);
 
         return {
-          guidelines: String(parsed.guidelines || "").slice(0, 500),
-          suggestedAudioText: audioTxt,
+          guidelines: appendMedicalDisclaimer(parsed.guidelines).slice(0, 900),
+          suggestedAudioText: appendMedicalDisclaimer(audioTxt).slice(0, 1400),
           hasInteraction: !!parsed.hasInteraction,
           severity: String(parsed.severity || "none").slice(0, 50),
-          interactionWarning: interactWarn,
+          interactionWarning: parsed.hasInteraction ?
+              appendMedicalDisclaimer(interactWarn).slice(0, 1400) :
+              interactWarn,
           schedulingConflictWarning:
-              String(parsed.schedulingConflictWarning || "").slice(0, 1000),
+              parsed.schedulingConflictWarning ?
+                  appendMedicalDisclaimer(parsed.schedulingConflictWarning)
+                      .slice(0, 1400) :
+                  "",
         };
       } catch (error) {
         console.error("analyzeMedication error:", error);
@@ -1421,7 +1437,7 @@ exports.queryMedicationFAQ = onCall(
         }
 
         return {
-          answer: String(parsed.answer || "").slice(0, 2000),
+          answer: appendMedicalDisclaimer(parsed.answer).slice(0, 2400),
         };
       } catch (error) {
         console.error("queryMedicationFAQ error:", error);

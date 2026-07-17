@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
+
 import '../services/tts_service.dart';
+import '../theme/app_theme.dart';
 
 class MeExplicaButton extends StatefulWidget {
   final String textoExplicacao;
@@ -22,8 +23,9 @@ class MeExplicaButton extends StatefulWidget {
   State<MeExplicaButton> createState() => _MeExplicaButtonState();
 }
 
-class _MeExplicaButtonState extends State<MeExplicaButton> with SingleTickerProviderStateMixin {
-  late AnimationController _animationController;
+class _MeExplicaButtonState extends State<MeExplicaButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _animationController;
 
   @override
   void initState() {
@@ -31,11 +33,12 @@ class _MeExplicaButtonState extends State<MeExplicaButton> with SingleTickerProv
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
-    )..repeat(reverse: true);
+    );
   }
 
   @override
   void dispose() {
+    TTSService.instance.parar(caller: this);
     _animationController.dispose();
     super.dispose();
   }
@@ -45,89 +48,83 @@ class _MeExplicaButtonState extends State<MeExplicaButton> with SingleTickerProv
     return ValueListenableBuilder<bool>(
       valueListenable: TTSService.instance.speakingNotifier,
       builder: (context, isGlobalSpeaking, child) {
-        // Verifica se este botão específico é o autor da fala ativa por referência de widget ou texto
-        final isThisSpeaking = isGlobalSpeaking &&
-            (TTSService.instance.activeCaller == widget ||
-             TTSService.instance.activeText == widget.textoExplicacao);
+        final isThisSpeaking =
+            isGlobalSpeaking && TTSService.instance.activeCaller == this;
+
+        _syncAnimation(isThisSpeaking);
 
         final txtColor = isThisSpeaking
             ? AppColors.onSecondaryFixedVariant
             : (widget.textColor ?? AppColors.primary);
-            
         final bg = isThisSpeaking
             ? AppColors.secondaryFixed
-            : (widget.backgroundColor ?? AppColors.primary.withValues(alpha: 0.08));
-            
+            : (widget.backgroundColor ??
+                  AppColors.primary.withValues(alpha: 0.08));
         final border = isThisSpeaking
             ? AppColors.secondaryFixedDim
             : (widget.borderColor ?? AppColors.primary.withValues(alpha: 0.15));
 
         return GestureDetector(
-          onTap: () {
-            if (isThisSpeaking) {
-              // Se já estiver tocando esta explicação, para a fala
-              TTSService.instance.parar();
-            } else {
-              // Interrompe qualquer áudio/fala ativa e inicia esta
-              TTSService.instance.parar();
-              if (widget.onTapped != null) {
-                widget.onTapped!();
-              }
-              TTSService.instance.falar(
-                widget.textoExplicacao,
-                caller: widget,
-              );
-            }
-          },
+          onTap: () => _handleTap(isThisSpeaking),
           child: AnimatedBuilder(
             animation: _animationController,
             builder: (context, child) {
-              // Efeito sutil de escala no botão ativo
-              final double scale = isThisSpeaking ? 1.0 + (_animationController.value * 0.03) : 1.0;
-              
+              final scale = isThisSpeaking
+                  ? 1.0 + (_animationController.value * 0.03)
+                  : 1.0;
+
               return Transform.scale(
                 scale: scale,
                 child: Container(
                   constraints: const BoxConstraints(
                     minHeight: AppSpacing.touchTargetMin,
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 14,
+                  ),
                   decoration: BoxDecoration(
                     color: bg,
                     borderRadius: BorderRadius.circular(AppRadius.full),
-                    border: Border.all(
-                      color: border,
-                      width: 2.0,
-                    ),
-                    boxShadow: isThisSpeaking ? [
-                      BoxShadow(
-                        color: AppColors.secondaryFixed.withValues(alpha: 0.4),
-                        blurRadius: 8 * _animationController.value,
-                        spreadRadius: 2 * _animationController.value,
-                      )
-                    ] : null,
+                    border: Border.all(color: border, width: 2),
+                    boxShadow: isThisSpeaking
+                        ? [
+                            BoxShadow(
+                              color: AppColors.secondaryFixed.withValues(
+                                alpha: 0.4,
+                              ),
+                              blurRadius: 8 * _animationController.value,
+                              spreadRadius: 2 * _animationController.value,
+                            ),
+                          ]
+                        : null,
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        isThisSpeaking ? Icons.volume_off : Icons.record_voice_over,
+                        isThisSpeaking
+                            ? Icons.volume_off
+                            : Icons.record_voice_over,
                         color: txtColor,
-                        size: 22,
+                        size: 28,
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        isThisSpeaking ? 'Parar explicação' : 'Me explica',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          color: txtColor,
+                      Flexible(
+                        child: Text(
+                          isThisSpeaking ? 'PARAR AUDIO' : 'OUVIR EXPLICACAO',
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: txtColor,
+                          ),
                         ),
                       ),
                       if (isThisSpeaking) ...[
                         const SizedBox(width: 8),
                         _buildWaveIndicator(txtColor),
-                      ]
+                      ],
                     ],
                   ),
                 ),
@@ -137,6 +134,25 @@ class _MeExplicaButtonState extends State<MeExplicaButton> with SingleTickerProv
         );
       },
     );
+  }
+
+  void _handleTap(bool isThisSpeaking) {
+    if (isThisSpeaking) {
+      TTSService.instance.parar(caller: this);
+      return;
+    }
+
+    TTSService.instance.parar();
+    widget.onTapped?.call();
+    TTSService.instance.falar(widget.textoExplicacao, caller: this);
+  }
+
+  void _syncAnimation(bool isThisSpeaking) {
+    if (isThisSpeaking && !_animationController.isAnimating) {
+      _animationController.repeat(reverse: true);
+    } else if (!isThisSpeaking && _animationController.isAnimating) {
+      _animationController.stop();
+    }
   }
 
   Widget _buildWaveIndicator(Color color) {

@@ -169,11 +169,6 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
             },
             SetOptions(merge: true),
           );
-          batch.set(
-            FirebaseFirestore.instance.collection('idosos').doc(_pairedIdosoId),
-            {'supervisorId': null, 'status': 'pending'},
-            SetOptions(merge: true),
-          );
           await batch.commit();
         }
       }
@@ -347,11 +342,6 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
         };
 
         transaction.update(doc.reference, updateData);
-        transaction.set(
-          FirebaseFirestore.instance.collection('idosos').doc(docId),
-          updateData,
-          SetOptions(merge: true),
-        );
       });
 
       final prefs = await SharedPreferences.getInstance();

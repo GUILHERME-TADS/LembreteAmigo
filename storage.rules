@@ -21,10 +21,19 @@ service firebase.storage {
       );
     }
 
+    function isAudio() {
+      return request.resource.contentType.matches('audio/.*');
+    }
+
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+
     // Audio recordings for reminders: reminder_audio/{idosoId}/{fileName}
     match /reminder_audio/{idosoId}/{fileName} {
       allow read: if canAccessElderlyData(idosoId);
       allow write: if canAccessElderlyData(idosoId) &&
+        isAudio() &&
         fileName.matches('.*\\.(mp3|wav|m4a|ogg|aac)$') &&
         request.resource.size < 10 * 1024 * 1024;
       allow delete: if canAccessElderlyData(idosoId);
@@ -34,6 +43,7 @@ service firebase.storage {
     match /reminder_photos/{idosoId}/{fileName} {
       allow read: if canAccessElderlyData(idosoId);
       allow write: if canAccessElderlyData(idosoId) &&
+        isImage() &&
         fileName.matches('.*\\.(jpg|jpeg|png|webp)$') &&
         request.resource.size < 5 * 1024 * 1024;
       allow delete: if canAccessElderlyData(idosoId);
@@ -43,6 +53,7 @@ service firebase.storage {
     match /confirmation_photos/{idosoId}/{fileName} {
       allow read: if canAccessElderlyData(idosoId);
       allow write: if canAccessElderlyData(idosoId) &&
+        isImage() &&
         fileName.matches('.*\\.(jpg|jpeg|png|webp)$') &&
         request.resource.size < 5 * 1024 * 1024;
       allow delete: if canAccessElderlyData(idosoId);
@@ -52,6 +63,7 @@ service firebase.storage {
     match /message_audio/{idosoId}/{fileName} {
       allow read: if canAccessElderlyData(idosoId);
       allow write: if canAccessElderlyData(idosoId) &&
+        isAudio() &&
         fileName.matches('.*\\.(mp3|wav|m4a|ogg|aac)$') &&
         request.resource.size < 10 * 1024 * 1024;
       allow delete: if false;
@@ -61,6 +73,7 @@ service firebase.storage {
     match /perfis/{idosoId}/{fileName} {
       allow read: if canAccessElderlyData(idosoId);
       allow write: if canAccessElderlyData(idosoId) &&
+        isImage() &&
         fileName.matches('.*\\.(jpg|jpeg|png|webp)$') &&
         request.resource.size < 5 * 1024 * 1024;
       allow delete: if canAccessElderlyData(idosoId);
@@ -70,6 +83,7 @@ service firebase.storage {
     match /perfis_supervisor/{supervisorId}/{fileName} {
       allow read: if request.auth != null && request.auth.uid == supervisorId;
       allow write: if request.auth != null && request.auth.uid == supervisorId &&
+        isImage() &&
         fileName.matches('.*\\.(jpg|jpeg|png|webp)$') &&
         request.resource.size < 5 * 1024 * 1024;
       allow delete: if request.auth != null && request.auth.uid == supervisorId;

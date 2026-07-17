@@ -19,6 +19,7 @@ import 'secure_cache_service.dart';
 import 'session_role_service.dart';
 import 'smart_alert_service.dart';
 import 'widget_service.dart';
+import 'app_status_service.dart';
 
 class LembreteService {
   LembreteService._();
@@ -45,6 +46,15 @@ class LembreteService {
     } catch (_) {
       return false;
     }
+  }
+
+  bool _canSyncIdosoId(String? idosoId) {
+    return _useFirebase &&
+        idosoId != null &&
+        idosoId.isNotEmpty &&
+        idosoId != SessionRoleService.unpairedIdosoId &&
+        idosoId != 'idoso_autonomo' &&
+        idosoId != 'idoso_simulado';
   }
 
   Future<String> _getActiveIdosoId() async {
@@ -130,7 +140,7 @@ class LembreteService {
     await OfflineSyncService.instance.loadQueue();
     await OfflineSyncService.instance.syncPendingWrites();
 
-    if (!_useFirebase) return;
+    if (!_canSyncIdosoId(idosoId)) return;
 
     await _lembretesSubscription?.cancel();
     _lembretesSubscription = FirebaseFirestore.instance
@@ -299,7 +309,7 @@ class LembreteService {
             );
             houveAlteracao = true;
 
-            if (_useFirebase) {
+            if (_canSyncIdosoId(_loadedIdosoId)) {
               pendingSyncWrites.add(OfflineWrite(
                 id: '${DateTime.now().microsecondsSinceEpoch}_${pendingSyncWrites.length}',
                 collection: 'lembretes',
@@ -435,7 +445,7 @@ class LembreteService {
     _eventos.insert(0, evento);
     await _salvarEventosLocais();
 
-    if (_useFirebase) {
+    if (_canSyncIdosoId(source.idosoId)) {
       await OfflineSyncService.instance.setOrQueue(
         'lembrete_eventos',
         evento.id,
@@ -463,7 +473,7 @@ class LembreteService {
     _upsertLocal(atualizado);
     await _salvar();
 
-    if (_useFirebase) {
+    if (_canSyncIdosoId(atualizado.idosoId)) {
       await OfflineSyncService.instance.updateOrQueue('lembretes', id, {
         'status': status.storageValue,
         'concluido': status.isConcluido,
@@ -486,7 +496,7 @@ class LembreteService {
     _upsertLocal(atualizado);
     await _salvar();
 
-    if (_useFirebase) {
+    if (_canSyncIdosoId(atualizado.idosoId)) {
       await OfflineSyncService.instance.updateOrQueue(
         'lembretes',
         id,
@@ -496,8 +506,16 @@ class LembreteService {
   }
 
   Future<bool> _checkConnection() async {
-    final idosoId = await _getActiveIdosoId();
-    return idosoId != SessionRoleService.unpairedIdosoId;
+    final canUse = await SessionRoleService.canUseActiveIdoso();
+    if (!canUse) {
+      AppStatusService.instance.report(
+        id: 'invalid-session',
+        title: 'Vinculo nao confirmado',
+        message: 'Conecte novamente os aparelhos antes de alterar lembretes.',
+        severity: AppStatusSeverity.critical,
+      );
+    }
+    return canUse;
   }
 
   Future<void> adicionar(Lembrete lembrete) async {
@@ -516,6 +534,11 @@ class LembreteService {
       );
     } catch (e) {
       debugPrint('Erro ao subir audio no cadastro de lembrete (salvando local): $e');
+      AppStatusService.instance.report(
+        id: 'audio-upload-pending',
+        title: 'Audio pendente',
+        message: 'O audio do lembrete sera sincronizado quando a conexao voltar.',
+      );
     }
 
     String? medicamentoFotoPath = lembrete.medicamentoFotoPath;
@@ -527,6 +550,11 @@ class LembreteService {
       );
     } catch (e) {
       debugPrint('Erro ao subir foto no cadastro de lembrete (salvando local): $e');
+      AppStatusService.instance.report(
+        id: 'photo-upload-pending',
+        title: 'Foto pendente',
+        message: 'A foto do medicamento sera sincronizada quando a conexao voltar.',
+      );
     }
 
     final novo = lembrete.copyWith(
@@ -539,7 +567,7 @@ class LembreteService {
     _upsertLocal(novo);
     await _salvar();
 
-    if (_useFirebase) {
+    if (_canSyncIdosoId(novo.idosoId)) {
       await OfflineSyncService.instance.setOrQueue(
         'lembretes',
         novo.id,
@@ -554,7 +582,7 @@ class LembreteService {
     required String lembreteId,
   }) async {
     if (audioPath == null || audioPath.isEmpty) return audioPath;
-    if (!_useFirebase ||
+    if (!_canSyncIdosoId(idosoId) ||
         isRemoteAudioPath(audioPath) ||
         audioPath == 'ia_generated' ||
         audioPath.startsWith('assets/')) {
@@ -584,7 +612,7 @@ class LembreteService {
     required String lembreteId,
   }) async {
     if (photoPath == null || photoPath.isEmpty) return photoPath;
-    if (!_useFirebase ||
+    if (!_canSyncIdosoId(idosoId) ||
         isRemotePath(photoPath) ||
         photoPath.startsWith('assets/')) {
       return photoPath;
@@ -618,7 +646,7 @@ class LembreteService {
     final idosoId = await _getActiveIdosoId();
     String finalPath = localPhotoPath;
 
-    if (_useFirebase) {
+    if (_canSyncIdosoId(idosoId)) {
       try {
         final ref = FirebaseStorage.instance
             .ref()
@@ -629,6 +657,12 @@ class LembreteService {
         finalPath = await uploadTask.ref.getDownloadURL();
       } catch (e) {
         debugPrint('Erro ao fazer upload da foto de confirmacao: $e');
+        AppStatusService.instance.report(
+          id: 'confirmation-photo-pending',
+          title: 'Confirmacao com foto pendente',
+          message: 'A foto foi guardada localmente e precisa ser sincronizada.',
+          severity: AppStatusSeverity.critical,
+        );
       }
     }
 
@@ -667,7 +701,7 @@ class LembreteService {
     _upsertLocal(atualizado);
     await _salvar();
 
-    if (_useFirebase) {
+    if (_canSyncIdosoId(atualizado.idosoId)) {
       await OfflineSyncService.instance.updateOrQueue('lembretes', id, {
         'status': novoStatus.storageValue,
         'concluido': novoStatus.isConcluido,
@@ -679,11 +713,12 @@ class LembreteService {
 
   Future<void> remover(String id) async {
     if (!await _checkConnection()) return;
+    final lembrete = await _findLocalOrRemote(id);
     await NotificationService.instance.cancelar(id);
     _lembretes.removeWhere((item) => item.id == id);
     await _salvar();
 
-    if (_useFirebase) {
+    if (_canSyncIdosoId(lembrete?.idosoId)) {
       await OfflineSyncService.instance.deleteOrQueue('lembretes', id);
     }
   }
@@ -734,7 +769,7 @@ class LembreteService {
     _upsertLocal(atualizado);
     await _salvar();
 
-    if (_useFirebase) {
+    if (_canSyncIdosoId(atualizado.idosoId)) {
       await OfflineSyncService.instance.updateOrQueue('lembretes', id, {
         'horarioHour': now.hour,
         'horarioMinute': now.minute,

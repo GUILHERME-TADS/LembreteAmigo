@@ -74,6 +74,18 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
     );
   }
 
+  void _showAmbulancePhoneMissingWarning() {
+    const message =
+        'O telefone da ambulância ainda não foi configurado. Peça ajuda ao seu cuidador.';
+    TTSService.instance.falar(message, caller: this);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(message),
+        backgroundColor: AppColors.primary,
+      ),
+    );
+  }
+
   Future<void> _loadCaregiverInfo() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -540,7 +552,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
               const SizedBox(height: 6),
               const MeExplicaButton(
                 textoExplicacao:
-                    'Olá! Esta é a tela para pedir ajuda. Aqui você pode ligar para quem cuida de você apertando o grande botão amarelo com a foto de quem cuida de você, mandar um recado de voz se precisar de algo, ou usar os botões de emergência abaixo em caso de necessidade urgente.',
+                    'Olá! Esta é a tela para pedir ajuda. Aqui você pode ligar para quem cuida de você apertando o grande botão amarelo com a foto de quem cuida de você, mandar um recado de voz, ver recados, fazer uma chamada de vídeo, ligar para a ambulância ou enviar sua localização.',
               ),
             ],
           ),
@@ -783,14 +795,14 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
         ),
         const SizedBox(height: 24),
 
-        // SEÇÃO DE SOS & EMERGÊNCIA
+        // MENU DE AJUDA
         Container(
           width: double.infinity,
           decoration: BoxDecoration(
-            color: AppColors.errorContainer.withValues(alpha: 0.15),
+            color: AppColors.surfaceContainerLowest,
             borderRadius: BorderRadius.circular(AppRadius.xl),
             border: Border.all(
-              color: AppColors.error.withValues(alpha: 0.3),
+              color: AppColors.primary.withValues(alpha: 0.12),
               width: 2,
             ),
           ),
@@ -800,22 +812,21 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
             children: [
               Row(
                 children: const [
-                  Icon(Icons.warning, color: AppColors.error, size: 28),
+                  Icon(Icons.support_agent, color: AppColors.primary, size: 28),
                   SizedBox(width: 8),
                   Text(
-                    'SOS - EMERGÊNCIA',
+                    'Outras formas de ajuda',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w900,
-                      color: AppColors.error,
-                      letterSpacing: 0.5,
+                      color: AppColors.primary,
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 4),
               const Text(
-                'Toque para pedir ajuda urgente:',
+                'Escolha o que você precisa:',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
@@ -824,30 +835,11 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
               ),
               const SizedBox(height: 16),
 
-              // CHAMADA DE VOZ (APLICATIVO)
-              Opacity(
-                opacity: _isPaired ? 1.0 : 0.4,
-                child: SeniorButton(
-                  label: 'Chamada de Voz SOS',
-                  icon: Icons.phone_in_talk,
-                  backgroundColor: const Color(0xFF2E7D32), // Green
-                  textColor: Colors.white,
-                  onPressed: () {
-                    if (!_isPaired) {
-                      _speakUnpairedWarning();
-                      return;
-                    }
-                    _initiateCall('voice');
-                  },
-                ),
-              ),
-              const SizedBox(height: 12),
-
               // CHAMADA DE VÍDEO (APLICATIVO)
               Opacity(
                 opacity: _isPaired ? 1.0 : 0.4,
                 child: SeniorButton(
-                  label: 'Chamada de Vídeo SOS',
+                  label: 'Fazer chamada de vídeo',
                   icon: Icons.videocam,
                   backgroundColor: const Color(0xFF1565C0), // Dark Blue
                   textColor: Colors.white,
@@ -862,29 +854,32 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
               ),
               const SizedBox(height: 12),
 
-              // LIGAR PARA AMBULNCIA
-              if (_ambulancePhone != null) ...[
+              // LIGAR PARA AMBULANCIA
               SeniorButton(
                 label: 'Ligar para Ambulância',
                 icon: Icons.local_hospital,
-                backgroundColor: AppColors.error,
+                backgroundColor: const Color(0xFF6D4C41),
                 textColor: Colors.white,
                 onPressed: () {
+                  final ambulancePhone = _ambulancePhone;
+                  if (ambulancePhone == null || ambulancePhone.isEmpty) {
+                    _showAmbulancePhoneMissingWarning();
+                    return;
+                  }
                   _confirmarAcaoSOSComContagem(
                     'Ligar para Ambulância',
                     'Iniciando ligação para a ambulância',
-                    () => _ligar(_ambulancePhone!),
+                    () => _ligar(ambulancePhone),
                   );
                 },
               ),
               const SizedBox(height: 12),
-              ],
 
-              // ENVIAR LOCALIZAÇÃO PARA O CHAT
+              // ENVIAR LOCALIZACAO PARA O CHAT
               Opacity(
                 opacity: _isPaired ? 1.0 : 0.4,
                 child: SeniorButton(
-                  label: 'Enviar Localização para o Chat',
+                  label: 'Enviar minha localização',
                   icon: Icons.location_on,
                   backgroundColor: const Color(0xFF5E35B1), // Purple
                   textColor: Colors.white,
@@ -1013,7 +1008,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
   ) {
     _stopAllAudioAndTts();
 
-    int segundosRestantes = 5;
+    int segundosRestantes = 10;
     Timer? countdownTimer;
 
     TTSService.instance.falar(
@@ -1069,7 +1064,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                       Icon(Icons.warning, color: AppColors.error, size: 36),
                       SizedBox(width: 12),
                       Text(
-                        'ATENÇÃO',
+                        'ATENCAO',
                         style: TextStyle(
                           fontSize: 26,
                           fontWeight: FontWeight.w900,

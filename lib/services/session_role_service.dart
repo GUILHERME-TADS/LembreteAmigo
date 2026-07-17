@@ -47,6 +47,75 @@ class SessionRoleService {
     return fallback;
   }
 
+  static Future<User?> ensureElderlyAuthSession() async {
+    if (!isElderly) return FirebaseAuth.instance.currentUser;
+    if (Firebase.apps.isEmpty) return FirebaseAuth.instance.currentUser;
+
+    final current = FirebaseAuth.instance.currentUser;
+    if (current != null) return current;
+
+    final credential = await FirebaseAuth.instance.signInAnonymously();
+    final user = credential.user;
+    if (user != null) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('paired_idoso_id', user.uid);
+    }
+    return user;
+  }
+
+  static Future<String?> getVerifiedActiveIdosoId() async {
+    final idosoId = await getActiveIdosoIdOrNull();
+    if (idosoId == null ||
+        idosoId == unpairedIdosoId ||
+        idosoId == 'idoso_simulado') {
+      return idosoId;
+    }
+
+    if (idosoId == 'idoso_autonomo') return idosoId;
+
+    if (Firebase.apps.isEmpty) return idosoId;
+
+    if (isElderly) {
+      final user = await ensureElderlyAuthSession();
+      return user != null && user.uid == idosoId ? idosoId : null;
+    }
+
+    if (isSupervisor) {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) return null;
+      try {
+        final doc = await FirebaseFirestore.instance
+            .collection('idoso_perfil')
+            .doc(idosoId)
+            .get()
+            .timeout(const Duration(seconds: 4));
+        final data = doc.data();
+        if (!doc.exists || data == null) return null;
+        final linked = data['supervisorId'] == currentUser.uid &&
+            data['status'] == 'active';
+        return linked ? idosoId : null;
+      } catch (e) {
+        debugPrint('Erro ao validar vinculo ativo: $e');
+        return null;
+      }
+    }
+
+    return null;
+  }
+
+  static Future<bool> canUseActiveIdoso({bool allowOfflineCache = false}) async {
+    final verified = await getVerifiedActiveIdosoId();
+    if (verified != null &&
+        verified != unpairedIdosoId &&
+        verified != 'idoso_simulado') {
+      return true;
+    }
+    if (!allowOfflineCache || Firebase.apps.isNotEmpty) return false;
+
+    final cached = await getActiveIdosoIdOrNull();
+    return cached != null && cached != unpairedIdosoId;
+  }
+
   static Future<String?> getActiveIdosoIdOrNull() async {
     final idosoId = await getActiveIdosoId(fallback: '');
     return idosoId.isEmpty ? null : idosoId;
@@ -127,10 +196,6 @@ class SessionRoleService {
       } catch (_) {}
     }
     if (currentUser == null) {
-      // Fallback check: if user is offline but paired locally
-      final prefs = await SharedPreferences.getInstance();
-      final cachedId = prefs.getString('selected_idoso_id');
-      if (cachedId == idosoId) return true;
       return false;
     }
 
@@ -148,11 +213,8 @@ class SessionRoleService {
           data['status'] == 'active';
       return isConnected;
     } catch (e) {
-      debugPrint('Erro ao verificar conexao do supervisor no Firestore (usando fallback local): $e');
-      // Network failure fallback: if we were already paired, allow access offline
-      final prefs = await SharedPreferences.getInstance();
-      final cachedId = prefs.getString('selected_idoso_id');
-      return cachedId == idosoId;
+      debugPrint('Erro ao verificar conexao do supervisor no Firestore: $e');
+      return false;
     }
   }
 }

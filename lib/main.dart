@@ -63,6 +63,8 @@ import 'di/injection.dart';
 
 import 'theme/app_theme.dart';
 import 'widgets/index.dart';
+import 'widgets/app_status_banner.dart';
+import 'services/app_status_service.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 final _RouteTracker _routeTracker = _RouteTracker();
@@ -174,6 +176,12 @@ void main() async {
     debugPrint(
       'Erro ao inicializar Firebase. Operando em modo de simulacao local: $e',
     );
+    AppStatusService.instance.report(
+      id: 'firebase-init',
+      title: 'Modo offline',
+      message: 'Nao foi possivel conectar aos servicos online. Algumas funcoes podem ficar pendentes.',
+      severity: AppStatusSeverity.critical,
+    );
   }
   await SessionRoleService.load();
   try {
@@ -220,6 +228,12 @@ void main() async {
       }
     } catch (e) {
       debugPrint('Erro ao inicializar notificacoes. Continuando sem alarmes locais: $e');
+      AppStatusService.instance.report(
+        id: 'local-notifications',
+        title: 'Alarmes locais indisponiveis',
+        message: 'Verifique as permissoes de notificacao para nao perder lembretes.',
+        severity: AppStatusSeverity.critical,
+      );
     }
     try {
       final push = PushNotificationService.instance;
@@ -250,6 +264,11 @@ void main() async {
       };
     } catch (e) {
       debugPrint('Erro ao inicializar push notifications. Continuando sem FCM: $e');
+      AppStatusService.instance.report(
+        id: 'push-notifications',
+        title: 'Avisos entre aparelhos indisponiveis',
+        message: 'Chamadas e alertas podem nao chegar ao outro aparelho.',
+      );
     }
   }
 
@@ -327,7 +346,7 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
             } else if (SessionRoleService.isElderly) {
               try {
                 debugPrint('FCM/Auth: Efetuando login anônimo do Idoso...');
-                await FirebaseAuth.instance.signInAnonymously();
+                await SessionRoleService.ensureElderlyAuthSession();
               } catch (e) {
                 debugPrint('Erro ao efetuar login anônimo do Idoso: $e');
               }
@@ -486,7 +505,7 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
     if (FirebaseAuth.instance.currentUser == null && SessionRoleService.isElderly) {
       try {
         debugPrint('Lifecycle: Efetuando login anônimo do Idoso...');
-        await FirebaseAuth.instance.signInAnonymously();
+        await SessionRoleService.ensureElderlyAuthSession();
       } catch (e) {
         debugPrint('Erro ao efetuar login anônimo do Idoso no lifecycle: $e');
       }
@@ -641,7 +660,7 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
           data: mediaQuery.copyWith(
             textScaler: TextScaler.linear(scaleFactor.clamp(1.0, 2.5)),
           ),
-          child: child ?? const SizedBox.shrink(),
+          child: AppStatusBanner(child: child ?? const SizedBox.shrink()),
         );
       },
       initialRoute: '/',

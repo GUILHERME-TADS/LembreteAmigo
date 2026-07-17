@@ -22,6 +22,8 @@ class OfflineWrite {
   final Map<String, dynamic> data;
   final DateTime createdAt;
   final int attempts;
+  final bool failed;
+  final String? lastError;
 
   OfflineWrite({
     required this.id,
@@ -31,6 +33,8 @@ class OfflineWrite {
     required this.data,
     DateTime? createdAt,
     this.attempts = 0,
+    this.failed = false,
+    this.lastError,
   }) : createdAt = createdAt ?? DateTime.now();
 
   OfflineWrite copyWith({
@@ -41,6 +45,8 @@ class OfflineWrite {
     Map<String, dynamic>? data,
     DateTime? createdAt,
     int? attempts,
+    bool? failed,
+    String? lastError,
   }) {
     return OfflineWrite(
       id: id ?? this.id,
@@ -50,6 +56,8 @@ class OfflineWrite {
       data: data ?? this.data,
       createdAt: createdAt ?? this.createdAt,
       attempts: attempts ?? this.attempts,
+      failed: failed ?? this.failed,
+      lastError: lastError ?? this.lastError,
     );
   }
 
@@ -61,6 +69,8 @@ class OfflineWrite {
     'data': data,
     'createdAt': createdAt.toIso8601String(),
     'attempts': attempts,
+    'failed': failed,
+    'lastError': lastError,
   };
 
   factory OfflineWrite.fromJson(Map<String, dynamic> json) {
@@ -74,6 +84,8 @@ class OfflineWrite {
           DateTime.tryParse(json['createdAt'] as String? ?? '') ??
           DateTime.now(),
       attempts: (json['attempts'] as num?)?.toInt() ?? 0,
+      failed: json['failed'] as bool? ?? false,
+      lastError: json['lastError'] as String?,
     );
   }
 }

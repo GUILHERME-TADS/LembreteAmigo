@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart';
 import '../utils/web_upload_helper.dart';
 
 import '../models/offline_write.dart';
+import 'app_status_service.dart';
 import 'secure_cache_service.dart';
 import 'session_role_service.dart';
 
@@ -59,7 +60,7 @@ class OfflineSyncService {
       pendingCount.value = 0;
       return <OfflineWrite>[];
     }
-    pendingCount.value = writes.length;
+    pendingCount.value = writes.where((write) => !write.failed).length;
     return writes;
   }
 
@@ -184,9 +185,22 @@ class OfflineSyncService {
       bool hasFailure = false;
 
       for (final write in queue) {
+        if (write.failed) {
+          remaining.add(write);
+          continue;
+        }
+
         if (write.attempts >= 5) {
-          debugPrint(
-            'Escrita offline excedeu o limite de tentativas e foi descartada: ${write.collection}/${write.docId}',
+          final failedWrite = write.copyWith(
+            failed: true,
+            lastError: 'Limite de tentativas excedido.',
+          );
+          remaining.add(failedWrite);
+          AppStatusService.instance.report(
+            id: 'offline-sync-failed',
+            title: 'Sincronizacao pendente',
+            message: 'Algumas alteracoes nao foram enviadas. Toque em sincronizar novamente quando a internet estiver estavel.',
+            severity: AppStatusSeverity.critical,
           );
           continue;
         }
@@ -203,7 +217,17 @@ class OfflineSyncService {
           debugPrint(
             'Falha ao sincronizar ${write.collection}/${write.docId}: $e',
           );
-          remaining.add(write.copyWith(attempts: write.attempts + 1));
+          remaining.add(
+            write.copyWith(
+              attempts: write.attempts + 1,
+              lastError: e.toString(),
+            ),
+          );
+          AppStatusService.instance.report(
+            id: 'offline-sync-pending',
+            title: 'Alteracoes aguardando envio',
+            message: 'Os dados foram guardados neste aparelho e serao sincronizados quando possivel.',
+          );
           hasFailure = true;
         }
       }
@@ -244,7 +268,19 @@ class OfflineSyncService {
   Future<void> _saveQueue(List<OfflineWrite> queue) async {
     final raw = jsonEncode(queue.map((write) => write.toJson()).toList());
     await SecureCacheService.instance.write(_queueKey, raw);
-    pendingCount.value = queue.length;
+    pendingCount.value = queue.where((write) => !write.failed).length;
+  }
+
+  Future<void> retryFailedWrites() async {
+    final queue = await loadQueue();
+    final retriable = queue
+        .map((write) => write.failed
+            ? write.copyWith(failed: false, attempts: 0, lastError: '')
+            : write)
+        .toList();
+    await _saveQueue(_compact(retriable));
+    AppStatusService.instance.clear('offline-sync-failed');
+    await syncPendingWrites();
   }
 
   List<OfflineWrite> _compact(List<OfflineWrite> queue) {

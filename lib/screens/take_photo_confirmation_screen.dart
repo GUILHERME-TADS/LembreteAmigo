@@ -646,9 +646,13 @@ class _TakePhotoConfirmationScreenState
                                     final file = File(_capturedFile!.path);
                                     final ref = FirebaseStorage.instance
                                         .ref()
-                                        .child('profile_photos')
-                                        .child('$idosoId.jpg');
-                                    final uploadTask = await ref.putFile(file);
+                                        .child('perfis')
+                                        .child(idosoId)
+                                        .child('profile.jpg');
+                                    final uploadTask = await ref.putFile(
+                                      file,
+                                      SettableMetadata(contentType: 'image/jpeg'),
+                                    );
                                     final downloadUrl = await uploadTask.ref
                                         .getDownloadURL();
 

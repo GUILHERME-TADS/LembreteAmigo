@@ -1573,8 +1573,9 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
         try {
           final ref = FirebaseStorage.instance
               .ref()
-              .child('profile_photos')
-              .child('$idosoId.jpg');
+              .child('perfis')
+              .child(idosoId)
+              .child('profile.jpg');
           await ref.delete();
         } catch (storageError) {
           // Ignora se o arquivo já não existir
@@ -1637,9 +1638,13 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
               final file = File(selectedImage.path);
               final ref = FirebaseStorage.instance
                   .ref()
-                  .child('profile_photos')
-                  .child('$idosoId.jpg');
-              final uploadTask = ref.putFile(file);
+                  .child('perfis')
+                  .child(idosoId)
+                  .child('profile.jpg');
+              final uploadTask = ref.putFile(
+                file,
+                SettableMetadata(contentType: 'image/jpeg'),
+              );
               final snapshot = await uploadTask;
               final downloadUrl = await snapshot.ref.getDownloadURL();
 

@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/session_role_service.dart';
+import '../services/app_status_service.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -80,7 +81,7 @@ class PushNotificationService {
     try {
       final id = SessionRoleService.isSupervisor
           ? FirebaseAuth.instance.currentUser?.uid ?? ''
-          : await SessionRoleService.getActiveIdosoId();
+          : await SessionRoleService.getVerifiedActiveIdosoId() ?? '';
       if (id.isEmpty) return;
 
       final role = SessionRoleService.isSupervisor ? 'supervisor' : 'elderly';
@@ -95,6 +96,11 @@ class PushNotificationService {
       });
     } catch (e) {
       debugPrint('Erro ao salvar FCM token: $e');
+      AppStatusService.instance.report(
+        id: 'fcm-token',
+        title: 'Avisos podem falhar',
+        message: 'Nao foi possivel registrar este aparelho para notificacoes.',
+      );
     }
   }
 

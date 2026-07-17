@@ -242,26 +242,12 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                     ttsText: r.audioPath == 'ia_generated' ? r.medicamentoAudioTexto : null,
                     status: reminderVisualStatusFromLembrete(r),
                     onTap: () {
-                      final visualStatus = reminderVisualStatusFromLembrete(r);
-                      if (visualStatus == ReminderStatus.postponed ||
-                          visualStatus == ReminderStatus.missed ||
-                          visualStatus == ReminderStatus.needsHelp) {
-                        return;
-                      }
                       _stopAllAudioAndTts();
-                      if (r.categoria == 'medicacao' && !r.concluido) {
-                        Navigator.pushNamed(
-                          context,
-                          '/take-photo-confirmation',
-                          arguments: r.id,
-                        );
-                      } else {
-                        if (!r.concluido) {
-                          SystemSound.play(SystemSoundType.click);
-                          HapticFeedback.vibrate();
-                        }
-                        LembreteService.instance.alternarConclusao(r.id);
-                      }
+                      Navigator.pushNamed(
+                        context,
+                        '/reminder-detail',
+                        arguments: r,
+                      );
                     },
                   ),
                   if (r.medicamentoInstrucoes != null && r.medicamentoInstrucoes!.isNotEmpty) ...[
@@ -307,7 +293,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
       {'id': 'medicacao', 'label': 'Remédios', 'icon': Icons.medication},
       {'id': 'refeicoes', 'label': 'Refeições', 'icon': Icons.restaurant},
       {'id': 'exercicio', 'label': 'Exercícios', 'icon': Icons.directions_walk},
-      {'id': 'hidratacao', 'label': 'Água', 'icon': Icons.water_drop},
+      {'id': 'hidratacao', 'label': 'Hidratação', 'icon': Icons.water_drop},
     ];
 
     final filteredList = _selectedCategory == 'todos'

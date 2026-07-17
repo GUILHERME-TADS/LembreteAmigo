@@ -325,7 +325,7 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
       {'icon': Icons.medication, 'label': 'Remédio', 'key': 'medicacao', 'color': AppColors.medicationsColor},
       {'icon': Icons.restaurant, 'label': 'Refeição', 'key': 'refeicoes', 'color': AppColors.mealsColor},
       {'icon': Icons.directions_walk, 'label': 'Exercício', 'key': 'exercicio', 'color': AppColors.tertiaryContainer},
-      {'icon': Icons.water_drop, 'label': 'Água', 'key': 'hidratacao', 'color': AppColors.voiceFeedbackBlue},
+      {'icon': Icons.water_drop, 'label': 'Hidratação', 'key': 'hidratacao', 'color': AppColors.voiceFeedbackBlue},
       {'icon': Icons.notifications, 'label': 'Personalizado', 'key': 'personalizado', 'color': AppColors.customColor},
     ];
     return Container(

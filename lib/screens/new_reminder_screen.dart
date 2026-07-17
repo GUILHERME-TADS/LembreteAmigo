@@ -192,7 +192,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
       'medicacao': 'Remédio',
       'refeicoes': 'Refeição',
       'exercicio': 'Exercício',
-      'hidratacao': 'Água',
+      'hidratacao': 'Hidratação',
       'personalizado': 'Personalizado',
     };
     return 'Categoria: ${names[_selectedCategory] ?? _selectedCategory}';
@@ -819,7 +819,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
       },
       {
         'icon': Icons.water_drop,
-        'label': 'Água',
+        'label': 'Hidratação',
         'key': 'hidratacao',
         'color': AppColors.voiceFeedbackBlue,
       },

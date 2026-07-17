@@ -16,16 +16,20 @@ class CategoryDistributionChart extends StatelessWidget {
   static const _categoryColors = {
     'medicacao': Color(0xFFEF5350),
     'refeicao': Color(0xFFFFB74D),
+    'refeicoes': Color(0xFFFFB74D),
     'exercicio': Color(0xFF66BB6A),
     'agua': Color(0xFF42A5F5),
+    'hidratacao': Color(0xFF42A5F5),
     'bem_estar': Color(0xFFAB47BC),
   };
 
   static const _categoryLabels = {
     'medicacao': 'Medicamentos',
     'refeicao': 'Refeições',
+    'refeicoes': 'Refeições',
     'exercicio': 'Exercícios',
-    'agua': 'Água',
+    'agua': 'Hidratação',
+    'hidratacao': 'Hidratação',
     'bem_estar': 'Bem-estar',
   };
 

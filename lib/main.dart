@@ -80,6 +80,7 @@ bool isElderlyOnlyRoute(String routeName) {
     '/active-reminder',
     '/meal-detail',
     '/exercise-detail',
+    '/reminder-detail',
     '/reinforcement-alert',
     '/medication-confirmation',
     '/take-photo-confirmation',
@@ -722,9 +723,8 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
           case '/active-reminder':
             page = const ActiveReminderScreen();
             break;
+          case '/reminder-detail':
           case '/meal-detail':
-            page = const ReminderDetailScreen();
-            break;
           case '/exercise-detail':
             page = const ReminderDetailScreen();
             break;

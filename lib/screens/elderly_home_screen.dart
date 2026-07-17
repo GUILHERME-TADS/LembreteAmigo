@@ -1091,11 +1091,12 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () {
-          if (lembrete.audioPath != null) {
-            _playAudio(lembrete.audioPath!);
-          } else {
-            _speakReminder(lembrete);
-          }
+          _stopAllAudioAndTts();
+          Navigator.pushNamed(
+            context,
+            '/reminder-detail',
+            arguments: lembrete,
+          );
         },
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,

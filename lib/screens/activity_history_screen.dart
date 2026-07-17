@@ -98,7 +98,7 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
       case 'exercicio':
         return 'Exercício';
       case 'hidratacao':
-        return 'Água';
+        return 'Hidratação';
       default:
         return 'Personalizado';
     }
@@ -662,7 +662,7 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
       'medicacao': 'Remédios',
       'refeicoes': 'Refeições',
       'exercicio': 'Exercícios',
-      'hidratacao': 'Água',
+      'hidratacao': 'Hidratação',
     };
 
     return SingleChildScrollView(

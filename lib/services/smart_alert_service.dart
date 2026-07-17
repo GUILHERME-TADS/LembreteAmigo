@@ -280,7 +280,7 @@ class SmartAlertService {
       case 'refeicoes':
         return 'Refeição';
       case 'hidratacao':
-        return 'Água';
+        return 'Hidratação';
       case 'exercicio':
         return 'Exercício';
       default:

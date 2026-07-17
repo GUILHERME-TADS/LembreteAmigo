@@ -1414,7 +1414,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       'medicacao': 'Remédios',
       'refeicoes': 'Refeições',
       'exercicio': 'Exercícios',
-      'hidratacao': 'Água',
+      'hidratacao': 'Hidratação',
     };
 
     return SingleChildScrollView(
@@ -1555,7 +1555,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                 iconBg = AppColors.voiceFeedbackBlue.withValues(alpha: 0.2);
                 iconColor = AppColors.voiceFeedbackBlue;
                 accentColor = AppColors.voiceFeedbackBlue;
-                categoryLabel = 'Água';
+                categoryLabel = 'Hidratação';
                 break;
             }
             final status = reminderVisualStatusFromLembrete(lembrete);

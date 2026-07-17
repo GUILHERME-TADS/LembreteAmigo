@@ -6,6 +6,7 @@ enum LembreteStatus {
   concluidoComFoto('concluido_com_foto'),
   adiado('adiado'),
   perdido('perdido'),
+  precisaDeAjuda('precisa_de_ajuda'),
   confirmadoPeloCuidador('confirmado_pelo_cuidador');
 
   final String storageValue;

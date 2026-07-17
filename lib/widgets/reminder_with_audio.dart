@@ -18,9 +18,15 @@ LembreteStatus _getLembreteStatus(ReminderStatus status) {
   switch (status) {
     case ReminderStatus.done:
       return LembreteStatus.concluido;
+    case ReminderStatus.doneWithPhoto:
+      return LembreteStatus.concluidoComFoto;
+    case ReminderStatus.caregiverConfirmed:
+      return LembreteStatus.confirmadoPeloCuidador;
     case ReminderStatus.late:
     case ReminderStatus.missed:
       return LembreteStatus.perdido;
+    case ReminderStatus.needsHelp:
+      return LembreteStatus.precisaDeAjuda;
     case ReminderStatus.postponed:
       return LembreteStatus.adiado;
     case ReminderStatus.scheduled:
@@ -209,27 +215,40 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
   @override
   Widget build(BuildContext context) {
     final isHighContrast = Theme.of(context).colorScheme.primary == Colors.black;
-    final Color sideBarColor = widget.status == ReminderStatus.done
+    final isDoneStatus = widget.status == ReminderStatus.done ||
+        widget.status == ReminderStatus.doneWithPhoto ||
+        widget.status == ReminderStatus.caregiverConfirmed;
+    final isPostponed = widget.status == ReminderStatus.postponed;
+    final isAttentionStatus =
+        widget.status == ReminderStatus.late ||
+        widget.status == ReminderStatus.missed ||
+        widget.status == ReminderStatus.needsHelp;
+    final isClosedStatus =
+        isDoneStatus || isPostponed || widget.status == ReminderStatus.missed || widget.status == ReminderStatus.needsHelp;
+
+    final Color sideBarColor = isDoneStatus
         ? AppColors.tertiaryFixedDim
-        : widget.status == ReminderStatus.late
+        : isAttentionStatus
         ? AppColors.error
-        : widget.status == ReminderStatus.postponed
+        : isPostponed
         ? AppColors.secondaryFixedDim
         : widget.accentColor;
 
     return Container(
       decoration: BoxDecoration(
-        color: widget.status == ReminderStatus.done
+        color: isDoneStatus
             ? const Color(0xFFE8F5E9)
-            : widget.status == ReminderStatus.postponed
+            : isPostponed
             ? const Color(0xFFFFFDE7)
+            : isAttentionStatus
+            ? const Color(0xFFFFEBEE)
             : AppColors.surfaceContainerLowest,
         border: Border.all(
-          color: widget.status == ReminderStatus.done
+          color: isDoneStatus
               ? AppColors.tertiaryFixedDim.withValues(alpha: 0.5)
-              : widget.status == ReminderStatus.late
+              : isAttentionStatus
               ? AppColors.error
-              : widget.status == ReminderStatus.postponed
+              : isPostponed
               ? AppColors.secondaryFixedDim.withValues(alpha: 0.5)
               : widget.accentColor.withValues(alpha: 0.5),
           width: 2,
@@ -253,13 +272,13 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: widget.status == ReminderStatus.done
+                              color: isDoneStatus
                                   ? AppColors.tertiaryFixedDim.withValues(
                                       alpha: 0.3,
                                     )
-                                  : widget.status == ReminderStatus.late
+                                  : isAttentionStatus
                                   ? AppColors.error.withValues(alpha: 0.15)
-                                  : widget.status == ReminderStatus.postponed
+                                  : isPostponed
                                   ? AppColors.secondaryFixed.withValues(
                                       alpha: 0.3,
                                     )
@@ -268,11 +287,11 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
                             ),
                             child: Icon(
                               widget.icon,
-                              color: widget.status == ReminderStatus.done
+                              color: isDoneStatus
                                   ? AppColors.onTertiaryFixedVariant
-                                  : widget.status == ReminderStatus.late
+                                  : isAttentionStatus
                                   ? AppColors.error
-                                  : widget.status == ReminderStatus.postponed
+                                  : isPostponed
                                   ? AppColors.onSecondaryFixedVariant
                                   : widget.iconColor,
                               size: 32,
@@ -293,11 +312,12 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
                                       fontWeight: FontWeight.w700,
                                       height: 1.3,
                                       color:
-                                          widget.status == ReminderStatus.done
+                                          isDoneStatus
                                           ? AppColors.onSurfaceVariant
-                                          : widget.status ==
-                                                ReminderStatus.postponed
+                                          : isPostponed
                                           ? AppColors.onSecondaryFixedVariant
+                                          : isAttentionStatus
+                                          ? AppColors.error
                                           : widget.accentColor,
                                     ),
                                   ),
@@ -373,11 +393,12 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
                               height: 56,
                               decoration: BoxDecoration(
                                 color: _isPlaying || _isSpeaking
-                                    ? (widget.status == ReminderStatus.done
+                                    ? (isDoneStatus
                                           ? AppColors.tertiaryFixedDim
-                                          : widget.status ==
-                                                ReminderStatus.postponed
+                                          : isPostponed
                                           ? AppColors.secondaryFixed
+                                          : isAttentionStatus
+                                          ? AppColors.error.withValues(alpha: 0.2)
                                           : widget.accentColor.withValues(
                                               alpha: 0.2,
                                             ))
@@ -385,11 +406,12 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
                                 shape: BoxShape.rectangle,
                                 borderRadius: BorderRadius.circular(14),
                                 border: Border.all(
-                                  color: widget.status == ReminderStatus.done
+                                  color: isDoneStatus
                                       ? AppColors.onTertiaryFixedVariant
-                                      : widget.status ==
-                                            ReminderStatus.postponed
+                                      : isPostponed
                                       ? AppColors.onSecondaryFixedVariant
+                                      : isAttentionStatus
+                                      ? AppColors.error
                                       : widget.accentColor,
                                   width: 3,
                                 ),
@@ -398,10 +420,12 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
                                 _isPlaying || _isSpeaking
                                     ? Icons.stop
                                     : Icons.play_arrow,
-                                color: widget.status == ReminderStatus.done
+                                color: isDoneStatus
                                     ? AppColors.onTertiaryFixedVariant
-                                    : widget.status == ReminderStatus.postponed
+                                    : isPostponed
                                     ? AppColors.onSecondaryFixedVariant
+                                    : isAttentionStatus
+                                    ? AppColors.error
                                     : widget.accentColor,
                                 size: 32,
                               ),
@@ -409,50 +433,41 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
                           ),
                           const SizedBox(width: 12),
                           GestureDetector(
-                            onTap: (widget.status == ReminderStatus.done ||
-                                    widget.status == ReminderStatus.postponed ||
-                                    widget.status == ReminderStatus.missed)
-                                ? null
-                                : widget.onTap,
+                            onTap: isClosedStatus ? null : widget.onTap,
                             child: Container(
                               width: 56,
                               height: 56,
                               decoration: BoxDecoration(
-                                color: (widget.status == ReminderStatus.done ||
-                                        widget.status == ReminderStatus.postponed ||
-                                        widget.status == ReminderStatus.missed)
+                                color: isClosedStatus
                                     ? Colors.transparent
                                     : widget.accentColor.withValues(alpha: 0.1),
                                 shape: BoxShape.rectangle,
                                 borderRadius: BorderRadius.circular(14),
                                 border: Border.all(
-                                  color: (widget.status == ReminderStatus.done ||
-                                          widget.status == ReminderStatus.postponed ||
-                                          widget.status == ReminderStatus.missed)
+                                  color: isClosedStatus
                                       ? Colors.transparent
                                       : widget.accentColor,
-                                  width: (widget.status == ReminderStatus.done ||
-                                          widget.status == ReminderStatus.postponed ||
-                                          widget.status == ReminderStatus.missed)
+                                  width: isClosedStatus
                                       ? 0
                                       : 3,
                                 ),
                               ),
-                              child: widget.status == ReminderStatus.done ||
-                                      widget.status == ReminderStatus.postponed ||
-                                      widget.status == ReminderStatus.late ||
-                                      widget.status == ReminderStatus.missed
+                              child: isDoneStatus ||
+                                      isPostponed ||
+                                      isAttentionStatus
                                   ? Icon(
-                                      widget.status == ReminderStatus.done
+                                      isDoneStatus
                                           ? Icons.check
-                                          : widget.status == ReminderStatus.postponed
+                                          : isPostponed
                                               ? Icons.schedule
+                                              : widget.status == ReminderStatus.needsHelp
+                                                  ? Icons.support_agent
                                               : widget.status == ReminderStatus.missed
                                                   ? Icons.close
                                                   : Icons.priority_high,
-                                      color: widget.status == ReminderStatus.done
+                                      color: isDoneStatus
                                           ? const Color(0xFF005312)
-                                          : widget.status == ReminderStatus.postponed
+                                          : isPostponed
                                               ? const Color(0xFF827717)
                                               : AppColors.error,
                                       size: 32,

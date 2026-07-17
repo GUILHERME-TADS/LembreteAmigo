@@ -39,6 +39,7 @@ import 'screens/register_elderly_screen.dart';
 import 'screens/registration_success_screen.dart';
 import 'screens/supervisor_dashboard_screen.dart';
 import 'screens/supervisor_help_screen.dart';
+import 'screens/supervisor_edit_elderly_profile_screen.dart';
 import 'screens/supervisor_login_screen.dart';
 import 'screens/supervisor_register_screen.dart';
 import 'screens/supervisor_reminder_detail_screen.dart';
@@ -97,6 +98,7 @@ bool isSupervisorProtectedRoute(String routeName) {
     '/supervisor-dashboard',
     '/supervisor-settings',
     '/supervisor-help',
+    '/supervisor-edit-elderly-profile',
     '/effectiveness-feedback',
     '/register-elderly',
     '/detailed-history',
@@ -563,7 +565,10 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
     final candidates =
         LembreteService.instance.lembretes.where((lembrete) {
           if (lembrete.concluido) return false;
-          if (lembrete.status == LembreteStatus.perdido) return false;
+          if (lembrete.status == LembreteStatus.perdido ||
+              lembrete.status == LembreteStatus.precisaDeAjuda) {
+            return false;
+          }
           if (!_isReminderActiveToday(lembrete, now)) {
             return false;
           }
@@ -786,6 +791,9 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
 
           case '/supervisor-help':
             page = const SupervisorHelpScreen();
+            break;
+          case '/supervisor-edit-elderly-profile':
+            page = const SupervisorEditElderlyProfileScreen();
             break;
           case '/register-elderly':
             page = const RegisterElderlyScreen();

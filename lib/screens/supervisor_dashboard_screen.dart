@@ -45,8 +45,6 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   String _nomeIdoso = 'Idoso';
   String _enderecoIdoso = '';
   String _selectedCategoryFilter = 'Todos';
-  final TextEditingController _quickMessageController = TextEditingController();
-  bool _sendingQuickMessage = false;
   bool _refortIsLoading = false;
   SupervisorInsights? _aiInsights;
   bool _aiLoading = false;
@@ -124,7 +122,6 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     _smartAlertTimer?.cancel();
     LembreteService.instance.notifier.removeListener(_onLembretesChanged);
     SmartAlertService.instance.notifier.removeListener(_onSmartAlertsChanged);
-    _quickMessageController.dispose();
     super.dispose();
   }
 
@@ -312,8 +309,11 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       );
       if (callStart == null && mounted) {
         final label = callType == 'voice' ? 'voz' : 'vídeo';
+        final reason = VideoCallService.instance.lastStartFailureMessage;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao iniciar chamada de $label.')),
+          SnackBar(
+            content: Text(reason ?? 'Erro ao iniciar chamada de $label.'),
+          ),
         );
         return;
       }
@@ -322,48 +322,15 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
           callStart.roomName,
           callType: callType,
           callId: callStart.callId,
+          alreadyVerified: true,
         );
       }
     } catch (e) {
       if (mounted) {
         final label = callType == 'voice' ? 'voz' : 'vídeo';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao iniciar chamada de $label.')),
+          SnackBar(content: Text('Erro ao iniciar chamada de $label: $e')),
         );
-      }
-    }
-  }
-
-  Future<void> _sendQuickMessage() async {
-    final text = _quickMessageController.text.trim();
-    if (text.isEmpty) return;
-    setState(() => _sendingQuickMessage = true);
-    try {
-      final sent = await MessageService.instance.sendText(text);
-      if (!sent) {
-        throw StateError('Nenhum idoso conectado para receber a mensagem.');
-      }
-      _quickMessageController.clear();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Mensagem enviada com sucesso!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Erro ao enviar mensagem.'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _sendingQuickMessage = false);
       }
     }
   }
@@ -571,7 +538,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     final lembretes = LembreteService.instance.lembretes;
     final temAlerta = _isConnected && lembretes.any((l) {
       final status = reminderVisualStatusFromLembrete(l);
-      return status == ReminderStatus.late || status == ReminderStatus.missed;
+      return status == ReminderStatus.late ||
+          status == ReminderStatus.missed ||
+          status == ReminderStatus.needsHelp;
     });
 
     return Container(
@@ -1003,7 +972,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                         ),
                         SizedBox(height: 2),
                         Text(
-                          'Envie uma mensagem instantânea para o idoso.',
+                          'Grave e envie recados de voz para o idoso.',
                           style: TextStyle(
                             fontSize: 15,
                             color: AppColors.onSurfaceVariant,
@@ -1021,44 +990,24 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
               ),
             ),
             const Divider(height: 24, color: AppColors.outlineVariant),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _quickMessageController,
-                    decoration: InputDecoration(
-                      hintText: 'Escreva um recado rápido...',
-                      hintStyle: const TextStyle(fontSize: 15),
-                      filled: true,
-                      fillColor: AppColors.surfaceContainerLow,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => Navigator.pushNamed(context, '/messages'),
+                icon: const Icon(Icons.mic, color: Colors.white),
+                label: const Text(
+                  'Gravar recado de voz',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                ),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                const SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: _sendingQuickMessage ? null : _sendQuickMessage,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.all(12),
-                    minimumSize: const Size(48, 48),
-                    backgroundColor: AppColors.primary,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: _sendingQuickMessage
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Icon(Icons.send, color: Colors.white, size: 20),
-                ),
-              ],
+              ),
             ),
           ],
         ),
@@ -1611,6 +1560,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
             }
             final status = reminderVisualStatusFromLembrete(lembrete);
             final bool isPending = status == ReminderStatus.scheduled || status == ReminderStatus.late;
+            final bool needsAttention = status == ReminderStatus.late ||
+                status == ReminderStatus.missed ||
+                status == ReminderStatus.needsHelp;
 
             return Padding(
               padding: const EdgeInsets.only(bottom: 12),
@@ -1619,8 +1571,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   color: AppColors.surfaceContainerLowest,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: status == ReminderStatus.late ? AppColors.error : AppColors.outlineVariant,
-                    width: status == ReminderStatus.late ? 2 : 1,
+                    color: needsAttention ? AppColors.error : AppColors.outlineVariant,
+                    width: needsAttention ? 2 : 1,
                   ),
                 ),
                 child: Column(

@@ -184,6 +184,30 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return idosoId;
   }
 
+  Map<String, dynamic> _sanitizeProfileForFirestore(
+    Map<String, dynamic> source,
+  ) {
+    const allowedKeys = {
+      'nome',
+      'idade',
+      'telefone',
+      'ambulancia_telefone',
+      'dataNascimento',
+      'endereco',
+      'fotoPath',
+      'supervisorId',
+      'status',
+      'pairingCode',
+      'pairingCodeExpires',
+      'createdAt',
+      'updatedAt',
+    };
+    return {
+      for (final entry in source.entries)
+        if (allowedKeys.contains(entry.key)) entry.key: entry.value,
+    };
+  }
+
   Future<void> _salvar() async {
     final nome = _nameController.text.trim();
     final dataNasc = _birthDateController.text.trim();
@@ -281,12 +305,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       } catch (_) {}
     }
 
+    final sanitizedPerfil = _sanitizeProfileForFirestore(perfil);
+    perfil
+      ..clear()
+      ..addAll(sanitizedPerfil);
+
     perfil['nome'] = nome;
     perfil['dataNascimento'] = dataNasc;
     perfil['telefone'] = telefone;
     perfil['ambulancia_telefone'] = ambulancePhone;
     perfil['endereco'] = endereco;
-    perfil.remove('condicoes');
     if (!SessionRoleService.isSupervisor) {
       perfil.putIfAbsent('status', () => 'pending');
     }

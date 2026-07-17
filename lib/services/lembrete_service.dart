@@ -653,7 +653,10 @@ class LembreteService {
             .child('confirmation_photos')
             .child(idosoId)
             .child('$id.jpg');
-        final uploadTask = await ref.putFile(File(localPhotoPath));
+        final uploadTask = await ref.putFile(
+          File(localPhotoPath),
+          SettableMetadata(contentType: 'image/jpeg'),
+        );
         finalPath = await uploadTask.ref.getDownloadURL();
       } catch (e) {
         debugPrint('Erro ao fazer upload da foto de confirmacao: $e');
@@ -787,7 +790,7 @@ class LembreteService {
 
   Future<void> registrarDificuldade(String id, String motivo) async {
     if (!await _checkConnection()) return;
-    await _atualizarStatus(id, LembreteStatus.perdido, observacao: motivo);
+    await _atualizarStatus(id, LembreteStatus.precisaDeAjuda, observacao: motivo);
   }
 
   List<Map<String, String>> getActiveMedicationsWithSchedule() {

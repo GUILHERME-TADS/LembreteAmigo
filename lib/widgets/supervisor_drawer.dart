@@ -75,7 +75,7 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
       '/monthly-reports',
       '/effectiveness-feedback',
       '/activity-history',
-      '/edit-profile',
+      '/supervisor-edit-elderly-profile',
     ];
 
     if (protectedRoutes.contains(routeName) && !_isConnected) {
@@ -163,7 +163,7 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
                   child: ListTile(
                     leading: const Icon(Icons.person, color: AppColors.primary),
                     title: const Text('Editar Dados do Idoso', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                    onTap: () => _navigateTo(context, '/edit-profile'),
+                    onTap: () => _navigateTo(context, '/supervisor-edit-elderly-profile'),
                   ),
                 ),
                 Opacity(

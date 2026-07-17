@@ -120,14 +120,14 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
             child: const Text(
-              'Não',
+              'NÃO',
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text(
-              'Sim, desconectar',
+              'SIM, DESCONECTAR',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 color: AppColors.error,
@@ -272,17 +272,6 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final supervisorDoc = await FirebaseFirestore.instance
-          .collection('supervisores')
-          .doc(currentUser.uid)
-          .get();
-
-      if (!supervisorDoc.exists) {
-        throw StateError(
-          'Seu perfil de supervisor não foi encontrado no banco de dados. Cadastre sua conta novamente.',
-        );
-      }
-
       final query = await FirebaseFirestore.instance
           .collection('idoso_perfil')
           .where('pairingCode', isEqualTo: code)
@@ -358,11 +347,7 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('selected_idoso_id', docId);
 
-      try {
-        await _loadPairedIdoso();
-      } catch (loadError) {
-        debugPrint('Erro temporario ao recarregar dados do idoso vinculado: $loadError');
-      }
+      await _loadPairedIdoso();
 
       if (!mounted) return;
       showDialog(
@@ -566,7 +551,7 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
                             color: Colors.white,
                           ),
                           label: const Text(
-                            'Desconectar aparelho',
+                            'DESCONECTAR APARELHO',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -631,7 +616,7 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
                       ),
                     ),
                     label: Text(
-                      _isLoading ? 'Conectando...' : 'Vincular dispositivo',
+                      _isLoading ? 'CONECTANDO...' : 'VINCULAR DISPOSITIVO',
                       style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w700,

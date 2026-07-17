@@ -20,7 +20,10 @@ class WidgetService {
       final nowMinutes = now.hour * 60 + now.minute;
 
       final proximos = LembreteService.instance.lembretes
-          .where((l) => !l.concluido && l.status != LembreteStatus.perdido)
+          .where((l) =>
+              !l.concluido &&
+              l.status != LembreteStatus.perdido &&
+              l.status != LembreteStatus.precisaDeAjuda)
           .toList()
         ..sort((a, b) {
           final aMinutes = a.horarioHour * 60 + a.horarioMinute;

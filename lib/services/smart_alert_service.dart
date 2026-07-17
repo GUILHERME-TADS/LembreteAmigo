@@ -76,6 +76,21 @@ class SmartAlertService {
           continue;
         }
 
+        if (lembrete.status == LembreteStatus.precisaDeAjuda) {
+          alerts.add(
+            SmartAlert(
+              key: 'needs_help_${lembrete.id}',
+              lembreteId: lembrete.id,
+              title: 'Idoso pediu ajuda',
+              message: 'O idoso informou que precisa de ajuda com "${lembrete.titulo}".',
+              severity: SmartAlertSeverity.critical,
+              createdAt: now,
+              minutesLate: minutesLate,
+            ),
+          );
+          continue;
+        }
+
         final threshold = _lateThresholdMinutes(lembrete);
         if (minutesLate >= threshold) {
           alerts.add(

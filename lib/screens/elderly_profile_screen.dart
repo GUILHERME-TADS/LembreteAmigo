@@ -1560,11 +1560,11 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
           await FirebaseFirestore.instance
               .collection('idosos')
               .doc(idosoId)
-              .set({'fotoPath': FieldValue.delete()}, SetOptions(merge: true));
+              .set({'fotoPath': null}, SetOptions(merge: true));
           await FirebaseFirestore.instance
               .collection('idoso_perfil')
               .doc(idosoId)
-              .set({'fotoPath': FieldValue.delete()}, SetOptions(merge: true));
+              .set({'fotoPath': null}, SetOptions(merge: true));
         } catch (firestoreError) {
           debugPrint('Erro ao remover URL do Firestore: $firestoreError');
         }

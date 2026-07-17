@@ -29,6 +29,7 @@ class VideoCallService {
 
   final ValueNotifier<VideoCall?> activeCallNotifier = ValueNotifier(null);
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _callSubscription;
+  String? lastStartFailureMessage;
 
   bool get _useFirebase {
     try {
@@ -38,9 +39,14 @@ class VideoCallService {
     }
   }
 
-  Future<void> joinCall(String roomName, {required String callType, String? callId}) async {
+  Future<void> joinCall(
+    String roomName, {
+    required String callType,
+    String? callId,
+    bool alreadyVerified = false,
+  }) async {
     try {
-      if (callId != null) {
+      if (callId != null && !alreadyVerified) {
         final canJoin = await _canJoinCall(callId, roomName);
         if (!canJoin) {
           AppStatusService.instance.report(
@@ -56,7 +62,7 @@ class VideoCallService {
       debugPrint('Jitsi: entrando na chamada. Tipo: $callType, ID: $callId, Web: $kIsWeb');
 
       if (callId != null) {
-        watchCall(callId);
+        await watchCall(callId);
       }
 
       if (kIsWeb) {
@@ -101,6 +107,15 @@ class VideoCallService {
       await jitsiMeet.join(options, eventListeners);
     } catch (e) {
       debugPrint('Erro ao entrar na chamada Jitsi: $e');
+      if (callId != null) {
+        await endCall(callId);
+      }
+      AppStatusService.instance.report(
+        id: 'video-call-join-error',
+        title: 'Erro na chamada',
+        message: 'Nao foi possivel abrir a sala de chamada neste aparelho.',
+        severity: AppStatusSeverity.critical,
+      );
     }
   }
 
@@ -165,7 +180,11 @@ class VideoCallService {
 
   String _generateRoomName(String idosoId) {
     final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final random = Random.secure().nextInt(1 << 32).toRadixString(16);
+    final secureRandom = Random.secure();
+    final random = [
+      secureRandom.nextInt(0x10000).toRadixString(16).padLeft(4, '0'),
+      secureRandom.nextInt(0x10000).toRadixString(16).padLeft(4, '0'),
+    ].join();
     return 'call_${timestamp}_$random';
   }
 
@@ -202,13 +221,28 @@ class VideoCallService {
     String initiatedBy = 'supervisor',
     required String callType,
   }) async {
+    lastStartFailureMessage = null;
+
     if (!_useFirebase) {
       debugPrint('Chamada nao iniciada: Firebase indisponivel para notificar o outro aparelho.');
+      lastStartFailureMessage =
+          'Firebase indisponivel para iniciar a chamada neste aparelho.';
+      AppStatusService.instance.report(
+        id: 'video-call-no-firebase',
+        title: 'Chamada indisponivel',
+        message: 'Nao foi possivel conectar ao Firebase para iniciar a chamada.',
+        severity: AppStatusSeverity.critical,
+      );
       return null;
     }
 
     final canUse = await SessionRoleService.canUseActiveIdoso();
     if (!canUse) {
+      final activeIdosoId = await SessionRoleService.getActiveIdosoId();
+      final uid = FirebaseAuth.instance.currentUser?.uid ?? 'sem login';
+      lastStartFailureMessage =
+          'Vinculo nao validado. Idoso ativo: $activeIdosoId. Usuario Firebase: $uid.';
+      debugPrint('Chamada nao iniciada: $lastStartFailureMessage');
       AppStatusService.instance.report(
         id: 'video-call-invalid-session',
         title: 'Chamada indisponivel',
@@ -225,6 +259,14 @@ class VideoCallService {
       final supervisorId = await _getSupervisorId();
       if (supervisorId.isEmpty) {
         debugPrint('Chamada nao iniciada: nenhum supervisor vinculado.');
+        lastStartFailureMessage =
+            'Nenhum supervisor ativo foi encontrado para este idoso.';
+        AppStatusService.instance.report(
+          id: 'video-call-no-supervisor',
+          title: 'Cuidador nao encontrado',
+          message: 'O perfil do idoso nao tem um cuidador ativo vinculado.',
+          severity: AppStatusSeverity.critical,
+        );
         return null;
       }
 
@@ -235,7 +277,7 @@ class VideoCallService {
         'status': 'ringing',
         'initiatedBy': initiatedBy,
         'callType': callType,
-        'startedAt': FieldValue.serverTimestamp(),
+        'startedAt': DateTime.now().toIso8601String(),
       };
 
       await FirebaseFirestore.instance
@@ -252,6 +294,13 @@ class VideoCallService {
       );
     } catch (e) {
       debugPrint('Erro ao registrar chamada no Firestore: $e');
+      lastStartFailureMessage = 'Firestore recusou a chamada: $e';
+      AppStatusService.instance.report(
+        id: 'video-call-create-error',
+        title: 'Erro ao criar chamada',
+        message: 'O Firestore recusou ou nao conseguiu salvar a chamada. Verifique o vinculo e as regras publicadas.',
+        severity: AppStatusSeverity.critical,
+      );
       return null;
     }
 
@@ -355,7 +404,7 @@ class VideoCallService {
         .doc(callId)
         .update({
       'status': 'declined',
-      'endedAt': FieldValue.serverTimestamp(),
+      'endedAt': DateTime.now().toIso8601String(),
     });
     await _callSubscription?.cancel();
     activeCallNotifier.value = null;
@@ -366,7 +415,7 @@ class VideoCallService {
     if (!_useFirebase) return;
     final update = <String, dynamic>{
       'status': 'ended',
-      'endedAt': FieldValue.serverTimestamp(),
+      'endedAt': DateTime.now().toIso8601String(),
     };
     if (durationSeconds != null) {
       update['durationSeconds'] = durationSeconds;

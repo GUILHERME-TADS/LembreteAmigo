@@ -1265,6 +1265,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
           callStart.roomName,
           callType: callType,
           callId: callStart.callId,
+          alreadyVerified: true,
         );
       } else if (mounted) {
         final label = callType == 'voice' ? 'voz' : 'vídeo';

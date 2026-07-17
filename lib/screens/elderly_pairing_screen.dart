@@ -124,14 +124,15 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
           ? jsonDecode(jsonStr) as Map<String, dynamic>
           : <String, dynamic>{};
 
-      localPerfil.putIfAbsent('nome', () => 'Minha Conta');
-      localPerfil.putIfAbsent('dataNascimento', () => '');
-      localPerfil.putIfAbsent('telefone', () => '');
-      localPerfil.putIfAbsent('endereco', () => '');
-      localPerfil.putIfAbsent('fotoPath', () => null);
-      localPerfil['status'] = 'pending';
-      localPerfil['pairingCode'] = code;
-      localPerfil['pairingCodeExpires'] = DateTime.now().add(const Duration(hours: 2)).toIso8601String();
+      final pairingProfile = _sanitizePairingProfile(localPerfil);
+      pairingProfile.putIfAbsent('nome', () => 'Minha Conta');
+      pairingProfile.putIfAbsent('dataNascimento', () => '');
+      pairingProfile.putIfAbsent('telefone', () => '');
+      pairingProfile.putIfAbsent('endereco', () => '');
+      pairingProfile.putIfAbsent('fotoPath', () => null);
+      pairingProfile['status'] = 'pending';
+      pairingProfile['pairingCode'] = code;
+      pairingProfile['pairingCodeExpires'] = DateTime.now().add(const Duration(hours: 2)).toIso8601String();
 
       User? user = FirebaseAuth.instance.currentUser;
       if (user == null) {
@@ -143,11 +144,11 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
       await FirebaseFirestore.instance
           .collection('idoso_perfil')
           .doc(uid)
-          .set(localPerfil);
+          .set(pairingProfile);
       
       await prefs.setString('paired_idoso_id', uid);
       await prefs.setBool('elderly_autonomous_mode', true);
-      await prefs.setString('idoso_perfil', jsonEncode(localPerfil));
+      await prefs.setString('idoso_perfil', jsonEncode(pairingProfile));
 
       if (!mounted) return;
       setState(() {
@@ -217,6 +218,28 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
   Future<String> _generateUniquePairingCode() async {
     final random = math.Random.secure();
     return (100000 + random.nextInt(900000)).toString();
+  }
+
+  Map<String, dynamic> _sanitizePairingProfile(Map<String, dynamic> source) {
+    const allowedKeys = {
+      'nome',
+      'idade',
+      'telefone',
+      'ambulancia_telefone',
+      'dataNascimento',
+      'endereco',
+      'fotoPath',
+      'supervisorId',
+      'status',
+      'pairingCode',
+      'pairingCodeExpires',
+      'createdAt',
+      'updatedAt',
+    };
+    return {
+      for (final entry in source.entries)
+        if (allowedKeys.contains(entry.key)) entry.key: entry.value,
+    };
   }
 
   void _handleSuccess() async {

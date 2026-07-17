@@ -234,7 +234,8 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                     onTap: () {
                       final visualStatus = reminderVisualStatusFromLembrete(r);
                       if (visualStatus == ReminderStatus.postponed ||
-                          visualStatus == ReminderStatus.missed) {
+                          visualStatus == ReminderStatus.missed ||
+                          visualStatus == ReminderStatus.needsHelp) {
                         return;
                       }
                       _stopAllAudioAndTts();

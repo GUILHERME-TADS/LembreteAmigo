@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../models/video_call.dart';
 import '../services/session_role_service.dart';
@@ -14,6 +16,7 @@ class VideoCallHistoryScreen extends StatefulWidget {
 class _VideoCallHistoryScreenState extends State<VideoCallHistoryScreen> {
   List<VideoCall> _calls = [];
   bool _loading = true;
+  StreamSubscription<List<VideoCall>>? _callsSubscription;
 
   @override
   void initState() {
@@ -24,7 +27,8 @@ class _VideoCallHistoryScreenState extends State<VideoCallHistoryScreen> {
   Future<void> _load() async {
     try {
       final idosoId = await SessionRoleService.getActiveIdosoId();
-      VideoCallService.instance
+      await _callsSubscription?.cancel();
+      _callsSubscription = VideoCallService.instance
           .watchCallHistory(idosoId)
           .listen((calls) {
         if (mounted) {
@@ -39,6 +43,12 @@ class _VideoCallHistoryScreenState extends State<VideoCallHistoryScreen> {
     }
   }
 
+  @override
+  void dispose() {
+    _callsSubscription?.cancel();
+    super.dispose();
+  }
+
   Future<void> _startCall() async {
     final idosoId = await SessionRoleService.getActiveIdosoId();
     final call = await VideoCallService.instance.initiateCall(
@@ -50,6 +60,7 @@ class _VideoCallHistoryScreenState extends State<VideoCallHistoryScreen> {
         call.roomName,
         callType: 'video',
         callId: call.callId,
+        alreadyVerified: true,
       );
     }
   }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../models/lembrete.dart';
 import '../theme/app_theme.dart';
 
@@ -62,17 +63,36 @@ _StatusBadgeData _statusData(LembreteStatus status, {Color? accentColor}) {
       );
     case LembreteStatus.perdido:
       return const _StatusBadgeData(
-        label: 'NÃO DEU',
+        label: 'NAO FEITO',
         icon: Icons.cancel_outlined,
         foreground: AppColors.onError,
         background: AppColors.error,
       );
+    case LembreteStatus.precisaDeAjuda:
+      return const _StatusBadgeData(
+        label: 'PRECISA DE AJUDA',
+        icon: Icons.support_agent,
+        foreground: AppColors.onError,
+        background: AppColors.error,
+      );
     case LembreteStatus.concluido:
+      return const _StatusBadgeData(
+        label: 'PRONTO',
+        icon: Icons.check_circle,
+        foreground: AppColors.onTertiaryFixedVariant,
+        background: AppColors.tertiaryFixedDim,
+      );
     case LembreteStatus.concluidoComFoto:
+      return const _StatusBadgeData(
+        label: 'PRONTO COM FOTO',
+        icon: Icons.photo_camera,
+        foreground: AppColors.onTertiaryFixedVariant,
+        background: AppColors.tertiaryFixedDim,
+      );
     case LembreteStatus.confirmadoPeloCuidador:
       return const _StatusBadgeData(
-        label: 'PRONTO!',
-        icon: Icons.check_circle,
+        label: 'CONFIRMADO PELO CUIDADOR',
+        icon: Icons.verified,
         foreground: AppColors.onTertiaryFixedVariant,
         background: AppColors.tertiaryFixedDim,
       );

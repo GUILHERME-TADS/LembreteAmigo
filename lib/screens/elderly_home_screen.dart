@@ -196,6 +196,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     final isLembreteAtrasado =
         !l.concluido &&
         l.status != LembreteStatus.adiado &&
+        l.status != LembreteStatus.precisaDeAjuda &&
         remaining == 'Atrasado';
 
     final spokenTime = PeriodHelper.getSpokenTime(
@@ -620,6 +621,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
           callStart.roomName,
           callType: callType,
           callId: callStart.callId,
+          alreadyVerified: true,
         );
       } else if (mounted) {
         final label = callType == 'voice' ? 'voz' : 'vídeo';
@@ -1040,7 +1042,9 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
         : lembrete.status == LembreteStatus.adiado
         ? 'Mais tarde'
         : lembrete.status == LembreteStatus.perdido
-        ? 'Não deu'
+        ? 'Nao feito'
+        : lembrete.status == LembreteStatus.precisaDeAjuda
+        ? 'Precisa de ajuda'
         : isAtrasado
         ? 'Atrasado'
         : 'Falta fazer';
@@ -1051,6 +1055,8 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
         ? Icons.schedule
         : lembrete.status == LembreteStatus.perdido
         ? Icons.cancel_outlined
+        : lembrete.status == LembreteStatus.precisaDeAjuda
+        ? Icons.support_agent
         : isAtrasado
         ? Icons.priority_high
         : Icons.info_outline;
@@ -1060,14 +1066,18 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
               ? Colors.black
               : lembrete.status == LembreteStatus.adiado
               ? Colors.yellow
-              : (isAtrasado || lembrete.status == LembreteStatus.perdido)
+              : (isAtrasado ||
+                    lembrete.status == LembreteStatus.perdido ||
+                    lembrete.status == LembreteStatus.precisaDeAjuda)
               ? Colors.red
               : Colors.black)
         : (lembrete.concluido
               ? AppColors.tertiaryFixedDim
               : lembrete.status == LembreteStatus.adiado
               ? AppColors.secondaryFixed
-              : (isAtrasado || lembrete.status == LembreteStatus.perdido)
+              : (isAtrasado ||
+                    lembrete.status == LembreteStatus.perdido ||
+                    lembrete.status == LembreteStatus.precisaDeAjuda)
               ? AppColors.error
               : accentColor);
 
@@ -1079,7 +1089,9 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
               ? AppColors.onTertiaryFixedVariant
               : lembrete.status == LembreteStatus.adiado
               ? AppColors.onSecondaryFixedVariant
-              : (isAtrasado || lembrete.status == LembreteStatus.perdido)
+              : (isAtrasado ||
+                    lembrete.status == LembreteStatus.perdido ||
+                    lembrete.status == LembreteStatus.precisaDeAjuda)
               ? AppColors.onError
               : Colors.white);
 
@@ -1228,7 +1240,8 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                   ? Colors.yellow
                                   : AppColors.secondaryFixed)
                             : (isAtrasado ||
-                                  lembrete.status == LembreteStatus.perdido)
+                                  lembrete.status == LembreteStatus.perdido ||
+                                  lembrete.status == LembreteStatus.precisaDeAjuda)
                             ? (isHighContrast ? Colors.red : AppColors.error)
                             : (isHighContrast
                                   ? Colors.white
@@ -1244,7 +1257,9 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                     ? AppColors.onSecondaryFixedVariant
                                     : (isAtrasado ||
                                           lembrete.status ==
-                                              LembreteStatus.perdido)
+                                              LembreteStatus.perdido ||
+                                          lembrete.status ==
+                                              LembreteStatus.precisaDeAjuda)
                                     ? AppColors.onError
                                     : accentColor),
                           width: 3,
@@ -1254,12 +1269,15 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                           lembrete.concluido ||
                               lembrete.status == LembreteStatus.adiado ||
                               isAtrasado ||
-                              lembrete.status == LembreteStatus.perdido
+                              lembrete.status == LembreteStatus.perdido ||
+                              lembrete.status == LembreteStatus.precisaDeAjuda
                           ? Icon(
                               lembrete.concluido
                                   ? Icons.check
                                   : lembrete.status == LembreteStatus.adiado
                                   ? Icons.schedule
+                                  : lembrete.status == LembreteStatus.precisaDeAjuda
+                                  ? Icons.support_agent
                                   : lembrete.status == LembreteStatus.perdido
                                   ? Icons.close
                                   : Icons.priority_high,
@@ -1326,13 +1344,17 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
   String _statusText(Lembrete lembrete) {
     switch (lembrete.status) {
       case LembreteStatus.concluido:
+        return 'Pronto';
       case LembreteStatus.concluidoComFoto:
+        return 'Pronto com foto';
       case LembreteStatus.confirmadoPeloCuidador:
-        return 'Pronto!';
+        return 'Confirmado pelo cuidador';
       case LembreteStatus.adiado:
         return 'Mais tarde';
       case LembreteStatus.perdido:
-        return 'Não deu';
+        return 'Nao feito';
+      case LembreteStatus.precisaDeAjuda:
+        return 'Precisa de ajuda';
       case LembreteStatus.pendente:
         return lembrete.concluido ? 'Pronto!' : 'Falta fazer';
     }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../theme/app_theme.dart';
 import '../services/session_role_service.dart';
 import '../widgets/senior_button.dart';
@@ -57,6 +58,17 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
           email: email,
           password: password,
         );
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
+          await FirebaseFirestore.instance
+              .collection('supervisores')
+              .doc(user.uid)
+              .set({
+                'nome': user.displayName ?? 'Supervisor',
+                'email': user.email ?? email,
+                'updatedAt': DateTime.now().toIso8601String(),
+              }, SetOptions(merge: true));
+        }
         await SessionRoleService.setSupervisor();
         if (!mounted) return;
         Navigator.pushReplacementNamed(context, '/supervisor-dashboard');

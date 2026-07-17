@@ -25,9 +25,14 @@ service cloud.firestore {
 
     function isLinkedSupervisor(idosoId) {
       return isAuth() &&
-        exists(/databases/$(database)/documents/idoso_perfil/$(idosoId)) &&
-        get(/databases/$(database)/documents/idoso_perfil/$(idosoId)).data.supervisorId == request.auth.uid &&
-        get(/databases/$(database)/documents/idoso_perfil/$(idosoId)).data.status == 'active';
+        (
+          (
+            exists(/databases/$(database)/documents/idoso_perfil/$(idosoId)) &&
+            get(/databases/$(database)/documents/idoso_perfil/$(idosoId)).data.supervisorId == request.auth.uid &&
+            get(/databases/$(database)/documents/idoso_perfil/$(idosoId)).data.status == 'active'
+          ) ||
+          exists(/databases/$(database)/documents/supervisores/$(request.auth.uid)/idosos/$(idosoId))
+        );
     }
 
     function canAccessIdosoData(idosoId) {
@@ -95,6 +100,7 @@ service cloud.firestore {
         'concluido_com_foto',
         'adiado',
         'perdido',
+        'precisa_de_ajuda',
         'confirmado_pelo_cuidador'
       ];
     }
@@ -456,11 +462,15 @@ service cloud.firestore {
       allow write: if isOwner(idosoId) &&
         request.resource.data.keys().hasOnly([
           'barriers',
+          'criticalCount',
+          'warningCount',
           'batteryLevel',
           'batteryState',
           'updatedAt'
         ]) &&
         isOptionalList(request.resource.data, 'barriers', 20) &&
+        isOptionalInt(request.resource.data, 'criticalCount', 0, 20) &&
+        isOptionalInt(request.resource.data, 'warningCount', 0, 20) &&
         isOptionalInt(request.resource.data, 'batteryLevel', 0, 100) &&
         isOptionalString(request.resource.data, 'batteryState', 40) &&
         isOptionalIsoStringOrTimestamp(request.resource.data, 'updatedAt');

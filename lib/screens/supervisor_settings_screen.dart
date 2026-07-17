@@ -171,7 +171,7 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
         await FirebaseFirestore.instance
             .collection('supervisores')
             .doc(uid)
-            .update({'fotoPath': FieldValue.delete()});
+            .set({'fotoPath': null}, SetOptions(merge: true));
         
         try {
           final ref = FirebaseStorage.instance

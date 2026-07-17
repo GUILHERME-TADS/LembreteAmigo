@@ -1,6 +1,6 @@
 import '../models/lembrete.dart';
 
-enum ReminderStatus { done, late, scheduled, postponed, missed }
+enum ReminderStatus { done, doneWithPhoto, caregiverConfirmed, late, scheduled, postponed, missed, needsHelp }
 
 class ReminderStateHelper {
   static bool isActiveToday(Lembrete lembrete, {DateTime? now}) =>
@@ -30,10 +30,14 @@ class ReminderStateHelper {
         return ReminderStatus.postponed;
       case LembreteStatus.perdido:
         return ReminderStatus.missed;
+      case LembreteStatus.precisaDeAjuda:
+        return ReminderStatus.needsHelp;
       case LembreteStatus.concluido:
-      case LembreteStatus.concluidoComFoto:
-      case LembreteStatus.confirmadoPeloCuidador:
         return ReminderStatus.done;
+      case LembreteStatus.concluidoComFoto:
+        return ReminderStatus.doneWithPhoto;
+      case LembreteStatus.confirmadoPeloCuidador:
+        return ReminderStatus.caregiverConfirmed;
       case LembreteStatus.pendente:
         return ReminderStatus.scheduled;
     }

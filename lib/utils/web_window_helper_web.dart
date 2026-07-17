@@ -7,6 +7,15 @@ Timer? _popupTimer;
 void openJitsiWeb(String url, String? callId, Function(String) endCall) {
   closeJitsiWeb(); // Close any existing popup first
   final popup = html.window.open(url, '_blank');
+  if (popup == null) {
+    if (callId != null) {
+      endCall(callId);
+    }
+    html.window.alert(
+      'O navegador bloqueou a janela da chamada. Permita pop-ups para este site e tente novamente.',
+    );
+    return;
+  }
   _activePopup = popup;
   
   if (callId != null) {

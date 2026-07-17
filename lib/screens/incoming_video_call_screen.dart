@@ -31,6 +31,7 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen> {
   String _callerName = '';
   Timer? _vibrateTimer;
   bool _accepted = false;
+  bool _leaving = false;
 
   @override
   void initState() {
@@ -54,9 +55,25 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen> {
         activeCall.status == VideoCallStatus.declined) {
       _vibrateTimer?.cancel();
       if (mounted && !_accepted) {
-        Navigator.of(context).pop();
+        _leaveIncomingScreen();
       }
     }
+  }
+
+  void _leaveIncomingScreen() {
+    if (!mounted || _leaving) return;
+    _leaving = true;
+
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) {
+      navigator.pop();
+      return;
+    }
+
+    final fallbackRoute = SessionRoleService.isSupervisor
+        ? '/supervisor-dashboard'
+        : '/elderly-home';
+    navigator.pushNamedAndRemoveUntil(fallbackRoute, (route) => false);
   }
 
   @override
@@ -149,18 +166,19 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen> {
     setState(() => _accepted = true);
     await VideoCallService.instance.acceptCall(widget.callId);
     if (!mounted) return;
-    Navigator.pop(context);
+    _leaveIncomingScreen();
     await VideoCallService.instance.joinCall(
       widget.roomName,
       callType: widget.callType,
       callId: widget.callId,
+      alreadyVerified: true,
     );
   }
 
   Future<void> _decline() async {
     _vibrateTimer?.cancel();
     await VideoCallService.instance.declineCall(widget.callId);
-    if (mounted) Navigator.pop(context);
+    _leaveIncomingScreen();
   }
 
   @override

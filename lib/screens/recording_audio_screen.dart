@@ -570,6 +570,10 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      floatingActionButton: const AlexFloatingHelpButton(
+        textoExplicacao:
+            'Olá! Esta é a tela para criar tarefas com a voz. Aperte no rosto do Alex no meio e fale a sua tarefa e o horário. Depois, confirme se a gravação ficou certa.',
+      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -597,10 +601,6 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
                   ),
                   const SizedBox(width: 48),
                 ],
-              ),
-              const SizedBox(height: 12),
-              const MeExplicaButton(
-                textoExplicacao: 'Olá! Esta é a tela para criar tarefas com a voz. Aperte no rosto do Alex no meio e fale a sua tarefa e o horário. Depois, confirme se a gravação ficou certa.',
               ),
               const SizedBox(height: 12),
               Expanded(

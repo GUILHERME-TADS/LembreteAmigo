@@ -29,6 +29,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
   bool _notFound = false;
   bool _isSpeakingLoopActive = false;
   bool _isLoopPaused = false;
+  bool _isFetchingReminder = false;
   final stt.SpeechToText _speech = stt.SpeechToText();
   final AudioPlayer _familyAudioPlayer = AudioPlayer();
   bool _isListeningForCommand = false;
@@ -42,19 +43,31 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     LembreteService.instance.carregar();
-    LembreteService.instance.notifier.addListener(_buscarLembrete);
+    LembreteService.instance.notifier.addListener(_onLembretesChanged);
   }
 
-  void _buscarLembrete() {
+  void _onLembretesChanged() {
+    unawaited(_buscarLembrete());
+  }
+
+  Future<void> _buscarLembrete() async {
     if (_lembreteId == null) return;
+    final id = _lembreteId!;
     try {
       final match = LembreteService.instance.lembretes.where(
-        (item) => item.id == _lembreteId,
+        (item) => item.id == id,
       );
       if (match.isEmpty) {
-        if (LembreteService.instance.lembretes.isNotEmpty && mounted) {
+        if (_isFetchingReminder) return;
+        _isFetchingReminder = true;
+        final fetched = await LembreteService.instance.buscarPorId(id);
+        _isFetchingReminder = false;
+        if (!mounted || _lembreteId != id) return;
+        if (fetched == null) {
           setState(() => _notFound = true);
+          return;
         }
+        _setActiveReminder(fetched);
         return;
       }
 
@@ -73,18 +86,24 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
         return;
       }
 
-      setState(() {
-        lembrete = l;
-        _notFound = false;
-      });
-      if (!_isSpeakingLoopActive) {
-        _startReminderLoop(l);
-      }
+      _setActiveReminder(l);
     } catch (e) {
       debugPrint('Erro ao buscar lembrete no ActiveReminderScreen: $e');
-      if (LembreteService.instance.lembretes.isNotEmpty && mounted) {
+      _isFetchingReminder = false;
+      if (mounted) {
         setState(() => _notFound = true);
       }
+    }
+  }
+
+  void _setActiveReminder(Lembrete l) {
+    if (!mounted) return;
+    setState(() {
+      lembrete = l;
+      _notFound = false;
+    });
+    if (!_isSpeakingLoopActive) {
+      _startReminderLoop(l);
     }
   }
 
@@ -236,7 +255,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
       }
     } else if (args is String) {
       _lembreteId = args;
-      _buscarLembrete();
+      unawaited(_buscarLembrete());
     } else if (!_notFound) {
       setState(() => _notFound = true);
     }
@@ -526,7 +545,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
     VibrationService.stopVibration();
     _familyAudioPlayer.dispose();
     _speech.stop();
-    LembreteService.instance.notifier.removeListener(_buscarLembrete);
+    LembreteService.instance.notifier.removeListener(_onLembretesChanged);
     TTSService.instance.parar(caller: this);
     super.dispose();
   }
@@ -677,6 +696,10 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
       },
       child: Scaffold(
         backgroundColor: isHighContrast ? Colors.white : AppColors.background,
+        floatingActionButton: const AlexFloatingHelpButton(
+          textoExplicacao:
+              'Esta tela mostra o que você precisa fazer agora. Aperte JA FIZ quando terminar. Aperte DAQUI A POUCO para lembrar depois. Aperte PRECISO DE AJUDA se não conseguir.',
+        ),
         body: SafeArea(
           child: Column(
             children: [
@@ -703,12 +726,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                 color: isHighContrast ? Colors.black : AppColors.onSurfaceVariant,
                               ),
                             ),
-                            const SizedBox(height: 16),
-                            const MeExplicaButton(
-                              textoExplicacao:
-                                  'Esta tela mostra o que você precisa fazer agora. Aperte JA FIZ quando terminar. Aperte DAQUI A POUCO para lembrar depois. Aperte PRECISO DE AJUDA se não conseguir.',
-                            ),
-                            const SizedBox(height: 24),
+                             const SizedBox(height: 24),
                             _buildPulsingMedication(
                               categoryIcon,
                               isHighContrast ? Colors.black : iconColor,

@@ -7,9 +7,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../theme/app_theme.dart';
 import '../services/session_role_service.dart';
 import '../services/tts_service.dart';
-import '../widgets/senior_button.dart';
-import '../widgets/volume_warning_banner.dart';
-import '../widgets/me_explica_button.dart';
+import '../widgets/index.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -480,11 +478,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   color: AppColors.primary,
                 ),
               ),
-              SizedBox(height: 6),
-              MeExplicaButton(
-                textoExplicacao:
-                    'Olá! Aqui você altera as suas informações, como seu nome completo, sua data de nascimento, seu telefone e seu endereço. Quando terminar, aperte o botão salvar perfil no final.',
-              ),
             ],
           ),
           const Spacer(),
@@ -575,6 +568,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      floatingActionButton: const AlexFloatingHelpButton(
+        textoExplicacao:
+            'Olá! Aqui você altera as suas informações, como seu nome completo, sua data de nascimento, seu telefone e seu endereço. Quando terminar, aperte o botão salvar perfil no final.',
+      ),
       body: SafeArea(
         child: Column(
           children: [

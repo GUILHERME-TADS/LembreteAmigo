@@ -329,6 +329,11 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      floatingActionButton: AlexFloatingHelpButton(
+        textoExplicacao:
+            'Olá! Esta é a tela com todas as suas tarefas de hoje, organizadas do horário mais cedo para o mais tarde.',
+        onTapped: _stopAllAudioAndTts,
+      ),
       bottomNavigationBar: _buildBottomNav(context),
       body: SafeArea(
         child: Column(
@@ -835,20 +840,14 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
           const Spacer(),
           Column(
             mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
+            children: const [
+              Text(
                 'Todos os Lembretes',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.w700,
                   color: AppColors.primary,
                 ),
-              ),
-              const SizedBox(height: 6),
-              MeExplicaButton(
-                textoExplicacao:
-                    'Olá! Esta é a tela com todas as suas tarefas de hoje, organizadas do horário mais cedo para o mais tarde.',
-                onTapped: _stopAllAudioAndTts,
               ),
             ],
           ),

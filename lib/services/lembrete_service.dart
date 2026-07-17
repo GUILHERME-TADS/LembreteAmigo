@@ -504,6 +504,18 @@ class LembreteService {
     }
   }
 
+  Future<Lembrete?> buscarPorId(String id) async {
+    if (id.isEmpty) return null;
+
+    await carregar();
+    final lembrete = await _findLocalOrRemote(id);
+    if (lembrete == null) return null;
+
+    _upsertLocal(lembrete);
+    await _salvar();
+    return lembrete;
+  }
+
   Future<void> _registrarEvento(
     Lembrete lembrete,
     LembreteStatus status, {

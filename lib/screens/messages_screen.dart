@@ -384,6 +384,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFEFEAE2),
+      floatingActionButton: !_isSupervisor
+          ? const AlexFloatingHelpButton(
+              textoExplicacao:
+                  'Olá! Esta é a tela de mensagens. Aqui você pode ler ou ouvir os recados do seu cuidador, digitar mensagens ou mandar áudios segurando o microfone.',
+            )
+          : null,
       body: SafeArea(
         child: Column(
           children: [
@@ -479,16 +485,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
               ],
             ),
           ),
-          if (!_isSupervisor) ...[
-            const SizedBox(width: 8),
-            MeExplicaButton(
-              textoExplicacao:
-                  'Olá! Esta é a tela de mensagens. Aqui você pode ler ou ouvir os recados do seu cuidador, digitar mensagens ou mandar áudios segurando o microfone.',
-              textColor: Colors.white,
-              backgroundColor: Colors.white24,
-              borderColor: Colors.white30,
-            ),
-          ]
+
         ],
       ),
     );

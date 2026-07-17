@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -626,11 +626,6 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                   color: AppColors.primary,
                 ),
               ),
-              SizedBox(height: 6),
-              MeExplicaButton(
-                textoExplicacao:
-                    'Olá! Esta é a tela com as suas informações. Aqui você vê o seu nome e telefone. Para mudar sua foto, aperte em cima do círculo da foto. Para mudar seu nome ou se conectar com um ajudante, use os botões da lista abaixo.',
-              ),
             ],
           ),
           const Spacer(),
@@ -652,6 +647,10 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      floatingActionButton: const AlexFloatingHelpButton(
+        textoExplicacao:
+            'Olá! Esta é a tela com as suas informações. Aqui você vê o seu nome e telefone. Para mudar sua foto, aperte em cima do círculo da foto. Para mudar seu nome ou se conectar com um ajudante, use os botões da lista abaixo.',
+      ),
       body: SafeArea(
         child: Column(
           children: [

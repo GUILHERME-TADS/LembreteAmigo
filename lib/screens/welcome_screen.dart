@@ -35,6 +35,12 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      floatingActionButton: !SessionRoleService.isSupervisor
+          ? const AlexFloatingHelpButton(
+              textoExplicacao:
+                  'Olá! Esta é a tela para começar a usar o aplicativo. Por favor, aperte no botão amarelo de cima se você for o idoso, ou no botão de baixo se você for o supervisor ou ajudante.',
+            )
+          : null,
       body: SafeArea(
         child: Column(
           children: [
@@ -90,10 +96,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                             ),
                           ),
                           if (!SessionRoleService.isSupervisor) ...[
-                            const SizedBox(height: 12),
-                            const MeExplicaButton(
-                              textoExplicacao: 'Olá! Esta é a tela para começar a usar o aplicativo. Por favor, aperte no botão amarelo de cima se você for o idoso, ou no botão de baixo se você for o supervisor ou ajudante.',
-                            ),
                             const SizedBox(height: 32),
                           ] else ...[
                             const SizedBox(height: 20),

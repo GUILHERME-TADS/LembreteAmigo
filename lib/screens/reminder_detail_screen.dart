@@ -4,8 +4,7 @@ import '../models/lembrete.dart';
 import '../services/lembrete_service.dart';
 import '../services/tts_service.dart';
 import '../utils/period_helper.dart';
-import '../widgets/volume_warning_banner.dart';
-import '../widgets/me_explica_button.dart';
+import '../widgets/index.dart';
 
 class ReminderDetailScreen extends StatefulWidget {
   const ReminderDetailScreen({super.key});
@@ -110,6 +109,9 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      floatingActionButton: AlexFloatingHelpButton(
+        textoExplicacao: cfg.detailedExplanation,
+      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -142,10 +144,6 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
                         height: 1.5,
                         color: AppColors.onSurfaceVariant,
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    MeExplicaButton(
-                      textoExplicacao: cfg.detailedExplanation,
                     ),
                     const SizedBox(height: 48),
                     SizedBox(

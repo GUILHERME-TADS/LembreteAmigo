@@ -146,8 +146,11 @@ class _VoiceSettingsScreenState extends State<VoiceSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      floatingActionButton: const AlexFloatingHelpButton(
+        textoExplicacao:
+            'Olá! Esta é a tela de voz do Alex. Aqui você pode regular a velocidade em que ele fala. Arraste a barra para o lado esquerdo se quiser que ele fale mais devagar, ou para o lado direito se quiser que fale mais rápido. Toque no botão de "Testar Voz" para ouvir como ficou e depois aperte em "Salvar" quando terminar.',
+      ),
       appBar: AppBar(
-        toolbarHeight: 120,
         centerTitle: true,
         leading: IconButton(
           onPressed: () {
@@ -160,17 +163,7 @@ class _VoiceSettingsScreenState extends State<VoiceSettingsScreen> {
             size: 36,
           ),
         ),
-        title: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: const [
-            Text('Voz do Alex'),
-            SizedBox(height: 6),
-            MeExplicaButton(
-              textoExplicacao:
-                  'Olá! Esta é a tela de voz do Alex. Aqui você pode regular a velocidade em que ele fala. Arraste a barra para o lado esquerdo se quiser que ele fale mais devagar, ou para o lado direito se quiser que fale mais rápido. Toque no botão de "Testar Voz" para ouvir como ficou e depois aperte em "Salvar" quando terminar.',
-            ),
-          ],
-        ),
+        title: const Text('Voz do Alex'),
       ),
       body: SafeArea(
         child: ListView(

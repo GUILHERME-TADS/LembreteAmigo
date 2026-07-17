@@ -503,6 +503,10 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      floatingActionButton: const AlexFloatingHelpButton(
+        textoExplicacao:
+            'Olá! Esta é a tela para pedir ajuda. Aqui você pode ligar para quem cuida de você apertando o grande botão amarelo com a foto de quem cuida de você, mandar um recado de voz, ver recados, fazer uma chamada de vídeo, ligar para a ambulância ou enviar sua localização.',
+      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -540,19 +544,14 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
           const Spacer(),
           Column(
             mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
+            children: const [
+              Text(
                 'Pedir ajuda',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.w700,
                   color: AppColors.primary,
                 ),
-              ),
-              const SizedBox(height: 6),
-              const MeExplicaButton(
-                textoExplicacao:
-                    'Olá! Esta é a tela para pedir ajuda. Aqui você pode ligar para quem cuida de você apertando o grande botão amarelo com a foto de quem cuida de você, mandar um recado de voz, ver recados, fazer uma chamada de vídeo, ligar para a ambulância ou enviar sua localização.',
               ),
             ],
           ),

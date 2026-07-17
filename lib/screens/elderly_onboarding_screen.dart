@@ -73,6 +73,10 @@ class _ElderlyOnboardingScreenState extends State<ElderlyOnboardingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      floatingActionButton: AlexFloatingHelpButton(
+        key: ValueKey(_currentPage),
+        textoExplicacao: _steps[_currentPage].ttsMessage,
+      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -155,11 +159,8 @@ class _ElderlyOnboardingScreenState extends State<ElderlyOnboardingScreen> {
                             color: AppColors.onSurfaceVariant,
                           ),
                         ),
-                        const SizedBox(height: 20),
-                        MeExplicaButton(
-                          textoExplicacao: step.ttsMessage,
-                        ),
-                        const Spacer(flex: 2),
+                          const SizedBox(height: 20),
+                          const Spacer(flex: 2),
                       ],
                     ),
                   );

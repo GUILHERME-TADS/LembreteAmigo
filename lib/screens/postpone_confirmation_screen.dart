@@ -161,6 +161,9 @@ class _PostponeConfirmationScreenState extends State<PostponeConfirmationScreen>
       },
       child: Scaffold(
         backgroundColor: Colors.transparent,
+        floatingActionButton: AlexFloatingHelpButton(
+          textoExplicacao: cfg.detailedExplanation,
+        ),
         body: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -194,10 +197,6 @@ class _PostponeConfirmationScreenState extends State<PostponeConfirmationScreen>
                                   letterSpacing: 2,
                                   color: AppColors.onSurfaceVariant,
                                 ),
-                              ),
-                              const SizedBox(height: 16),
-                              MeExplicaButton(
-                                textoExplicacao: cfg.detailedExplanation,
                               ),
                               const SizedBox(height: 24),
                               _buildPulsingIcon(cfg.icon, cfg.color),

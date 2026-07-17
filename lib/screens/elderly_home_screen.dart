@@ -1764,6 +1764,11 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
       children: [
         Scaffold(
           backgroundColor: bgColor,
+          floatingActionButton: AlexFloatingHelpButton(
+            textoExplicacao:
+                'Olá! Esta é a tela do seu dia. Aqui você vê as tarefas de tomar remédios, beber água, comer ou fazer exercícios. Para falar com o ajudante Alex, aperte o grande círculo azul no meio da tela e fale o que precisa.',
+            onTapped: _stopAllAudioAndTts,
+          ),
           body: SafeArea(
             child: Column(
               children: [
@@ -1833,12 +1838,6 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                     fontWeight: FontWeight.w700,
                     color: AppColors.primary,
                   ),
-                ),
-                const SizedBox(height: 6),
-                MeExplicaButton(
-                  textoExplicacao:
-                      'Olá! Esta é a tela do seu dia. Aqui você vê as tarefas de tomar remédios, beber água, comer ou fazer exercícios. Para falar com o ajudante Alex, aperte o grande círculo azul no meio da tela e fale o que precisa.',
-                  onTapped: _stopAllAudioAndTts,
                 ),
               ],
             ),

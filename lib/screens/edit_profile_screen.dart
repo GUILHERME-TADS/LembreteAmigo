@@ -168,7 +168,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
 
       // 2. Se o Firebase estiver ativo, tenta sincronizar e atualizar com o banco remoto
-      if (_useFirebase) {
+      if (_useFirebase && !SessionRoleService.isLocalOnlyIdosoId(idosoId)) {
         try {
           final docPerfil = await FirebaseFirestore.instance
               .collection('idoso_perfil')
@@ -227,6 +227,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Future<String?> _resolveEditableIdosoId() async {
     await SessionRoleService.load();
     final idosoId = await SessionRoleService.getActiveIdosoId();
+    final prefs = await SharedPreferences.getInstance();
 
     if (SessionRoleService.isSupervisor) {
       final isConnected = await SessionRoleService.isSupervisorConnected();
@@ -248,6 +249,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
 
     if (SessionRoleService.isLocalOnlyIdosoId(idosoId)) {
+      final hasLocalProfile = prefs.getString('idoso_perfil') != null;
+      if (SessionRoleService.isElderly && hasLocalProfile) {
+        _activeIdosoId = idosoId;
+        return idosoId;
+      }
+
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -374,7 +381,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       } catch (_) {}
     }
 
-    if (_useFirebase) {
+    if (_useFirebase && !SessionRoleService.isLocalOnlyIdosoId(idosoId)) {
       try {
         final docPerfil = await FirebaseFirestore.instance
             .collection('idoso_perfil')
@@ -405,7 +412,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       await prefs.setString('idoso_perfil', jsonEncode(perfil));
 
       // Salva no Firebase de forma confiável
-      if (_useFirebase) {
+      if (_useFirebase && !SessionRoleService.isLocalOnlyIdosoId(idosoId)) {
         try {
           await FirebaseFirestore.instance
               .collection('idoso_perfil')

@@ -873,57 +873,79 @@ class _AppStartupState extends State<_AppStartup> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (widget.pendingPayload != null) {
-        navigatorKey.currentState?.pushNamed(
-          '/active-reminder',
-          arguments: widget.pendingPayload,
-        );
-        return;
-      }
-
       await SessionRoleService.load();
       if (!mounted) return;
 
-      WidgetService.instance.atualizar();
-
-      if (SessionRoleService.isElderly) {
-        final prefs = await SharedPreferences.getInstance();
-        final pairedIdosoId = prefs.getString('paired_idoso_id');
-        if (pairedIdosoId != null) {
-          final isPaired =
-              await SessionRoleService.isElderlyConnectedToSupervisor();
-          navigatorKey.currentState?.pushNamedAndRemoveUntil(
-            '/elderly-home',
-            (route) => false,
-            arguments: {'connected': isPaired},
-          );
-        } else {
-          navigatorKey.currentState?.pushNamedAndRemoveUntil(
-            '/elderly-onboarding',
-            (route) => false,
-          );
-        }
-        return;
-      } else if (SessionRoleService.isSupervisor) {
-        if (hasSupervisorAuthSession()) {
-          navigatorKey.currentState?.pushNamedAndRemoveUntil(
-            '/supervisor-dashboard',
-            (route) => false,
-          );
-        } else {
-          navigatorKey.currentState?.pushNamedAndRemoveUntil(
-            '/supervisor-login',
-            (route) => false,
-          );
-        }
+      if (await _openPendingReminderIfAvailable()) {
         return;
       }
 
-      navigatorKey.currentState?.pushNamedAndRemoveUntil(
-        '/welcome',
-        (route) => false,
-      );
+      await _continueStartup();
     });
+  }
+
+  Future<bool> _openPendingReminderIfAvailable() async {
+    final pendingPayload = widget.pendingPayload;
+    if (pendingPayload == null || pendingPayload.isEmpty) return false;
+
+    try {
+      await LembreteService.instance.carregar();
+      final lembrete = await LembreteService.instance.buscarPorId(pendingPayload);
+      if (!mounted || lembrete == null || lembrete.concluido) {
+        return false;
+      }
+
+      navigatorKey.currentState?.pushNamed(
+        '/active-reminder',
+        arguments: lembrete,
+      );
+      return true;
+    } catch (e) {
+      debugPrint('Payload de notificacao ignorado na inicializacao: $e');
+      return false;
+    }
+  }
+
+  Future<void> _continueStartup() async {
+    WidgetService.instance.atualizar();
+
+    if (SessionRoleService.isElderly) {
+      final prefs = await SharedPreferences.getInstance();
+      final pairedIdosoId = prefs.getString('paired_idoso_id');
+      if (pairedIdosoId != null) {
+        final isPaired =
+            await SessionRoleService.isElderlyConnectedToSupervisor();
+        navigatorKey.currentState?.pushNamedAndRemoveUntil(
+          '/elderly-home',
+          (route) => false,
+          arguments: {'connected': isPaired},
+        );
+      } else {
+        navigatorKey.currentState?.pushNamedAndRemoveUntil(
+          '/elderly-onboarding',
+          (route) => false,
+        );
+      }
+      return;
+    } else if (SessionRoleService.isSupervisor) {
+      if (hasSupervisorAuthSession()) {
+        navigatorKey.currentState?.pushNamedAndRemoveUntil(
+          '/supervisor-dashboard',
+          (route) => false,
+        );
+      } else {
+        navigatorKey.currentState?.pushNamedAndRemoveUntil(
+          '/supervisor-login',
+          (route) => false,
+        );
+      }
+      return;
+    }
+
+    navigatorKey.currentState?.pushNamedAndRemoveUntil(
+      '/welcome',
+      (route) => false,
+    );
   }
 
   @override

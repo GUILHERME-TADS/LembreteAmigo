@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../services/tts_service.dart';
 import '../theme/app_theme.dart';
@@ -7,12 +8,14 @@ class AlexAvatar extends StatefulWidget {
   final bool isListening;
   final double size;
   final bool animate;
+  final Object? activeCaller;
 
   const AlexAvatar({
     super.key,
     this.isListening = false,
     this.size = 120.0,
     this.animate = true,
+    this.activeCaller,
   });
 
   @override
@@ -21,9 +24,8 @@ class AlexAvatar extends StatefulWidget {
 
 class _AlexAvatarState extends State<AlexAvatar> with TickerProviderStateMixin {
   late AnimationController _animationController;
-  late AnimationController _idlePulseController;
-  late Animation<double> _scaleAnimation;
-  Timer? _idleTimer;
+  Timer? _blinkTimer;
+  bool _isBlinking = false;
 
   @override
   void initState() {
@@ -32,73 +34,60 @@ class _AlexAvatarState extends State<AlexAvatar> with TickerProviderStateMixin {
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
-    _idlePulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.08).animate(
-      CurvedAnimation(
-        parent: _idlePulseController,
-        curve: Curves.easeInOut,
-      ),
-    );
 
     if (widget.animate) {
       TTSService.instance.speakingNotifier.addListener(_onSpeakingChanged);
     }
     
-    if ((widget.animate && TTSService.instance.isSpeaking) || widget.isListening) {
-      _stopIdlePulsing();
-    } else {
-      _startIdleTimer();
+    final bool initialSpeaking = _shouldAnimateSpeaking(TTSService.instance.isSpeaking);
+
+    if (widget.animate && initialSpeaking) {
+      _animationController.repeat(reverse: true);
     }
 
-    if (widget.animate && TTSService.instance.isSpeaking) {
-      _animationController.repeat(reverse: true);
+    _startBlinkingTimer();
+  }
+
+  bool _shouldAnimateSpeaking(bool isGlobalSpeaking) {
+    if (!widget.animate || !isGlobalSpeaking) return false;
+    final activeCaller = TTSService.instance.activeCaller;
+    if (activeCaller == null) return true;
+
+    if (widget.activeCaller != null) {
+      return activeCaller == widget.activeCaller;
+    } else {
+      final callerType = activeCaller.runtimeType.toString();
+      return !callerType.contains('AlexFloatingHelpButton');
     }
   }
 
-  void _startIdleTimer() {
-    _idleTimer?.cancel();
-    _idleTimer = Timer(const Duration(seconds: 7), () {
-      if (mounted && !widget.isListening && !TTSService.instance.isSpeaking) {
-        _idlePulseController.repeat(reverse: true);
+  void _startBlinkingTimer() {
+    _blinkTimer?.cancel();
+    _blinkTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
+      final isSpeaking = _shouldAnimateSpeaking(TTSService.instance.isSpeaking);
+      if (mounted && !widget.isListening && !isSpeaking) {
+        setState(() {
+          _isBlinking = true;
+        });
+        Timer(const Duration(milliseconds: 150), () {
+          if (mounted) {
+            setState(() {
+              _isBlinking = false;
+            });
+          }
+        });
       }
     });
   }
 
-  void _stopIdlePulsing() {
-    _idleTimer?.cancel();
-    if (_idlePulseController.isAnimating) {
-      _idlePulseController.stop();
-      _idlePulseController.reset();
-    }
-  }
-
-  @override
-  void didUpdateWidget(AlexAvatar oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.isListening != oldWidget.isListening) {
-      if (widget.isListening) {
-        _stopIdlePulsing();
-      } else {
-        _startIdleTimer();
-      }
-    }
-  }
-
   void _onSpeakingChanged() {
     if (mounted) {
-      final isSpeaking = TTSService.instance.isSpeaking;
+      final isSpeaking = _shouldAnimateSpeaking(TTSService.instance.isSpeaking);
       if (isSpeaking) {
         _animationController.repeat(reverse: true);
-        _stopIdlePulsing();
       } else {
         _animationController.stop();
         _animationController.reset();
-        if (!widget.isListening) {
-          _startIdleTimer();
-        }
       }
     }
   }
@@ -108,9 +97,8 @@ class _AlexAvatarState extends State<AlexAvatar> with TickerProviderStateMixin {
     if (widget.animate) {
       TTSService.instance.speakingNotifier.removeListener(_onSpeakingChanged);
     }
-    _idleTimer?.cancel();
+    _blinkTimer?.cancel();
     _animationController.dispose();
-    _idlePulseController.dispose();
     super.dispose();
   }
 
@@ -131,15 +119,13 @@ class _AlexAvatarState extends State<AlexAvatar> with TickerProviderStateMixin {
     return ValueListenableBuilder<bool>(
       valueListenable: TTSService.instance.speakingNotifier,
       builder: (context, isSpeakingVal, _) {
-        final bool isSpeaking = widget.animate && isSpeakingVal;
+        final bool isSpeaking = _shouldAnimateSpeaking(isSpeakingVal);
         final borderColor = _getBorderColor(isSpeaking);
         final bool isActiveState = widget.isListening || isSpeaking;
 
-        return ScaleTransition(
-          scale: _scaleAnimation,
-          child: SizedBox(
-            width: size,
-            height: size,
+        return SizedBox(
+          width: size,
+          height: size,
             child: Stack(
               clipBehavior: Clip.none,
               alignment: Alignment.center,
@@ -249,6 +235,12 @@ class _AlexAvatarState extends State<AlexAvatar> with TickerProviderStateMixin {
                         width: size * 0.05,
                       ),
                       boxShadow: [
+                        // Thin dark outline to increase contrast of the status border
+                        BoxShadow(
+                          color: const Color(0xFF0F1A2C),
+                          spreadRadius: 1.5,
+                          blurRadius: 0,
+                        ),
                         BoxShadow(
                           color: widget.isListening
                               ? const Color(0xFF0061A4).withValues(alpha: 0.35)
@@ -410,15 +402,59 @@ class _AlexAvatarState extends State<AlexAvatar> with TickerProviderStateMixin {
                       ),
                     ),
                 ],
+                // 5. Ondas sonoras laterais (Somente quando falante)
+                if (isSpeaking) ...[
+                  // Ondas do lado esquerdo
+                  Positioned(
+                    left: -size * 0.16,
+                    top: size * 0.38,
+                    child: AnimatedBuilder(
+                      animation: _animationController,
+                      builder: (context, child) {
+                        return _SoundwaveBars(
+                          size: size,
+                          animationValue: _animationController.value,
+                          color: borderColor,
+                          isLeft: true,
+                        );
+                      },
+                    ),
+                  ),
+                  // Ondas do lado direito
+                  Positioned(
+                    right: -size * 0.16,
+                    top: size * 0.38,
+                    child: AnimatedBuilder(
+                      animation: _animationController,
+                      builder: (context, child) {
+                        return _SoundwaveBars(
+                          size: size,
+                          animationValue: _animationController.value,
+                          color: borderColor,
+                          isLeft: false,
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ],
             ),
-          ),
-        );
-      },
+          );
+        },
     );
   }
 
   Widget _buildEye(bool isSpeaking, bool isListening, double size) {
+    if (_isBlinking && !isSpeaking && !isListening) {
+      return CustomPaint(
+        size: Size(size * 0.09, size * 0.02),
+        painter: _BlinkEyePainter(
+          color: const Color(0xFF0F1A2C),
+          strokeWidth: size * 0.022,
+        ),
+      );
+    }
+
     if (isListening) {
       return Container(
         width: size * 0.09,
@@ -627,4 +663,72 @@ class _MicArmPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
+
+class _BlinkEyePainter extends CustomPainter {
+  final Color color;
+  final double strokeWidth;
+
+  _BlinkEyePainter({required this.color, required this.strokeWidth});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawLine(
+      Offset(0, size.height / 2),
+      Offset(size.width, size.height / 2),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _SoundwaveBars extends StatelessWidget {
+  final double size;
+  final double animationValue;
+  final Color color;
+  final bool isLeft;
+
+  const _SoundwaveBars({
+    required this.size,
+    required this.animationValue,
+    required this.color,
+    required this.isLeft,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const barCount = 3;
+    final double barWidth = size * 0.025;
+    final double maxBarHeight = size * 0.25;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: List.generate(barCount, (index) {
+        // Calculate height with phase offset based on index
+        final double angle = animationValue * 2 * math.pi;
+        final double phase = index * (math.pi / 3);
+        final double factor = (0.2 + 0.8 * math.sin(angle + phase).abs());
+        final double barHeight = maxBarHeight * factor;
+
+        return Container(
+          width: barWidth,
+          height: barHeight,
+          margin: EdgeInsets.symmetric(horizontal: size * 0.008),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(barWidth / 2),
+          ),
+        );
+      }),
+    );
+  }
 }

@@ -64,7 +64,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
         _isFetchingReminder = false;
         if (!mounted || _lembreteId != id) return;
         if (fetched == null) {
-          setState(() => _notFound = true);
+          _returnToHomeAfterMissingReminder();
           return;
         }
         _setActiveReminder(fetched);
@@ -91,9 +91,21 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
       debugPrint('Erro ao buscar lembrete no ActiveReminderScreen: $e');
       _isFetchingReminder = false;
       if (mounted) {
-        setState(() => _notFound = true);
+        _returnToHomeAfterMissingReminder();
       }
     }
+  }
+
+  void _returnToHomeAfterMissingReminder() {
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        '/elderly-home',
+        (route) => false,
+      );
+    });
   }
 
   void _setActiveReminder(Lembrete l) {

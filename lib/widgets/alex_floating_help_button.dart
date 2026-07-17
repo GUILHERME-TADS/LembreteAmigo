@@ -19,8 +19,11 @@ class AlexFloatingHelpButton extends StatefulWidget {
 }
 
 class _AlexFloatingHelpButtonState extends State<AlexFloatingHelpButton>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late final AnimationController _glowController;
+  late final AnimationController _entryController;
+  late final Animation<double> _slideAnimation;
+  late final Animation<double> _scaleAnimation;
 
   @override
   void initState() {
@@ -29,17 +32,35 @@ class _AlexFloatingHelpButtonState extends State<AlexFloatingHelpButton>
       vsync: this,
       duration: const Duration(milliseconds: 1500),
     );
+    _entryController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    );
+    _slideAnimation = Tween<double>(begin: 40.0, end: 0.0).animate(
+      CurvedAnimation(
+        parent: _entryController,
+        curve: Curves.elasticOut,
+      ),
+    );
+    _scaleAnimation = Tween<double>(begin: 0.6, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _entryController,
+        curve: Curves.elasticOut,
+      ),
+    );
+    _entryController.forward();
   }
 
   @override
   void dispose() {
     TTSService.instance.parar(caller: this);
     _glowController.dispose();
+    _entryController.dispose();
     super.dispose();
   }
 
   void _handleTap(bool isThisSpeaking) {
-    HapticFeedback.lightImpact();
+    HapticFeedback.mediumImpact();
     if (isThisSpeaking) {
       TTSService.instance.parar(caller: this);
       return;
@@ -69,7 +90,7 @@ class _AlexFloatingHelpButtonState extends State<AlexFloatingHelpButton>
 
         _syncAnimation(isThisSpeaking);
 
-        return Stack(
+        final widgetStack = Stack(
           alignment: Alignment.bottomRight,
           clipBehavior: Clip.none,
           children: [
@@ -105,15 +126,28 @@ class _AlexFloatingHelpButtonState extends State<AlexFloatingHelpButton>
                         ),
                       ],
                     ),
-                    child: Text(
-                      isThisSpeaking ? 'Parar de ouvir' : 'Me explica',
-                      style: TextStyle(
-                        color: isThisSpeaking
-                            ? AppColors.onSecondaryFixedVariant
-                            : Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                      ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          isThisSpeaking ? Icons.stop_circle : Icons.volume_up,
+                          color: isThisSpeaking
+                              ? AppColors.onSecondaryFixedVariant
+                              : Colors.white,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          isThisSpeaking ? 'Parar de ouvir' : 'Me explica',
+                          style: TextStyle(
+                            color: isThisSpeaking
+                                ? AppColors.onSecondaryFixedVariant
+                                : Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -149,13 +183,28 @@ class _AlexFloatingHelpButtonState extends State<AlexFloatingHelpButton>
                     ),
                     child: AlexAvatar(
                       size: 68,
-                      animate: isThisSpeaking || isGlobalSpeaking,
+                      animate: true,
+                      activeCaller: this,
                     ),
                   );
                 },
               ),
             ),
           ],
+        );
+
+        return AnimatedBuilder(
+          animation: _entryController,
+          builder: (context, child) {
+            return Transform.translate(
+              offset: Offset(0, _slideAnimation.value),
+              child: Transform.scale(
+                scale: _scaleAnimation.value,
+                child: child,
+              ),
+            );
+          },
+          child: widgetStack,
         );
       },
     );

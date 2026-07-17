@@ -1,10 +1,7 @@
 import 'dart:io';
-import 'dart:math';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:camera/camera.dart';
-import 'package:image/image.dart' as img;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -186,8 +183,6 @@ class _TakePhotoConfirmationScreenState
 
       TTSService.instance.falar('Foto tirada.', caller: this);
 
-      // Analyze color in the background
-      _analyzePhotoColor(file, lembreteId);
     } catch (e) {
       debugPrint('Erro ao tirar foto: $e');
     } finally {
@@ -200,82 +195,6 @@ class _TakePhotoConfirmationScreenState
         }
       });
     }
-  }
-
-  Future<void> _analyzePhotoColor(XFile file, String? lembreteId) async {
-    if (_isProfilePhoto || lembreteId == 'profile_photo') return;
-    try {
-      final bytes = await File(file.path).readAsBytes();
-      final result = await compute(_processColorAnalysis, bytes);
-      final count = result['count'] as int;
-
-      if (count > 0) {
-        final r = (result['r'] as int) ~/ count;
-        final g = (result['g'] as int) ~/ count;
-        final b = (result['b'] as int) ~/ count;
-
-        final detected = _detectColorName(r, g, b);
-        debugPrint('Cor detectada no centro: $detected (RGB: $r, $g, $b)');
-
-        Lembrete? target;
-        if (lembreteId != null) {
-          final idx = LembreteService.instance.lembretes.indexWhere(
-            (l) => l.id == lembreteId,
-          );
-          if (idx != -1) target = LembreteService.instance.lembretes[idx];
-        }
-
-        if (target != null && target.medicamentoCor != null) {
-          final targetColor = target.medicamentoCor!.toLowerCase();
-          if (targetColor.isNotEmpty &&
-              !targetColor.contains(detected) &&
-              !detected.contains(targetColor)) {
-            Future.delayed(const Duration(milliseconds: 800), () {
-              if (mounted) {
-                TTSService.instance.falar(
-                  'Atenção! Esta pílula parece ser $detected. O remédio correto agendado deveria ser $targetColor. Por favor, verifique se pegou a pílula certa.',
-                  caller: this,
-                );
-              }
-            });
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint('Erro ao analisar cor: $e');
-    }
-  }
-
-  String _detectColorName(int r, int g, int b) {
-    final double maxVal = max(r, max(g, b)).toDouble();
-    final double minVal = min(r, min(g, b)).toDouble();
-    final double delta = maxVal - minVal;
-
-    double h = 0;
-    if (delta > 0) {
-      if (maxVal == r) {
-        h = (60 * ((g - b) / delta) + 360) % 360;
-      } else if (maxVal == g) {
-        h = (60 * ((b - r) / delta) + 120) % 360;
-      } else {
-        h = (60 * ((r - g) / delta) + 240) % 360;
-      }
-    }
-
-    final double s = maxVal == 0 ? 0 : delta / maxVal;
-    final double v = maxVal / 255.0;
-
-    if (v < 0.25) return 'preto';
-    if (s < 0.15 && v > 0.75) return 'branco';
-    if (s < 0.15) return 'cinza';
-
-    if (h < 15 || h > 345) return 'vermelho';
-    if (h >= 15 && h < 45) return 'laranja';
-    if (h >= 45 && h < 72) return 'amarelo';
-    if (h >= 72 && h < 165) return 'verde';
-    if (h >= 165 && h < 255) return 'azul';
-    if (h >= 255 && h < 315) return 'roxo';
-    return 'rosa';
   }
 
   @override
@@ -760,22 +679,3 @@ class _TakePhotoConfirmationScreenState
   }
 }
 
-Map<String, dynamic> _processColorAnalysis(List<int> bytes) {
-  final decoded = img.decodeImage(Uint8List.fromList(bytes));
-  if (decoded == null) return {'r': 0, 'g': 0, 'b': 0, 'count': 0};
-
-  final int startX = (decoded.width / 2 - 40).toInt().clamp(0, decoded.width);
-  final int startY = (decoded.height / 2 - 40).toInt().clamp(0, decoded.height);
-
-  int rSum = 0, gSum = 0, bSum = 0, count = 0;
-  for (int y = startY; y < startY + 80 && y < decoded.height; y++) {
-    for (int x = startX; x < startX + 80 && x < decoded.width; x++) {
-      final pixel = decoded.getPixel(x, y);
-      rSum += pixel.r.toInt();
-      gSum += pixel.g.toInt();
-      bSum += pixel.b.toInt();
-      count++;
-    }
-  }
-  return {'r': rSum, 'g': gSum, 'b': bSum, 'count': count};
-}

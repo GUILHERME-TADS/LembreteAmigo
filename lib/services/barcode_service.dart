@@ -4,16 +4,12 @@ import 'package:flutter/foundation.dart';
 class BarcodeResult {
   final String nome;
   final String dosagem;
-  final String forma;
-  final String cor;
   final String barcode;
   final String erro;
 
   const BarcodeResult({
     this.nome = '',
     this.dosagem = '',
-    this.forma = '',
-    this.cor = '',
     this.barcode = '',
     this.erro = '',
   });
@@ -41,8 +37,6 @@ class BarcodeService {
       return BarcodeResult(
         nome: (data['nome'] as String? ?? '').trim(),
         dosagem: (data['dosagem'] as String? ?? '').trim(),
-        forma: (data['forma'] as String? ?? '').trim(),
-        cor: (data['cor'] as String? ?? '').trim(),
         barcode: barcode,
         erro: data['erro'] as String? ?? '',
       );

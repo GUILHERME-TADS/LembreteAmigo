@@ -226,19 +226,6 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
           'O lembrete ${l.titulo} está marcado para às $spokenTime. Ainda falta $remainingClean para dar o horário.';
     }
 
-    if (l.categoria == 'medicacao' &&
-        l.medicamentoForma != null &&
-        l.medicamentoCor != null) {
-      final formaLabel = l.medicamentoForma == 'capsula'
-          ? 'cápsula'
-          : l.medicamentoForma == 'comprimido'
-          ? 'comprimido'
-          : l.medicamentoForma == 'gotas'
-          ? 'gotas'
-          : 'pomada';
-      text += ' É um remédio do tipo $formaLabel na cor ${l.medicamentoCor}.';
-    }
-
     TTSService.instance.falar(text, caller: this);
   }
 
@@ -1004,20 +991,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     } else {
       accentColor = AppColors.customColor;
     }
-    if (isMed &&
-        lembrete.medicamentoForma != null &&
-        lembrete.medicamentoCor != null) {
-      final formaLabel = lembrete.medicamentoForma == 'capsula'
-          ? 'Cápsula'
-          : lembrete.medicamentoForma == 'comprimido'
-          ? 'Comprimido'
-          : lembrete.medicamentoForma == 'gotas'
-          ? 'Gotas'
-          : 'Pomada';
-      subtitle = '$formaLabel ${lembrete.medicamentoCor}';
-    } else {
-      subtitle = statusText;
-    }
+    subtitle = statusText;
 
     final cardBg = isHighContrast
         ? Colors.white

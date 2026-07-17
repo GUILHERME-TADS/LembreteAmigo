@@ -378,8 +378,6 @@ class _IdentifyMedicationScreenState
           const SizedBox(height: 16),
           _detailRow('Nome', result.nome),
           _detailRow('Dosagem', result.dosagem),
-          _detailRow('Forma', _formaLabel(result.forma)),
-          _detailRow('Cor', result.cor),
           _detailRow('Intervalo sugerido', result.intervaloSugerido),
           if (result.observacoes.isNotEmpty) ...[
             const SizedBox(height: 8),
@@ -430,29 +428,12 @@ class _IdentifyMedicationScreenState
     );
   }
 
-  String _formaLabel(String forma) {
-    switch (forma.toLowerCase()) {
-      case 'comprimido':
-        return 'Comprimido';
-      case 'capsula':
-        return 'Cápsula';
-      case 'gotas':
-        return 'Gotas';
-      case 'pomada':
-        return 'Pomada';
-      default:
-        return forma;
-    }
-  }
-
   void _confirmarResultado() {
     final result = _result;
     if (result == null || !result.success) return;
     Navigator.pop(context, {
       'titulo': result.nome,
       'dosagem': result.dosagem,
-      'forma': result.forma,
-      'cor': result.cor,
       'intervaloSugerido': result.intervaloSugerido,
       'fotoPath': _fotoPath,
       'observacoes': result.observacoes,

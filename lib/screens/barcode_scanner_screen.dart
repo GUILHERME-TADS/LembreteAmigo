@@ -184,8 +184,6 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                       child: ElevatedButton(
                         onPressed: () => Navigator.pop(context, {
                           'titulo': _result!.nome,
-                          'forma': _result!.forma,
-                          'cor': _result!.cor,
                           'dosagem': _result!.dosagem,
                           'barcode': _result!.barcode,
                         }),
@@ -267,10 +265,6 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
           _infoRow('Nome', _result!.nome),
           if (_result!.dosagem.isNotEmpty)
             _infoRow('Dosagem', _result!.dosagem),
-          if (_result!.forma.isNotEmpty)
-            _infoRow('Forma', _result!.forma),
-          if (_result!.cor.isNotEmpty)
-            _infoRow('Cor', _result!.cor),
         ],
       ),
     );

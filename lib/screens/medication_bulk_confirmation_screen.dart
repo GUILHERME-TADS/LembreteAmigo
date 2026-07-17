@@ -115,19 +115,13 @@ class _MedicationBulkConfirmationScreenState
         final uniqueId =
             '${now.millisecondsSinceEpoch}_${index++}';
         
-        // Concatena a dosagem e observações no título ou formato do medicamento
         final String fullTitle = item.titleController.text.trim();
-        final String detailForm = item.dosageController.text.trim();
-        final String remarks = item.obsController.text.trim();
-
         final lembrete = Lembrete(
           id: uniqueId,
           titulo: fullTitle,
           horarioHour: item.time.hour,
           horarioMinute: item.time.minute,
           categoria: 'medicacao',
-          medicamentoForma: detailForm.isNotEmpty ? detailForm : 'Comprimido',
-          medicamentoCor: remarks.isNotEmpty ? remarks : null,
           recorrencia: 'diario',
           repeteTodosOsDias: true,
         );

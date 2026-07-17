@@ -37,8 +37,6 @@ class Lembrete {
   final bool concluido;
   final bool concluidoComFoto;
   final DateTime criadoEm;
-  final String? medicamentoForma;
-  final String? medicamentoCor;
   final String? medicamentoFotoPath;
   final String? idosoId;
   final LembreteStatus status;
@@ -74,8 +72,6 @@ class Lembrete {
     bool concluido = false,
     bool concluidoComFoto = false,
     DateTime? criadoEm,
-    this.medicamentoForma,
-    this.medicamentoCor,
     this.medicamentoFotoPath,
     this.idosoId,
     LembreteStatus? status,
@@ -123,8 +119,6 @@ class Lembrete {
     bool? concluido,
     bool? concluidoComFoto,
     DateTime? criadoEm,
-    String? medicamentoForma,
-    String? medicamentoCor,
     String? medicamentoFotoPath,
     String? idosoId,
     LembreteStatus? status,
@@ -166,8 +160,6 @@ class Lembrete {
       concluidoComFoto:
           concluidoComFoto ?? newStatus == LembreteStatus.concluidoComFoto,
       criadoEm: criadoEm ?? this.criadoEm,
-      medicamentoForma: medicamentoForma ?? this.medicamentoForma,
-      medicamentoCor: medicamentoCor ?? this.medicamentoCor,
       medicamentoFotoPath: medicamentoFotoPath ?? this.medicamentoFotoPath,
       idosoId: idosoId ?? this.idosoId,
       status: newStatus,
@@ -254,8 +246,6 @@ class Lembrete {
     'concluido': status.isConcluido,
     'concluidoComFoto': status == LembreteStatus.concluidoComFoto,
     'criadoEm': criadoEm.toIso8601String(),
-    'medicamentoForma': medicamentoForma,
-    'medicamentoCor': medicamentoCor,
     'medicamentoFotoPath': medicamentoFotoPath,
     'idosoId': idosoId,
     'status': status.storageValue,
@@ -296,8 +286,6 @@ class Lembrete {
       criadoEm:
           DateTime.tryParse(json['criadoEm'] as String? ?? '') ??
           DateTime.now(),
-      medicamentoForma: json['medicamentoForma'] as String?,
-      medicamentoCor: json['medicamentoCor'] as String?,
       medicamentoFotoPath: json['medicamentoFotoPath'] as String?,
       idosoId: json['idosoId'] as String?,
       status: json['status'] != null

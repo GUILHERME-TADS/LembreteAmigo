@@ -779,64 +779,6 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                         ),
                                       ),
 
-                                      // If it is a medication and has shape/color details, show them
-                                      if (lembrete?.categoria == 'medicacao' &&
-                                          (lembrete?.medicamentoForma != null ||
-                                              lembrete?.medicamentoCor !=
-                                                  null)) ...[
-                                        const SizedBox(height: 24),
-                                        const Divider(),
-                                        const SizedBox(height: 12),
-                                        Text(
-                                          'APARÊNCIA DO REMÉDIO:',
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w800,
-                                            letterSpacing: 0,
-                                            color: isHighContrast ? Colors.black : AppColors.outline,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 16),
-                                        Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            Icon(
-                                              Icons.medication,
-                                              size: 80,
-                                              color: isHighContrast
-                                                  ? Colors.black
-                                                  : AppColors.medicationsColor,
-                                            ),
-                                            const SizedBox(width: 16),
-                                            Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  'Formato: ${lembrete?.medicamentoForma ?? "Padrão"}'
-                                                      .toUpperCase(),
-                                                  style: TextStyle(
-                                                    fontSize: 16,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: isHighContrast ? Colors.black : AppColors.primary,
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 4),
-                                                Text(
-                                                  'Cor: ${lembrete?.medicamentoCor ?? "Padrão"}'
-                                                      .toUpperCase(),
-                                                  style: TextStyle(
-                                                    fontSize: 16,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: isHighContrast ? Colors.black : AppColors.primary,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                      ],
                                     ],
                                   ),
                                 );

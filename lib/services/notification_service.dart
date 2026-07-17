@@ -164,65 +164,14 @@ class NotificationService {
   }
 
   Future<void> _agendarLembrete(Lembrete lembrete, tz.TZDateTime now) async {
-    if (lembrete.recorrencia == 'semanal' || lembrete.recorrenciaSemanal) {
-      final diasSemana = lembrete.diasSemana.isEmpty
-          ? <int>[now.weekday]
-          : lembrete.diasSemana;
-      for (final day in diasSemana) {
-        final scheduledDate = _nextWeekdayOccurrence(lembrete, now, day);
-        await _scheduleReminder(
-          lembrete,
-          scheduledDate,
-          slot: day,
-          matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
-        );
-      }
-      return;
-    }
-
-    if (lembrete.recorrencia == 'mensal' || lembrete.recorrenciaMensal) {
-      final scheduledDate = _nextMonthlyOccurrence(lembrete, now);
+    final occurrences = _nextOccurrences(lembrete, now);
+    for (var i = 0; i < occurrences.length; i++) {
       await _scheduleReminder(
         lembrete,
-        scheduledDate,
-        matchDateTimeComponents: DateTimeComponents.dayOfMonthAndTime,
+        occurrences[i],
+        slot: i + 1,
       );
-      return;
     }
-
-    if (lembrete.recorrencia == 'unico' || lembrete.lembreteUnico) {
-      final scheduledDate = _nextOneTimeOccurrence(lembrete, now);
-      if (scheduledDate == null) return;
-      await _scheduleReminder(lembrete, scheduledDate);
-      return;
-    }
-
-    if (lembrete.recorrencia == 'quinzenal') {
-      final scheduledDate = _nextFortnightOccurrence(lembrete, now);
-      await _scheduleReminder(lembrete, scheduledDate);
-      return;
-    }
-
-    if (lembrete.recorrencia == 'intervalo' || lembrete.recorrenciaIntervalo) {
-      final interval = lembrete.intervaloHoras ?? 4;
-      final scheduledDates = _intervalOccurrences(lembrete, now, interval);
-      for (var i = 0; i < scheduledDates.length; i++) {
-        await _scheduleReminder(
-          lembrete,
-          scheduledDates[i],
-          slot: i + 1,
-          matchDateTimeComponents: DateTimeComponents.time,
-        );
-      }
-      return;
-    }
-
-    final scheduledDate = _nextDailyOccurrence(lembrete, now);
-    await _scheduleReminder(
-      lembrete,
-      scheduledDate,
-      matchDateTimeComponents: DateTimeComponents.time,
-    );
   }
 
   Future<void> _scheduleReminder(
@@ -270,45 +219,101 @@ class NotificationService {
     return const NotificationDetails(android: androidDetails, iOS: iosDetails);
   }
 
-  tz.TZDateTime _baseDateForToday(Lembrete lembrete, tz.TZDateTime now) {
+  List<tz.TZDateTime> _nextOccurrences(
+    Lembrete lembrete,
+    tz.TZDateTime now,
+  ) {
+    if (lembrete.recorrencia == 'unico' || lembrete.lembreteUnico) {
+      final scheduledDate = _nextOneTimeOccurrence(lembrete, now);
+      return scheduledDate == null ? const [] : [scheduledDate];
+    }
+
+    if (lembrete.recorrencia == 'mensal' || lembrete.recorrenciaMensal) {
+      return _monthlyOccurrences(lembrete, now);
+    }
+
+    final occurrences = <tz.TZDateTime>[];
+    var day = _firstCandidateDay(lembrete, now);
+    var checkedDays = 0;
+    const maxDaysToCheck = 730;
+
+    while (occurrences.length < _maxGeneratedSlots &&
+        checkedDays < maxDaysToCheck &&
+        _isOnOrBeforeReminderEnd(lembrete, day)) {
+      if (_isReminderActiveOnDay(lembrete, day)) {
+        if (lembrete.recorrencia == 'intervalo' ||
+            lembrete.recorrenciaIntervalo) {
+          occurrences.addAll(_intervalOccurrencesOnDay(lembrete, now, day));
+        } else {
+          final scheduledDate = _scheduledTimeOnDay(lembrete, day);
+          if (scheduledDate.isAfter(now)) {
+            occurrences.add(scheduledDate);
+          }
+        }
+      }
+      day = day.add(const Duration(days: 1));
+      checkedDays++;
+    }
+
+    if (occurrences.length > _maxGeneratedSlots) {
+      return occurrences.take(_maxGeneratedSlots).toList();
+    }
+    return occurrences;
+  }
+
+  tz.TZDateTime _firstCandidateDay(Lembrete lembrete, tz.TZDateTime now) {
+    final today = tz.TZDateTime(tz.local, now.year, now.month, now.day);
+    final start = lembrete.dataInicio;
+    if (start == null) return today;
+
+    final startDay = tz.TZDateTime(
+      tz.local,
+      start.year,
+      start.month,
+      start.day,
+    );
+    return startDay.isAfter(today) ? startDay : today;
+  }
+
+  tz.TZDateTime _scheduledTimeOnDay(
+    Lembrete lembrete,
+    tz.TZDateTime day,
+  ) {
     return tz.TZDateTime(
       tz.local,
-      now.year,
-      now.month,
-      now.day,
+      day.year,
+      day.month,
+      day.day,
       lembrete.horarioHour,
       lembrete.horarioMinute,
     );
   }
 
-  tz.TZDateTime _nextDailyOccurrence(Lembrete lembrete, tz.TZDateTime now) {
-    var scheduledDate = _baseDateForToday(lembrete, now);
-    if (!scheduledDate.isAfter(now)) {
-      scheduledDate = scheduledDate.add(const Duration(days: 1));
-    }
-    return scheduledDate;
+  bool _isReminderActiveOnDay(Lembrete lembrete, tz.TZDateTime day) {
+    return Lembrete.isReminderActiveOn(
+      lembrete,
+      DateTime(day.year, day.month, day.day),
+    );
   }
 
-  tz.TZDateTime _nextWeekdayOccurrence(
+  bool _isOnOrBeforeReminderEnd(Lembrete lembrete, tz.TZDateTime day) {
+    if (lembrete.isUsoContinuo || lembrete.dataFim == null) return true;
+    final end = lembrete.dataFim!;
+    final endDay = tz.TZDateTime(tz.local, end.year, end.month, end.day);
+    return !day.isAfter(endDay);
+  }
+
+  List<tz.TZDateTime> _monthlyOccurrences(
     Lembrete lembrete,
     tz.TZDateTime now,
-    int weekday,
   ) {
-    var scheduledDate = _baseDateForToday(lembrete, now);
-    final daysToAdd = (weekday - now.weekday) % DateTime.daysPerWeek;
-    scheduledDate = scheduledDate.add(Duration(days: daysToAdd));
-    if (!scheduledDate.isAfter(now)) {
-      scheduledDate = scheduledDate.add(const Duration(days: 7));
-    }
-    return scheduledDate;
-  }
-
-  tz.TZDateTime _nextMonthlyOccurrence(Lembrete lembrete, tz.TZDateTime now) {
+    final occurrences = <tz.TZDateTime>[];
     final day = lembrete.diaMes ?? lembrete.criadoEm.day;
-    var year = now.year;
-    var month = now.month;
+    final firstDay = _firstCandidateDay(lembrete, now);
+    var year = firstDay.year;
+    var month = firstDay.month;
 
-    for (var i = 0; i < 24; i++) {
+    for (var i = 0; i < 60 && occurrences.length < _maxGeneratedSlots; i++) {
       final scheduledDate = _monthlyDate(
         year,
         month,
@@ -316,8 +321,11 @@ class NotificationService {
         lembrete.horarioHour,
         lembrete.horarioMinute,
       );
-      if (scheduledDate != null && scheduledDate.isAfter(now)) {
-        return scheduledDate;
+      if (scheduledDate != null &&
+          scheduledDate.isAfter(now) &&
+          _isReminderActiveOnDay(lembrete, scheduledDate) &&
+          _isOnOrBeforeReminderEnd(lembrete, scheduledDate)) {
+        occurrences.add(scheduledDate);
       }
 
       month++;
@@ -327,7 +335,7 @@ class NotificationService {
       }
     }
 
-    return _nextDailyOccurrence(lembrete, now);
+    return occurrences;
   }
 
   tz.TZDateTime? _monthlyDate(
@@ -348,68 +356,38 @@ class NotificationService {
     Lembrete lembrete,
     tz.TZDateTime now,
   ) {
-    final created = lembrete.criadoEm;
+    final targetDate = lembrete.dataInicio ?? lembrete.criadoEm;
     final scheduledDate = tz.TZDateTime(
       tz.local,
-      created.year,
-      created.month,
-      created.day,
+      targetDate.year,
+      targetDate.month,
+      targetDate.day,
       lembrete.horarioHour,
       lembrete.horarioMinute,
     );
-    return scheduledDate.isAfter(now) ? scheduledDate : null;
-  }
-
-  tz.TZDateTime _nextFortnightOccurrence(
-    Lembrete lembrete,
-    tz.TZDateTime now,
-  ) {
-    final createdDate = DateTime(
-      lembrete.criadoEm.year,
-      lembrete.criadoEm.month,
-      lembrete.criadoEm.day,
-    );
-    final today = DateTime(now.year, now.month, now.day);
-    var diffDays = today.difference(createdDate).inDays;
-    if (diffDays < 0) diffDays = 0;
-
-    final remainder = diffDays % 15;
-    final daysToAdd = remainder == 0 ? 0 : 15 - remainder;
-    var scheduledDate = tz.TZDateTime(
-      tz.local,
-      now.year,
-      now.month,
-      now.day,
-      lembrete.horarioHour,
-      lembrete.horarioMinute,
-    ).add(Duration(days: daysToAdd));
-
-    if (!scheduledDate.isAfter(now)) {
-      scheduledDate = scheduledDate.add(const Duration(days: 15));
-    }
+    if (!scheduledDate.isAfter(now)) return null;
+    if (!_isReminderActiveOnDay(lembrete, scheduledDate)) return null;
     return scheduledDate;
   }
 
-  List<tz.TZDateTime> _intervalOccurrences(
+  List<tz.TZDateTime> _intervalOccurrencesOnDay(
     Lembrete lembrete,
     tz.TZDateTime now,
-    int intervalHours,
+    tz.TZDateTime day,
   ) {
+    final intervalHours = lembrete.intervaloHoras ?? 4;
     final interval = intervalHours <= 0 ? 4 : intervalHours;
     final occurrences = <tz.TZDateTime>[];
-    var scheduledDate = _baseDateForToday(lembrete, now);
+    var scheduledDate = _scheduledTimeOnDay(lembrete, day);
 
-    while (scheduledDate.day == now.day && occurrences.length < 24) {
-      if (!scheduledDate.isBefore(now)) {
+    while (scheduledDate.year == day.year &&
+        scheduledDate.month == day.month &&
+        scheduledDate.day == day.day &&
+        occurrences.length < 24) {
+      if (scheduledDate.isAfter(now)) {
         occurrences.add(scheduledDate);
       }
       scheduledDate = scheduledDate.add(Duration(hours: interval));
-    }
-
-    if (occurrences.isEmpty) {
-      occurrences.add(
-        _baseDateForToday(lembrete, now).add(const Duration(days: 1)),
-      );
     }
     return occurrences;
   }

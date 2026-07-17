@@ -5,7 +5,6 @@ export 'device_barrier_banner.dart';
 export 'audio_player_card.dart';
 export 'audio_manager.dart';
 export 'reminder_with_audio.dart';
-export 'me_explica_button.dart';
 export 'alex_floating_help_button.dart';
 export 'supervisor_bottom_nav.dart';
 export 'elderly_profile_avatar.dart';

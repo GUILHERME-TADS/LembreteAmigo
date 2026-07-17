@@ -181,7 +181,10 @@ class _TakePhotoConfirmationScreenState
         _capturedFile = file;
       });
 
-      TTSService.instance.falar('Foto tirada.', caller: this);
+      TTSService.instance.falar(
+        'A foto foi tirada! Se ela ficou boa e nítida, aperte o botão verde com o dedão para cima. Se ficou escura ou embaçada, aperte o botão vermelho com o dedão para baixo para tirar outra.',
+        caller: this,
+      );
 
     } catch (e) {
       debugPrint('Erro ao tirar foto: $e');
@@ -508,9 +511,10 @@ class _TakePhotoConfirmationScreenState
         color: Colors.black,
         child: Row(
           children: [
+            // Botão Gigante Vermelho (Ficou Ruim / Repetir 👎)
             Expanded(
               child: SizedBox(
-                height: 80,
+                height: 90,
                 child: ElevatedButton.icon(
                   onPressed: () {
                     setState(() {
@@ -518,17 +522,19 @@ class _TakePhotoConfirmationScreenState
                       _capturedFile = null;
                     });
                     TTSService.instance.falar(
-                      'Câmera aberta novamente.',
+                      _isProfilePhoto
+                          ? 'Olhe para a câmera e aperte na tela para tirar a foto de perfil.'
+                          : 'Coloque o remédio na frente do celular e aperte na tela para tirar a foto.',
                       caller: this,
                     );
                   },
-                  icon: const Icon(Icons.refresh, size: 32),
+                  icon: const Icon(Icons.thumb_down_alt_rounded, size: 36),
                   label: const Text(
-                    'TENTAR DE NOVO',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    'FICOU RUIM 👎',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.error,
+                    backgroundColor: const Color(0xFFD32F2F),
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
@@ -538,9 +544,10 @@ class _TakePhotoConfirmationScreenState
               ),
             ),
             const SizedBox(width: 16),
+            // Botão Gigante Verde (Ficou Boa / Confirmar 👍)
             Expanded(
               child: SizedBox(
-                height: 80,
+                height: 90,
                 child: ElevatedButton.icon(
                   onPressed: _isUploading
                       ? null
@@ -619,12 +626,12 @@ class _TakePhotoConfirmationScreenState
                               );
                             } else {
                               scaffoldMessenger.showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Lembrete invalido. Abra o lembrete novamente.',
+                                  const SnackBar(
+                                    content: Text(
+                                      'Lembrete invalido. Abra o lembrete novamente.',
+                                    ),
+                                    backgroundColor: AppColors.error,
                                   ),
-                                  backgroundColor: AppColors.error,
-                                ),
                               );
                             }
                           } catch (e) {
@@ -649,14 +656,14 @@ class _TakePhotoConfirmationScreenState
                           height: 24,
                           child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
                         )
-                      : const Icon(Icons.check_circle_outline, size: 32),
+                      : const Icon(Icons.thumb_up_alt_rounded, size: 36),
                   label: Text(
-                    _isUploading ? 'ENVIANDO...' : 'CONFIRMAR',
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    _isUploading ? 'ENVIANDO...' : 'FICOU BOA 👍',
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.tertiaryFixedDim,
-                    foregroundColor: AppColors.onTertiaryFixed,
+                    backgroundColor: const Color(0xFF2E7D32),
+                    foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
@@ -678,4 +685,3 @@ class _TakePhotoConfirmationScreenState
     super.dispose();
   }
 }
-

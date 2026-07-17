@@ -13,6 +13,7 @@ class SessionRoleService {
   static const String unpairedIdosoId = 'idoso_sem_vinculo';
 
   static String? _activeRole;
+  static bool _lastVerificationFailedByError = false;
 
   static String? get activeRole => _activeRole;
   static bool get isSupervisor => _activeRole == supervisor;
@@ -64,6 +65,7 @@ class SessionRoleService {
   }
 
   static Future<String?> getVerifiedActiveIdosoId() async {
+    _lastVerificationFailedByError = false;
     final idosoId = await getActiveIdosoIdOrNull();
     if (idosoId == null ||
         idosoId == unpairedIdosoId ||
@@ -95,6 +97,7 @@ class SessionRoleService {
             data['status'] == 'active';
         return linked ? idosoId : null;
       } catch (e) {
+        _lastVerificationFailedByError = true;
         debugPrint('Erro ao validar vinculo ativo: $e');
         return null;
       }
@@ -110,7 +113,10 @@ class SessionRoleService {
         verified != 'idoso_simulado') {
       return true;
     }
-    if (!allowOfflineCache || Firebase.apps.isNotEmpty) return false;
+    if (!allowOfflineCache) return false;
+    if (Firebase.apps.isNotEmpty && !_lastVerificationFailedByError) {
+      return false;
+    }
 
     final cached = await getActiveIdosoIdOrNull();
     return cached != null && cached != unpairedIdosoId;

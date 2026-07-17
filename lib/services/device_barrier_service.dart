@@ -372,8 +372,11 @@ class DeviceBarrierService {
     String? batteryState,
   }) async {
     if (!_useFirebase) return;
+    if (!SessionRoleService.isElderly) return;
     try {
+      final user = await SessionRoleService.ensureElderlyAuthSession();
       final idosoId = await SessionRoleService.getActiveIdosoId();
+      if (user == null || user.uid != idosoId) return;
       await FirebaseFirestore.instance
           .collection('device_diagnostics')
           .doc(idosoId)

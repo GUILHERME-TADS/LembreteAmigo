@@ -256,8 +256,6 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
     );
   }
 
-
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -273,205 +271,252 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
                   child: Column(
                     children: [
                       const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        InkWell(
-                          onTap: () {
-                            if (!_showModeSelection) {
-                              setState(() {
-                                _showModeSelection = true;
-                              });
-                              _speakWelcome();
-                            } else {
-                              Navigator.pop(context);
-                            }
-                          },
-                          borderRadius: BorderRadius.circular(12),
-                          child: const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            child: Icon(Icons.arrow_back, color: AppColors.primary, size: 36),
-                          ),
-                        ),
-                        const Expanded(
-                          child: Text(
-                            'Lembrete Amigo',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.primary,
+                      Row(
+                        children: [
+                          InkWell(
+                            onTap: () {
+                              if (!_showModeSelection) {
+                                setState(() {
+                                  _showModeSelection = true;
+                                });
+                                _speakWelcome();
+                              } else {
+                                Navigator.pop(context);
+                              }
+                            },
+                            borderRadius: BorderRadius.circular(12),
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              child: Icon(Icons.arrow_back, color: AppColors.primary, size: 36),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 48),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    const MeExplicaButton(
-                      textoExplicacao: 'Olá! Esta é a tela para conectar o aplicativo com quem cuida de você. Aqui você pode escolher se vai usar o aplicativo sozinho ou se vai conectar com o celular do seu ajudante ou cuidador para ele te acompanhar.',
-                    ),
-                    const SizedBox(height: 12),
-                    if (_showModeSelection) ...[
-                      const SizedBox(height: 32),
-                      const Text(
-                        'Como você vai usar?',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.w800,
-                          height: 1.2,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Escolha uma das opções abaixo para começar.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 18,
-                          color: AppColors.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      SeniorButton(
-                        label: 'Usar sozinho',
-                        icon: Icons.person_outline,
-                        backgroundColor: AppColors.secondaryContainer,
-                        textColor: AppColors.onSecondaryContainer,
-                        onPressed: _entrarSemSupervisor,
-                      ),
-                      const SizedBox(height: 24),
-                      SeniorButton(
-                        label: 'Usar com ajudante',
-                        icon: Icons.supervisor_account,
-                        backgroundColor: AppColors.primary,
-                        textColor: Colors.white,
-                        onPressed: () {
-                          setState(() {
-                            _showModeSelection = false;
-                            _errorMessage = null;
-                          });
-                          _speakWelcome();
-                          _generatePairingCode();
-                        },
-                      ),
-                      const SizedBox(height: 24),
-                    ] else ...[
-                      const SizedBox(height: 24),
-                      const Text(
-                        'Conectar com Ajudante',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.w800,
-                          height: 1.2,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Mostre este número para quem cuida de você. Ela vai digitar esse número no celular dela para conectar os dois aparelhos:',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 18,
-                          color: AppColors.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 32),
-                      
-                      // Código de Pareamento Gerado
-                      if (_isLoading)
-                        const Center(
-                          child: CircularProgressIndicator(color: AppColors.primary),
-                        )
-                      else if (_pairingCode != null)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: AppColors.primary, width: 3),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Colors.black12,
-                                blurRadius: 8,
-                                offset: Offset(0, 4),
+                          const Expanded(
+                            child: Text(
+                              'Lembrete Amigo',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primary,
                               ),
-                            ],
-                          ),
-                          child: Text(
-                            _pairingCode!.split('').join('  '),
-                            style: const TextStyle(
-                              fontSize: 48,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 2,
-                              color: AppColors.primary,
                             ),
                           ),
-                        ),
-                        
-                      if (_errorMessage != null) ...[
-                        const SizedBox(height: 16),
-                        Text(
-                          _errorMessage!,
+                          const SizedBox(width: 48),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      const MeExplicaButton(
+                        textoExplicacao: 'Olá! Esta é a tela para conectar o aplicativo com quem cuida de você. Aqui você pode escolher se vai usar o aplicativo sozinho ou se vai conectar com o celular do seu ajudante ou cuidador para ele te acompanhar.',
+                      ),
+                      const SizedBox(height: 12),
+                      if (_showModeSelection) ...[
+                        const SizedBox(height: 32),
+                        const Text(
+                          'Como você vai usar?',
                           textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            color: AppColors.error,
-                            fontWeight: FontWeight.bold,
+                          style: TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.w800,
+                            height: 1.2,
+                            color: AppColors.primary,
                           ),
                         ),
-                      ],
-                      
-                      const SizedBox(height: 40),
-                      
-                      if (!_isLoading) ...[
-                        const Center(
-                          child: Text(
-                            'Aguardando o ajudante digitar o código...',
-                            textAlign: TextAlign.center,
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Escolha uma das opções abaixo para começar.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: AppColors.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        SeniorButton(
+                          label: 'Usar sozinho',
+                          icon: Icons.person_outline,
+                          backgroundColor: AppColors.secondaryContainer,
+                          textColor: AppColors.onSecondaryContainer,
+                          onPressed: _entrarSemSupervisor,
+                        ),
+                        const SizedBox(height: 24),
+                        SeniorButton(
+                          label: 'Usar com ajudante',
+                          icon: Icons.supervisor_account,
+                          backgroundColor: AppColors.primary,
+                          textColor: Colors.white,
+                          onPressed: () {
+                            setState(() {
+                              _showModeSelection = false;
+                              _errorMessage = null;
+                            });
+                            _speakWelcome();
+                            _generatePairingCode();
+                          },
+                        ),
+                        const SizedBox(height: 24),
+                      ] else ...[
+                        const SizedBox(height: 24),
+                        const Text(
+                          'Conectar com Ajudante',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.w800,
+                            height: 1.2,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Mostre este número para quem cuida de você. Ela vai digitar esse número no celular dela para conectar os dois aparelhos:',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: AppColors.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+                        if (_isLoading)
+                          const Center(
+                            child: CircularProgressIndicator(color: AppColors.primary),
+                          )
+                        else if (_pairingCode != null) ...[
+                          Center(
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: AppColors.primary, width: 2),
+                              ),
+                              child: Image.network(
+                                'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=$_pairingCode',
+                                width: 160,
+                                height: 160,
+                                errorBuilder: (context, error, stackTrace) => Container(
+                                  width: 160,
+                                  height: 160,
+                                  color: AppColors.surfaceContainerHigh,
+                                  child: const Icon(
+                                    Icons.qr_code_2,
+                                    size: 80,
+                                    color: AppColors.outline,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          const Text(
+                            'Ou diga estes números para ele:',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
                               color: AppColors.onSurfaceVariant,
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 12),
-                        const SizedBox(
-                          width: 32,
-                          height: 32,
-                          child: CircularProgressIndicator(strokeWidth: 3),
-                        ),
-                      ],
-
-                      const SizedBox(height: 48),
-                      
-                      SizedBox(
-                        width: double.infinity,
-                        height: 64,
-                        child: OutlinedButton.icon(
-                          onPressed: _generatePairingCode,
-                          icon: const Icon(Icons.refresh, size: 28),
-                          label: const Text(
-                            'Gerar novo código',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          const SizedBox(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFE3F2FD),
+                                  border: Border.all(color: Color(0xFF1976D2), width: 3),
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Text(
+                                  _pairingCode!.substring(0, 3),
+                                  style: const TextStyle(
+                                    fontSize: 36,
+                                    fontWeight: FontWeight.w900,
+                                    color: Color(0xFF0D47A1),
+                                    letterSpacing: 2,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFF3E0),
+                                  border: Border.all(color: Color(0xFFF57C00), width: 3),
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Text(
+                                  _pairingCode!.substring(3, 6),
+                                  style: const TextStyle(
+                                    fontSize: 36,
+                                    fontWeight: FontWeight.w900,
+                                    color: Color(0xFFE65100),
+                                    letterSpacing: 2,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: AppColors.primary, width: 2),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                        ],
+                        if (_errorMessage != null) ...[
+                          const SizedBox(height: 16),
+                          Text(
+                            _errorMessage!,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: AppColors.error,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 40),
+                        if (!_isLoading) ...[
+                          const Center(
+                            child: Text(
+                              'Aguardando o ajudante digitar o código...',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.onSurfaceVariant,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          const Center(
+                            child: SizedBox(
+                              width: 32,
+                              height: 32,
+                              child: CircularProgressIndicator(strokeWidth: 3),
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 48),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 64,
+                          child: OutlinedButton.icon(
+                            onPressed: _generatePairingCode,
+                            icon: const Icon(Icons.refresh, size: 28),
+                            label: const Text(
+                              'Gerar novo código',
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: AppColors.primary, width: 2),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 24),
+                        const SizedBox(height: 24),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
             ),
-          ),
           ],
         ),
       ),

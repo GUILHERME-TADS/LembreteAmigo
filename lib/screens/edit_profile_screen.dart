@@ -29,6 +29,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   bool _isLoading = true;
   bool _isSaving = false;
   String? _activeIdosoId;
+  int _currentStep = 0;
 
   bool get _useFirebase {
     try {
@@ -42,12 +43,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   void initState() {
     super.initState();
     _loadCurrentProfile();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      TTSService.instance.falar(
-        'Tela de edição de perfil. Modifique os campos que desejar e clique em salvar.',
-        caller: this,
-      );
-    });
   }
 
   @override
@@ -59,6 +54,93 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _ambulancePhoneController.dispose();
     _addressController.dispose();
     super.dispose();
+  }
+
+  void _speakCurrentStep() {
+    String text = '';
+    switch (_currentStep) {
+      case 0:
+        text = 'Primeiro, por favor, digite o seu nome completo nesta caixa.';
+        break;
+      case 1:
+        text = 'Agora, digite o dia, o mês e o ano em que você nasceu.';
+        break;
+      case 2:
+        text = 'Por favor, digite o número do seu celular com o D D D.';
+        break;
+      case 3:
+        text = 'Se você tiver, digite o telefone da ambulância da sua cidade. Se não tiver, pode deixar em branco e avançar.';
+        break;
+      case 4:
+        text = 'Por fim, digite o seu endereço completo com a rua, o número e o bairro, e depois clique no botão salvar.';
+        break;
+    }
+    TTSService.instance.falar(text, caller: this);
+  }
+
+  void _avancar() {
+    TTSService.instance.parar(caller: this);
+    if (_currentStep == 0) {
+      final nome = _nameController.text.trim();
+      if (nome.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Por favor, digite o nome completo do idoso.')),
+        );
+        TTSService.instance.falar('Por favor, digite o seu nome completo.', caller: this);
+        return;
+      }
+    } else if (_currentStep == 1) {
+      final dataNasc = _birthDateController.text.trim();
+      final dateRegex = RegExp(r'^\d{2}/\d{2}/\d{4}$');
+      if (dataNasc.isNotEmpty && !dateRegex.hasMatch(dataNasc)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Use o formato DD/MM/AAAA para a data de nascimento.')),
+        );
+        TTSService.instance.falar('A data de nascimento deve estar no formato dia, mês e ano.', caller: this);
+        return;
+      }
+    } else if (_currentStep == 2) {
+      final telefone = _phoneController.text.trim();
+      final phoneRegex = RegExp(r'^(\(?\d{2}\)?\s?)?\d{4,5}\-?\d{4}$');
+      if (telefone.isNotEmpty && !phoneRegex.hasMatch(telefone)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Por favor, digite um telefone válido.')),
+        );
+        TTSService.instance.falar('Por favor, digite um telefone válido.', caller: this);
+        return;
+      }
+    } else if (_currentStep == 3) {
+      final ambulancePhone = _ambulancePhoneController.text.trim();
+      final phoneRegex = RegExp(r'^(\(?\d{2}\)?\s?)?\d{4,5}\-?\d{4}$');
+      if (ambulancePhone.isNotEmpty && !phoneRegex.hasMatch(ambulancePhone)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Por favor, digite um telefone de ambulância válido.')),
+        );
+        TTSService.instance.falar('Por favor, digite um telefone de ambulância válido.', caller: this);
+        return;
+      }
+    }
+
+    if (_currentStep < 4) {
+      setState(() {
+        _currentStep++;
+      });
+      _speakCurrentStep();
+    } else {
+      _salvar();
+    }
+  }
+
+  void _voltar() {
+    TTSService.instance.parar(caller: this);
+    if (_currentStep > 0) {
+      setState(() {
+        _currentStep--;
+      });
+      _speakCurrentStep();
+    } else {
+      Navigator.pop(context);
+    }
   }
 
   Future<void> _loadCurrentProfile() async {
@@ -134,6 +216,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           _addressController.text = endereco;
           _isLoading = false;
         });
+        _speakCurrentStep();
       }
     } catch (e) {
       debugPrint('Erro ao carregar perfil para edição: $e');
@@ -378,10 +461,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       child: Row(
         children: [
           IconButton(
-            onPressed: () {
-              TTSService.instance.parar(caller: this);
-              Navigator.pop(context);
-            },
+            onPressed: _voltar,
             icon: const Icon(
               Icons.arrow_back,
               color: AppColors.primary,
@@ -416,6 +496,83 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    String stepTitle = '';
+    Widget currentField = const SizedBox();
+
+    switch (_currentStep) {
+      case 0:
+        stepTitle = 'Qual o seu nome completo?';
+        currentField = SeniorInputField(
+          label: 'Nome Completo',
+          placeholder: 'Nome do idoso',
+          prefixIcon: Icons.person,
+          controller: _nameController,
+          onTapAudio: () => TTSService.instance.falar(
+            'Digite o seu nome completo nesta caixa.',
+            caller: this,
+          ),
+        );
+        break;
+      case 1:
+        stepTitle = 'Quando você nasceu?';
+        currentField = SeniorInputField(
+          label: 'Data de Nascimento',
+          placeholder: 'DD/MM/AAAA',
+          prefixIcon: Icons.calendar_today,
+          controller: _birthDateController,
+          keyboardType: TextInputType.number,
+          inputFormatters: [DateInputFormatter()],
+          onTapAudio: () => TTSService.instance.falar(
+            'Digite o dia, o mês e o ano em que você nasceu.',
+            caller: this,
+          ),
+        );
+        break;
+      case 2:
+        stepTitle = 'Qual o seu telefone?';
+        currentField = SeniorInputField(
+          label: 'Telefone de Contato',
+          placeholder: '(11) 99999-9999',
+          prefixIcon: Icons.phone,
+          controller: _phoneController,
+          keyboardType: TextInputType.phone,
+          inputFormatters: [PhoneInputFormatter()],
+          onTapAudio: () => TTSService.instance.falar(
+            'Digite o número do seu celular com o D D D.',
+            caller: this,
+          ),
+        );
+        break;
+      case 3:
+        stepTitle = 'Telefone da Ambulância (Opcional)';
+        currentField = SeniorInputField(
+          label: 'Telefone da Ambulância',
+          placeholder: 'Número local da ambulância',
+          prefixIcon: Icons.local_hospital,
+          controller: _ambulancePhoneController,
+          keyboardType: TextInputType.phone,
+          inputFormatters: [PhoneInputFormatter()],
+          onTapAudio: () => TTSService.instance.falar(
+            'Digite o telefone da ambulância da sua cidade. Se deixar vazio, a opção de ligar para ambulância não aparece no SOS.',
+            caller: this,
+          ),
+        );
+        break;
+      case 4:
+        stepTitle = 'Qual o seu endereço?';
+        currentField = SeniorInputField(
+          label: 'Endereço',
+          placeholder: 'Rua, número, bairro',
+          prefixIcon: Icons.location_on,
+          controller: _addressController,
+          onTapAudio: () => TTSService.instance.falar(
+            'Digite o nome da sua rua e o número da sua casa.',
+            caller: this,
+          ),
+        );
+        break;
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -431,97 +588,115 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          SeniorInputField(
-                            label: 'Nome Completo',
-                            placeholder: 'Nome do idoso',
-                            prefixIcon: Icons.person,
-                            controller: _nameController,
-                            onTapAudio: () => TTSService.instance.falar(
-                              'Digite o seu nome completo nesta caixa.',
-                              caller: this,
+                          const SizedBox(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: List.generate(5, (index) {
+                              final isActive = index == _currentStep;
+                              final isCompleted = index < _currentStep;
+                              return Container(
+                                margin: const EdgeInsets.symmetric(horizontal: 6),
+                                width: 48,
+                                height: 12,
+                                decoration: BoxDecoration(
+                                  color: isActive
+                                      ? AppColors.primary
+                                      : (isCompleted
+                                          ? AppColors.primary.withValues(alpha: 0.4)
+                                          : AppColors.outlineVariant),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                              );
+                            }),
+                          ),
+                          const SizedBox(height: 32),
+                          Text(
+                            stepTitle,
+                            style: const TextStyle(
+                              fontSize: 26,
+                              fontWeight: FontWeight.w900,
+                              color: AppColors.primary,
                             ),
                           ),
                           const SizedBox(height: 24),
-                          SeniorInputField(
-                            label: 'Data de Nascimento',
-                            placeholder: 'DD/MM/AAAA',
-                            prefixIcon: Icons.calendar_today,
-                            controller: _birthDateController,
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [DateInputFormatter()],
-                            onTapAudio: () => TTSService.instance.falar(
-                              'Digite o dia, o mês e o ano em que você nasceu.',
-                              caller: this,
+                          Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: AppColors.outlineVariant, width: 1.5),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Colors.black12,
+                                  blurRadius: 8,
+                                  offset: Offset(0, 4),
+                                ),
+                              ],
                             ),
+                            child: currentField,
                           ),
-                          const SizedBox(height: 24),
-                          SeniorInputField(
-                            label: 'Telefone de Contato',
-                            placeholder: '(11) 99999-9999',
-                            prefixIcon: Icons.phone,
-                            controller: _phoneController,
-                            keyboardType: TextInputType.phone,
-                            inputFormatters: [PhoneInputFormatter()],
-                            onTapAudio: () => TTSService.instance.falar(
-                              'Digite o número do seu celular com o D D D.',
-                              caller: this,
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          SeniorInputField(
-                            label: 'Telefone da Ambulância',
-                            placeholder: 'Número local da ambulância',
-                            prefixIcon: Icons.local_hospital,
-                            controller: _ambulancePhoneController,
-                            keyboardType: TextInputType.phone,
-                            inputFormatters: [PhoneInputFormatter()],
-                            onTapAudio: () => TTSService.instance.falar(
-                              'Digite o telefone da ambulância da sua cidade. Se deixar vazio, a opção de ligar para ambulância não aparece no SOS.',
-                              caller: this,
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          SeniorInputField(
-                            label: 'Endereço',
-                            placeholder: 'Rua, número, bairro',
-                            prefixIcon: Icons.location_on,
-                            controller: _addressController,
-                            onTapAudio: () => TTSService.instance.falar(
-                              'Digite o nome da sua rua e o número da sua casa.',
-                              caller: this,
-                            ),
-                          ),
-                          const SizedBox(height: 40),
-                          SizedBox(
-                            width: double.infinity,
-                            height: 64,
-                            child: ElevatedButton.icon(
-                              onPressed: _isSaving ? null : _salvar,
-                              icon: _isSaving
-                                  ? const SizedBox(
-                                      width: 24,
-                                      height: 24,
-                                      child: CircularProgressIndicator(
-                                        color: Colors.white,
-                                        strokeWidth: 2,
+                          const SizedBox(height: 48),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: SizedBox(
+                                  height: 64,
+                                  child: OutlinedButton(
+                                    onPressed: _voltar,
+                                    style: OutlinedButton.styleFrom(
+                                      side: const BorderSide(color: AppColors.outlineVariant, width: 2),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
                                       ),
-                                    )
-                                  : const Icon(Icons.save),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.secondaryContainer,
-                                foregroundColor: AppColors.onSecondaryFixed,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      _currentStep == 0 ? 'CANCELAR' : 'VOLTAR',
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
-                              label: Text(
-                                _isSaving ? 'SALVANDO...' : 'SALVAR PERFIL',
-                                style: const TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.w700,
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: SizedBox(
+                                  height: 64,
+                                  child: ElevatedButton(
+                                    onPressed: _isSaving ? null : _avancar,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: _currentStep == 4
+                                          ? AppColors.tertiaryFixedDim
+                                          : AppColors.secondaryContainer,
+                                      foregroundColor: _currentStep == 4
+                                          ? AppColors.onTertiaryFixed
+                                          : AppColors.onSecondaryFixed,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                    child: _isSaving
+                                        ? const SizedBox(
+                                            width: 24,
+                                            height: 24,
+                                            child: CircularProgressIndicator(
+                                              color: Colors.white,
+                                              strokeWidth: 2.5,
+                                            ),
+                                          )
+                                        : Text(
+                                            _currentStep == 4 ? 'SALVAR' : 'AVANÇAR',
+                                            style: const TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                  ),
                                 ),
                               ),
-                            ),
+                            ],
                           ),
                           const SizedBox(height: 24),
                         ],
@@ -533,7 +708,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       ),
     );
   }
-
 }
 
 class DateInputFormatter extends TextInputFormatter {

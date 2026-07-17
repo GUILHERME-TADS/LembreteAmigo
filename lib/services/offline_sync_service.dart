@@ -217,17 +217,29 @@ class OfflineSyncService {
           debugPrint(
             'Falha ao sincronizar ${write.collection}/${write.docId}: $e',
           );
+          final permissionDenied = _isPermissionDenied(e);
           remaining.add(
             write.copyWith(
-              attempts: write.attempts + 1,
+              attempts: permissionDenied ? 5 : write.attempts + 1,
+              failed: permissionDenied,
               lastError: e.toString(),
             ),
           );
-          AppStatusService.instance.report(
-            id: 'offline-sync-pending',
-            title: 'Alteracoes aguardando envio',
-            message: 'Os dados foram guardados neste aparelho e serao sincronizados quando possivel.',
-          );
+          if (permissionDenied) {
+            AppStatusService.instance.clear('offline-sync-pending');
+            AppStatusService.instance.report(
+              id: 'offline-sync-permission',
+              title: 'Sincronizacao bloqueada',
+              message: 'O Firestore recusou uma alteracao. Verifique se o supervisor ainda esta vinculado a este idoso e tente novamente.',
+              severity: AppStatusSeverity.critical,
+            );
+          } else {
+            AppStatusService.instance.report(
+              id: 'offline-sync-pending',
+              title: 'Alteracoes aguardando envio',
+              message: 'Os dados foram guardados neste aparelho e serao sincronizados quando possivel.',
+            );
+          }
           hasFailure = true;
         }
       }
@@ -248,6 +260,13 @@ class OfflineSyncService {
     _syncSoonTimer = Timer(_syncSoonDelay, () {
       unawaited(syncPendingWrites());
     });
+  }
+
+  bool _isPermissionDenied(Object error) {
+    if (error is FirebaseException && error.code == 'permission-denied') {
+      return true;
+    }
+    return error.toString().contains('permission-denied');
   }
 
   Future<void> _apply(OfflineWrite write) {
@@ -426,7 +445,7 @@ class OfflineSyncService {
         return await snapshot.ref.getDownloadURL();
       } catch (e) {
         debugPrint('Erro ao fazer upload de $localPath no Web: $e');
-        return null;
+        rethrow;
       }
     }
     final file = File(localPath);
@@ -449,7 +468,10 @@ class OfflineSyncService {
   Future<Set<String>> getPendingDeletes(String collection) async {
     final queue = await loadQueue();
     return queue
-        .where((w) => w.collection == collection && w.action == OfflineWriteAction.delete)
+        .where((w) =>
+            !w.failed &&
+            w.collection == collection &&
+            w.action == OfflineWriteAction.delete)
         .map((w) => w.docId)
         .toSet();
   }

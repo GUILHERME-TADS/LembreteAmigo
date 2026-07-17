@@ -90,6 +90,59 @@ class _VoiceSettingsScreenState extends State<VoiceSettingsScreen> {
     super.dispose();
   }
 
+  Widget _buildSpeedPreset(String label, String emoji, double rate) {
+    final isSelected = (_speechRate - rate).abs() < 0.05;
+    return Expanded(
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            _speechRate = rate;
+          });
+          _testVoice();
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? AppColors.primary.withValues(alpha: 0.08) : Colors.white,
+            border: Border.all(
+              color: isSelected ? AppColors.primary : AppColors.outlineVariant,
+              width: isSelected ? 3 : 1.5,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    )
+                  ]
+                : null,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                emoji,
+                style: const TextStyle(fontSize: 36),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                  color: isSelected ? AppColors.primary : AppColors.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -141,24 +194,11 @@ class _VoiceSettingsScreenState extends State<VoiceSettingsScreen> {
             const SizedBox(height: 12),
             Row(
               children: [
-                const Text('Devagar', style: TextStyle(fontSize: 13)),
-                Expanded(
-                  child: Slider(
-                    value: _speechRate,
-                    min: 0.25,
-                    max: 0.7,
-                    divisions: 9,
-                    activeColor: AppColors.primary,
-                    inactiveColor: AppColors.outlineVariant,
-                    label: _speechRate.toStringAsFixed(2),
-                    onChanged: (val) {
-                      setState(() {
-                        _speechRate = val;
-                      });
-                    },
-                  ),
-                ),
-                const Text('Rápido', style: TextStyle(fontSize: 13)),
+                _buildSpeedPreset('DEVAGAR', '🐢', 0.35),
+                const SizedBox(width: 12),
+                _buildSpeedPreset('NORMAL', '🗣️', 0.50),
+                const SizedBox(width: 12),
+                _buildSpeedPreset('RÁPIDO', '⚡', 0.65),
               ],
             ),
             const SizedBox(height: 24),
@@ -173,35 +213,17 @@ class _VoiceSettingsScreenState extends State<VoiceSettingsScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            SwitchListTile(
-              title: const Text(
-                'Escuta Ativa (Falar "Alex")',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.onSurface,
-                ),
-              ),
-              subtitle: const Text(
-                'Permite chamar o assistente dizendo "Alex" para ouvir e registrar lembretes por voz.',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: AppColors.onSurfaceVariant,
-                ),
-              ),
-              value: _alwaysListeningEnabled,
-              activeColor: AppColors.primary,
-              onChanged: _loadingListeningSetting
+            InkWell(
+              onTap: _loadingListeningSetting
                   ? null
-                  : (bool value) async {
-                      final success = await AlwaysListeningService.instance
-                          .setEnabled(value);
+                  : () async {
+                      final newValue = !_alwaysListeningEnabled;
+                      final success = await AlwaysListeningService.instance.setEnabled(newValue);
                       if (mounted) {
                         setState(() {
-                          _alwaysListeningEnabled =
-                              AlwaysListeningService.instance.enabled.value;
+                          _alwaysListeningEnabled = AlwaysListeningService.instance.enabled.value;
                         });
-                        if (value && !success) {
+                        if (newValue && !success) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text(
@@ -210,9 +232,87 @@ class _VoiceSettingsScreenState extends State<VoiceSettingsScreen> {
                               backgroundColor: AppColors.error,
                             ),
                           );
+                        } else {
+                          TTSService.instance.falar(
+                            newValue ? 'Escuta ligada.' : 'Escuta desligada.',
+                          );
                         }
                       }
                     },
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: _alwaysListeningEnabled
+                      ? AppColors.tertiary.withValues(alpha: 0.05)
+                      : AppColors.surfaceContainerLow,
+                  border: Border.all(
+                    color: _alwaysListeningEnabled ? AppColors.tertiaryContainer : AppColors.outlineVariant,
+                    width: 2,
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: _alwaysListeningEnabled
+                            ? AppColors.tertiaryContainer.withValues(alpha: 0.2)
+                            : AppColors.outlineVariant.withValues(alpha: 0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        _alwaysListeningEnabled ? Icons.mic : Icons.mic_off,
+                        size: 32,
+                        color: _alwaysListeningEnabled ? AppColors.onTertiaryFixedVariant : AppColors.outline,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Chamar por Voz ("Alex")',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.onSurface,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _alwaysListeningEnabled
+                                ? 'LIGADO - O Alex está ouvindo você'
+                                : 'DESLIGADO - Toque para ligar',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: _alwaysListeningEnabled ? AppColors.onTertiaryFixedVariant : AppColors.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: _alwaysListeningEnabled ? AppColors.tertiaryContainer : AppColors.outlineVariant,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        _alwaysListeningEnabled ? 'SIM' : 'NÃO',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
             const SizedBox(height: 48),
             SizedBox(

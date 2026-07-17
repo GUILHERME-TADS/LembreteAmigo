@@ -148,11 +148,41 @@ class LembreteService {
         .where('idosoId', isEqualTo: idosoId)
         .snapshots()
         .listen((snapshot) async {
-          final pendingDeletes = await OfflineSyncService.instance.getPendingDeletes('lembretes');
-          final items = snapshot.docs
-              .map((doc) => Lembrete.fromJson(doc.data()))
-              .where((l) => !pendingDeletes.contains(l.id))
+          final pendingWrites = (await OfflineSyncService.instance.loadQueue())
+              .where((write) =>
+                  write.collection == 'lembretes' && !write.failed)
               .toList();
+          final itemsById = <String, Lembrete>{
+            for (final doc in snapshot.docs)
+              doc.id: Lembrete.fromJson(doc.data()),
+          };
+
+          for (final write in pendingWrites) {
+            if (write.action == OfflineWriteAction.delete) {
+              itemsById.remove(write.docId);
+              continue;
+            }
+
+            final data = Map<String, dynamic>.from(write.data);
+            final pendingIdosoId = data['idosoId'] as String? ??
+                itemsById[write.docId]?.idosoId ??
+                idosoId;
+            if (pendingIdosoId != idosoId) continue;
+
+            if (write.action == OfflineWriteAction.set) {
+              itemsById[write.docId] = Lembrete.fromJson(data);
+              continue;
+            }
+
+            final current = itemsById[write.docId];
+            if (current != null) {
+              itemsById[write.docId] = Lembrete.fromJson(
+                Map<String, dynamic>.from(current.toJson())..addAll(data),
+              );
+            }
+          }
+
+          final items = itemsById.values.toList();
 
           _lembretes
             ..clear()
@@ -506,7 +536,9 @@ class LembreteService {
   }
 
   Future<bool> _checkConnection() async {
-    final canUse = await SessionRoleService.canUseActiveIdoso();
+    final canUse = await SessionRoleService.canUseActiveIdoso(
+      allowOfflineCache: true,
+    );
     if (!canUse) {
       AppStatusService.instance.report(
         id: 'invalid-session',
@@ -519,7 +551,9 @@ class LembreteService {
   }
 
   Future<void> adicionar(Lembrete lembrete) async {
-    if (!await _checkConnection()) return;
+    if (!await _checkConnection()) {
+      throw StateError('Vinculo com o idoso nao confirmado.');
+    }
     final idosoId = await _getActiveIdosoId();
     final titulo = lembrete.titulo.isEmpty
         ? lembrete.titulo

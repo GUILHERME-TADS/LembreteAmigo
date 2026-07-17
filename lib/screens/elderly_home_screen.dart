@@ -1103,6 +1103,61 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               child: Row(
                 children: [
+                  // Foto ou Ícone da Categoria no lado esquerdo
+                  Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: isHighContrast
+                          ? Colors.black
+                          : accentColor.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: isHighContrast ? Colors.black : accentColor.withValues(alpha: 0.3),
+                        width: 2,
+                      ),
+                    ),
+                    child: ClipOval(
+                      child: lembrete.categoria == 'medicacao' && lembrete.medicamentoFotoPath != null && lembrete.medicamentoFotoPath!.isNotEmpty
+                          ? Image(
+                              image: lembrete.medicamentoFotoPath!.startsWith('assets/')
+                                  ? AssetImage(lembrete.medicamentoFotoPath!) as ImageProvider
+                                  : lembrete.medicamentoFotoPath!.startsWith('http')
+                                  ? NetworkImage(lembrete.medicamentoFotoPath!)
+                                  : FileImage(File(lembrete.medicamentoFotoPath!)),
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Icon(
+                                  lembrete.categoria == 'medicacao'
+                                      ? Icons.medication
+                                      : lembrete.categoria == 'refeicoes'
+                                      ? Icons.restaurant
+                                      : lembrete.categoria == 'hidratacao'
+                                      ? Icons.water_drop
+                                      : lembrete.categoria == 'exercicio'
+                                      ? Icons.directions_walk
+                                      : Icons.notifications,
+                                  color: isHighContrast ? Colors.white : accentColor,
+                                  size: 28,
+                                );
+                              },
+                            )
+                          : Icon(
+                              lembrete.categoria == 'medicacao'
+                                  ? Icons.medication
+                                  : lembrete.categoria == 'refeicoes'
+                                  ? Icons.restaurant
+                                  : lembrete.categoria == 'hidratacao'
+                                  ? Icons.water_drop
+                                  : lembrete.categoria == 'exercicio'
+                                  ? Icons.directions_walk
+                                  : Icons.notifications,
+                              color: isHighContrast ? Colors.white : accentColor,
+                              size: 28,
+                            ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1482,19 +1537,26 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
             child: Row(
               children: [
                 Container(
-                  width: 48,
-                  height: 48,
+                  width: 58,
+                  height: 58,
                   decoration: BoxDecoration(
                     color: isHighContrast ? Colors.white : section.color,
                     shape: BoxShape.circle,
+                    boxShadow: isHighContrast ? null : [
+                      BoxShadow(
+                        color: section.color.withValues(alpha: 0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      )
+                    ],
                   ),
                   child: Icon(
                     section.icon,
                     color: isHighContrast ? Colors.black : Colors.white,
-                    size: 28,
+                    size: 34,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -2043,19 +2105,42 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                           Row(
                             children: [
                               Container(
-                                padding: const EdgeInsets.all(10),
+                                width: 80,
+                                height: 80,
                                 decoration: BoxDecoration(
                                   color: isHighContrast
                                       ? Colors.black
                                       : categoryColor.withValues(alpha: 0.12),
                                   shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: isHighContrast ? Colors.black : categoryColor.withValues(alpha: 0.3),
+                                    width: 2,
+                                  ),
                                 ),
-                                child: Icon(
-                                  categoryIcon,
-                                  color: isHighContrast
-                                      ? Colors.white
-                                      : categoryColor,
-                                  size: 32,
+                                child: ClipOval(
+                                  child: lembrete.categoria == 'medicacao' &&
+                                          lembrete.medicamentoFotoPath != null &&
+                                          lembrete.medicamentoFotoPath!.isNotEmpty
+                                      ? Image(
+                                          image: lembrete.medicamentoFotoPath!.startsWith('assets/')
+                                              ? AssetImage(lembrete.medicamentoFotoPath!) as ImageProvider
+                                              : lembrete.medicamentoFotoPath!.startsWith('http')
+                                              ? NetworkImage(lembrete.medicamentoFotoPath!)
+                                              : FileImage(File(lembrete.medicamentoFotoPath!)),
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (context, error, stackTrace) {
+                                            return Icon(
+                                              categoryIcon,
+                                              color: isHighContrast ? Colors.white : categoryColor,
+                                              size: 36,
+                                            );
+                                          },
+                                        )
+                                      : Icon(
+                                          categoryIcon,
+                                          color: isHighContrast ? Colors.white : categoryColor,
+                                          size: 36,
+                                        ),
                                 ),
                               ),
                               const SizedBox(width: 16),
@@ -2063,16 +2148,30 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(
-                                      'SUA PRÓXIMA TAREFA',
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w900,
-                                        letterSpacing: 0,
-                                        color: isHighContrast
-                                            ? Colors.black
-                                            : categoryColor,
-                                      ),
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          PeriodHelper.getPeriodIcon(lembrete.horarioHour),
+                                          color: isHighContrast
+                                              ? Colors.black
+                                              : PeriodHelper.getPeriodColor(lembrete.horarioHour),
+                                          size: 24,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            'TAREFA DA ${PeriodHelper.getPeriodLabel(lembrete.horarioHour).toUpperCase()}',
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w900,
+                                              letterSpacing: 0,
+                                              color: isHighContrast
+                                                  ? Colors.black
+                                                  : categoryColor,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                     if (remainingTime.isNotEmpty) ...[
                                       const SizedBox(height: 4),

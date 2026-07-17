@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/app_message.dart';
+import '../models/offline_write.dart';
 import '../utils/audio_path_helper.dart';
 import '../utils/web_upload_helper.dart';
 import 'offline_sync_service.dart';
@@ -98,14 +99,38 @@ class MessageService {
         .where('idosoId', isEqualTo: idosoId)
         .snapshots()
         .listen((snapshot) async {
+          final pendingWrites = (await OfflineSyncService.instance.loadQueue())
+              .where((write) =>
+                  write.collection == 'mensagens' && !write.failed)
+              .toList();
+          final itemsById = <String, AppMessage>{
+            for (final doc in snapshot.docs)
+              doc.id: AppMessage.fromJson({'id': doc.id, ...doc.data()}),
+          };
+
+          for (final write in pendingWrites) {
+            final data = Map<String, dynamic>.from(write.data);
+            final pendingIdosoId = data['idosoId'] as String? ??
+                itemsById[write.docId]?.idosoId ??
+                idosoId;
+            if (pendingIdosoId != idosoId) continue;
+
+            if (write.action == OfflineWriteAction.set) {
+              itemsById[write.docId] = AppMessage.fromJson(data);
+              continue;
+            }
+
+            final current = itemsById[write.docId];
+            if (current != null && write.action == OfflineWriteAction.update) {
+              itemsById[write.docId] = AppMessage.fromJson(
+                Map<String, dynamic>.from(current.toJson())..addAll(data),
+              );
+            }
+          }
+
           _messages
             ..clear()
-            ..addAll(
-              snapshot.docs.map((doc) {
-                final data = doc.data();
-                return AppMessage.fromJson({'id': doc.id, ...data});
-              }),
-            )
+            ..addAll(itemsById.values)
             ..sort((a, b) => b.criadoEm.compareTo(a.criadoEm));
           await _saveLocal(idosoId);
           notifier.value = List.from(_messages);
@@ -126,7 +151,9 @@ class MessageService {
 
 
   Future<bool> _checkConnection() async {
-    final canUse = await SessionRoleService.canUseActiveIdoso();
+    final canUse = await SessionRoleService.canUseActiveIdoso(
+      allowOfflineCache: true,
+    );
     if (!canUse) {
       AppStatusService.instance.report(
         id: 'messages-invalid-session',
@@ -166,11 +193,21 @@ class MessageService {
     if (!await _checkConnection()) return false;
     final idosoId = await getActiveIdosoId();
     final messageId = 'msg_${DateTime.now().microsecondsSinceEpoch}';
-    final storedAudioPath = await _uploadAudioIfNeeded(
-      audioPath: audioPath,
-      idosoId: idosoId,
-      messageId: messageId,
-    );
+    String storedAudioPath = audioPath;
+    try {
+      storedAudioPath = await _uploadAudioIfNeeded(
+        audioPath: audioPath,
+        idosoId: idosoId,
+        messageId: messageId,
+      );
+    } catch (e) {
+      debugPrint('Erro ao subir audio da mensagem (salvando local): $e');
+      AppStatusService.instance.report(
+        id: 'message-audio-pending',
+        title: 'Audio pendente',
+        message: 'A mensagem de audio sera enviada completamente quando sincronizar.',
+      );
+    }
     final message = AppMessage(
       id: messageId,
       idosoId: idosoId,

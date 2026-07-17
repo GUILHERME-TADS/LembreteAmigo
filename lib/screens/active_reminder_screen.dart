@@ -11,6 +11,7 @@ import '../services/tts_service.dart';
 import '../services/notification_service.dart';
 import '../services/vibration_service.dart';
 import '../utils/audio_path_helper.dart';
+import '../utils/period_helper.dart';
 import '../widgets/index.dart';
 
 class ActiveReminderScreen extends StatefulWidget {
@@ -747,14 +748,27 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                   ),
                                   child: Column(
                                     children: [
-                                      Text(
-                                        'ATIVIDADE A FAZER:',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w800,
-                                          letterSpacing: 0,
-                                          color: isHighContrast ? Colors.black : AppColors.outline,
-                                        ),
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            PeriodHelper.getPeriodIcon(lembrete!.horarioHour),
+                                            color: isHighContrast
+                                                ? Colors.black
+                                                : PeriodHelper.getPeriodColor(lembrete!.horarioHour),
+                                            size: 26,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            'TAREFA DA ${PeriodHelper.getPeriodLabel(lembrete!.horarioHour).toUpperCase()}:',
+                                            style: TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w900,
+                                              letterSpacing: 0,
+                                              color: isHighContrast ? Colors.black : PeriodHelper.getPeriodColor(lembrete!.horarioHour),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                       const SizedBox(height: 12),
                                       Text(
@@ -937,13 +951,13 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                   ),
                                 ),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: isHighContrast ? Colors.black : AppColors.tertiaryFixedDim,
-                                  foregroundColor: isHighContrast ? Colors.white : AppColors.onTertiaryFixed,
-                                  elevation: 4,
+                                  backgroundColor: isHighContrast ? Colors.black : const Color(0xFF2E7D32),
+                                  foregroundColor: Colors.white,
+                                  elevation: 6,
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
+                                    borderRadius: BorderRadius.circular(24),
                                   ),
-                                  side: isHighContrast ? const BorderSide(color: Colors.black, width: 2) : null,
+                                  side: isHighContrast ? const BorderSide(color: Colors.black, width: 3) : null,
                                 ),
                               ),
                             ),
@@ -952,7 +966,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                             // BOTAO ADIAR
                             SizedBox(
                               width: double.infinity,
-                              height: 72,
+                              height: 80,
                               child: ElevatedButton.icon(
                                 onPressed: () async {
                                   if (_isProcessingAction) return;
@@ -1012,11 +1026,11 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                   ),
                                 ),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: isHighContrast ? Colors.yellow : AppColors.secondaryContainer,
-                                  foregroundColor: isHighContrast ? Colors.black : AppColors.onSecondaryContainer,
-                                  elevation: 2,
+                                  backgroundColor: isHighContrast ? Colors.yellow : const Color(0xFFFFD54F),
+                                  foregroundColor: isHighContrast ? Colors.black : const Color(0xFF5D4037),
+                                  elevation: 4,
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
+                                    borderRadius: BorderRadius.circular(24),
                                   ),
                                   side: isHighContrast ? const BorderSide(color: Colors.black, width: 3) : null,
                                 ),
@@ -1025,7 +1039,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                             const SizedBox(height: 16),
                             SizedBox(
                               width: double.infinity,
-                              height: 72,
+                              height: 80,
                               child: ElevatedButton.icon(
                                 onPressed: () async {
                                   if (_isProcessingAction) return;
@@ -1088,13 +1102,13 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                   ),
                                 ),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: isHighContrast ? Colors.red : AppColors.error,
-                                  foregroundColor: isHighContrast ? Colors.white : AppColors.onError,
-                                  elevation: 2,
+                                  backgroundColor: isHighContrast ? Colors.red : const Color(0xFFD32F2F),
+                                  foregroundColor: Colors.white,
+                                  elevation: 4,
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
+                                    borderRadius: BorderRadius.circular(24),
                                   ),
-                                  side: isHighContrast ? const BorderSide(color: Colors.black, width: 2) : null,
+                                  side: isHighContrast ? const BorderSide(color: Colors.black, width: 3) : null,
                                 ),
                               ),
                             ),
@@ -1140,8 +1154,8 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
       alignment: Alignment.center,
       children: [
         Container(
-          width: 160,
-          height: 160,
+          width: 220,
+          height: 220,
           decoration: BoxDecoration(
             color: color.withValues(alpha: 0.15),
             shape: BoxShape.circle,
@@ -1152,11 +1166,11 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
             l.categoria == 'medicacao' &&
             l.medicamentoFotoPath != null)
           Container(
-            width: 130,
-            height: 130,
+            width: 180,
+            height: 180,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 4),
+              border: Border.all(color: Colors.white, width: 6),
               image: DecorationImage(
                 image: l.medicamentoFotoPath!.startsWith('assets/')
                     ? AssetImage(l.medicamentoFotoPath!) as ImageProvider
@@ -1169,14 +1183,14 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
           )
         else
           Container(
-            width: 130,
-            height: 130,
+            width: 180,
+            height: 180,
             decoration: BoxDecoration(
               color: color,
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 4),
+              border: Border.all(color: Colors.white, width: 6),
             ),
-            child: Icon(icon, size: 68, color: Colors.white),
+            child: Icon(icon, size: 90, color: Colors.white),
           ),
       ],
     );

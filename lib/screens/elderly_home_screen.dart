@@ -1255,7 +1255,9 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                             arguments: lembrete.id,
                           );
                         } else {
-                          await LembreteService.instance.alternarConclusao(lembrete.id);
+                          final ok = await LembreteService.instance
+                              .alternarConclusao(lembrete.id);
+                          if (!ok) return;
                         }
                       } finally {
                         if (mounted) {

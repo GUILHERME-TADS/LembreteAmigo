@@ -40,7 +40,6 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
       debugPrint('Erro ao carregar foto no reminder detail: $e');
     }
   }
-
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -90,7 +89,7 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
             ? 'Refeição agendada para às ${_lembrete!.horarioFormatado}. Bom apetite!'
             : 'Sua refeição está pronta. Bom apetite!',
         detailedExplanation:
-            'Olá, esta é a tela de detalhes da sua refeição. Se for comer agora, aperte o botão verde escrito JÁ COMI OU ENTENDI.',
+            'Olá, esta é a tela de detalhes da sua refeição. Aqui você pode conferir o horário e ouvir a orientação novamente.',
         spokenText: (l, timeStr) =>
             'Hora de comer. ${l.titulo} agendado para às $timeStr. Por favor, faça sua refeição.',
         defaultSpokenText: () => 'Hora de comer. Sua refeição está pronta. Bom apetite!',
@@ -105,7 +104,7 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
             ? 'Atividade física agendada para às ${_lembrete!.horarioFormatado}. Vamos lá!'
             : 'Vamos nos movimentar!',
         detailedExplanation:
-            'Olá, esta é a tela do seu exercício. Aperte o botão verde para confirmar que vai fazer o exercício.',
+            'Olá, esta é a tela do seu exercício. Aqui você pode conferir o horário e ouvir a orientação novamente.',
         spokenText: (l, timeStr) =>
             'Hora de se mexer. ${l.titulo} agendado para às $timeStr. Vamos nos movimentar.',
         defaultSpokenText: () => 'Hora de se exercitar. Vamos nos movimentar!',
@@ -120,7 +119,7 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
             ? 'Lembrete de água agendado para às ${_lembrete!.horarioFormatado}.'
             : 'Hora de beber um copo d\'água!',
         detailedExplanation:
-            'Olá! Beber água faz bem para a saúde. Aperte o botão verde assim que beber o seu copo d\'água.',
+            'Olá! Beber água faz bem para a saúde. Aqui você pode conferir o horário e ouvir a orientação novamente.',
         spokenText: (l, timeStr) =>
             'Hora de beber água. ${l.titulo} agendado para às $timeStr.',
         defaultSpokenText: () => 'Hora de beber um copo d\'água!',
@@ -297,97 +296,6 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
                     // 6. Botão Gigante "🔊 OUVIR NOVAMENTE"
                     _buildListenAgainButton(cfg),
 
-                    const SizedBox(height: 20),
-
-                    // 7. Card de Afeto / Lembrete com Carinho
-                    _buildTrustCard(cfg),
-
-                    const SizedBox(height: 32),
-
-                    // 8. Botão Princpal "✔️ JÁ TOMEI / ENTENDI" (Verde Semântico)
-                    SizedBox(
-                      width: double.infinity,
-                      height: 68,
-                      child: ElevatedButton.icon(
-                        onPressed: () async {
-                          final nav = Navigator.of(context);
-                          if (_lembrete != null) {
-                            if (_lembrete!.categoria == 'medicacao' && !_lembrete!.concluido) {
-                              TTSService.instance.parar(caller: this);
-                              nav.pushReplacementNamed(
-                                '/take-photo-confirmation',
-                                arguments: _lembrete!.id,
-                              );
-                              return;
-                            } else {
-                              await LembreteService.instance.concluir(_lembrete!.id);
-                            }
-                          }
-                          // Reforço Positivo por Voz
-                          TTSService.instance.falar(
-                            'Muito bem! Você cuidou da sua saúde com sucesso!',
-                            caller: this,
-                          );
-                          if (mounted) nav.pop();
-                        },
-                        icon: const Icon(Icons.check_circle_rounded, size: 36),
-                        label: Text(
-                          _lembrete?.concluido == true
-                              ? 'CONCLUÍDO ✔️'
-                              : (_lembrete?.categoria == 'medicacao'
-                                    ? 'JÁ TOMEI ✔️'
-                                    : 'JÁ FIZ / ENTENDI ✔️'),
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF2E7D32), // Verde Forte de Sucesso
-                          foregroundColor: Colors.white,
-                          elevation: 4,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // 9. Botão Secundário "⏰ MAIS TARDE (10 MIN)" (Amarelo Semântico)
-                    SizedBox(
-                      width: double.infinity,
-                      height: 64,
-                      child: ElevatedButton.icon(
-                        onPressed: () async {
-                          final nav = Navigator.of(context);
-                          if (_lembrete != null) {
-                            await LembreteService.instance.adiar(_lembrete!.id, 10);
-                          }
-                          TTSService.instance.falar(
-                            'Tudo bem! Vamos te lembrar novamente em 10 minutos.',
-                            caller: this,
-                          );
-                          if (mounted) nav.pop();
-                        },
-                        icon: const Icon(Icons.schedule_rounded, size: 30),
-                        label: const Text(
-                          'MAIS TARDE (10 MINUTOS)',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFF57F17), // Amarelo/Laranja Quente
-                          foregroundColor: Colors.white,
-                          elevation: 2,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                      ),
-                    ),
-
                     const SizedBox(height: 80),
                   ],
                 ),
@@ -519,7 +427,7 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
           color: cfg.color,
         ),
         label: Text(
-          _isSpeakingAudio ? 'FALANDO AGORA...' : '🔊 OUVIR DE NOVO',
+          _isSpeakingAudio ? 'FALANDO AGORA...' : 'OUVIR DE NOVO',
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w900,
@@ -537,31 +445,7 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
     );
   }
 
-  Widget _buildTrustCard(_ReminderCategoryConfig cfg) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.outlineVariant),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: const [
-          Icon(Icons.favorite_rounded, color: Colors.redAccent, size: 22),
-          SizedBox(width: 8),
-          Text(
-            'Lembrete agendado com carinho para você',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: AppColors.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+
 
   Widget _buildMedicinePhotoContainer(String path, _ReminderCategoryConfig cfg) {
     return Container(

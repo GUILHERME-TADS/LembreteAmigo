@@ -38,6 +38,14 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
   Timer? _noResponseTimer;
   bool _isProcessingAction = false;
 
+  void _runInBackground(Future<void> future, String action) {
+    unawaited(
+      future.catchError((error, stackTrace) {
+        debugPrint('Erro ao $action: $error');
+      }),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -906,13 +914,12 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                     await _familyAudioPlayer.stop();
                                     await TTSService.instance.parar();
                                     if (lembrete != null) {
-                                      NotificationService.instance
-                                          .cancelar(lembrete!.id)
-                                          .catchError((e) {
-                                        debugPrint(
-                                          'Erro ao cancelar notificacao: $e',
-                                        );
-                                      });
+                                      _runInBackground(
+                                        NotificationService.instance.cancelar(
+                                          lembrete!.id,
+                                        ),
+                                        'cancelar notificacao',
+                                      );
                                     }
                                     if (requiresPhoto) {
                                       final id = lembrete?.id;
@@ -934,7 +941,11 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                     } else {
                                       if (lembrete != null) {
                                         try {
-                                          await LembreteService.instance.alternarConclusao(lembrete!.id);
+                                          final ok = await LembreteService.instance
+                                              .alternarConclusao(
+                                            lembrete!.id,
+                                          );
+                                          if (!ok) return;
                                           _isSpeakingLoopActive = false;
                                           final feedbackMsg =
                                               lembrete?.categoria == 'hidratacao'
@@ -1011,15 +1022,19 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                     final navigator = Navigator.of(context);
                                     final categoria = lembrete?.categoria;
                                     if (lembrete != null) {
-                                      await NotificationService.instance
-                                          .cancelar(lembrete!.id)
-                                          .catchError((e) {
-                                        debugPrint(
-                                          'Erro ao cancelar notificacao: $e',
-                                        );
-                                      });
+                                      _runInBackground(
+                                        NotificationService.instance.cancelar(
+                                          lembrete!.id,
+                                        ),
+                                        'cancelar notificacao',
+                                      );
                                       try {
-                                        await LembreteService.instance.adiar(lembrete!.id, 10);
+                                        final ok = await LembreteService.instance
+                                            .adiar(
+                                          lembrete!.id,
+                                          10,
+                                        );
+                                        if (!ok) return;
                                         navigator.pushNamedAndRemoveUntil(
                                           '/reinforcement-alert',
                                           (route) => false,
@@ -1081,18 +1096,19 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                     TTSService.instance.parar();
                                     final navigator = Navigator.of(context);
                                     if (lembrete != null) {
-                                      await NotificationService.instance
-                                          .cancelar(lembrete!.id)
-                                          .catchError((e) {
-                                        debugPrint(
-                                          'Erro ao cancelar notificacao: $e',
-                                        );
-                                      });
+                                      _runInBackground(
+                                        NotificationService.instance.cancelar(
+                                          lembrete!.id,
+                                        ),
+                                        'cancelar notificacao',
+                                      );
                                       try {
-                                        await LembreteService.instance.registrarDificuldade(
+                                        final ok = await LembreteService.instance
+                                            .registrarDificuldade(
                                           lembrete!.id,
                                           'O idoso informou que nao conseguiu realizar a atividade.',
                                         );
+                                        if (!ok) return;
                                         navigator.pushNamedAndRemoveUntil(
                                           '/reinforcement-alert',
                                           (route) => false,

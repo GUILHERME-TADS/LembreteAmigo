@@ -548,6 +548,137 @@ class LembreteService {
         status != LembreteStatus.concluidoComFoto;
   }
 
+  void _syncInBackground(Future<void> future, String action) {
+    unawaited(
+      future.catchError((error, stackTrace) {
+        debugPrint('Erro ao sincronizar $action: $error');
+      }),
+    );
+  }
+
+  Future<Lembrete?> _atualizarStatusLocal(
+    String id,
+    LembreteStatus status, {
+    String? observacao,
+  }) async {
+    final lembrete = await _findLocalOrRemote(id);
+    if (lembrete == null) return null;
+    if (_bloqueiaConclusaoSemFoto(lembrete, status)) return null;
+
+    final atualizado = lembrete.copyWith(status: status);
+    _upsertLocal(atualizado);
+    await _salvar();
+    await _registrarEventoLocal(
+      atualizado,
+      status,
+      observacao: observacao,
+    );
+    return atualizado;
+  }
+
+  Future<void> _registrarEventoLocal(
+    Lembrete lembrete,
+    LembreteStatus status, {
+    String? observacao,
+  }) async {
+    final source = lembrete.idosoId == null
+        ? lembrete.copyWith(idosoId: await _getActiveIdosoId())
+        : lembrete;
+    final evento = LembreteEvento.fromLembrete(
+      source,
+      status: status,
+      observacao: observacao,
+    );
+
+    _eventos.insert(0, evento);
+    await _salvarEventosLocais();
+  }
+
+  Future<void> _sincronizarEvento(
+    Lembrete lembrete,
+    LembreteStatus status, {
+    String? observacao,
+  }) async {
+    final source = lembrete.idosoId == null
+        ? lembrete.copyWith(idosoId: await _getActiveIdosoId())
+        : lembrete;
+    if (!_canSyncIdosoId(source.idosoId)) return;
+
+    final evento = _eventos.firstWhere(
+      (item) =>
+          item.lembreteId == source.id &&
+          item.status == status &&
+          item.observacao == observacao,
+      orElse: () => LembreteEvento.fromLembrete(
+        source,
+        status: status,
+        observacao: observacao,
+      ),
+    );
+
+    await OfflineSyncService.instance.setOrQueue(
+      'lembrete_eventos',
+      evento.id,
+      evento.toJson(),
+    );
+  }
+
+  Future<void> _sincronizarStatus(
+    Lembrete lembrete,
+    LembreteStatus status, {
+    String? observacao,
+  }) async {
+    if (_canSyncIdosoId(lembrete.idosoId)) {
+      await OfflineSyncService.instance.updateOrQueue('lembretes', lembrete.id, {
+        'status': status.storageValue,
+        'concluido': status.isConcluido,
+        'concluidoComFoto': status == LembreteStatus.concluidoComFoto,
+      });
+    }
+    await _sincronizarEvento(
+      lembrete,
+      status,
+      observacao: observacao,
+    );
+  }
+
+  Future<Lembrete?> _adiarLocal(String id, int minutos) async {
+    final now = DateTime.now().add(Duration(minutes: minutos));
+    final lembrete = await _findLocalOrRemote(id);
+    if (lembrete == null) return null;
+
+    final atualizado = lembrete.copyWith(
+      horarioHour: now.hour,
+      horarioMinute: now.minute,
+      status: LembreteStatus.adiado,
+    );
+    _upsertLocal(atualizado);
+    await _salvar();
+    await _registrarEventoLocal(
+      atualizado,
+      LembreteStatus.adiado,
+      observacao: 'Adiado por $minutos minutos',
+    );
+    return atualizado;
+  }
+
+  Future<void> _sincronizarAdiamento(Lembrete lembrete, int minutos) async {
+    if (_canSyncIdosoId(lembrete.idosoId)) {
+      await OfflineSyncService.instance.updateOrQueue('lembretes', lembrete.id, {
+        'horarioHour': lembrete.horarioHour,
+        'horarioMinute': lembrete.horarioMinute,
+        'status': LembreteStatus.adiado.storageValue,
+        'concluido': false,
+        'concluidoComFoto': false,
+      });
+    }
+    await _sincronizarEvento(
+      lembrete,
+      LembreteStatus.adiado,
+      observacao: 'Adiado por $minutos minutos',
+    );
+  }
+
   Future<void> _atualizarStatus(
     String id,
     LembreteStatus status, {
@@ -735,9 +866,15 @@ class LembreteService {
     return snapshot.ref.getDownloadURL();
   }
 
-  Future<void> concluir(String id) async {
-    if (!await _checkConnection()) return;
-    await _atualizarStatus(id, LembreteStatus.concluido);
+  Future<bool> concluir(String id) async {
+    if (!await _checkConnection()) return false;
+    final atualizado = await _atualizarStatusLocal(id, LembreteStatus.concluido);
+    if (atualizado == null) return false;
+    _syncInBackground(
+      _sincronizarStatus(atualizado, LembreteStatus.concluido),
+      'conclusao do lembrete',
+    );
+    return true;
   }
 
   Future<void> concluirComFoto(String id, String localPhotoPath) async {
@@ -790,28 +927,21 @@ class LembreteService {
     }
   }
 
-  Future<void> alternarConclusao(String id) async {
-    if (!await _checkConnection()) return;
+  Future<bool> alternarConclusao(String id) async {
+    if (!await _checkConnection()) return false;
     final lembrete = await _findLocalOrRemote(id);
-    if (lembrete == null) return;
+    if (lembrete == null) return false;
 
     final novoStatus = lembrete.concluido
         ? LembreteStatus.pendente
         : LembreteStatus.concluido;
-    if (_bloqueiaConclusaoSemFoto(lembrete, novoStatus)) return;
-
-    final atualizado = lembrete.copyWith(status: novoStatus);
-    _upsertLocal(atualizado);
-    await _salvar();
-
-    if (_canSyncIdosoId(atualizado.idosoId)) {
-      await OfflineSyncService.instance.updateOrQueue('lembretes', id, {
-        'status': novoStatus.storageValue,
-        'concluido': novoStatus.isConcluido,
-        'concluidoComFoto': false,
-      });
-    }
-    await _registrarEvento(atualizado, novoStatus);
+    final atualizado = await _atualizarStatusLocal(id, novoStatus);
+    if (atualizado == null) return false;
+    _syncInBackground(
+      _sincronizarStatus(atualizado, novoStatus),
+      'alteracao de status do lembrete',
+    );
+    return true;
   }
 
   Future<void> remover(String id) async {
@@ -858,39 +988,34 @@ class LembreteService {
     );
   }
 
-  Future<void> adiar(String id, int minutos) async {
-    if (!await _checkConnection()) return;
-    final now = DateTime.now().add(Duration(minutes: minutos));
-    final lembrete = await _findLocalOrRemote(id);
-    if (lembrete == null) return;
-
-    final atualizado = lembrete.copyWith(
-      horarioHour: now.hour,
-      horarioMinute: now.minute,
-      status: LembreteStatus.adiado,
+  Future<bool> adiar(String id, int minutos) async {
+    if (!await _checkConnection()) return false;
+    final atualizado = await _adiarLocal(id, minutos);
+    if (atualizado == null) return false;
+    _syncInBackground(
+      _sincronizarAdiamento(atualizado, minutos),
+      'adiamento do lembrete',
     );
-    _upsertLocal(atualizado);
-    await _salvar();
-
-    if (_canSyncIdosoId(atualizado.idosoId)) {
-      await OfflineSyncService.instance.updateOrQueue('lembretes', id, {
-        'horarioHour': now.hour,
-        'horarioMinute': now.minute,
-        'status': LembreteStatus.adiado.storageValue,
-        'concluido': false,
-        'concluidoComFoto': false,
-      });
-    }
-    await _registrarEvento(
-      atualizado,
-      LembreteStatus.adiado,
-      observacao: 'Adiado por $minutos minutos',
-    );
+    return true;
   }
 
-  Future<void> registrarDificuldade(String id, String motivo) async {
-    if (!await _checkConnection()) return;
-    await _atualizarStatus(id, LembreteStatus.precisaDeAjuda, observacao: motivo);
+  Future<bool> registrarDificuldade(String id, String motivo) async {
+    if (!await _checkConnection()) return false;
+    final atualizado = await _atualizarStatusLocal(
+      id,
+      LembreteStatus.precisaDeAjuda,
+      observacao: motivo,
+    );
+    if (atualizado == null) return false;
+    _syncInBackground(
+      _sincronizarStatus(
+        atualizado,
+        LembreteStatus.precisaDeAjuda,
+        observacao: motivo,
+      ),
+      'registro de dificuldade',
+    );
+    return true;
   }
 
   List<Map<String, String>> getActiveMedicationsWithSchedule() {

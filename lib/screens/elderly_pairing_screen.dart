@@ -260,6 +260,10 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      floatingActionButton: const AlexFloatingHelpButton(
+        textoExplicacao:
+            'Olá! Esta é a tela para conectar o aplicativo com quem cuida de você. Aqui você pode escolher se vai usar o aplicativo sozinho ou se vai conectar com o celular do seu ajudante ou cuidador para ele te acompanhar.',
+      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -303,10 +307,6 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
                           ),
                           const SizedBox(width: 48),
                         ],
-                      ),
-                      const SizedBox(height: 12),
-                      const MeExplicaButton(
-                        textoExplicacao: 'Olá! Esta é a tela para conectar o aplicativo com quem cuida de você. Aqui você pode escolher se vai usar o aplicativo sozinho ou se vai conectar com o celular do seu ajudante ou cuidador para ele te acompanhar.',
                       ),
                       const SizedBox(height: 12),
                       if (_showModeSelection) ...[

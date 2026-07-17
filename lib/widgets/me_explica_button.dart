@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../services/tts_service.dart';
 import '../theme/app_theme.dart';
@@ -58,11 +59,10 @@ class _MeExplicaButtonState extends State<MeExplicaButton>
             : (widget.textColor ?? AppColors.primary);
         final bg = isThisSpeaking
             ? AppColors.secondaryFixed
-            : (widget.backgroundColor ??
-                  AppColors.primary.withValues(alpha: 0.08));
+            : (widget.backgroundColor ?? AppColors.primaryFixed);
         final border = isThisSpeaking
             ? AppColors.secondaryFixedDim
-            : (widget.borderColor ?? AppColors.primary.withValues(alpha: 0.15));
+            : (widget.borderColor ?? AppColors.primary);
 
         return GestureDetector(
           onTap: () => _handleTap(isThisSpeaking),
@@ -104,15 +104,15 @@ class _MeExplicaButtonState extends State<MeExplicaButton>
                     children: [
                       Icon(
                         isThisSpeaking
-                            ? Icons.volume_off
-                            : Icons.record_voice_over,
+                            ? Icons.stop_circle
+                            : Icons.volume_up,
                         color: txtColor,
                         size: 28,
                       ),
                       const SizedBox(width: 8),
                       Flexible(
                         child: Text(
-                          isThisSpeaking ? 'PARAR AUDIO' : 'OUVIR EXPLICACAO',
+                          isThisSpeaking ? 'Parar de ouvir' : 'Me explica',
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 20,
@@ -137,6 +137,7 @@ class _MeExplicaButtonState extends State<MeExplicaButton>
   }
 
   void _handleTap(bool isThisSpeaking) {
+    HapticFeedback.lightImpact();
     if (isThisSpeaking) {
       TTSService.instance.parar(caller: this);
       return;

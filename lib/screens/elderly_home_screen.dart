@@ -8,6 +8,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/lembrete.dart';
 import '../services/lembrete_service.dart';
 import '../services/location_service.dart';
@@ -2208,13 +2209,15 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                             children: [
                               Expanded(
                                 child: ElevatedButton.icon(
-                                  onPressed: () =>
-                                      _ouvirExplicacaoLembrete(lembrete),
+                                  onPressed: () {
+                                    HapticFeedback.lightImpact();
+                                    _ouvirExplicacaoLembrete(lembrete);
+                                  },
                                   icon: const Icon(Icons.volume_up, size: 24),
                                   label: const FittedBox(
                                     fit: BoxFit.scaleDown,
                                     child: Text(
-                                      'OUVIR EXPLICACAO',
+                                      'Ouvir explicação',
                                       style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.bold,
@@ -2245,7 +2248,10 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: ElevatedButton.icon(
-                                    onPressed: () => _playAudio(lembrete.audioPath!),
+                                    onPressed: () {
+                                      HapticFeedback.lightImpact();
+                                      _playAudio(lembrete.audioPath!);
+                                    },
                                     icon: Icon(
                                       _isPlaying
                                           ? Icons.stop
@@ -2255,7 +2261,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                     label: const FittedBox(
                                       fit: BoxFit.scaleDown,
                                       child: Text(
-                                        'OUVIR VOZ',
+                                        'Ouvir voz',
                                         style: TextStyle(
                                           fontSize: 16,
                                           fontWeight: FontWeight.bold,

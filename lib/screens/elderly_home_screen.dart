@@ -868,7 +868,6 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
   Widget _buildNode(Lembrete lembrete) {
     final isHighContrast =
         Theme.of(context).colorScheme.primary == Colors.black;
-    final bool isMed = lembrete.categoria == 'medicacao';
     Color bg;
     IconData? icon;
     Color iconColor = isHighContrast ? Colors.black : Colors.white;
@@ -899,20 +898,21 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
       }
     }
 
-    if (!isMed) {
-      switch (lembrete.categoria) {
-        case 'refeicoes':
-          icon = Icons.restaurant;
-          break;
-        case 'exercicio':
-          icon = Icons.directions_walk;
-          break;
-        case 'hidratacao':
-          icon = Icons.water_drop;
-          break;
-        default:
-          icon = Icons.notifications;
-      }
+    switch (lembrete.categoria) {
+      case 'medicacao':
+        icon = Icons.medication;
+        break;
+      case 'refeicoes':
+        icon = Icons.restaurant;
+        break;
+      case 'exercicio':
+        icon = Icons.directions_walk;
+        break;
+      case 'hidratacao':
+        icon = Icons.water_drop;
+        break;
+      default:
+        icon = Icons.notifications;
     }
 
     const double nodeSize = 40.0;

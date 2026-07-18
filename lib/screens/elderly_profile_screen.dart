@@ -1914,6 +1914,7 @@ class _EditTitleDialogState extends State<_EditTitleDialog> {
     await TTSService.instance.parar(caller: this);
     if (_isListening) {
       await _speech.stop();
+      SystemSound.play(SystemSoundType.click);
       if (mounted) setState(() => _isListening = false);
       return;
     }
@@ -1922,13 +1923,19 @@ class _EditTitleDialogState extends State<_EditTitleDialog> {
       final available = await _speech.initialize(
         onError: (error) {
           debugPrint('Erro no ditado: ${error.errorMsg}');
-          if (mounted) setState(() => _isListening = false);
+          if (mounted) {
+            if (_isListening) {
+              SystemSound.play(SystemSoundType.click);
+            }
+            setState(() => _isListening = false);
+          }
         },
         onStatus: (status) {
           final isDone =
               status == stt.SpeechToText.doneStatus ||
               status == stt.SpeechToText.notListeningStatus;
           if (isDone && mounted && _isListening) {
+            SystemSound.play(SystemSoundType.click);
             setState(() => _isListening = false);
           }
         },
@@ -1946,10 +1953,6 @@ class _EditTitleDialogState extends State<_EditTitleDialog> {
       if (!mounted) return;
       setState(() => _isListening = true);
       SystemSound.play(SystemSoundType.click);
-      await TTSService.instance.falar('Fale o novo nome...', caller: this);
-      await Future.delayed(const Duration(milliseconds: 1200));
-
-      if (!mounted || !_isListening) return;
 
       _speech.listen(
         onResult: (result) {
@@ -1958,12 +1961,22 @@ class _EditTitleDialogState extends State<_EditTitleDialog> {
               _controller.text = result.recognizedWords;
             });
             if (result.finalResult) {
+              if (_isListening) {
+                SystemSound.play(SystemSoundType.click);
+              }
               setState(() => _isListening = false);
+              if (_controller.text.isNotEmpty) {
+                TTSService.instance.falar(
+                  'Anotado: ${_controller.text}',
+                  caller: this,
+                );
+              }
             }
           }
         },
         listenOptions: stt.SpeechListenOptions(
-          listenFor: const Duration(seconds: 10),
+          listenFor: const Duration(minutes: 5),
+          listenMode: stt.ListenMode.dictation,
           localeId: 'pt_BR',
         ),
       );

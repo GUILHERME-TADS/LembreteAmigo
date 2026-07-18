@@ -257,7 +257,6 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                   setDialogState(() {
                     segundosRestantes--;
                   });
-                  TTSService.instance.falar('$segundosRestantes', caller: this);
                 }
               } else {
                 timer.cancel();
@@ -475,11 +474,11 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                         return;
                       }
                       Navigator.pop(context);
-                      _confirmarAcaoSOSComContagem(
-                        'Chamada de Voz SOS',
+                      TTSService.instance.falar(
                         'Iniciando chamada de voz para o ajudante',
-                        () => _initiateCall('voice'),
+                        caller: this,
                       );
+                      _initiateCall('voice');
                     },
                   ),
                 ),
@@ -498,11 +497,11 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                         return;
                       }
                       Navigator.pop(context);
-                      _confirmarAcaoSOSComContagem(
-                        'Chamada de Vídeo SOS',
+                      TTSService.instance.falar(
                         'Iniciando chamada de vídeo para o ajudante',
-                        () => _initiateCall('video'),
+                        caller: this,
                       );
+                      _initiateCall('video');
                     },
                   ),
                 ),

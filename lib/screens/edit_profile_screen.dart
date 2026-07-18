@@ -83,6 +83,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     if (_isListening && _listeningStep == step) {
       await _speech.stop();
+      SystemSound.play(SystemSoundType.click);
       if (mounted) {
         setState(() {
           _isListening = false;
@@ -97,6 +98,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         onError: (error) {
           debugPrint('Erro no ditado: ${error.errorMsg}');
           if (mounted) {
+            if (_isListening && _listeningStep == step) {
+              SystemSound.play(SystemSoundType.click);
+            }
             setState(() {
               _isListening = false;
               _listeningStep = null;
@@ -113,6 +117,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               status == stt.SpeechToText.doneStatus ||
               status == stt.SpeechToText.notListeningStatus;
           if (isDone && mounted && _isListening && _listeningStep == step) {
+            SystemSound.play(SystemSoundType.click);
             setState(() {
               _isListening = false;
               _listeningStep = null;
@@ -145,15 +150,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       });
 
       SystemSound.play(SystemSoundType.click);
-      await TTSService.instance.falar('Pode falar agora...', caller: this);
-      await Future.delayed(const Duration(milliseconds: 1200));
-
-      if (!mounted || !_isListening) return;
 
       _speech.listen(
         listenOptions: stt.SpeechListenOptions(
-          listenFor: const Duration(seconds: 10),
-          pauseFor: const Duration(seconds: 3),
+          listenFor: const Duration(minutes: 5),
+          listenMode: stt.ListenMode.dictation,
           localeId: 'pt_BR',
           cancelOnError: true,
           partialResults: true,
@@ -175,6 +176,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           });
 
           if (result.finalResult) {
+            if (_isListening && _listeningStep == step) {
+              SystemSound.play(SystemSoundType.click);
+            }
             setState(() {
               _isListening = false;
               _listeningStep = null;

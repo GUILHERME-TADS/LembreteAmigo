@@ -117,6 +117,7 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
         },
         listenOptions: stt.SpeechListenOptions(
           listenFor: const Duration(minutes: 5),
+          listenMode: stt.ListenMode.dictation,
           localeId: 'pt_BR',
         ),
       );

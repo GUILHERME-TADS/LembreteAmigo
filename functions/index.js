@@ -287,6 +287,11 @@ function createGeminiModel(modelName, config) {
   });
 }
 
+/**
+ * Appends the standard medical disclaimer when it is not already present.
+ * @param {string} text
+ * @return {string} Text with the medical disclaimer.
+ */
 function appendMedicalDisclaimer(text) {
   const disclaimer =
     " Esta orientacao e apenas informativa e nao substitui a avaliacao de " +
@@ -1373,7 +1378,7 @@ exports.analyzeMedication = onCall(
           guidelines: "",
           suggestedAudioText: "",
           hasInteraction: false,
-          secondary: "none",
+          severity: "none",
           interactionWarning: "",
           schedulingConflictWarning: "",
         };

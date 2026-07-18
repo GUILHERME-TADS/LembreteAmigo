@@ -142,7 +142,7 @@ void main() {
       reminderStatusFromLembrete(
         lembreteComStatus(LembreteStatus.concluidoComFoto),
       ),
-      ReminderStatus.done,
+      ReminderStatus.doneWithPhoto,
     );
   });
 

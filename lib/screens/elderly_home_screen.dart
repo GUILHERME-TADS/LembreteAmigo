@@ -1,10 +1,7 @@
 import 'dart:io';
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
@@ -20,7 +17,6 @@ import '../services/video_call_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/audio_path_helper.dart';
 import '../utils/period_helper.dart';
-import '../utils/reminder_state_helper.dart';
 import '../widgets/index.dart';
 
 class ElderlyHomeScreen extends StatefulWidget {
@@ -523,7 +519,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                     _confirmarAcaoSOSComContagem(
                       'Ligar para Ambulância',
                       'Iniciando ligação para a ambulância',
-                      () => _ligar(ambulancePhone!),
+                      () => _ligar(ambulancePhone),
                     );
                   },
                 ),
@@ -921,6 +917,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     return Container(
       width: nodeSize,
       height: nodeSize,
+      clipBehavior: Clip.none,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: bg,
@@ -943,25 +940,30 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
               ],
       ),
       child: Stack(
+        clipBehavior: Clip.none,
         alignment: Alignment.center,
         children: [
           innerWidget,
           if (lembrete.concluido)
             Positioned(
-              right: -2,
-              bottom: -2,
+              right: -4,
+              bottom: -4,
               child: Container(
-                padding: const EdgeInsets.all(1),
+                padding: const EdgeInsets.all(2),
                 decoration: BoxDecoration(
                   color: isHighContrast
                       ? Colors.black
-                      : const Color(0xFF005312),
+                      : const Color(0xFF2E7D32),
                   shape: BoxShape.circle,
-                  border: isHighContrast
-                      ? Border.all(color: Colors.white, width: 1.5)
-                      : null,
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 3,
+                      offset: Offset(0, 1),
+                    ),
+                  ],
                 ),
-                child: const Icon(Icons.check, color: Colors.white, size: 10),
+                child: const Icon(Icons.check, color: Colors.white, size: 12),
               ),
             ),
         ],

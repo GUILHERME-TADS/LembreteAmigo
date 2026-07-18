@@ -27,7 +27,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
   final AudioRecorder _audioRecorder = AudioRecorder();
   final AudioPlayer _audioPlayer = AudioPlayer();
   String? _fotoPath;
-  String _caregiverName = 'meu ajudante';
+  String _caregiverName = 'meu cuidador';
   String? _caregiverFoto;
   String? _ambulancePhone;
   bool _isPaired = false;
@@ -50,12 +50,12 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
   void _speakIntroVoice(bool isPaired) {
     if (isPaired) {
       TTSService.instance.falar(
-        'Se precisar de ajuda, aperte o botão de ligar para o seu ajudante.',
+        'Se precisar de ajuda, aperte o botão de ligar para o seu cuidador.',
         caller: this,
       );
     } else {
       TTSService.instance.falar(
-        'Olá! Esta é a tela de ajuda. Para ligar, mandar recado ou pedir socorro, você precisa de um ajudante conectado.',
+        'Olá! Esta é a tela de ajuda. Para ligar, mandar recado ou pedir socorro, você precisa de um cuidador conectado.',
         caller: this,
       );
     }
@@ -63,12 +63,12 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
 
   void _speakUnpairedWarning() {
     TTSService.instance.falar(
-      'Esta opção precisa de um ajudante conectado. Por favor, peça para o seu ajudante conectar o celular dele ao seu.',
+      'Esta opção precisa de um cuidador conectado. Por favor, peça para o seu cuidador conectar o celular dele ao seu.',
       caller: this,
     );
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Você precisa de um ajudante conectado para usar esta função.'),
+        content: Text('Você precisa de um cuidador conectado para usar esta função.'),
         backgroundColor: AppColors.error,
       ),
     );
@@ -76,7 +76,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
 
   void _showAmbulancePhoneMissingWarning() {
     const message =
-        'O telefone da ambulância ainda não foi colocado no aplicativo. Peça ajuda ao seu ajudante.';
+        'O telefone da ambulância ainda não foi colocado no aplicativo. Peça ajuda ao seu cuidador.';
     TTSService.instance.falar(message, caller: this);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -449,7 +449,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                           nomeIdoso: idosoName,
                         );
                         if (!sent) {
-                          throw StateError('Nenhum ajudante conectado para receber a mensagem.');
+                          throw StateError('Nenhum cuidador conectado para receber a mensagem.');
                         }
 
                         TTSService.instance.falar(
@@ -505,7 +505,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
       backgroundColor: AppColors.background,
       floatingActionButton: const AlexFloatingHelpButton(
         textoExplicacao:
-            'Olá! Esta é a tela para pedir ajuda. Aqui você pode ligar para o seu ajudante, mandar recado de voz, ouvir recados, fazer ligação com imagem, ligar para a ambulância ou mandar onde você está.',
+            'Olá! Esta é a tela para pedir ajuda. Aqui você pode ligar para o seu cuidador, mandar recado de voz, ouvir recados, fazer ligação com imagem, ligar para a ambulância ou mandar onde você está.',
       ),
       body: SafeArea(
         child: Column(
@@ -857,7 +857,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                         return;
                       }
                       TTSService.instance.falar(
-                        'Abrindo os recados do seu ajudante.',
+                        'Abrindo os recados do seu cuidador.',
                         caller: this,
                       );
                       Navigator.pushNamed(context, '/messages');
@@ -1276,7 +1276,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
       if (idosoId == null || idosoId.isEmpty) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Nenhum ajudante conectado.')),
+            const SnackBar(content: Text('Nenhum cuidador conectado.')),
           );
         }
         return;
@@ -1316,7 +1316,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
 
   void _enviarLocalizacaoChat() async {
     TTSService.instance.falar(
-      'Estou vendo onde você está para avisar o seu ajudante.',
+      'Estou vendo onde você está para avisar o seu cuidador.',
       caller: this,
     );
 
@@ -1335,10 +1335,10 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
       }
 
       if (!sent) {
-        throw StateError('Nenhum ajudante conectado para receber a localização.');
+        throw StateError('Nenhum cuidador conectado para receber a localização.');
       }
       const feedback =
-          'Pronto. Enviei onde você está para o seu ajudante.';
+          'Pronto. Enviei onde você está para o seu cuidador.';
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text(feedback)),

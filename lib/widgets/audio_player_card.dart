@@ -20,7 +20,7 @@ class AudioPlayerCard extends StatefulWidget {
   const AudioPlayerCard({
     super.key,
     this.accentColor = AppColors.primary,
-    this.subtitle = 'Ouça todas as tarefas do dia',
+    this.subtitle = 'Ouça todos os lembretes do dia',
     this.audioPath,
     this.textsToSpeak,
     this.isChatDesign = false,
@@ -366,7 +366,7 @@ class _AudioPlayerCardState extends State<AudioPlayerCard>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'ESCUTE AS TAREFAS',
+                        'ESCUTE OS LEMBRETES',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,

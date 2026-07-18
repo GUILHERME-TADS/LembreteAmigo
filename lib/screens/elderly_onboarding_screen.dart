@@ -20,7 +20,7 @@ class _ElderlyOnboardingScreenState extends State<ElderlyOnboardingScreen> {
       icon: Icons.waving_hand,
       title: 'Bem-vindo ao\nLembrete Amigo!',
       subtitle: 'Eu sou o Alex. Vou ajudar você no dia a dia.',
-      ttsMessage: 'Olá, seja muito bem-vindo! Eu sou o Alex. Vou ajudar você a lembrar das suas tarefas do dia.',
+      ttsMessage: 'Olá, seja muito bem-vindo! Eu sou o Alex. Vou ajudar você a lembrar dos seus lembretes do dia.',
     ),
     _OnboardingStep(
       icon: Icons.campaign,
@@ -32,7 +32,7 @@ class _ElderlyOnboardingScreenState extends State<ElderlyOnboardingScreen> {
       icon: Icons.mic,
       title: 'Comandos\nde Voz',
       subtitle: 'Você pode falar comigo. Diga "já tomei", "adiar" ou "me explica".',
-      ttsMessage: 'Você pode falar comigo. Diga "já tomei" quando fizer uma tarefa. Diga "adiar" para eu lembrar depois. Diga "me explica" para eu explicar de novo.',
+      ttsMessage: 'Você pode falar comigo. Diga "já tomei" quando fizer um lembrete. Diga "adiar" para eu lembrar depois. Diga "me explica" para eu explicar de novo.',
     ),
   ];
 

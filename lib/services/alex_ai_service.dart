@@ -102,7 +102,7 @@ class AlexAIService {
         normalized.contains('ja fiz') ||
         normalized.contains('fiz')) {
       return _localResponse(
-        'Tudo bem! Já marquei essa tarefa como feita e avisei seu ajudante.',
+        'Tudo bem! Já marquei esse lembrete como feito e avisei seu cuidador.',
         'complete_reminder',
         confidence: 0.9,
       );
@@ -115,7 +115,7 @@ class AlexAIService {
         normalized.contains('dormir') ||
         normalized.contains('espera')) {
       return _localResponse(
-        'Entendido. Vou deixar essa tarefa para mais tarde e te lembro daqui a pouco.',
+        'Entendido. Vou deixar esse lembrete para mais tarde e aviso você daqui a pouco.',
         'postpone_reminder',
         confidence: 0.9,
       );
@@ -129,7 +129,7 @@ class AlexAIService {
         normalized.contains('repete') ||
         normalized.contains('o que e')) {
       return _localResponse(
-        'Eu vou ler as tarefas para você. Se quiser ouvir os detalhes de alguma, aperte em cima dela.',
+        'Eu vou ler os lembretes para você. Se quiser ouvir os detalhes de algum, aperte em cima dele.',
         'list_reminders',
         confidence: 0.9,
       );
@@ -152,7 +152,7 @@ class AlexAIService {
     }
 
     return _localResponse(
-      'Desculpe, ainda não sei fazer isso sozinho. Se quiser ligar para o ajudante, diga socorro ou ajuda.',
+      'Desculpe, ainda não sei fazer isso sozinho. Se quiser ligar para o cuidador, diga socorro ou ajuda.',
       'general',
     );
   }

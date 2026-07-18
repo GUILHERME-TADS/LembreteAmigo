@@ -58,8 +58,12 @@ class ReminderStateHelper {
       lembrete.horarioMinute,
     );
 
+    final tomorrow = currentTime.add(const Duration(days: 1));
+    final hasNextOccurrence = lembrete.isActiveOn(tomorrow);
+
     if (targetTime.isBefore(currentTime) &&
-        lembrete.criadoEm.isAfter(targetTime)) {
+        lembrete.criadoEm.isAfter(targetTime) &&
+        hasNextOccurrence) {
       targetTime = targetTime.add(const Duration(days: 1));
     }
 

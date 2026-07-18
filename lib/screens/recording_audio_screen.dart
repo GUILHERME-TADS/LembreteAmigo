@@ -323,10 +323,10 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
 
   Widget _buildCategorySelector() {
     final categories = [
-      {'icon': Icons.medication, 'label': 'Remédio', 'key': 'medicacao', 'color': AppColors.medicationsColor},
-      {'icon': Icons.restaurant, 'label': 'Comida', 'key': 'refeicoes', 'color': AppColors.mealsColor},
+      {'icon': Icons.medication, 'label': 'Medicação', 'key': 'medicacao', 'color': AppColors.medicationsColor},
+      {'icon': Icons.restaurant, 'label': 'Refeições', 'key': 'refeicoes', 'color': AppColors.mealsColor},
       {'icon': Icons.directions_walk, 'label': 'Exercício', 'key': 'exercicio', 'color': AppColors.tertiaryContainer},
-      {'icon': Icons.water_drop, 'label': 'Água', 'key': 'hidratacao', 'color': AppColors.voiceFeedbackBlue},
+      {'icon': Icons.water_drop, 'label': 'Hidratação', 'key': 'hidratacao', 'color': AppColors.voiceFeedbackBlue},
       {'icon': Icons.notifications, 'label': 'Personalizado', 'key': 'personalizado', 'color': AppColors.customColor},
     ];
     return Container(
@@ -341,7 +341,7 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Tipo de tarefa',
+            'Categoria do lembrete',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: AppColors.onSurfaceVariant),
           ),
           const SizedBox(height: 12),
@@ -439,7 +439,7 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
       TTSService.instance.falar(texto, caller: this);
     } else {
       TTSService.instance.falar(
-        'Não entendi a hora. Fale a tarefa e a hora de novo.',
+        'Não entendi a hora. Fale o lembrete e a hora de novo.',
         caller: this,
       );
     }
@@ -622,7 +622,7 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
       backgroundColor: AppColors.background,
       floatingActionButton: const AlexFloatingHelpButton(
         textoExplicacao:
-            'Olá! Esta é a tela para criar tarefas falando. Aperte no rosto do Alex e fale a tarefa e a hora. Depois, veja se eu entendi certo.',
+            'Olá! Esta é a tela para criar lembretes falando. Aperte no rosto do Alex e fale o lembrete e a hora. Depois, veja se eu entendi certo.',
       ),
       body: SafeArea(
         child: Column(
@@ -639,7 +639,7 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
                         child: Column(
                           children: [
                             const Text(
-                              'Fale a tarefa e a hora dela',
+                              'Fale o lembrete e a hora dele',
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontSize: 28,

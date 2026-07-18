@@ -128,16 +128,16 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
       return _ReminderCategoryConfig(
         icon: Icons.notifications_active_rounded,
         color: AppColors.primary,
-        topBarTitle: 'Minha Tarefa',
-        defaultTitle: 'TAREFA',
+        topBarTitle: 'Meu Lembrete',
+        defaultTitle: 'LEMBRETE',
         defaultSubtitle: _lembrete != null
-            ? 'Tarefa marcada para às ${_lembrete!.horarioFormatado}.'
-            : 'Atenção à sua tarefa!',
+            ? 'Lembrete marcado para às ${_lembrete!.horarioFormatado}.'
+            : 'Atenção ao seu lembrete!',
         detailedExplanation:
-            'Olá, esta é a tela da sua tarefa. Aperte o botão de ouvir para eu falar de novo.',
+            'Olá, esta é a tela do seu lembrete. Aperte o botão de ouvir para eu falar de novo.',
         spokenText: (l, timeStr) =>
-            'Tarefa: ${l.titulo} às $timeStr.',
-        defaultSpokenText: () => 'Hora da tarefa.',
+            'Lembrete: ${l.titulo} às $timeStr.',
+        defaultSpokenText: () => 'Hora do lembrete.',
       );
     }
   }
@@ -384,7 +384,7 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
           Icon(icon, color: Colors.white, size: 32),
           const SizedBox(width: 12),
           Text(
-            'TAREFA DA $title',
+            'LEMBRETE DA $title',
             style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w900,

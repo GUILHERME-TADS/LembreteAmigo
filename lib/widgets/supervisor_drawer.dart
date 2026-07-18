@@ -43,7 +43,7 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
       if (mounted) {
         setState(() {
           _supervisorEmail = user.email ?? '';
-          _supervisorName = user.displayName ?? 'Supervisor';
+          _supervisorName = user.displayName ?? 'Cuidador';
         });
       }
       try {

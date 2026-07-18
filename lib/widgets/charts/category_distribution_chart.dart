@@ -24,11 +24,9 @@ class CategoryDistributionChart extends StatelessWidget {
   };
 
   static const _categoryLabels = {
-    'medicacao': 'Medicamentos',
-    'refeicao': 'Refeições',
+    'medicacao': 'Medicação',
     'refeicoes': 'Refeições',
-    'exercicio': 'Exercícios',
-    'agua': 'Hidratação',
+    'exercicio': 'Exercício',
     'hidratacao': 'Hidratação',
     'bem_estar': 'Bem-estar',
   };

@@ -64,7 +64,7 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
               .collection('supervisores')
               .doc(user.uid)
               .set({
-                'nome': user.displayName ?? 'Supervisor',
+                'nome': user.displayName ?? 'Cuidador',
                 'email': user.email ?? email,
                 'updatedAt': DateTime.now().toIso8601String(),
               }, SetOptions(merge: true));
@@ -172,7 +172,7 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Bem-vindo, Supervisor',
+                              'Bem-vindo, Cuidador',
                               style: TextStyle(
                                 fontSize: 28,
                                 fontWeight: FontWeight.w700,

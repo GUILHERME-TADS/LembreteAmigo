@@ -91,7 +91,7 @@ _StatusBadgeData _statusData(LembreteStatus status, {Color? accentColor}) {
       );
     case LembreteStatus.confirmadoPeloCuidador:
       return const _StatusBadgeData(
-        label: 'AJUDANTE CONFIRMOU',
+        label: 'CUIDADOR CONFIRMOU',
         icon: Icons.verified,
         foreground: AppColors.onTertiaryFixedVariant,
         background: AppColors.tertiaryFixedDim,

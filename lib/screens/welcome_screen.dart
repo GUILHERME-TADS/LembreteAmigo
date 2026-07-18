@@ -144,7 +144,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                           const SizedBox(height: 24),
                           _buildProfileButton(
                             icon: Icons.medical_services,
-                            title: 'Sou o Supervisor',
+                            title: 'Sou o Cuidador',
                             subtitle: 'Painel de controle e monitoramento',
                             bgColor: AppColors.surfaceContainerLowest,
                             textColor: AppColors.primary,
@@ -211,7 +211,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                     context: context,
                                     title: 'Sobre o Lembrete Amigo',
                                     content:
-                                        'O Lembrete Amigo é um aplicativo inteligente e de alta acessibilidade projetado para auxiliar idosos na manutenção de suas rotinas de medicação, hidratação e bem-estar, com monitoramento em tempo real por supervisores autorizados.\n\nDesenvolvido com carinho para promover independência e tranquilidade para toda a família.',
+                                        'O Lembrete Amigo é um aplicativo inteligente e de alta acessibilidade projetado para auxiliar idosos na manutenção de suas rotinas de medicação, hidratação e bem-estar, com acompanhamento em tempo real por cuidadores autorizados.\n\nDesenvolvido com carinho para promover independência e tranquilidade para toda a família.',
                                     icon: Icons.info_outline,
                                   );
                                 },

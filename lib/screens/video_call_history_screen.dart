@@ -240,7 +240,7 @@ class _CallHistoryTile extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  call.isFromSupervisor ? 'Ligação do Ajudante' : 'Ligação do Idoso',
+                  call.isFromSupervisor ? 'Ligação do Cuidador' : 'Ligação do Idoso',
                   style: TextStyle(
                     fontWeight: FontWeight.w900,
                     fontSize: isElderly ? 20 : 16,

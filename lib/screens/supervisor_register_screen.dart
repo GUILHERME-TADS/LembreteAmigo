@@ -175,7 +175,7 @@ class _SupervisorRegisterScreenState extends State<SupervisorRegisterScreen> {
               ),
               const SizedBox(height: 24),
               const Text(
-                'Criar Conta de Supervisor',
+                'Criar Conta de Cuidador',
                 style: TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.w800,

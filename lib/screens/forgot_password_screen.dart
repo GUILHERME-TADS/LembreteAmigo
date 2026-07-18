@@ -90,7 +90,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'Insira seu e-mail de supervisor cadastrado para enviarmos as instruções de redefinição.',
+                      'Insira seu e-mail de cuidador cadastrado para enviarmos as instruções de redefinição.',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w400,
@@ -109,7 +109,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     const Padding(
                       padding: EdgeInsets.only(left: 4),
                       child: Text(
-                        'Verifique se o e-mail inserido é o mesmo utilizado no seu ID de Supervisor.',
+                        'Verifique se o e-mail inserido é o mesmo utilizado no seu ID de Cuidador.',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w400,

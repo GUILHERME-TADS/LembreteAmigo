@@ -72,13 +72,13 @@ class _PostponeConfirmationScreenState extends State<PostponeConfirmationScreen>
           color: AppColors.medicationsColor,
           titleText: 'HORA DO REMÉDIO',
           message: isDificuldade
-              ? 'Tudo bem, não se preocupe! Já enviei um recado para o seu ajudante avisando que você precisa de ajuda com o seu remédio.'
+              ? 'Tudo bem, não se preocupe! Já enviei um recado para o seu cuidador avisando que você precisa de ajuda com a sua medicação.'
               : 'Combinado! Não se preocupe, eu vou te lembrar de tomar o seu remédio novamente em dez minutos.',
           tip: isDificuldade
-              ? 'Não se preocupe, seu ajudante já foi avisado!'
+              ? 'Não se preocupe, seu cuidador já foi avisado!'
               : 'Vou te chamar de novo em 10 minutos.',
           detailedExplanation: isDificuldade
-              ? 'Você pediu ajuda com o remédio. Eu já avisei seu ajudante. Agora aperte o botão amarelo para voltar ao início.'
+              ? 'Você pediu ajuda com a medicação. Eu já avisei seu cuidador. Agora aperte o botão amarelo para voltar ao início.'
               : 'O remédio ficou para daqui a dez minutos. Eu vou chamar você de novo. Agora aperte o botão amarelo para voltar ao início.',
         );
       case 'refeicoes':
@@ -87,13 +87,13 @@ class _PostponeConfirmationScreenState extends State<PostponeConfirmationScreen>
           color: AppColors.mealsColor,
           titleText: 'HORA DE COMER',
           message: isDificuldade
-              ? 'Tudo bem, não se preocupe! Já enviei um recado para o seu ajudante avisando que você precisa de ajuda para comer.'
+              ? 'Tudo bem, não se preocupe! Já enviei um recado para o seu cuidador avisando que você precisa de ajuda para comer.'
               : 'Combinado! Não se preocupe, eu vou te lembrar de comer novamente em dez minutos.',
           tip: isDificuldade
-              ? 'Não se preocupe, seu ajudante já foi avisado!'
+              ? 'Não se preocupe, seu cuidador já foi avisado!'
               : 'Vou te chamar de novo em 10 minutos.',
           detailedExplanation: isDificuldade
-              ? 'Você pediu ajuda para comer. Eu já avisei seu ajudante. Agora aperte o botão amarelo para voltar ao início.'
+              ? 'Você pediu ajuda para comer. Eu já avisei seu cuidador. Agora aperte o botão amarelo para voltar ao início.'
               : 'A comida ficou para daqui a dez minutos. Eu vou chamar você de novo para comer. Agora aperte o botão amarelo para voltar ao início.',
         );
       case 'hidratacao':
@@ -102,13 +102,13 @@ class _PostponeConfirmationScreenState extends State<PostponeConfirmationScreen>
           color: const Color(0xFF0288D1),
           titleText: 'HORA DE BEBER ÁGUA',
           message: isDificuldade
-              ? 'Tudo bem, não se preocupe! Já enviei um recado para o seu ajudante avisando que você precisa de ajuda para beber água.'
+              ? 'Tudo bem, não se preocupe! Já enviei um recado para o seu cuidador avisando que você precisa de ajuda para beber água.'
               : 'Combinado! Não se preocupe, eu vou te lembrar de beber água novamente em dez minutos.',
           tip: isDificuldade
-              ? 'Não se preocupe, seu ajudante já foi avisado!'
+              ? 'Não se preocupe, seu cuidador já foi avisado!'
               : 'Vou te chamar de novo em 10 minutos.',
           detailedExplanation: isDificuldade
-              ? 'Você pediu ajuda para beber água. Eu já avisei seu ajudante. Agora aperte o botão amarelo para voltar ao início.'
+              ? 'Você pediu ajuda para beber água. Eu já avisei seu cuidador. Agora aperte o botão amarelo para voltar ao início.'
               : 'A água ficou para daqui a dez minutos. Eu vou chamar você de novo para beber água. Agora aperte o botão amarelo para voltar ao início.',
         );
       case 'exercicio':
@@ -117,29 +117,29 @@ class _PostponeConfirmationScreenState extends State<PostponeConfirmationScreen>
           color: const Color(0xFF2E7D32),
           titleText: 'HORA DO EXERCÍCIO',
           message: isDificuldade
-              ? 'Tudo bem, não se preocupe! Já enviei um recado para o seu ajudante avisando que você precisa de ajuda com o seu exercício.'
+              ? 'Tudo bem, não se preocupe! Já enviei um recado para o seu cuidador avisando que você precisa de ajuda com o seu exercício.'
               : 'Combinado! Não se preocupe, eu vou te lembrar de fazer seu exercício novamente em dez minutos.',
           tip: isDificuldade
-              ? 'Não se preocupe, seu ajudante já foi avisado!'
+              ? 'Não se preocupe, seu cuidador já foi avisado!'
               : 'Vou te chamar de novo em 10 minutos.',
           detailedExplanation: isDificuldade
-              ? 'Você pediu ajuda com o exercício. Eu já avisei seu ajudante. Agora aperte o botão amarelo para voltar ao início.'
+              ? 'Você pediu ajuda com o exercício. Eu já avisei seu cuidador. Agora aperte o botão amarelo para voltar ao início.'
               : 'O exercício ficou para daqui a dez minutos. Eu vou chamar você de novo. Agora aperte o botão amarelo para voltar ao início.',
         );
       default:
         return _CategoryConfig(
           icon: Icons.alarm,
           color: AppColors.primary,
-          titleText: 'HORA DA TAREFA',
+          titleText: 'HORA DO LEMBRETE',
           message: isDificuldade
-              ? 'Tudo bem, não se preocupe! Já enviei um recado para o seu ajudante avisando que você precisa de ajuda com a sua tarefa.'
+              ? 'Tudo bem, não se preocupe! Já enviei um recado para o seu cuidador avisando que você precisa de ajuda com o seu lembrete.'
               : 'Combinado! Não se preocupe, eu vou te lembrar novamente em dez minutos.',
           tip: isDificuldade
-              ? 'Não se preocupe, seu ajudante já foi avisado!'
+              ? 'Não se preocupe, seu cuidador já foi avisado!'
               : 'Vou te chamar de novo em 10 minutos.',
           detailedExplanation: isDificuldade
-              ? 'Você pediu ajuda com a tarefa. Eu já avisei seu ajudante. Agora aperte o botão amarelo para voltar ao início.'
-              : 'A tarefa ficou para daqui a dez minutos. Eu vou chamar você de novo. Agora aperte o botão amarelo para voltar ao início.',
+              ? 'Você pediu ajuda com o lembrete. Eu já avisei seu cuidador. Agora aperte o botão amarelo para voltar ao início.'
+              : 'O lembrete ficou para daqui a dez minutos. Eu vou chamar você de novo. Agora aperte o botão amarelo para voltar ao início.',
         );
     }
   }

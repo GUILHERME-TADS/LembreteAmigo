@@ -256,9 +256,9 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Desconectar Ajudante?', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.error)),
+        title: const Text('Desconectar Cuidador?', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.error)),
         content: const Text(
-          'Deseja mesmo desconectar o celular do seu ajudante? Depois disso, você usará o aplicativo sozinho.',
+          'Deseja mesmo desconectar o celular do seu cuidador? Depois disso, você usará o aplicativo sozinho.',
           style: TextStyle(fontSize: 16),
         ),
         actions: [
@@ -327,8 +327,8 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
       if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context);
       final message = syncError == null
-          ? 'Pronto. O ajudante foi desconectado.'
-          : 'O ajudante foi desconectado neste celular. Quando a internet voltar, vou terminar de avisar o outro celular.';
+          ? 'Pronto. O cuidador foi desconectado.'
+          : 'O cuidador foi desconectado neste celular. Quando a internet voltar, vou terminar de avisar o outro celular.';
       messenger.showSnackBar(
         SnackBar(content: Text(message)),
       );
@@ -338,7 +338,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
       debugPrint('Erro ao desvincular: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Não consegui desconectar o ajudante. Tente de novo.')),
+          const SnackBar(content: Text('Não consegui desconectar o cuidador. Tente de novo.')),
         );
       }
     } finally {
@@ -452,7 +452,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                   },
                   icon: const Icon(Icons.delete, size: 28),
                   label: const Text(
-                    'APAGAR TAREFA',
+                    'APAGAR LEMBRETE',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
                   ),
                   style: ElevatedButton.styleFrom(
@@ -573,7 +573,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text('Tarefa apagada.')));
+    ).showSnackBar(const SnackBar(content: Text('Lembrete apagado.')));
   }
 
   Widget _buildTopBar() {
@@ -630,7 +630,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
       backgroundColor: AppColors.background,
       floatingActionButton: const AlexFloatingHelpButton(
         textoExplicacao:
-            'Olá! Esta é a tela com os seus dados. Aqui você vê seu nome, telefone, remédios e tarefas. Para mudar sua foto, aperte no círculo da foto. Para mudar seus dados, aperte o botão amarelo. Para arrumar a minha voz, aperte o botão azul.',
+            'Olá! Esta é a tela com os seus dados. Aqui você vê seu nome, telefone, medicações e lembretes. Para mudar sua foto, aperte no círculo da foto. Para mudar seus dados, aperte o botão amarelo. Para arrumar a minha voz, aperte o botão azul.',
       ),
       body: SafeArea(
         child: Column(
@@ -868,11 +868,11 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                               return _medicationItem(med);
                             }),
                           const SizedBox(height: 24),
-                          _sectionTitle('Tarefas do Dia'),
+                          _sectionTitle('Lembretes do Dia'),
                           const SizedBox(height: 12),
                           if (lembretesReais.isEmpty)
                             _buildEmptyState(
-                              'Nenhuma outra tarefa para lembrar agora.',
+                              'Nenhum outro lembrete para agora.',
                               Icons.notifications_off_outlined,
                             )
                           else
@@ -922,7 +922,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                                           SizedBox(width: 12),
                                           Flexible(
                                             child: Text(
-                                              'CONECTAR COM AJUDANTE',
+                                              'CONECTAR COM CUIDADOR',
                                               textAlign: TextAlign.center,
                                               style: TextStyle(
                                                 fontSize: 18,
@@ -943,7 +943,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                                       onPressed: () => _desvincularAjudante(context),
                                       icon: const Icon(Icons.link_off, size: 28, color: Colors.white),
                                       label: const Text(
-                                        'DESCONECTAR AJUDANTE',
+                                        'DESCONECTAR CUIDADOR',
                                         style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
                                       ),
                                       style: ElevatedButton.styleFrom(
@@ -1052,7 +1052,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                                           title: const Text('Sair do Modo Idoso?', style: TextStyle(fontWeight: FontWeight.bold)),
                                           content: const Text(
-                                            'Deseja voltar para a tela de entrada? Seus dados e tarefas continuarão salvos.',
+                                            'Deseja voltar para a tela de entrada? Seus dados e lembretes continuarão salvos.',
                                             style: TextStyle(fontSize: 18),
                                           ),
                                           actions: [
@@ -1366,7 +1366,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
   Widget _reminderItem(Lembrete lembrete) {
     IconData icon = Icons.notifications;
     Color color = AppColors.customColor;
-    String catName = 'tarefa';
+    String catName = 'lembrete';
     switch (lembrete.categoria) {
       case 'refeicoes':
         icon = Icons.restaurant;
@@ -1459,7 +1459,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                                 lembrete.horarioFormatado,
                               );
                               TTSService.instance.falar(
-                                'Tarefa de $catName: ${lembrete.titulo} às $spoken',
+                                'Lembrete de $catName: ${lembrete.titulo} às $spoken',
                                 caller: this,
                               );
                             },
@@ -1970,7 +1970,7 @@ class _EditTitleDialogState extends State<_EditTitleDialog> {
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       title: const Text(
-        'Mudar nome da tarefa',
+        'Mudar nome do lembrete',
         textAlign: TextAlign.center,
         style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primary),
       ),
@@ -1984,7 +1984,7 @@ class _EditTitleDialogState extends State<_EditTitleDialog> {
               prefixIcon: Icons.edit,
               controller: _controller,
               onTapAudio: () => TTSService.instance.falar(
-                'Digite o novo nome da tarefa ou aperte no botão verde de ditar para falar o nome.',
+                'Digite o novo nome do lembrete ou aperte no botão verde de ditar para falar o nome.',
                 caller: this,
               ),
               onTapMic: _ditarNome,
@@ -2047,7 +2047,7 @@ class _DeleteReminderDialogState extends State<_DeleteReminderDialog> {
 
   void _falarExplicacao() {
     TTSService.instance.falar(
-      'Você quer mesmo apagar a tarefa "${widget.lembrete.titulo}"? Para apagar, aperte o botão vermelho APAGAR. Se não quiser apagar, aperte VOLTAR.',
+      'Você quer mesmo apagar o lembrete "${widget.lembrete.titulo}"? Para apagar, aperte o botão vermelho APAGAR. Se não quiser apagar, aperte VOLTAR.',
       caller: this,
     );
   }
@@ -2061,7 +2061,7 @@ class _DeleteReminderDialogState extends State<_DeleteReminderDialog> {
         children: [
           const Expanded(
             child: Text(
-              'Apagar tarefa?',
+              'Apagar lembrete?',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -2110,7 +2110,7 @@ class _DeleteReminderDialogState extends State<_DeleteReminderDialog> {
           children: [
             const SizedBox(height: 16),
             Text(
-              'Você quer mesmo apagar a tarefa "${widget.lembrete.titulo}"?',
+              'Você quer mesmo apagar o lembrete "${widget.lembrete.titulo}"?',
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: 20,

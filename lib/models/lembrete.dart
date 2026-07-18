@@ -25,6 +25,59 @@ enum LembreteStatus {
   }
 }
 
+class LembreteCategoria {
+  static const medicacao = 'medicacao';
+  static const refeicoes = 'refeicoes';
+  static const exercicio = 'exercicio';
+  static const hidratacao = 'hidratacao';
+  static const personalizado = 'personalizado';
+
+  static String normalizar(String? value) {
+    switch (value?.trim().toLowerCase()) {
+      case 'medicacao':
+      case 'medicação':
+      case 'medicamento':
+      case 'medicamentos':
+      case 'remedio':
+      case 'remédio':
+        return medicacao;
+      case 'refeicao':
+      case 'refeição':
+      case 'refeicoes':
+      case 'refeições':
+      case 'comida':
+        return refeicoes;
+      case 'exercicio':
+      case 'exercício':
+      case 'exercicios':
+      case 'exercícios':
+        return exercicio;
+      case 'agua':
+      case 'água':
+      case 'hidratacao':
+      case 'hidratação':
+        return hidratacao;
+      default:
+        return personalizado;
+    }
+  }
+
+  static String nome(String? value) {
+    switch (normalizar(value)) {
+      case medicacao:
+        return 'Medicação';
+      case refeicoes:
+        return 'Refeições';
+      case exercicio:
+        return 'Exercício';
+      case hidratacao:
+        return 'Hidratação';
+      default:
+        return 'Personalizado';
+    }
+  }
+}
+
 class Lembrete {
   final String id;
   final String titulo;
@@ -241,7 +294,7 @@ class Lembrete {
     'horarioMinute': horarioMinute,
     'originalHorarioHour': originalHorarioHour,
     'originalHorarioMinute': originalHorarioMinute,
-    'categoria': categoria,
+    'categoria': LembreteCategoria.normalizar(categoria),
     'audioPath': audioPath,
     'concluido': status.isConcluido,
     'concluidoComFoto': status == LembreteStatus.concluidoComFoto,
@@ -279,7 +332,7 @@ class Lembrete {
           (json['originalHorarioHour'] as num?)?.toInt() ?? hHour,
       originalHorarioMinute:
           (json['originalHorarioMinute'] as num?)?.toInt() ?? hMinute,
-      categoria: json['categoria'] as String? ?? 'personalizado',
+      categoria: LembreteCategoria.normalizar(json['categoria'] as String?),
       audioPath: json['audioPath'] as String?,
       concluido: concluido,
       concluidoComFoto: concluidoComFoto,

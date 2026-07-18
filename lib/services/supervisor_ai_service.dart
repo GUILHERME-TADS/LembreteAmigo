@@ -82,8 +82,8 @@ class SupervisorAIService {
 
     final pct = total > 0 ? (concluidos.length / total * 100).round() : 0;
     final summary = pendentes.isEmpty
-        ? 'O idoso concluiu todas as ${total} tarefas de hoje.'
-        : 'O idoso concluiu $pct% das tarefas '
+        ? 'O idoso concluiu todos os ${total} lembretes de hoje.'
+        : 'O idoso concluiu $pct% dos lembretes '
             '(${concluidos.length} de $total). '
             'Ainda pendentes: ${pendentes.length}.';
 
@@ -94,7 +94,7 @@ class SupervisorAIService {
       );
     }
     if (pct < 50) {
-      insights.add('A adesao as tarefas esta abaixo de 50%.');
+      insights.add('A adesão aos lembretes está abaixo de 50%.');
     }
 
     final suggestions = <String>[];

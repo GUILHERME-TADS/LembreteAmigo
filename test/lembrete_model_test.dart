@@ -491,4 +491,28 @@ void main() {
       expect(Lembrete.isReminderActiveOn(l, date), isTrue);
     });
   });
+
+  group('LembreteCategoria', () {
+    test('normaliza nomes antigos para as categorias padrao', () {
+      expect(LembreteCategoria.normalizar('remédio'), 'medicacao');
+      expect(LembreteCategoria.normalizar('refeicao'), 'refeicoes');
+      expect(LembreteCategoria.normalizar('água'), 'hidratacao');
+      expect(LembreteCategoria.normalizar('exercícios'), 'exercicio');
+      expect(LembreteCategoria.normalizar('desconhecida'), 'personalizado');
+    });
+
+    test('fromJson normaliza categoria antiga e toJson salva a padrao', () {
+      final lembrete = Lembrete.fromJson({
+        'id': 'categoria-antiga',
+        'titulo': 'Beber água',
+        'horarioHour': 10,
+        'horarioMinute': 30,
+        'categoria': 'agua',
+      });
+
+      expect(lembrete.categoria, 'hidratacao');
+      expect(lembrete.toJson()['categoria'], 'hidratacao');
+      expect(LembreteCategoria.nome(lembrete.categoria), 'Hidratação');
+    });
+  });
 }

@@ -147,7 +147,7 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen>
       final prefs = await SharedPreferences.getInstance();
 
       if (SessionRoleService.isElderly) {
-        String nome = prefs.getString('caregiver_name') ?? 'Ajudante';
+        String nome = prefs.getString('caregiver_name') ?? 'Cuidador';
         bool useFirebase = false;
         try {
           useFirebase = Firebase.apps.isNotEmpty;

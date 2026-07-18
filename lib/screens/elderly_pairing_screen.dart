@@ -43,12 +43,12 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
   void _speakWelcome() {
     if (_showModeSelection) {
       TTSService.instance.falar(
-        'Como você quer usar o aplicativo? Você pode usar sozinho ou conectar com o celular do seu ajudante.',
+        'Como você quer usar o aplicativo? Você pode usar sozinho ou conectar com o celular do seu cuidador.',
         caller: this,
       );
     } else {
       TTSService.instance.falar(
-        'Aguarde enquanto o aplicativo gera o código de conexão para você mostrar ao seu ajudante.',
+        'Aguarde enquanto o aplicativo gera o código de conexão para você mostrar ao seu cuidador.',
         caller: this,
       );
     }
@@ -202,7 +202,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
       });
       
       TTSService.instance.falar(
-        'Seu código para conectar é: ${code.split('').join(' ')}. Mostre este número para o seu ajudante. O seu ajudante vai digitar esse número no celular dele para conectar os dois aparelhos.',
+        'Seu código para conectar é: ${code.split('').join(' ')}. Mostre este número para o seu cuidador. O seu cuidador vai digitar esse número no celular dele para conectar os dois aparelhos.',
         caller: this,
       );
 
@@ -251,7 +251,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
       (route) => false,
       arguments: {
         'connected': true,
-        'speak': 'Pronto. O celular do seu ajudante foi conectado. Bem-vindo.',
+        'speak': 'Pronto. O celular do seu cuidador foi conectado. Bem-vindo.',
       },
     );
   }
@@ -262,7 +262,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
       backgroundColor: AppColors.background,
       floatingActionButton: const AlexFloatingHelpButton(
         textoExplicacao:
-            'Olá! Esta é a tela para conectar com quem ajuda você. Você pode usar o aplicativo sozinho ou conectar com o celular do seu ajudante para ele acompanhar você.',
+            'Olá! Esta é a tela para conectar com quem cuida de você. Você pode usar o aplicativo sozinho ou conectar com o celular do seu cuidador para ele acompanhar você.',
       ),
       body: SafeArea(
         child: Column(
@@ -340,7 +340,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
                         ),
                         const SizedBox(height: 24),
                         SeniorButton(
-                          label: 'Usar com ajudante',
+                          label: 'Usar com cuidador',
                           icon: Icons.supervisor_account,
                           backgroundColor: AppColors.primary,
                           textColor: Colors.white,
@@ -357,7 +357,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
                       ] else ...[
                         const SizedBox(height: 24),
                         const Text(
-                          'Conectar com Ajudante',
+                          'Conectar com Cuidador',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 32,
@@ -439,7 +439,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
                         if (!_isLoading) ...[
                           const Center(
                             child: Text(
-                              'Aguardando o ajudante digitar o código...',
+                              'Aguardando o cuidador digitar o código...',
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontSize: 18,

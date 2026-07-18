@@ -172,10 +172,10 @@ class VideoCallService {
               .doc(uid)
               .get();
           if (doc.exists && doc.data() != null) {
-            return doc.data()?['nome'] as String? ?? 'Supervisor';
+            return doc.data()?['nome'] as String? ?? 'Cuidador';
           }
         }
-        return 'Supervisor';
+        return 'Cuidador';
       } else {
         final idosoId = await SessionRoleService.getActiveIdosoId();
         if (!SessionRoleService.isLocalOnlyIdosoId(idosoId)) {
@@ -190,7 +190,7 @@ class VideoCallService {
         return 'Idoso';
       }
     } catch (_) {
-      return SessionRoleService.isSupervisor ? 'Supervisor' : 'Idoso';
+      return SessionRoleService.isSupervisor ? 'Cuidador' : 'Idoso';
     }
   }
 
@@ -297,7 +297,7 @@ class VideoCallService {
       if (supervisorId.isEmpty) {
         debugPrint('Chamada nao iniciada: nenhum supervisor vinculado.');
         lastStartFailureMessage =
-            'Nenhum supervisor ativo foi encontrado para este idoso.';
+            'Nenhum cuidador ativo foi encontrado para este idoso.';
         AppStatusService.instance.report(
           id: 'video-call-no-supervisor',
           title: 'Cuidador nao encontrado',

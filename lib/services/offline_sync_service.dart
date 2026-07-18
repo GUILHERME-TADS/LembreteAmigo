@@ -246,7 +246,7 @@ class OfflineSyncService {
             AppStatusService.instance.report(
               id: 'offline-sync-permission',
               title: 'Sincronizacao bloqueada',
-              message: 'O Firestore recusou uma alteracao. Verifique se o supervisor ainda esta vinculado a este idoso e tente novamente.',
+              message: 'O Firestore recusou uma alteração. Verifique se o cuidador ainda está vinculado a este idoso e tente novamente.',
               severity: AppStatusSeverity.critical,
             );
           } else {

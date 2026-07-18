@@ -1411,9 +1411,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   Widget _buildCategoryFilters() {
     final Map<String, String> categories = {
       'Todos': 'Todos',
-      'medicacao': 'Remédios',
+      'medicacao': 'Medicação',
       'refeicoes': 'Refeições',
-      'exercicio': 'Exercícios',
+      'exercicio': 'Exercício',
       'hidratacao': 'Hidratação',
     };
 
@@ -1534,14 +1534,14 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                 iconBg = AppColors.secondaryContainer;
                 iconColor = AppColors.onSecondaryContainer;
                 accentColor = AppColors.medicationsColor;
-                categoryLabel = 'Medicamento';
+                categoryLabel = 'Medicação';
                 break;
               case 'refeicoes':
                 icon = Icons.restaurant;
                 iconBg = AppColors.mealsColor.withValues(alpha: 0.2);
                 iconColor = AppColors.mealsColor;
                 accentColor = AppColors.mealsColor;
-                categoryLabel = 'Refeição';
+                categoryLabel = 'Refeições';
                 break;
               case 'exercicio':
                 icon = Icons.directions_walk;

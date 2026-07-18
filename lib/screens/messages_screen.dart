@@ -252,7 +252,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
           duracaoSegundos: _recordingSeconds,
         );
         if (!sent) {
-          throw StateError('Nenhum ajudante conectado para receber a mensagem.');
+          throw StateError('Nenhum cuidador conectado para receber a mensagem.');
         }
         if (mounted && !_isSupervisor) {
           TTSService.instance.falar('Recado de voz enviado.', caller: this);
@@ -296,7 +296,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
     try {
       final sent = await MessageService.instance.sendText(text);
       if (!sent) {
-        throw StateError('Nenhum ajudante conectado para receber a mensagem.');
+        throw StateError('Nenhum cuidador conectado para receber a mensagem.');
       }
       _textController.clear();
     } catch (e) {
@@ -325,7 +325,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
             style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF008069)),
           ),
           content: const Text(
-            'Apagar este recado do seu celular e do celular do ajudante?',
+            'Apagar este recado do seu celular e do celular do cuidador?',
             style: TextStyle(fontSize: 16),
           ),
           actions: [
@@ -387,7 +387,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
       floatingActionButton: !_isSupervisor
           ? const AlexFloatingHelpButton(
               textoExplicacao:
-                  'Olá! Esta é a tela de recados. Aqui você pode ler ou ouvir os recados do seu ajudante. Para responder, aperte o microfone e grave um recado de voz.',
+                  'Olá! Esta é a tela de recados. Aqui você pode ler ou ouvir os recados do seu cuidador. Para responder, aperte o microfone e grave um recado de voz.',
             )
           : null,
       body: SafeArea(
@@ -422,7 +422,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
   }
 
   Widget _buildTopBar() {
-    final contactName = _isSupervisor ? 'Idoso' : (_nomeSupervisor ?? 'Ajudante');
+    final contactName = _isSupervisor ? 'Idoso' : (_nomeSupervisor ?? 'Cuidador');
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),

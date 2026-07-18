@@ -109,10 +109,10 @@ class _MedicationConfirmationScreenState extends State<MedicationConfirmationScr
       return const _ConfirmationConfig(
         icon: Icons.check_circle_outline,
         color: AppColors.primary,
-        titleText: 'TAREFA FEITA',
-        statusText: 'Tarefa Feita',
+        titleText: 'LEMBRETE CONCLUÍDO',
+        statusText: 'Lembrete concluído',
         tip: 'Parabéns por fazer sua atividade!',
-        detailedExplanation: 'Muito bem! Você fez sua tarefa. Parabéns! Agora, aperte no botão amarelo abaixo para voltar à tela inicial.',
+        detailedExplanation: 'Muito bem! Você concluiu seu lembrete. Parabéns! Agora, aperte no botão amarelo abaixo para voltar à tela inicial.',
       );
     }
   }

@@ -156,7 +156,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
 
           await LembreteService.instance.registrarDificuldade(
             l.id,
-            'ALERTA CRÍTICO: Idoso não respondeu à tarefa crítica de remédio em 2 minutos. Reforço automático ativado.',
+            'ALERTA CRÍTICO: Idoso não respondeu ao lembrete crítico de medicação em 2 minutos. Reforço automático ativado.',
           );
 
           if (mounted) {
@@ -179,7 +179,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
       if (!mounted || !_isSpeakingLoopActive || l.concluido) return;
       await LembreteService.instance.registrarDificuldade(
         l.id,
-        'Sem resposta do idoso depois de ${_noResponseLimit(l).inMinutes} minutos. O ajudante deve verificar se esta tudo bem.',
+        'Sem resposta do idoso depois de ${_noResponseLimit(l).inMinutes} minutos. O cuidador deve verificar se está tudo bem.',
       );
     });
 
@@ -200,7 +200,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
       } else if (l.categoria == 'exercicio') {
         _speakText = 'Atenção! Hora de fazer exercício: ${l.titulo}.';
       } else {
-        _speakText = 'Atenção! Hora da tarefa: ${l.titulo}.';
+        _speakText = 'Atenção! Hora do lembrete: ${l.titulo}.';
       }
 
       await _playFamilyAudioIfAvailable(l);
@@ -595,7 +595,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                 ),
                 const SizedBox(height: 16),
                 const Text(
-                  'Tarefa não encontrada',
+                  'Lembrete não encontrado',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 26,
@@ -605,7 +605,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                 ),
                 const SizedBox(height: 12),
                 const Text(
-                  'Não consegui abrir esta tarefa. Volte para o início e tente de novo.',
+                  'Não consegui abrir este lembrete. Volte para o início e tente de novo.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 18,
@@ -708,7 +708,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
       subtitleText = 'Por favor, faça seu exercício agora.';
       confirmButtonText = 'JÁ FIZ';
     } else {
-      titleText = 'HORA DA TAREFA';
+      titleText = 'HORA DO LEMBRETE';
       subtitleText = 'Por favor, faça esta atividade agora.';
       confirmButtonText = 'JÁ FIZ';
     }
@@ -806,7 +806,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                           ),
                                           const SizedBox(width: 8),
                                           Text(
-                                            'TAREFA DA ${PeriodHelper.getPeriodLabel(lembrete!.horarioHour).toUpperCase()}:',
+                                            'LEMBRETE DA ${PeriodHelper.getPeriodLabel(lembrete!.horarioHour).toUpperCase()}:',
                                             style: TextStyle(
                                               fontSize: 18,
                                               fontWeight: FontWeight.w900,
@@ -819,7 +819,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                       const SizedBox(height: 12),
                                       Text(
                                         lembrete?.titulo ??
-                                            'Carregando tarefa...',
+                                            'Carregando lembrete...',
                                         textAlign: TextAlign.center,
                                         style: TextStyle(
                                           fontSize: 32,
@@ -855,7 +855,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                     : null,
                                 subtitle: lembrete!.audioPath == 'ia_generated'
                                     ? 'Alex explica o remédio'
-                                    : 'Mensagem de voz do seu ajudante',
+                                    : 'Mensagem de voz do seu cuidador',
                               ),
                               const SizedBox(height: 24),
                             ],
@@ -1178,7 +1178,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                             if (!_isPaired) ...[
                               const SizedBox(height: 8),
                               const Text(
-                                'Precisa de um ajudante conectado para pedir ajuda',
+                                'Precisa de um cuidador conectado para pedir ajuda',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   fontSize: 14,

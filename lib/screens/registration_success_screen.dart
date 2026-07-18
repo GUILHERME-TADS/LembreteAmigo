@@ -101,7 +101,7 @@ class RegistrationSuccessScreen extends StatelessWidget {
                       SizedBox(width: 8),
                       Flexible(
                         child: Text(
-                          'Configuração Finalizada • Lembrete Amigo • Supervisor',
+                          'Configuração Finalizada • Lembrete Amigo • Cuidador',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(fontSize: 14, color: AppColors.onSurfaceVariant),

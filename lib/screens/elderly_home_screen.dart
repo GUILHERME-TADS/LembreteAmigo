@@ -219,22 +219,22 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
 
     if (l.concluido) {
       text =
-          'A tarefa ${l.titulo}, marcada para às $spokenTime, já está feita. Muito bem!';
+          'O lembrete ${l.titulo}, marcado para às $spokenTime, já está concluído. Muito bem!';
     } else if (l.status == LembreteStatus.adiado) {
-      text = 'A tarefa ${l.titulo} ficou para mais tarde, às $spokenTime.';
+      text = 'O lembrete ${l.titulo} ficou para mais tarde, às $spokenTime.';
     } else if (l.status == LembreteStatus.perdido) {
       text =
-          'Esta tarefa era para às $spokenTime, mas o tempo passou e não deu para fazer.';
+          'Este lembrete era para às $spokenTime, mas o tempo passou e não deu para fazer.';
     } else if (remaining == 'Agora mesmo') {
       text =
           'Chegou a hora de fazer ${l.titulo}! O horário marcado é às $spokenTime.';
     } else if (isLembreteAtrasado) {
       text =
-          'A tarefa ${l.titulo} passou da hora! O horário era às $spokenTime.';
+          'O lembrete ${l.titulo} passou da hora! O horário era às $spokenTime.';
     } else {
       final remainingClean = remaining.replaceAll('Daqui a ', '');
       text =
-          'A tarefa ${l.titulo} está marcada para às $spokenTime. Ainda falta $remainingClean para dar o horário.';
+          'O lembrete ${l.titulo} está marcado para às $spokenTime. Ainda falta $remainingClean para dar o horário.';
     }
 
     TTSService.instance.falar(text, caller: this);
@@ -490,7 +490,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                       }
                       Navigator.pop(context);
                       TTSService.instance.falar(
-                        'Vou ligar por voz para o ajudante.',
+                        'Vou ligar por voz para o cuidador.',
                         caller: this,
                       );
                       _initiateCall('voice');
@@ -513,7 +513,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                       }
                       Navigator.pop(context);
                       TTSService.instance.falar(
-                        'Vou ligar com imagem para o ajudante.',
+                        'Vou ligar com imagem para o cuidador.',
                         caller: this,
                       );
                       _initiateCall('video');
@@ -555,7 +555,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                       Navigator.pop(context);
                       _confirmarAcaoSOSComContagem(
                         'Mandar onde estou',
-                        'Vou mandar onde você está para o seu ajudante',
+                        'Vou mandar onde você está para o seu cuidador',
                         _enviarLocalizacaoChat,
                       );
                     },
@@ -586,12 +586,12 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
 
   void _speakUnpairedWarning() {
     TTSService.instance.falar(
-      'Esta opção precisa de um ajudante conectado. Por favor, peça para o seu ajudante conectar o celular dele ao seu.',
+      'Esta opção precisa de um cuidador conectado. Por favor, peça para o seu cuidador conectar o celular dele ao seu.',
       caller: this,
     );
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Você precisa de um ajudante conectado para usar esta função.'),
+        content: Text('Você precisa de um cuidador conectado para usar esta função.'),
         backgroundColor: AppColors.error,
       ),
     );
@@ -604,7 +604,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
       if (idosoId == null || idosoId.isEmpty) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Nenhum ajudante conectado.')),
+            const SnackBar(content: Text('Nenhum cuidador conectado.')),
           );
         }
         return;
@@ -639,7 +639,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
 
   void _enviarLocalizacaoChat() async {
     TTSService.instance.falar(
-      'Estou vendo onde você está para avisar o seu ajudante.',
+      'Estou vendo onde você está para avisar o seu cuidador.',
       caller: this,
     );
 
@@ -658,10 +658,10 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
       }
 
       if (!sent) {
-        throw StateError('Nenhum ajudante conectado para receber a localização.');
+        throw StateError('Nenhum cuidador conectado para receber a localização.');
       }
       const feedback =
-          'Pronto. Enviei onde você está para o seu ajudante.';
+          'Pronto. Enviei onde você está para o seu cuidador.';
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text(feedback)),
@@ -800,7 +800,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
       if (result != null && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Pronto. Tarefa criada.'),
+            content: const Text('Pronto. Lembrete criado.'),
             backgroundColor: AppColors.tertiaryContainer,
             behavior: SnackBarBehavior.floating,
             duration: const Duration(seconds: 3),
@@ -1409,7 +1409,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
       case LembreteStatus.concluidoComFoto:
         return 'Pronto com foto';
       case LembreteStatus.confirmadoPeloCuidador:
-        return 'Ajudante confirmou';
+        return 'Cuidador confirmou';
       case LembreteStatus.adiado:
         return 'Mais tarde';
       case LembreteStatus.perdido:
@@ -1984,7 +1984,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
           ),
           const SizedBox(width: 8),
           Text(
-            _isOnline ? 'Ajudante conectado' : 'Ajudante conectado, sem internet',
+            _isOnline ? 'Cuidador conectado' : 'Cuidador conectado, sem internet',
             style: TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.w700,
@@ -2191,7 +2191,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                         const SizedBox(width: 8),
                                         Expanded(
                                           child: Text(
-                                            'TAREFA DA ${PeriodHelper.getPeriodLabel(lembrete.horarioHour).toUpperCase()}',
+                                            'LEMBRETE DA ${PeriodHelper.getPeriodLabel(lembrete.horarioHour).toUpperCase()}',
                                             style: TextStyle(
                                               fontSize: 16,
                                               fontWeight: FontWeight.w900,

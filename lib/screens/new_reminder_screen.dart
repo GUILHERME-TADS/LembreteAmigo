@@ -189,8 +189,8 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
   String _getStep1Summary() {
     if (_selectedCategory == null) return 'Nenhuma categoria selecionada';
     final Map<String, String> names = {
-      'medicacao': 'Remédio',
-      'refeicoes': 'Refeição',
+      'medicacao': 'Medicação',
+      'refeicoes': 'Refeições',
       'exercicio': 'Exercício',
       'hidratacao': 'Hidratação',
       'personalizado': 'Personalizado',
@@ -801,13 +801,13 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
     final categories = [
       {
         'icon': Icons.medication,
-        'label': 'Remédio',
+        'label': 'Medicação',
         'key': 'medicacao',
         'color': AppColors.medicationsColor,
       },
       {
         'icon': Icons.restaurant,
-        'label': 'Refeição',
+        'label': 'Refeições',
         'key': 'refeicoes',
         'color': AppColors.mealsColor,
       },

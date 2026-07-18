@@ -33,7 +33,7 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
     if (user != null) {
       setState(() {
         _userEmail = user.email ?? '';
-        _userName = user.displayName ?? 'Supervisor';
+        _userName = user.displayName ?? 'Cuidador';
       });
       try {
         if (Firebase.apps.isNotEmpty) {

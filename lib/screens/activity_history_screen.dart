@@ -659,7 +659,7 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
   Widget _buildCategoryChips() {
     final Map<String, String> categories = {
       'Todos': 'Todas Categorias',
-      'medicacao': 'Remédios',
+      'medicacao': 'Medicação',
       'refeicoes': 'Refeições',
       'exercicio': 'Exercícios',
       'hidratacao': 'Hidratação',

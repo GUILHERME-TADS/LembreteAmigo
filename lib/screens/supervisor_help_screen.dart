@@ -53,18 +53,18 @@ class _SupervisorHelpScreenState extends State<SupervisorHelpScreen> {
     FAQItem(
       category: 'Monitoramento de Saúde',
       question: 'O que significa o indicador de bateria no painel?',
-      answer: 'Representa a carga atual da bateria do celular do idoso. Se o nível cair abaixo de 15%, um alerta de bateria baixa será destacado no radar do supervisor.',
+      answer: 'Representa a carga atual da bateria do celular do idoso. Se o nível cair abaixo de 15%, um alerta de bateria baixa será destacado no radar do cuidador.',
     ),
     // Alertas de Emergência
     FAQItem(
       category: 'Alertas de Emergência',
       question: 'Como funciona o botão de socorro do idoso?',
-      answer: 'Quando o idoso pressiona o botão "SOS" na tela dele, a central do supervisor recebe instantaneamente um alerta crítico vermelho e toca uma sirene de emergência.',
+      answer: 'Quando o idoso pressiona o botão "SOS" na tela dele, a central do cuidador recebe instantaneamente um alerta crítico vermelho e toca uma sirene de emergência.',
     ),
     FAQItem(
       category: 'Alertas de Emergência',
       question: 'O que são as barreiras do "Radar do Celular"?',
-      answer: 'São alertas automatizados baseados em sensores. Por exemplo, se o volume do idoso estiver no mínimo ou se o app estiver inativo, o supervisor será avisado.',
+      answer: 'São alertas automatizados baseados em sensores. Por exemplo, se o volume do idoso estiver no mínimo ou se o app estiver inativo, o cuidador será avisado.',
     ),
   ];
 
@@ -297,7 +297,7 @@ class _SupervisorHelpScreenState extends State<SupervisorHelpScreen> {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'Tire dúvidas sobre o painel do supervisor.',
+                      'Tire dúvidas sobre o painel do cuidador.',
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.w400, height: 1.6, color: AppColors.onSurfaceVariant),
                     ),
                     const SizedBox(height: 20),

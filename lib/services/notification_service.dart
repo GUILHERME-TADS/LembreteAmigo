@@ -18,6 +18,17 @@ class NotificationService {
   GlobalKey<NavigatorState>? _navigatorKey;
   bool _initialized = false;
 
+  Future<void> requestAlarmPermissions() async {
+    if (kIsWeb || !_initialized) return;
+    final androidPlugin = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
+    await androidPlugin?.requestNotificationsPermission();
+    await androidPlugin?.requestExactAlarmsPermission();
+    await androidPlugin?.requestFullScreenIntentPermission();
+  }
+
   /// Callback disparado quando o usuário toca em uma notificação de lembrete.
   /// O payload contém o ID do lembrete.
   FutureOr<void> Function(String lembreteId)? onNotificationTapped;
@@ -43,9 +54,9 @@ class NotificationService {
     // 3. iOS settings
     const DarwinInitializationSettings initializationSettingsDarwin =
         DarwinInitializationSettings(
-          requestAlertPermission: true,
-          requestBadgePermission: true,
-          requestSoundPermission: true,
+          requestAlertPermission: false,
+          requestBadgePermission: false,
+          requestSoundPermission: false,
         );
 
     // 4. Combined settings
@@ -73,14 +84,6 @@ class NotificationService {
       },
     );
 
-    // 6. Request Android permissions needed for alarm-like reminders.
-    final androidPlugin = _plugin
-        .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >();
-    await androidPlugin?.requestNotificationsPermission();
-    await androidPlugin?.requestExactAlarmsPermission();
-    await androidPlugin?.requestFullScreenIntentPermission();
     _initialized = true;
   }
 

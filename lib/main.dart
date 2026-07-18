@@ -33,6 +33,7 @@ import 'screens/new_reminder_audio_screen.dart';
 import 'screens/new_reminder_screen.dart';
 import 'screens/postpone_confirmation_screen.dart';
 import 'screens/recording_audio_screen.dart';
+import 'screens/required_permissions_screen.dart';
 import 'screens/medication_bulk_confirmation_screen.dart';
 import 'screens/barcode_scanner_screen.dart';
 import 'screens/effectiveness_feedback_screen.dart';
@@ -68,6 +69,7 @@ import 'theme/app_theme.dart';
 import 'widgets/index.dart';
 import 'widgets/app_status_banner.dart';
 import 'services/app_status_service.dart';
+import 'services/app_permission_service.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 final _RouteTracker _routeTracker = _RouteTracker();
@@ -695,6 +697,9 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
           case '/':
             page = _AppStartup(pendingPayload: widget.pendingPayload);
             break;
+          case '/required-permissions':
+            page = const RequiredPermissionsScreen();
+            break;
           case '/elderly-onboarding':
             page = const ElderlyOnboardingScreen();
             break;
@@ -921,6 +926,14 @@ class _AppStartupState extends State<_AppStartup> {
   }
 
   Future<void> _continueStartup() async {
+    if (!kIsWeb && !await AppPermissionService.instance.isGateCompleted()) {
+      navigatorKey.currentState?.pushNamedAndRemoveUntil(
+        '/required-permissions',
+        (route) => false,
+      );
+      return;
+    }
+
     WidgetService.instance.atualizar();
 
     if (SessionRoleService.isElderly) {

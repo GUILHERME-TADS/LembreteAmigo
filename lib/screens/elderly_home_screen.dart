@@ -257,6 +257,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                   setDialogState(() {
                     segundosRestantes--;
                   });
+                  TTSService.instance.falar('$segundosRestantes', caller: this);
                 }
               } else {
                 timer.cancel();
@@ -513,13 +514,13 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                   icon: Icons.local_hospital,
                   backgroundColor: AppColors.error,
                   textColor: Colors.white,
-                  onPressed: () {
+                  onPressed: () async {
                     Navigator.pop(context);
-                    _confirmarAcaoSOSComContagem(
-                      'Ligar para Ambulância',
+                    await TTSService.instance.falar(
                       'Iniciando ligação para a ambulância',
-                      () => _ligar(ambulancePhone),
+                      caller: this,
                     );
+                    _ligar(ambulancePhone);
                   },
                 ),
                 const SizedBox(height: 12),
@@ -629,12 +630,19 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     );
 
     final location = await LocationService.instance.getCurrentSosLocation();
-    final message = location.hasLocation
-        ? 'SOS! Preciso de ajuda urgente. Minha localização: ${location.mapsUrl}'
-        : 'SOS! Preciso de ajuda urgente. Não consegui obter minha localização automaticamente. ${location.errorMessage ?? ''}';
 
     try {
-      final sent = await MessageService.instance.sendText(message);
+      bool sent;
+      if (location.hasLocation && location.mapsUrl != null) {
+        sent = await MessageService.instance.sendLocation(
+          'SOS! Preciso de ajuda urgente.',
+          location.mapsUrl!,
+        );
+      } else {
+        final message = 'SOS! Preciso de ajuda urgente. Não consegui obter minha localização automaticamente. ${location.errorMessage ?? ''}';
+        sent = await MessageService.instance.sendText(message);
+      }
+
       if (!sent) {
         throw StateError('Nenhum cuidador conectado para receber a localização.');
       }

@@ -577,6 +577,67 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   accentColor: const Color(0xFF008069),
                   defaultDuration: Duration(seconds: message.duracaoSegundos ?? 0),
                 )
+              else if (message.tipo == 'localizacao' && message.audioPath != null)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            message.texto,
+                            style: TextStyle(
+                              fontSize: textFontSize,
+                              height: 1.3,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: const Icon(Icons.volume_up, color: Color(0xFF008069), size: 24),
+                          onPressed: () => TTSService.instance.falar(message.texto, caller: this),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    ElevatedButton.icon(
+                      onPressed: () async {
+                        try {
+                          final Uri uri = Uri.parse(message.audioPath!);
+                          await launchUrl(uri, mode: LaunchMode.externalApplication);
+                        } catch (e) {
+                          debugPrint('Erro ao abrir maps: $e');
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF008069),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
+                      ),
+                      icon: const Icon(Icons.map, size: 20),
+                      label: const Text(
+                        'ABRIR NO GOOGLE MAPS',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                  ],
+                )
               else
                 Row(
                   mainAxisSize: MainAxisSize.min,

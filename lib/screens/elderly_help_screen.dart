@@ -936,12 +936,12 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                       height: 72,
                       child: ElevatedButton.icon(
                         onPressed: hasAmbulance
-                            ? () {
-                                _confirmarAcaoSOSComContagem(
-                                  'Ligar para Ambulância',
+                            ? () async {
+                                await TTSService.instance.falar(
                                   'Iniciando ligação para a ambulância',
-                                  () => _ligar(_ambulancePhone!.trim()),
+                                  caller: this,
                                 );
+                                _ligar(_ambulancePhone!.trim());
                               }
                             : null,
                         icon: Icon(
@@ -1066,6 +1066,216 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                   color: itemColor,
                 ),
               ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+
+
+  Future<void> _loadProfilePhoto() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final localFoto = prefs.getString('idoso_foto_path');
+      if (mounted) {
+        setState(() {
+          _fotoPath = localFoto;
+        });
+      }
+    } catch (e) {
+      debugPrint('Erro ao carregar foto no help: $e');
+    }
+  }
+
+
+
+  void _confirmarAcaoSOSComContagem(
+    String acaoTitulo,
+    String ttsMensagem,
+    VoidCallback acaoConfirmada,
+  ) {
+    _stopAllAudioAndTts();
+
+    int segundosRestantes = 10;
+    Timer? countdownTimer;
+
+    TTSService.instance.falar(
+      '$ttsMensagem em $segundosRestantes segundos. Aperte no botão para cancelar.',
+      caller: this,
+    );
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        final isHighContrast =
+            Theme.of(context).colorScheme.primary == Colors.black;
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            countdownTimer ??= Timer.periodic(const Duration(seconds: 1), (
+              timer,
+            ) {
+              if (segundosRestantes > 1) {
+                if (mounted) {
+                  setDialogState(() {
+                    segundosRestantes--;
+                  });
+                  TTSService.instance.falar('$segundosRestantes', caller: this);
+                }
+              } else {
+                timer.cancel();
+                Navigator.pop(context); // Fechar o diálogo
+                acaoConfirmada(); // Executar a ação
+              }
+            });
+
+            return AlertDialog(
+              backgroundColor: isHighContrast
+                  ? Colors.white
+                  : AppColors.background,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+                side: isHighContrast
+                    ? const BorderSide(color: Colors.black, width: 4)
+                    : BorderSide.none,
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 24,
+                vertical: 24,
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      Icon(Icons.warning, color: AppColors.error, size: 36),
+                      SizedBox(width: 12),
+                      Text(
+                        'Atenção',
+                        style: TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.error,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    acaoTitulo.toUpperCase(),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                      color: isHighContrast ? Colors.black : AppColors.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Container(
+                    width: 120,
+                    height: 120,
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.error, width: 4),
+                    ),
+                    child: Center(
+                      child: Text(
+                        '$segundosRestantes',
+                        style: const TextStyle(
+                          fontSize: 54,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.error,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                  const Text(
+                    'O telefone fará a ação automaticamente.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        countdownTimer?.cancel();
+                        TTSService.instance.parar(caller: this);
+                        Navigator.pop(context);
+                      },
+                      icon: const Icon(Icons.cancel, size: 36),
+                      label: const Text(
+                        'Cancelar',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: isHighContrast
+                            ? Colors.black
+                            : AppColors.error,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 24),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          side: isHighContrast
+                              ? const BorderSide(color: Colors.white, width: 2)
+                              : BorderSide.none,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    ).then((_) {
+      countdownTimer?.cancel();
+      TTSService.instance.parar(caller: this);
+    });
+  }
+
+  void _stopAllAudioAndTts() {
+    TTSService.instance.parar(caller: this);
+    try {
+      _audioPlayer.stop();
+    } catch (_) {}
+  }
+
+
+
+  void _ligar(String numero) async {
+    final Uri launchUri = Uri(scheme: 'tel', path: numero);
+    if (await canLaunchUrl(launchUri)) {
+      await launchUrl(launchUri);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Não foi possível abrir o discador.')),
+        );
+      }
+    }
+  }
+
+  Future<void> _initiateCall(String callType) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final idosoId = prefs.getString('paired_idoso_id');
+      if (idosoId == null || idosoId.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Nenhum cuidador vinculado.')),
           );
         }
@@ -1082,6 +1292,11 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
           callType: callType,
           callId: callStart.callId,
           alreadyVerified: true,
+        );
+      } else if (mounted) {
+        final label = callType == 'voice' ? 'voz' : 'vídeo';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Não foi possível iniciar chamada de $label.')),
         );
       } else if (mounted) {
         final label = callType == 'voice' ? 'voz' : 'vídeo';
@@ -1106,12 +1321,19 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
     );
 
     final location = await LocationService.instance.getCurrentSosLocation();
-    final message = location.hasLocation
-        ? 'SOS! Preciso de ajuda urgente. Minha localização: ${location.mapsUrl}'
-        : 'SOS! Preciso de ajuda urgente. Não consegui obter minha localização automaticamente. ${location.errorMessage ?? ''}';
 
     try {
-      final sent = await MessageService.instance.sendText(message);
+      bool sent;
+      if (location.hasLocation && location.mapsUrl != null) {
+        sent = await MessageService.instance.sendLocation(
+          'SOS! Preciso de ajuda urgente.',
+          location.mapsUrl!,
+        );
+      } else {
+        final message = 'SOS! Preciso de ajuda urgente. Não consegui obter minha localização automaticamente. ${location.errorMessage ?? ''}';
+        sent = await MessageService.instance.sendText(message);
+      }
+
       if (!sent) {
         throw StateError('Nenhum cuidador conectado para receber a localização.');
       }

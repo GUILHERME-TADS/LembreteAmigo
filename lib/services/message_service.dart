@@ -179,6 +179,27 @@ class MessageService {
     return true;
   }
 
+  Future<bool> sendLocation(String text, String mapsUrl) async {
+    if (!await _checkConnection()) return false;
+    final trimmedText = text.trim();
+    final trimmedUrl = mapsUrl.trim();
+    if (trimmedUrl.isEmpty) return false;
+
+    final idosoId = await getActiveIdosoId();
+    final message = AppMessage(
+      id: 'msg_${DateTime.now().microsecondsSinceEpoch}',
+      idosoId: idosoId,
+      nomeIdoso: await getActiveIdosoName(),
+      senderRole: SessionRoleService.isSupervisor ? 'supervisor' : 'elderly',
+      tipo: 'localizacao',
+      texto: trimmedText,
+      audioPath: trimmedUrl,
+      criadoEm: DateTime.now(),
+    );
+    await saveOutgoing(message);
+    return true;
+  }
+
   Future<bool> sendAudio({
     required String audioPath,
     required String fallbackText,

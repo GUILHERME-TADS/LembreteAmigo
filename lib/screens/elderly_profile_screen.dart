@@ -565,28 +565,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
   Future<void> _deleteReminder(Lembrete lembrete) async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Apagar lembrete?'),
-          content: Text(
-            'Você quer mesmo apagar o lembrete "${lembrete.titulo}"?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('NÃO, VOLTAR'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.error,
-                foregroundColor: AppColors.onError,
-              ),
-              child: const Text('SIM, APAGAR'),
-            ),
-          ],
-        );
-      },
+      builder: (context) => _DeleteReminderDialog(lembrete: lembrete),
     );
 
     if (confirm != true) return;
@@ -2036,6 +2015,146 @@ class _EditTitleDialogState extends State<_EditTitleDialog> {
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
           child: const Text('SALVAR', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        ),
+      ],
+    );
+  }
+}
+
+class _DeleteReminderDialog extends StatefulWidget {
+  final Lembrete lembrete;
+
+  const _DeleteReminderDialog({required this.lembrete});
+
+  @override
+  State<_DeleteReminderDialog> createState() => _DeleteReminderDialogState();
+}
+
+class _DeleteReminderDialogState extends State<_DeleteReminderDialog> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _falarExplicacao();
+    });
+  }
+
+  @override
+  void dispose() {
+    TTSService.instance.parar(caller: this);
+    super.dispose();
+  }
+
+  void _falarExplicacao() {
+    TTSService.instance.falar(
+      'Você quer mesmo apagar o lembrete "${widget.lembrete.titulo}"? Para apagar, clique no botão vermelho APAGAR. Caso contrário, clique no botão VOLTAR.',
+      caller: this,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      title: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          const Expanded(
+            child: Text(
+              'Apagar lembrete?',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primary,
+              ),
+            ),
+          ),
+          // Botão de Ouvir
+          GestureDetector(
+            onTap: _falarExplicacao,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.3),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: const [
+                  Icon(Icons.volume_up, size: 20, color: Colors.white),
+                  SizedBox(width: 6),
+                  Text(
+                    'Ouvir',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 16),
+            Text(
+              'Você quer mesmo apagar o lembrete "${widget.lembrete.titulo}"?',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: AppColors.onSurface,
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            TTSService.instance.parar(caller: this);
+            Navigator.pop(context, false);
+          },
+          child: const Text(
+            'VOLTAR',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            TTSService.instance.parar(caller: this);
+            Navigator.pop(context, true);
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.error,
+            foregroundColor: AppColors.onError,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          child: const Text(
+            'APAGAR',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
         ),
       ],
     );

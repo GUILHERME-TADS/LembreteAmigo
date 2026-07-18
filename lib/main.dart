@@ -9,6 +9,7 @@ import 'package:home_widget/home_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'models/lembrete.dart';
+import 'models/video_call.dart';
 import 'screens/active_reminder_screen.dart';
 import 'screens/activity_history_screen.dart';
 import 'screens/all_reminders_screen.dart';
@@ -22,6 +23,7 @@ import 'screens/emergency_alert_screen.dart';
 import 'screens/identify_medication_screen.dart';
 import 'screens/reminder_detail_screen.dart';
 import 'screens/incoming_video_call_screen.dart';
+import 'screens/post_call_summary_screen.dart';
 import 'screens/video_call_history_screen.dart';
 import 'screens/forgot_password_screen.dart';
 import 'screens/medication_confirmation_screen.dart';
@@ -823,6 +825,18 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
               callId: incomingCallMap?['callId'] as String? ?? '',
               roomName: incomingCallMap?['roomName'] as String? ?? '',
               callType: incomingCallMap?['callType'] as String? ?? 'video',
+            );
+            break;
+          case '/post-call-summary':
+            final postCallArgs = settings.arguments;
+            final postCallMap = postCallArgs is Map<String, dynamic>
+                ? postCallArgs
+                : null;
+            page = PostCallSummaryScreen(
+              callerName: postCallMap?['callerName'] as String? ?? '',
+              callType: postCallMap?['callType'] as String? ?? 'video',
+              durationSeconds: (postCallMap?['durationSeconds'] as num?)?.toInt() ?? 0,
+              status: postCallMap?['status'] as VideoCallStatus? ?? VideoCallStatus.ended,
             );
             break;
           case '/video-call-history':

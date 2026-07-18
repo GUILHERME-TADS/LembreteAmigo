@@ -81,10 +81,42 @@ class VideoCall {
   }
 
   String get formattedDuration {
-    if (durationSeconds == null) return '--:--';
+    if (durationSeconds == null || durationSeconds == 0) return '00:00';
     final min = durationSeconds! ~/ 60;
     final sec = durationSeconds! % 60;
     return '${min.toString().padLeft(2, '0')}:${sec.toString().padLeft(2, '0')}';
+  }
+
+  String get formattedDetailedDuration {
+    if (durationSeconds == null || durationSeconds == 0) {
+      if (status == VideoCallStatus.declined) return 'Chamada recusada';
+      if (status == VideoCallStatus.missed) return 'Chamada não atendida';
+      return 'Duração rápida';
+    }
+    final min = durationSeconds! ~/ 60;
+    final sec = durationSeconds! % 60;
+    if (min == 0) {
+      return '$sec segundos';
+    } else if (sec == 0) {
+      return '$min min';
+    } else {
+      return '$min min $sec s';
+    }
+  }
+
+  String get statusDescription {
+    switch (status) {
+      case VideoCallStatus.ringing:
+        return 'Chamando...';
+      case VideoCallStatus.connected:
+        return 'Em andamento';
+      case VideoCallStatus.ended:
+        return 'Chamada concluída';
+      case VideoCallStatus.declined:
+        return 'Chamada recusada';
+      case VideoCallStatus.missed:
+        return 'Chamada não atendida';
+    }
   }
 
   String get formattedStartTime {
@@ -92,6 +124,6 @@ class VideoCall {
     if (diff.inMinutes < 1) return 'Agora';
     if (diff.inMinutes < 60) return 'Há ${diff.inMinutes} min';
     if (diff.inHours < 24) return 'Há ${diff.inHours}h';
-    return '${startedAt.day}/${startedAt.month}/${startedAt.year}';
+    return '${startedAt.day.toString().padLeft(2, '0')}/${startedAt.month.toString().padLeft(2, '0')}/${startedAt.year}';
   }
 }

@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart';
 import 'package:jitsi_meet_flutter_sdk/jitsi_meet_flutter_sdk.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../main.dart';
 import '../models/video_call.dart';
 import '../utils/web_window_helper.dart';
 import 'app_status_service.dart';
@@ -30,6 +31,10 @@ class VideoCallService {
   final ValueNotifier<VideoCall?> activeCallNotifier = ValueNotifier(null);
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _callSubscription;
   String? lastStartFailureMessage;
+
+  DateTime? _joinedAt;
+  String? _joinedCallId;
+  String _joinedCallType = 'video';
 
   bool get _useFirebase {
     try {
@@ -61,6 +66,10 @@ class VideoCallService {
       final displayName = await getMyDisplayName();
       debugPrint('Jitsi: entrando na chamada. Tipo: $callType, ID: $callId, Web: $kIsWeb');
 
+      _joinedAt = DateTime.now();
+      _joinedCallId = callId;
+      _joinedCallType = callType;
+
       if (callId != null) {
         await watchCall(callId);
       }
@@ -80,6 +89,13 @@ class VideoCallService {
           debugPrint('Jitsi: Conferência terminada: $url');
           if (callId != null) {
             endCall(callId);
+          } else {
+            _navigateToSummary(
+              callerName: displayName,
+              callType: callType,
+              durationSeconds: _joinedAt != null ? DateTime.now().difference(_joinedAt!).inSeconds : 0,
+              status: VideoCallStatus.ended,
+            );
           }
         },
       );
@@ -116,6 +132,27 @@ class VideoCallService {
         message: 'Nao foi possivel abrir a sala de chamada neste aparelho.',
         severity: AppStatusSeverity.critical,
       );
+    }
+  }
+
+  void _navigateToSummary({
+    required String callerName,
+    required String callType,
+    required int durationSeconds,
+    required VideoCallStatus status,
+  }) {
+    try {
+      final navState = navigatorKey.currentState;
+      if (navState != null) {
+        navState.pushNamed('/post-call-summary', arguments: {
+          'callerName': callerName,
+          'callType': callType,
+          'durationSeconds': durationSeconds,
+          'status': status,
+        });
+      }
+    } catch (e) {
+      debugPrint('Erro ao abrir resumo pós-chamada: $e');
     }
   }
 
@@ -412,20 +449,34 @@ class VideoCallService {
 
   /// Encerra uma chamada
   Future<void> endCall(String callId, {int? durationSeconds}) async {
-    if (!_useFirebase) return;
-    final update = <String, dynamic>{
-      'status': 'ended',
-      'endedAt': DateTime.now().toIso8601String(),
-    };
-    if (durationSeconds != null) {
-      update['durationSeconds'] = durationSeconds;
+    final calculatedDuration = durationSeconds ??
+        (_joinedAt != null ? DateTime.now().difference(_joinedAt!).inSeconds : 0);
+    final displayName = await getMyDisplayName();
+
+    if (_useFirebase) {
+      final update = <String, dynamic>{
+        'status': 'ended',
+        'endedAt': DateTime.now().toIso8601String(),
+        'durationSeconds': calculatedDuration,
+      };
+      await FirebaseFirestore.instance
+          .collection('video_calls')
+          .doc(callId)
+          .update(update);
     }
-    await FirebaseFirestore.instance
-        .collection('video_calls')
-        .doc(callId)
-        .update(update);
+
     await _callSubscription?.cancel();
     activeCallNotifier.value = null;
+
+    _navigateToSummary(
+      callerName: displayName,
+      callType: _joinedCallType,
+      durationSeconds: calculatedDuration,
+      status: VideoCallStatus.ended,
+    );
+
+    _joinedAt = null;
+    _joinedCallId = null;
   }
 
   /// Busca o histórico de chamadas de um idoso

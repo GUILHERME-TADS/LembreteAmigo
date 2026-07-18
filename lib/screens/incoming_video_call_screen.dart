@@ -27,19 +27,33 @@ class IncomingVideoCallScreen extends StatefulWidget {
       _IncomingVideoCallScreenState();
 }
 
-class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen> {
+class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen>
+    with SingleTickerProviderStateMixin {
   String _callerName = '';
   Timer? _vibrateTimer;
+  Timer? _ttsTimer;
+  Timer? _sosTimer;
+  int _sosSecondsRemaining = 15;
+  bool _isSosCall = false;
   bool _accepted = false;
   bool _leaving = false;
+
+  late AnimationController _pulseController;
 
   @override
   void initState() {
     super.initState();
+
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat();
+
     _loadCallerName();
     VideoCallService.instance.watchCall(widget.callId);
     VideoCallService.instance.activeCallNotifier.addListener(_onActiveCallChanged);
     _startVibration();
+    _startTtsLoop();
   }
 
   void _startVibration() {
@@ -48,15 +62,51 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen> {
     });
   }
 
+  void _startTtsLoop() {
+    _ttsTimer = Timer.periodic(const Duration(seconds: 8), (_) {
+      _announceCall();
+    });
+  }
+
+  void _startSosCountdown() {
+    setState(() {
+      _isSosCall = true;
+    });
+    _sosTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return;
+      if (_sosSecondsRemaining <= 1) {
+        timer.cancel();
+        _accept();
+      } else {
+        setState(() {
+          _sosSecondsRemaining--;
+        });
+      }
+    });
+  }
+
+  void _announceCall() {
+    try {
+      final isVoice = widget.callType == 'voice';
+      final callName = isVoice ? 'voz' : 'vídeo';
+      final msg = SessionRoleService.isElderly
+          ? '$_callerName está chamando você por $callName! Toque no botão verde grande para atender.'
+          : 'Chamada de $callName de $_callerName.';
+      TTSService.instance.falar(msg, caller: this);
+    } catch (_) {}
+  }
+
   void _onActiveCallChanged() {
     final activeCall = VideoCallService.instance.activeCallNotifier.value;
     if (activeCall == null ||
         activeCall.status == VideoCallStatus.ended ||
         activeCall.status == VideoCallStatus.declined) {
-      _vibrateTimer?.cancel();
+      _cleanupTimers();
       if (mounted && !_accepted) {
         _leaveIncomingScreen();
       }
+    } else if (activeCall.initiatedBy == 'sos' && !_isSosCall) {
+      _startSosCountdown();
     }
   }
 
@@ -76,11 +126,18 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen> {
     navigator.pushNamedAndRemoveUntil(fallbackRoute, (route) => false);
   }
 
+  void _cleanupTimers() {
+    _vibrateTimer?.cancel();
+    _ttsTimer?.cancel();
+    _sosTimer?.cancel();
+  }
+
   @override
   void dispose() {
     VideoCallService.instance.activeCallNotifier.removeListener(_onActiveCallChanged);
     TTSService.instance.parar(caller: this);
-    _vibrateTimer?.cancel();
+    _cleanupTimers();
+    _pulseController.dispose();
     super.dispose();
   }
 
@@ -124,7 +181,12 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen> {
           }
         }
 
-        if (mounted) setState(() => _callerName = nome);
+        if (mounted) {
+          setState(() {
+            _callerName = nome;
+          });
+          _announceCall();
+        }
       } else {
         // Busca nome do idoso
         final idosoId = await SessionRoleService.getActiveIdosoId();
@@ -142,27 +204,23 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen> {
             setState(() {
               _callerName = doc.data()?['nome'] as String? ?? 'Idoso';
             });
+            _announceCall();
             return;
           }
         }
         final nome = prefs.getString('idoso_nome') ?? 'Idoso';
-        if (mounted) setState(() => _callerName = nome);
+        if (mounted) {
+          setState(() {
+            _callerName = nome;
+          });
+          _announceCall();
+        }
       }
-    } catch (_) {}
-
-    // TTS announce
-    try {
-      final isVoice = widget.callType == 'voice';
-      final callName = isVoice ? 'voz' : 'vídeo';
-      final msg = SessionRoleService.isElderly
-          ? '$_callerName está chamando você por $callName! Toque no botão verde para atender.'
-          : 'Chamada de $callName de $_callerName.';
-      await TTSService.instance.falar(msg, caller: this);
     } catch (_) {}
   }
 
   Future<void> _accept() async {
-    _vibrateTimer?.cancel();
+    _cleanupTimers();
     setState(() => _accepted = true);
     await VideoCallService.instance.acceptCall(widget.callId);
     if (!mounted) return;
@@ -176,7 +234,7 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen> {
   }
 
   Future<void> _decline() async {
-    _vibrateTimer?.cancel();
+    _cleanupTimers();
     await VideoCallService.instance.declineCall(widget.callId);
     _leaveIncomingScreen();
   }
@@ -187,8 +245,10 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen> {
     final isHighContrast = Theme.of(context).brightness == Brightness.light &&
         Theme.of(context).colorScheme.primary == Colors.black;
 
+    final isVoice = widget.callType == 'voice';
+
     return Scaffold(
-      backgroundColor: isHighContrast ? Colors.black : AppColors.primaryContainer,
+      backgroundColor: isHighContrast ? Colors.black : const Color(0xFF121212),
       body: SafeArea(
         child: Center(
           child: Padding(
@@ -198,22 +258,78 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen> {
               children: [
                 const Spacer(flex: 2),
 
-                // Avatar
-                Container(
-                  width: isElderly ? 160 : 120,
-                  height: isElderly ? 160 : 120,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppColors.surfaceContainerHigh,
-                    border: Border.all(
-                      color: AppColors.primary,
-                      width: 4,
+                // SOS Alert banner if SOS
+                if (_isSosCall)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 24),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.error,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.warning, color: Colors.white, size: 28),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'EMERGÊNCIA SOS!\nAtendimento automático em $_sosSecondsRemaining segundos.',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  child: Icon(
-                    widget.callType == 'voice' ? Icons.phone_in_talk : Icons.videocam,
-                    size: isElderly ? 80 : 60,
-                    color: AppColors.primary,
+
+                // Pulsing Avatar Ripple
+                AnimatedBuilder(
+                  animation: _pulseController,
+                  builder: (context, child) {
+                    return Container(
+                      width: isElderly ? 180 : 140,
+                      height: isElderly ? 180 : 140,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: (_isSosCall ? AppColors.error : AppColors.primary)
+                                .withValues(alpha: 0.2 * (1.0 - _pulseController.value)),
+                            blurRadius: 30 * _pulseController.value,
+                            spreadRadius: 25 * _pulseController.value,
+                          ),
+                          BoxShadow(
+                            color: (_isSosCall ? AppColors.error : AppColors.primary)
+                                .withValues(alpha: 0.3 * (1.0 - _pulseController.value)),
+                            blurRadius: 15 * _pulseController.value,
+                            spreadRadius: 10 * _pulseController.value,
+                          ),
+                        ],
+                      ),
+                      child: child,
+                    );
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: const Color(0xFF1E1E1E),
+                      border: Border.all(
+                        color: _isSosCall ? AppColors.error : AppColors.primary,
+                        width: 5,
+                      ),
+                    ),
+                    child: Center(
+                      child: Icon(
+                        isVoice ? Icons.phone_in_talk : Icons.videocam,
+                        size: isElderly ? 80 : 60,
+                        color: _isSosCall ? AppColors.error : AppColors.primary,
+                      ),
+                    ),
                   ),
                 ),
 
@@ -221,28 +337,54 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen> {
 
                 // Caller name
                 Text(
-                  _callerName.isNotEmpty ? _callerName : (widget.callType == 'voice' ? 'Chamada de Voz' : 'Chamada de Vídeo'),
+                  _callerName.isNotEmpty
+                      ? _callerName
+                      : (isVoice ? 'Chamada de Voz' : 'Chamada de Vídeo'),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: isElderly ? 36 : 28,
-                    fontWeight: FontWeight.w800,
-                    color: isHighContrast ? Colors.white : AppColors.onPrimaryContainer,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
                     height: 1.2,
                   ),
                 ),
 
-                const SizedBox(height: 8),
+                const SizedBox(height: 16),
 
-                Text(
-                  widget.callType == 'voice' ? 'Chamada de Voz' : 'Chamada de Vídeo',
-                  style: TextStyle(
-                    fontSize: isElderly ? 24 : 18,
-                    fontWeight: FontWeight.w600,
-                    color: isHighContrast ? Colors.yellow : AppColors.onPrimaryContainer,
+                // Badge Call Type Description
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isVoice ? const Color(0xFF1A237E) : const Color(0xFF006064),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    isVoice ? 'CHAMADA DE VOZ (Só Som)' : 'CHAMADA DE VÍDEO (Com Imagem)',
+                    style: TextStyle(
+                      fontSize: isElderly ? 18 : 14,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
 
                 const Spacer(flex: 1),
+
+                // Instruction tip
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text(
+                    'Toque no botão VERDE para atender ou VERMELHO para recusar',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: isElderly ? 18 : 14,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey[400],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 24),
 
                 // Accept / Decline buttons
                 Row(
@@ -259,7 +401,7 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen> {
                     const SizedBox(width: 48),
                     // Accept
                     _CallActionButton(
-                      icon: widget.callType == 'voice' ? Icons.phone : Icons.videocam,
+                      icon: isVoice ? Icons.phone : Icons.videocam,
                       label: 'Atender',
                       color: const Color(0xFF2E7D32),
                       onPressed: _accepted ? null : _accept,
@@ -321,12 +463,12 @@ class _CallActionButton extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         Text(
           label,
           style: TextStyle(
-            fontSize: large ? 18 : 14,
-            fontWeight: FontWeight.w700,
+            fontSize: large ? 20 : 15,
+            fontWeight: FontWeight.w900,
             color: Colors.white,
           ),
         ),

@@ -49,16 +49,17 @@ class _VideoCallHistoryScreenState extends State<VideoCallHistoryScreen> {
     super.dispose();
   }
 
-  Future<void> _startCall() async {
+  Future<void> _startCall(String type) async {
     final idosoId = await SessionRoleService.getActiveIdosoId();
     final call = await VideoCallService.instance.initiateCall(
       idosoId: idosoId,
-      callType: 'video',
+      callType: type,
+      initiatedBy: SessionRoleService.isSupervisor ? 'supervisor' : 'idoso',
     );
     if (call != null && mounted) {
       await VideoCallService.instance.joinCall(
         call.roomName,
-        callType: 'video',
+        callType: type,
         callId: call.callId,
         alreadyVerified: true,
       );
@@ -71,38 +72,63 @@ class _VideoCallHistoryScreenState extends State<VideoCallHistoryScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(isElderly ? 'Chamadas de Vídeo' : 'Histórico de Chamadas'),
+        title: Text(isElderly ? 'Histórico de Chamadas' : 'Chamadas de Voz e Vídeo'),
         actions: [
-          if (!isElderly)
+          if (!isElderly) ...[
+            IconButton(
+              icon: const Icon(Icons.phone),
+              tooltip: 'Nova chamada de voz',
+              onPressed: () => _startCall('voice'),
+            ),
             IconButton(
               icon: const Icon(Icons.videocam),
-              tooltip: 'Nova chamada',
-              onPressed: _startCall,
+              tooltip: 'Nova chamada de vídeo',
+              onPressed: () => _startCall('video'),
             ),
+          ],
         ],
       ),
       body: SafeArea(
         child: _loading
             ? const Center(child: CircularProgressIndicator())
             : _calls.isEmpty
-                ? _EmptyState(isElderly: isElderly, onStartCall: _startCall)
+                ? _EmptyState(isElderly: isElderly, onStartCall: () => _startCall('video'))
                 : ListView.builder(
                     padding: const EdgeInsets.all(16),
                     itemCount: _calls.length,
                     itemBuilder: (context, index) {
                       final call = _calls[index];
-                      return _CallHistoryTile(call: call);
+                      return _CallHistoryTile(
+                        call: call,
+                        isElderly: isElderly,
+                        onCallBack: (type) => _startCall(type),
+                      );
                     },
                   ),
       ),
       floatingActionButton: isElderly
           ? null
-          : FloatingActionButton.extended(
-              onPressed: _startCall,
-              icon: const Icon(Icons.videocam),
-              label: const Text('Chamada de Vídeo'),
-              backgroundColor: AppColors.primary,
-              foregroundColor: AppColors.onPrimary,
+          : Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                FloatingActionButton.extended(
+                  heroTag: 'fab_voice',
+                  onPressed: () => _startCall('voice'),
+                  icon: const Icon(Icons.phone),
+                  label: const Text('Chamada Voz'),
+                  backgroundColor: AppColors.primaryContainer,
+                  foregroundColor: AppColors.onPrimaryContainer,
+                ),
+                const SizedBox(width: 12),
+                FloatingActionButton.extended(
+                  heroTag: 'fab_video',
+                  onPressed: () => _startCall('video'),
+                  icon: const Icon(Icons.videocam),
+                  label: const Text('Chamada Vídeo'),
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.onPrimary,
+                ),
+              ],
             ),
     );
   }
@@ -123,16 +149,17 @@ class _EmptyState extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              Icons.videocam_off,
+              Icons.phone_disabled_outlined,
               size: 80,
               color: AppColors.onSurfaceVariant.withValues(alpha: 0.4),
             ),
             const SizedBox(height: 16),
             Text(
-              'Nenhuma chamada de vídeo realizada.',
+              'Nenhuma chamada realizada.',
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 18,
+              style: TextStyle(
+                fontSize: isElderly ? 22 : 18,
+                fontWeight: FontWeight.bold,
                 color: AppColors.onSurfaceVariant,
               ),
             ),
@@ -156,8 +183,14 @@ class _EmptyState extends StatelessWidget {
 
 class _CallHistoryTile extends StatelessWidget {
   final VideoCall call;
+  final bool isElderly;
+  final Function(String) onCallBack;
 
-  const _CallHistoryTile({required this.call});
+  const _CallHistoryTile({
+    required this.call,
+    required this.isElderly,
+    required this.onCallBack,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -165,48 +198,114 @@ class _CallHistoryTile extends StatelessWidget {
     final isMissed = call.status == VideoCallStatus.missed ||
         call.status == VideoCallStatus.declined;
 
+    Color iconBgColor;
+    IconData callIcon;
+
+    if (isSos) {
+      iconBgColor = AppColors.error;
+      callIcon = Icons.warning_rounded;
+    } else if (isMissed) {
+      iconBgColor = Colors.orange;
+      callIcon = Icons.call_missed_rounded;
+    } else if (call.isVoiceCall) {
+      iconBgColor = const Color(0xFF1E88E5);
+      callIcon = Icons.phone_callback_rounded;
+    } else {
+      iconBgColor = const Color(0xFF00897B);
+      callIcon = Icons.video_camera_back_rounded;
+    }
+
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: isSos
-              ? AppColors.error
-              : isMissed
-                  ? Colors.orange
-                  : AppColors.primaryContainer,
-          child: Icon(
-            isSos
-                ? Icons.warning
-                : isMissed
-                    ? Icons.call_missed
-                    : Icons.videocam,
-            color: isSos || isMissed ? Colors.white : AppColors.onPrimaryContainer,
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          leading: Container(
+            width: isElderly ? 56 : 48,
+            height: isElderly ? 56 : 48,
+            decoration: BoxDecoration(
+              color: iconBgColor,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              callIcon,
+              color: Colors.white,
+              size: isElderly ? 32 : 24,
+            ),
           ),
-        ),
-        title: Text(
-          call.isFromSupervisor ? 'Chamada do Cuidador' : 'Chamada do Idoso',
-          style: const TextStyle(fontWeight: FontWeight.w700),
-        ),
-        subtitle: Text(
-          '${call.formattedStartTime} • ${call.formattedDuration}',
-        ),
-        trailing: isSos
-            ? Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.error,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: const Text(
-                  'SOS',
+          title: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  call.isFromSupervisor ? 'Chamada do Cuidador' : 'Chamada do Idoso',
                   style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w900,
+                    fontSize: isElderly ? 20 : 16,
                   ),
                 ),
-              )
-            : null,
+              ),
+              if (isSos)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.error,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    'SOS',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 4.0),
+            child: Text(
+              '${call.formattedStartTime} • ${call.statusDescription}\nDuração: ${call.formattedDetailedDuration}',
+              style: TextStyle(
+                fontSize: isElderly ? 16 : 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          trailing: InkWell(
+            onTap: () => onCallBack(call.callType),
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2E7D32),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    call.isVoiceCall ? Icons.phone : Icons.videocam,
+                    color: Colors.white,
+                    size: isElderly ? 24 : 18,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Ligar',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: isElderly ? 16 : 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

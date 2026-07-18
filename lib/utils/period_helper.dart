@@ -116,4 +116,36 @@ class PeriodHelper {
     } catch (_) {}
     return getSpokenTime(hour, minute);
   }
+
+  static String getPreposition(int hour) {
+    if (hour == 0) return 'à';
+    if (hour == 12) return 'ao';
+    if (hour == 1 || hour == 13) return 'à';
+    return 'às';
+  }
+
+  static String getPrepositionFromStr(String timeStr) {
+    final hour = _parseHour(timeStr);
+    return getPreposition(hour ?? 0);
+  }
+
+  static String getSpokenTimeWithPreposition(int hour, int minute) {
+    final prep = getPreposition(hour);
+    final timeStr = getSpokenTime(hour, minute);
+    return '$prep $timeStr';
+  }
+
+  static String getSpokenTimeWithPrepositionFromStr(String timeStr) {
+    final hour = _parseHour(timeStr);
+    if (hour == null) return 'às $timeStr';
+    int minute = 0;
+    try {
+      final parts = timeStr.split(':');
+      if (parts.length > 1) {
+        minute = int.parse(parts[1].trim());
+      }
+    } catch (_) {}
+    final prep = getPreposition(hour);
+    return '$prep ${getSpokenTime(hour, minute)}';
+  }
 }

@@ -194,11 +194,11 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
       } else if (l.categoria == 'medicacao') {
         _speakText = 'Atenção! Hora do remédio: ${l.titulo}.';
       } else if (l.categoria == 'refeicoes') {
-        _speakText = 'Atenção! Hora de comer: ${l.titulo}.';
+        _speakText = 'Atenção! Hora da refeição: ${l.titulo}.';
       } else if (l.categoria == 'hidratacao') {
-        _speakText = 'Atenção! Hora de beber água: ${l.titulo}.';
+        _speakText = 'Atenção! Hora da hidratação: ${l.titulo}.';
       } else if (l.categoria == 'exercicio') {
-        _speakText = 'Atenção! Hora de fazer exercício: ${l.titulo}.';
+        _speakText = 'Atenção! Hora do exercício: ${l.titulo}.';
       } else {
         _speakText = 'Atenção! Hora do lembrete: ${l.titulo}.';
       }
@@ -696,12 +696,12 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
       subtitleText = 'Por favor, tome seu remédio agora.';
       confirmButtonText = 'JÁ TOMEI';
     } else if (lembrete!.categoria == 'refeicoes') {
-      titleText = 'HORA DE COMER';
-      subtitleText = 'Por favor, coma agora.';
+      titleText = 'HORA DA REFEIÇÃO';
+      subtitleText = 'Por favor, coma sua refeição agora.';
       confirmButtonText = 'JÁ COMI';
     } else if (lembrete!.categoria == 'hidratacao') {
-      titleText = 'HORA DE BEBER ÁGUA';
-      subtitleText = 'Por favor, beba um copo de água agora.';
+      titleText = 'HORA DA HIDRATAÇÃO';
+      subtitleText = 'Por favor, faça sua hidratação agora.';
       confirmButtonText = 'JÁ BEBI';
     } else if (lembrete!.categoria == 'exercicio') {
       titleText = 'HORA DO EXERCÍCIO';

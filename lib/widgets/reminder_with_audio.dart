@@ -160,7 +160,7 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
       if (!AudioManager.requestPlay(audioId)) return;
       setState(() => _isSpeaking = true);
       _waveController.repeat(reverse: true);
-      final texto = widget.ttsText ?? '${widget.title} às ${PeriodHelper.getSpokenTimeFromStr(widget.time)}';
+      final texto = widget.ttsText ?? '${widget.title} ${PeriodHelper.getSpokenTimeWithPrepositionFromStr(widget.time)}';
       await TTSService.instance.falar(texto, caller: this);
       _waveController.stop();
       _waveController.reset();

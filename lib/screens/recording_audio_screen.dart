@@ -434,8 +434,8 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
       final hour = extraido.$1;
       final minute = extraido.$2;
       final titulo = extraido.$3.isNotEmpty ? extraido.$3 : _transcricao;
-      final spokenTime = PeriodHelper.getSpokenTime(hour, minute);
-      final texto = 'Entendi: $titulo às $spokenTime. Está correto?';
+      final spokenTime = PeriodHelper.getSpokenTimeWithPreposition(hour, minute);
+      final texto = 'Entendi: $titulo $spokenTime. Está correto?';
       TTSService.instance.falar(texto, caller: this);
     } else {
       TTSService.instance.falar(

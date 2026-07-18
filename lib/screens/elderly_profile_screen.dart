@@ -1299,11 +1299,11 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                           ),
                           GestureDetector(
                             onTap: () {
-                              final spoken = PeriodHelper.getSpokenTimeFromStr(
+                              final spoken = PeriodHelper.getSpokenTimeWithPrepositionFromStr(
                                 med.horarioFormatado,
                               );
                               TTSService.instance.falar(
-                                'Remédio: ${med.titulo} às $spoken',
+                                'Remédio: ${med.titulo} $spoken',
                                 caller: this,
                               );
                             },
@@ -1455,11 +1455,11 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                           ),
                           GestureDetector(
                             onTap: () {
-                              final spoken = PeriodHelper.getSpokenTimeFromStr(
+                              final spoken = PeriodHelper.getSpokenTimeWithPrepositionFromStr(
                                 lembrete.horarioFormatado,
                               );
                               TTSService.instance.falar(
-                                'Lembrete de $catName: ${lembrete.titulo} às $spoken',
+                                'Lembrete de $catName: ${lembrete.titulo} $spoken',
                                 caller: this,
                               );
                             },

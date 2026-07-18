@@ -626,7 +626,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                                   : l.status == LembreteStatus.adiado
                                   ? ' ficou para mais tarde.'
                                   : '';
-                              return '${l.titulo} às ${PeriodHelper.getSpokenTime(l.horarioHour, l.horarioMinute)}$statusSuffix';
+                              return '${l.titulo} ${PeriodHelper.getSpokenTimeWithPreposition(l.horarioHour, l.horarioMinute)}$statusSuffix';
                             }),
                           ];
                         }(),

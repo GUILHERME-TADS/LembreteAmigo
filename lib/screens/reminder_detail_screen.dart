@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
 import '../models/lembrete.dart';
-import '../services/lembrete_service.dart';
 import '../services/tts_service.dart';
 import '../utils/period_helper.dart';
 import '../widgets/index.dart';
@@ -70,73 +69,73 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
             ? 'Remédio marcado para às ${_lembrete!.horarioFormatado}.'
             : 'Está na hora do seu remédio!',
         detailedExplanation:
-            'Olá, esta é a tela do seu remédio. Aqui você pode ver a foto, o horário e como tomar. Aperte o botão de ouvir para eu falar de novo.',
+            'Olá! Esta é a tela do seu remédio. Aqui você pode ver a foto, o horário e como tomar. Aperte o botão de ouvir para eu falar de novo.',
         spokenText: (l, timeStr) {
           final inst = (l.medicamentoInstrucoes != null && l.medicamentoInstrucoes!.isNotEmpty)
               ? ' Como tomar: ${l.medicamentoInstrucoes}.'
               : '';
-          return 'Remédio: ${l.titulo} às $timeStr.$inst';
+          return 'Remédio: ${l.titulo} $timeStr.$inst';
         },
-        defaultSpokenText: () => 'Hora de tomar seu remédio.',
+        defaultSpokenText: () => 'Hora do remédio.',
       );
     } else if (cat == 'refeicoes') {
       return _ReminderCategoryConfig(
         icon: Icons.restaurant_rounded,
         color: AppColors.mealsColor,
-        topBarTitle: 'Hora de Comer',
-        defaultTitle: 'HORA DE COMER',
+        topBarTitle: 'Hora da Refeição',
+        defaultTitle: 'HORA DA REFEIÇÃO',
         defaultSubtitle: _lembrete != null
-            ? 'Comida marcada para às ${_lembrete!.horarioFormatado}. Bom apetite!'
-            : 'Sua comida está pronta. Bom apetite!',
+            ? 'Refeição marcada para às ${_lembrete!.horarioFormatado}. Bom apetite!'
+            : 'Está na hora da sua refeição!',
         detailedExplanation:
-            'Olá, esta é a tela da sua comida. Aqui você pode ver o horário e ouvir de novo o que fazer.',
+            'Olá! Esta é a tela da sua refeição. Aqui você pode ver o horário e o que comer. Aperte o botão de ouvir para eu falar de novo.',
         spokenText: (l, timeStr) =>
-            'Comer: ${l.titulo} às $timeStr.',
-        defaultSpokenText: () => 'Hora de comer.',
+            'Refeição: ${l.titulo} $timeStr.',
+        defaultSpokenText: () => 'Hora da refeição.',
       );
     } else if (cat == 'exercicio') {
       return _ReminderCategoryConfig(
         icon: Icons.directions_walk_rounded,
         color: AppColors.tertiaryContainer,
-        topBarTitle: 'Vamos nos Mexer',
+        topBarTitle: 'Hora do Exercício',
         defaultTitle: 'HORA DO EXERCÍCIO',
         defaultSubtitle: _lembrete != null
             ? 'Exercício marcado para às ${_lembrete!.horarioFormatado}. Vamos lá!'
-            : 'Vamos nos movimentar!',
+            : 'Está na hora do seu exercício!',
         detailedExplanation:
-            'Olá, esta é a tela do seu exercício. Aqui você pode ver o horário e ouvir de novo o que fazer.',
+            'Olá! Esta é a tela do seu exercício. Aqui você pode ver o horário e o que fazer. Aperte o botão de ouvir para eu falar de novo.',
         spokenText: (l, timeStr) =>
-            'Exercício: ${l.titulo} às $timeStr.',
-        defaultSpokenText: () => 'Hora de fazer exercício.',
+            'Exercício: ${l.titulo} $timeStr.',
+        defaultSpokenText: () => 'Hora do exercício.',
       );
     } else if (cat == 'hidratacao') {
       return _ReminderCategoryConfig(
         icon: Icons.water_drop_rounded,
         color: AppColors.voiceFeedbackBlue,
-        topBarTitle: 'Hora da Água',
-        defaultTitle: 'HORA DA ÁGUA',
+        topBarTitle: 'Hora da Hidratação',
+        defaultTitle: 'HORA DA HIDRATAÇÃO',
         defaultSubtitle: _lembrete != null
-            ? 'Água marcada para às ${_lembrete!.horarioFormatado}.'
-            : 'Hora de beber um copo d\'água!',
+            ? 'Hidratação marcada para às ${_lembrete!.horarioFormatado}.'
+            : 'Está na hora da sua hidratação!',
         detailedExplanation:
-            'Olá! Beber água faz bem. Aqui você pode ver o horário e ouvir de novo o que fazer.',
+            'Olá! Esta é a tela da sua hidratação. Aqui você pode ver o horário e quanta água beber. Aperte o botão de ouvir para eu falar de novo.',
         spokenText: (l, timeStr) =>
-            'Beber água: ${l.titulo} às $timeStr.',
-        defaultSpokenText: () => 'Hora de beber água.',
+            'Hidratação: ${l.titulo} $timeStr.',
+        defaultSpokenText: () => 'Hora da hidratação.',
       );
     } else {
       return _ReminderCategoryConfig(
         icon: Icons.notifications_active_rounded,
         color: AppColors.primary,
-        topBarTitle: 'Meu Lembrete',
-        defaultTitle: 'LEMBRETE',
+        topBarTitle: 'Hora do Lembrete',
+        defaultTitle: 'HORA DO LEMBRETE',
         defaultSubtitle: _lembrete != null
             ? 'Lembrete marcado para às ${_lembrete!.horarioFormatado}.'
-            : 'Atenção ao seu lembrete!',
+            : 'Está na hora do seu lembrete!',
         detailedExplanation:
-            'Olá, esta é a tela do seu lembrete. Aperte o botão de ouvir para eu falar de novo.',
+            'Olá! Esta é a tela do seu lembrete. Aqui você pode ver o horário e o que fazer. Aperte o botão de ouvir para eu falar de novo.',
         spokenText: (l, timeStr) =>
-            'Lembrete: ${l.titulo} às $timeStr.',
+            'Lembrete: ${l.titulo} $timeStr.',
         defaultSpokenText: () => 'Hora do lembrete.',
       );
     }
@@ -149,7 +148,7 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
     final text = _lembrete != null
         ? cfg.spokenText(
             _lembrete!,
-            PeriodHelper.getSpokenTime(
+            PeriodHelper.getSpokenTimeWithPreposition(
               _lembrete!.horarioHour,
               _lembrete!.horarioMinute,
             ),

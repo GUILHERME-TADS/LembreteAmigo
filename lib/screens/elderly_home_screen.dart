@@ -210,7 +210,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
         l.status != LembreteStatus.precisaDeAjuda &&
         remaining == 'Atrasado';
 
-    final spokenTime = PeriodHelper.getSpokenTime(
+    final spokenTime = PeriodHelper.getSpokenTimeWithPreposition(
       l.horarioHour,
       l.horarioMinute,
     );
@@ -219,22 +219,22 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
 
     if (l.concluido) {
       text =
-          'O lembrete ${l.titulo}, marcado para às $spokenTime, já está concluído. Muito bem!';
+          'O lembrete ${l.titulo}, marcado para $spokenTime, já está concluído. Muito bem!';
     } else if (l.status == LembreteStatus.adiado) {
-      text = 'O lembrete ${l.titulo} ficou para mais tarde, às $spokenTime.';
+      text = 'O lembrete ${l.titulo} ficou para mais tarde, $spokenTime.';
     } else if (l.status == LembreteStatus.perdido) {
       text =
-          'Este lembrete era para às $spokenTime, mas o tempo passou e não deu para fazer.';
+          'Este lembrete era para $spokenTime, mas o tempo passou e não deu para fazer.';
     } else if (remaining == 'Agora mesmo') {
       text =
-          'Chegou a hora de fazer ${l.titulo}! O horário marcado é às $spokenTime.';
+          'Chegou a hora de fazer ${l.titulo}! O horário marcado é $spokenTime.';
     } else if (isLembreteAtrasado) {
       text =
-          'O lembrete ${l.titulo} passou da hora! O horário era às $spokenTime.';
+          'O lembrete ${l.titulo} passou da hora! O horário era $spokenTime.';
     } else {
       final remainingClean = remaining.replaceAll('Daqui a ', '');
       text =
-          'O lembrete ${l.titulo} está marcado para às $spokenTime. Ainda falta $remainingClean para dar o horário.';
+          'O lembrete ${l.titulo} está marcado para $spokenTime. Ainda falta $remainingClean para dar o horário.';
     }
 
     TTSService.instance.falar(text, caller: this);
@@ -875,11 +875,11 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
 
 
   String _descreverLembrete(Lembrete l) {
-    final spokenTime = PeriodHelper.getSpokenTime(
+    final spokenTime = PeriodHelper.getSpokenTimeWithPreposition(
       l.horarioHour,
       l.horarioMinute,
     );
-    return '${l.titulo} às $spokenTime.';
+    return '${l.titulo} $spokenTime.';
   }
 
   Widget _buildNode(Lembrete lembrete) {

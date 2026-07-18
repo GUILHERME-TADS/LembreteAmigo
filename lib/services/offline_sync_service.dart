@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
@@ -17,7 +18,7 @@ class OfflineSyncService {
   OfflineSyncService._();
   static final OfflineSyncService instance = OfflineSyncService._();
 
-  static const _queueKey = 'offline_write_queue';
+  static const _queueKeyPrefix = 'offline_write_queue';
   static const _writeTimeout = Duration(seconds: 6);
   static const _autoSyncInterval = Duration(seconds: 30);
   static const _syncSoonDelay = Duration(seconds: 5);
@@ -36,8 +37,19 @@ class OfflineSyncService {
     }
   }
 
+  Future<String> _queueKey() async {
+    final idosoId = await SessionRoleService.getActiveIdosoId();
+    final role = SessionRoleService.activeRole ?? 'unknown';
+    String userId = 'anonymous';
+    if (_useFirebase) {
+      userId = FirebaseAuth.instance.currentUser?.uid ?? userId;
+    }
+    return '${_queueKeyPrefix}_${role}_${userId}_$idosoId';
+  }
+
   Future<List<OfflineWrite>> loadQueue() async {
-    final raw = await SecureCacheService.instance.read(_queueKey);
+    final queueKey = await _queueKey();
+    final raw = await SecureCacheService.instance.read(queueKey);
     if (raw == null || raw.isEmpty) {
       pendingCount.value = 0;
       return <OfflineWrite>[];
@@ -56,7 +68,7 @@ class OfflineSyncService {
       }
     } catch (e) {
       debugPrint('Fila offline corrompida. Removendo cache local: $e');
-      await SecureCacheService.instance.delete(_queueKey);
+      await SecureCacheService.instance.delete(queueKey);
       pendingCount.value = 0;
       return <OfflineWrite>[];
     }
@@ -296,7 +308,7 @@ class OfflineSyncService {
 
   Future<void> _saveQueue(List<OfflineWrite> queue) async {
     final raw = jsonEncode(queue.map((write) => write.toJson()).toList());
-    await SecureCacheService.instance.write(_queueKey, raw);
+    await SecureCacheService.instance.write(await _queueKey(), raw);
     pendingCount.value = queue.where((write) => !write.failed).length;
   }
 

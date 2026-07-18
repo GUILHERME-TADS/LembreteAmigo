@@ -156,7 +156,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
 
           await LembreteService.instance.registrarDificuldade(
             l.id,
-            'ALERTA CRÍTICO: Idoso não respondeu ao lembrete crítico de remédio em 2 minutos. Reforço automático ativado.',
+            'ALERTA CRÍTICO: Idoso não respondeu à tarefa crítica de remédio em 2 minutos. Reforço automático ativado.',
           );
 
           if (mounted) {
@@ -179,7 +179,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
       if (!mounted || !_isSpeakingLoopActive || l.concluido) return;
       await LembreteService.instance.registrarDificuldade(
         l.id,
-        'Sem resposta do idoso depois de ${_noResponseLimit(l).inMinutes} minutos. O cuidador deve verificar se esta tudo bem.',
+        'Sem resposta do idoso depois de ${_noResponseLimit(l).inMinutes} minutos. O ajudante deve verificar se esta tudo bem.',
       );
     });
 
@@ -189,20 +189,20 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
         continue;
       }
 
-      final prefix = 'ALERTA URGENTE E ESSENCIAL! Por favor, faça agora: ';
+      final prefix = 'ATENÇÃO! Por favor, faça agora: ';
 
       if (l.medicamentoAudioTexto != null && l.medicamentoAudioTexto!.isNotEmpty) {
         _speakText = l.medicamentoAudioTexto!;
       } else if (l.categoria == 'medicacao') {
         _speakText = '$prefix tomar o seu remédio: ${l.titulo}.';
       } else if (l.categoria == 'refeicoes') {
-        _speakText = '$prefix comer: ${l.titulo}. Faça a sua refeição.';
+        _speakText = '$prefix comer: ${l.titulo}. Coma agora.';
       } else if (l.categoria == 'hidratacao') {
         _speakText =
-            '$prefix se hidratar: ${l.titulo}. Beba um copo de água agora.';
+            '$prefix beber água: ${l.titulo}. Beba um copo de água agora.';
       } else if (l.categoria == 'exercicio') {
         _speakText =
-            '$prefix fazer o seu exercício físico: ${l.titulo}. Faça a sua atividade.';
+            '$prefix fazer o seu exercício: ${l.titulo}. Faça agora.';
       } else {
         _speakText = '$prefix sua atividade: ${l.titulo}.';
       }
@@ -334,14 +334,14 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
               status == stt.SpeechToText.notListeningStatus;
           if (finished && _isListeningForCommand && !_voiceCommandHandled) {
             _finishVoiceListeningWithoutResult(
-              'Nao ouvi sua resposta. Voce pode dizer ja fiz, adiar ou nao consegui.',
+              'Não ouvi sua resposta. Você pode dizer: já fiz, adiar, ou não consegui.',
             );
           }
         },
       );
       if (!available) {
         await TTSService.instance.falar(
-          'Reconhecimento de voz indisponivel. Use os botoes da tela.',
+          'Não consegui ouvir sua voz. Use os botões da tela.',
           caller: this,
         );
         if (mounted) setState(() => _isLoopPaused = false);
@@ -559,7 +559,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
     }
 
     await TTSService.instance.falar(
-      'Nao entendi. Voce pode dizer ja fiz, adiar ou nao consegui.',
+      'Não entendi. Você pode dizer: já fiz, adiar, ou não consegui.',
       caller: this,
     );
     if (mounted) {
@@ -599,7 +599,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                 ),
                 const SizedBox(height: 16),
                 const Text(
-                  'Lembrete nao encontrado',
+                  'Tarefa não encontrada',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 26,
@@ -609,7 +609,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                 ),
                 const SizedBox(height: 12),
                 const Text(
-                  'Nao foi possivel abrir este lembrete. Volte para a tela inicial e tente novamente.',
+                  'Não consegui abrir esta tarefa. Volte para o início e tente de novo.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 18,
@@ -630,7 +630,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                     },
                     icon: const Icon(Icons.home),
                     label: const Text(
-                      'VOLTAR AO INICIO',
+                      'VOLTAR AO INÍCIO',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -698,23 +698,23 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
     if (lembrete!.categoria == 'medicacao') {
       titleText = 'HORA DO REMÉDIO';
       subtitleText = 'Por favor, tome seu remédio agora.';
-      confirmButtonText = 'JA TOMEI';
+      confirmButtonText = 'JÁ TOMEI';
     } else if (lembrete!.categoria == 'refeicoes') {
       titleText = 'HORA DE COMER';
-      subtitleText = 'Por favor, faça sua refeição agora.';
-      confirmButtonText = 'JA COMI';
+      subtitleText = 'Por favor, coma agora.';
+      confirmButtonText = 'JÁ COMI';
     } else if (lembrete!.categoria == 'hidratacao') {
       titleText = 'HORA DE BEBER ÁGUA';
       subtitleText = 'Por favor, beba um copo de água agora.';
-      confirmButtonText = 'JA BEBI';
+      confirmButtonText = 'JÁ BEBI';
     } else if (lembrete!.categoria == 'exercicio') {
       titleText = 'HORA DO EXERCÍCIO';
-      subtitleText = 'Por favor, faça sua atividade física agora.';
-      confirmButtonText = 'JA FIZ';
+      subtitleText = 'Por favor, faça seu exercício agora.';
+      confirmButtonText = 'JÁ FIZ';
     } else {
-      titleText = 'HORA DO LEMBRETE';
+      titleText = 'HORA DA TAREFA';
       subtitleText = 'Por favor, faça esta atividade agora.';
-      confirmButtonText = 'JA FIZ';
+      confirmButtonText = 'JÁ FIZ';
     }
 
     final isHighContrast = Theme.of(context).colorScheme.primary == Colors.black;
@@ -730,7 +730,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
         backgroundColor: isHighContrast ? Colors.white : AppColors.background,
         floatingActionButton: const AlexFloatingHelpButton(
           textoExplicacao:
-              'Esta tela mostra o que você precisa fazer agora. Aperte JA FIZ quando terminar. Aperte DAQUI A POUCO para lembrar depois. Aperte PRECISO DE AJUDA se não conseguir.',
+              'Esta tela mostra o que você precisa fazer agora. Aperte JÁ FIZ quando terminar. Aperte DAQUI A POUCO para lembrar depois. Aperte PRECISO DE AJUDA se não conseguir.',
         ),
         body: SafeArea(
           child: Column(
@@ -823,7 +823,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                       const SizedBox(height: 12),
                                       Text(
                                         lembrete?.titulo ??
-                                            'Carregando lembrete...',
+                                            'Carregando tarefa...',
                                         textAlign: TextAlign.center,
                                         style: TextStyle(
                                           fontSize: 32,
@@ -858,8 +858,8 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                     ? [lembrete!.medicamentoAudioTexto!]
                                     : null,
                                 subtitle: lembrete!.audioPath == 'ia_generated'
-                                    ? 'Explicação do remédio por IA'
-                                    : 'Mensagem de voz do seu cuidador',
+                                    ? 'Alex explica o remédio'
+                                    : 'Mensagem de voz do seu ajudante',
                               ),
                               const SizedBox(height: 24),
                             ],
@@ -963,7 +963,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                               lembrete?.categoria == 'hidratacao'
                                                   ? 'Você bebeu sua água.'
                                                   : lembrete?.categoria == 'refeicoes'
-                                                      ? 'Você fez sua refeição.'
+                                                      ? 'Você comeu.'
                                                       : lembrete?.categoria == 'exercicio'
                                                           ? 'Você fez seu exercício.'
                                                           : 'Você concluiu sua atividade.';
@@ -977,7 +977,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                           if (mounted) {
                                             ScaffoldMessenger.of(context).showSnackBar(
                                               SnackBar(
-                                                content: Text('Erro ao concluir lembrete: $e'),
+                                                content: Text('Não consegui marcar como feito. Tente de novo.'),
                                                 backgroundColor: AppColors.error,
                                               ),
                                             );
@@ -1057,7 +1057,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                         if (mounted) {
                                           ScaffoldMessenger.of(context).showSnackBar(
                                             SnackBar(
-                                              content: Text('Erro ao adiar lembrete: $e'),
+                                              content: Text('Não consegui lembrar depois. Tente de novo.'),
                                               backgroundColor: AppColors.error,
                                             ),
                                           );
@@ -1136,7 +1136,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                               if (mounted) {
                                                 ScaffoldMessenger.of(context).showSnackBar(
                                                   SnackBar(
-                                                    content: Text('Erro ao registrar dificuldade: $e'),
+                                                    content: Text('Não consegui pedir ajuda. Tente de novo.'),
                                                     backgroundColor: AppColors.error,
                                                   ),
                                                 );

@@ -303,6 +303,24 @@ function appendMedicalDisclaimer(text) {
   return `${safeText}${disclaimer}`;
 }
 
+/**
+ * Appends a short safety note for audio spoken directly to the elderly user.
+ * @param {string} text
+ * @return {string} Text with a simple safety note.
+ */
+function appendElderlyAudioSafetyNote(text) {
+  const note =
+    " Se tiver dúvida, se sentir mal ou achar diferente do combinado, " +
+    "peça ajuda ao seu ajudante.";
+  const safeText = String(text || "").trim();
+  if (!safeText) return note.trim();
+  const lower = safeText.toLowerCase();
+  if (lower.includes("peça ajuda") || lower.includes("peca ajuda")) {
+    return safeText;
+  }
+  return `${safeText}${note}`;
+}
+
 
 // =============================================================================
 // ALEX CHAT (Elderly Assistant)
@@ -1324,7 +1342,11 @@ exports.analyzeMedication = onCall(
           "com leite').\n" +
           "2. 'suggestedAudioText': Crie uma fala curta e acolhedora em " +
           "português voltada para o idoso tomar o remédio (ex: 'Olá! Está " +
-          "na hora de tomar seu Paracetamol. Beba um copo de água.').\n" +
+          "na hora de tomar seu Paracetamol. Beba um copo de água.'). Use " +
+          "frases curtas, palavras simples e sem termos técnicos. Não fale " +
+          "bula, interação, orientação informativa, médico ou farmacêutico " +
+          "nesse áudio; se houver dúvida, diga para pedir ajuda ao " +
+          "ajudante.\n" +
           "3. 'hasInteraction' e 'severity' ('none', 'moderate', 'severe') " +
           "e 'interactionWarning': Analise se há interações graves ou " +
           "moderadas entre o novo medicamento e os existentes.\n" +
@@ -1360,7 +1382,8 @@ exports.analyzeMedication = onCall(
 
         return {
           guidelines: appendMedicalDisclaimer(parsed.guidelines).slice(0, 900),
-          suggestedAudioText: appendMedicalDisclaimer(audioTxt).slice(0, 1400),
+          suggestedAudioText:
+              appendElderlyAudioSafetyNote(audioTxt).slice(0, 800),
           hasInteraction: !!parsed.hasInteraction,
           severity: String(parsed.severity || "none").slice(0, 50),
           interactionWarning: parsed.hasInteraction ?

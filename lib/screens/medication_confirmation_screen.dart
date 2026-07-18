@@ -65,7 +65,7 @@ class _MedicationConfirmationScreenState extends State<MedicationConfirmationScr
         color: AppColors.medicationsColor,
         titleText: 'HORA DO REMÉDIO',
         statusText: 'Remédio Tomado',
-        tip: 'Parabéns por seguir seu tratamento!',
+        tip: 'Parabéns por cuidar da sua saúde!',
         detailedExplanation: 'Muito bem! Você tomou o seu remédio. Parabéns por cuidar da sua saúde! Agora, aperte no botão amarelo abaixo para voltar à tela inicial.',
       );
     } else if (msg.contains('água') ||
@@ -77,8 +77,8 @@ class _MedicationConfirmationScreenState extends State<MedicationConfirmationScr
         color: Color(0xFF0288D1),
         titleText: 'HORA DE BEBER ÁGUA',
         statusText: 'Água Bebida',
-        tip: 'Parabéns por se manter hidratado!',
-        detailedExplanation: 'Muito bem! Você bebeu a sua água. Parabéns por se manter hidratado! Agora, aperte no botão amarelo abaixo para voltar à tela inicial.',
+        tip: 'Parabéns por beber água!',
+        detailedExplanation: 'Muito bem! Você bebeu a sua água. Parabéns por cuidar do seu corpo! Agora, aperte no botão amarelo abaixo para voltar à tela inicial.',
       );
     } else if (msg.contains('refeição') ||
         msg.contains('comer') ||
@@ -89,9 +89,9 @@ class _MedicationConfirmationScreenState extends State<MedicationConfirmationScr
         icon: Icons.restaurant,
         color: AppColors.mealsColor,
         titleText: 'HORA DE COMER',
-        statusText: 'Refeição Feita',
+        statusText: 'Você Comeu',
         tip: 'Comer nos horários certos cuida do seu corpo!',
-        detailedExplanation: 'Muito bem! Você fez a sua refeição. Parabéns por se alimentar direitinho! Agora, aperte no botão amarelo abaixo para voltar à tela inicial.',
+        detailedExplanation: 'Muito bem! Você comeu. Parabéns por cuidar do seu corpo! Agora, aperte no botão amarelo abaixo para voltar à tela inicial.',
       );
     } else if (msg.contains('exercício') ||
         msg.contains('atividade') ||
@@ -101,18 +101,18 @@ class _MedicationConfirmationScreenState extends State<MedicationConfirmationScr
         icon: Icons.directions_walk,
         color: Color(0xFF2E7D32),
         titleText: 'HORA DO EXERCÍCIO',
-        statusText: 'Atividade Concluída',
+        statusText: 'Exercício Feito',
         tip: 'Movimentar o corpo faz bem para o coração e mente!',
-        detailedExplanation: 'Muito bem! Você concluiu a sua atividade física. Parabéns por movimentar seu corpo! Agora, aperte no botão amarelo abaixo para voltar à tela inicial.',
+        detailedExplanation: 'Muito bem! Você fez seu exercício. Parabéns por movimentar seu corpo! Agora, aperte no botão amarelo abaixo para voltar à tela inicial.',
       );
     } else {
       return const _ConfirmationConfig(
         icon: Icons.check_circle_outline,
         color: AppColors.primary,
-        titleText: 'LEMBRETE CONCLUÍDO',
-        statusText: 'Tarefa Concluída',
-        tip: 'Parabéns por concluir sua atividade!',
-        detailedExplanation: 'Muito bem! Você concluiu a sua tarefa com sucesso. Parabéns! Agora, aperte no botão amarelo abaixo para voltar à tela inicial.',
+        titleText: 'TAREFA FEITA',
+        statusText: 'Tarefa Feita',
+        tip: 'Parabéns por fazer sua atividade!',
+        detailedExplanation: 'Muito bem! Você fez sua tarefa. Parabéns! Agora, aperte no botão amarelo abaixo para voltar à tela inicial.',
       );
     }
   }
@@ -190,7 +190,7 @@ class _MedicationConfirmationScreenState extends State<MedicationConfirmationScr
                                 child: Column(
                                   children: [
                                     const Text(
-                                      'STATUS DO LEMBRETE:',
+                                      'O QUE ACONTECEU:',
                                       style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w800,

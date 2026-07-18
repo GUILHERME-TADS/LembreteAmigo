@@ -66,6 +66,10 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     super.initState();
     _isConnected = widget.showConnected;
     _updateConnectionStatus();
+    SessionRoleService.elderlyConnectionNotifier.addListener(
+      _onElderlyConnectionChanged,
+    );
+    SessionRoleService.watchElderlyConnection();
     _checkConnection();
     _loadProfilePhoto();
     if (widget.speakText != null) {
@@ -116,6 +120,13 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     }
   }
 
+  void _onElderlyConnectionChanged() {
+    final connected = SessionRoleService.elderlyConnectionNotifier.value;
+    if (mounted && connected != null && connected != _isConnected) {
+      setState(() => _isConnected = connected);
+    }
+  }
+
   void _syncReminderState(Iterable<Lembrete> lembretes) {
     _lembretes = ReminderStateHelper.activeTodaySorted(lembretes);
     _ultimoLembrete = ReminderStateHelper.nextReminder(_lembretes);
@@ -127,6 +138,9 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     _pulseController?.dispose();
     _audioSubscription?.cancel();
     LembreteService.instance.notifier.removeListener(_onLembretesChanged);
+    SessionRoleService.elderlyConnectionNotifier.removeListener(
+      _onElderlyConnectionChanged,
+    );
     TTSService.instance.parar(caller: this);
     _audioPlayer.dispose();
     super.dispose();
@@ -205,22 +219,22 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
 
     if (l.concluido) {
       text =
-          'O lembrete ${l.titulo}, marcado para às $spokenTime, já está pronto e feito! Muito bem!';
+          'A tarefa ${l.titulo}, marcada para às $spokenTime, já está feita. Muito bem!';
     } else if (l.status == LembreteStatus.adiado) {
-      text = 'O lembrete ${l.titulo} ficou para mais tarde, às $spokenTime.';
+      text = 'A tarefa ${l.titulo} ficou para mais tarde, às $spokenTime.';
     } else if (l.status == LembreteStatus.perdido) {
       text =
-          'Este lembrete era para às $spokenTime, mas o tempo passou e não deu para fazer.';
+          'Esta tarefa era para às $spokenTime, mas o tempo passou e não deu para fazer.';
     } else if (remaining == 'Agora mesmo') {
       text =
           'Chegou a hora de fazer ${l.titulo}! O horário marcado é às $spokenTime.';
     } else if (isLembreteAtrasado) {
       text =
-          'O lembrete ${l.titulo} passou da hora! O horário era às $spokenTime.';
+          'A tarefa ${l.titulo} passou da hora! O horário era às $spokenTime.';
     } else {
       final remainingClean = remaining.replaceAll('Daqui a ', '');
       text =
-          'O lembrete ${l.titulo} está marcado para às $spokenTime. Ainda falta $remainingClean para dar o horário.';
+          'A tarefa ${l.titulo} está marcada para às $spokenTime. Ainda falta $remainingClean para dar o horário.';
     }
 
     TTSService.instance.falar(text, caller: this);
@@ -465,7 +479,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                 Opacity(
                   opacity: _isConnected ? 1.0 : 0.4,
                   child: SeniorButton(
-                    label: 'Chamada de Voz SOS',
+                    label: 'Ligação de Voz SOS',
                     icon: Icons.phone_in_talk,
                     backgroundColor: const Color(0xFF2E7D32),
                     textColor: Colors.white,
@@ -476,7 +490,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                       }
                       Navigator.pop(context);
                       TTSService.instance.falar(
-                        'Iniciando chamada de voz para o ajudante',
+                        'Vou ligar por voz para o ajudante.',
                         caller: this,
                       );
                       _initiateCall('voice');
@@ -488,7 +502,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                 Opacity(
                   opacity: _isConnected ? 1.0 : 0.4,
                   child: SeniorButton(
-                    label: 'Chamada de Vídeo SOS',
+                    label: 'Ligação com Imagem SOS',
                     icon: Icons.videocam,
                     backgroundColor: const Color(0xFF1565C0),
                     textColor: Colors.white,
@@ -499,7 +513,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                       }
                       Navigator.pop(context);
                       TTSService.instance.falar(
-                        'Iniciando chamada de vídeo para o ajudante',
+                        'Vou ligar com imagem para o ajudante.',
                         caller: this,
                       );
                       _initiateCall('video');
@@ -529,7 +543,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                 Opacity(
                   opacity: _isConnected ? 1.0 : 0.4,
                   child: SeniorButton(
-                    label: 'Enviar Localização para o Chat',
+                    label: 'Mandar onde estou',
                     icon: Icons.location_on,
                     backgroundColor: const Color(0xFF5E35B1),
                     textColor: Colors.white,
@@ -540,8 +554,8 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                       }
                       Navigator.pop(context);
                       _confirmarAcaoSOSComContagem(
-                        'Enviar Localização',
-                        'Enviando sua localização para o chat do ajudante',
+                        'Mandar onde estou',
+                        'Vou mandar onde você está para o seu ajudante',
                         _enviarLocalizacaoChat,
                       );
                     },
@@ -564,7 +578,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Não foi possível abrir o discador.')),
+          const SnackBar(content: Text('Não consegui abrir a ligação no celular.')),
         );
       }
     }
@@ -577,7 +591,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     );
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Você precisa de um cuidador conectado para usar esta função.'),
+        content: Text('Você precisa de um ajudante conectado para usar esta função.'),
         backgroundColor: AppColors.error,
       ),
     );
@@ -590,7 +604,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
       if (idosoId == null || idosoId.isEmpty) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Nenhum cuidador vinculado.')),
+            const SnackBar(content: Text('Nenhum ajudante conectado.')),
           );
         }
         return;
@@ -610,14 +624,14 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
       } else if (mounted) {
         final label = callType == 'voice' ? 'voz' : 'vídeo';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Não foi possível iniciar chamada de $label.')),
+          SnackBar(content: Text('Não consegui começar a ligação de $label.')),
         );
       }
     } catch (e) {
       if (mounted) {
         final label = callType == 'voice' ? 'voz' : 'vídeo';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao iniciar chamada de $label.')),
+          SnackBar(content: Text('Não consegui começar a ligação de $label.')),
         );
       }
     }
@@ -625,7 +639,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
 
   void _enviarLocalizacaoChat() async {
     TTSService.instance.falar(
-      'Estou buscando sua localização para enviar ao chat.',
+      'Estou vendo onde você está para avisar o seu ajudante.',
       caller: this,
     );
 
@@ -639,15 +653,15 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
           location.mapsUrl!,
         );
       } else {
-        final message = 'SOS! Preciso de ajuda urgente. Não consegui obter minha localização automaticamente. ${location.errorMessage ?? ''}';
+        final message = 'SOS! Preciso de ajuda urgente. Não consegui ver onde estou pelo celular. ${location.errorMessage ?? ''}';
         sent = await MessageService.instance.sendText(message);
       }
 
       if (!sent) {
-        throw StateError('Nenhum cuidador conectado para receber a localização.');
+        throw StateError('Nenhum ajudante conectado para receber a localização.');
       }
       const feedback =
-          'Localização enviada para o chat do supervisor com sucesso.';
+          'Pronto. Enviei onde você está para o seu ajudante.';
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text(feedback)),
@@ -655,13 +669,13 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
       }
       TTSService.instance.falar(feedback, caller: this);
     } catch (e) {
-      final erroMsg = 'Erro ao enviar localização: $e';
+      const erroMsg = 'Não consegui mandar onde você está. Tente de novo.';
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(erroMsg)),
         );
       }
-      TTSService.instance.falar('Não foi possível enviar a localização.', caller: this);
+      TTSService.instance.falar('Não consegui mandar onde você está.', caller: this);
     }
   }
 
@@ -786,7 +800,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
       if (result != null && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Lembrete criado com sucesso!'),
+            content: const Text('Pronto. Tarefa criada.'),
             backgroundColor: AppColors.tertiaryContainer,
             behavior: SnackBarBehavior.floating,
             duration: const Duration(seconds: 3),
@@ -1395,7 +1409,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
       case LembreteStatus.concluidoComFoto:
         return 'Pronto com foto';
       case LembreteStatus.confirmadoPeloCuidador:
-        return 'Confirmado pelo cuidador';
+        return 'Ajudante confirmou';
       case LembreteStatus.adiado:
         return 'Mais tarde';
       case LembreteStatus.perdido:
@@ -1783,7 +1797,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
           backgroundColor: bgColor,
           floatingActionButton: AlexFloatingHelpButton(
             textoExplicacao:
-                'Olá! Esta é a tela do seu dia. Aqui você vê as tarefas de tomar remédios, beber água, comer ou fazer exercícios. Para falar com o ajudante Alex, aperte o grande círculo azul no meio da tela e fale o que precisa.',
+                'Olá! Esta é a tela do seu dia. Aqui você vê o que precisa fazer hoje: tomar remédio, beber água, comer ou se mexer. Para falar com o Alex, aperte o grande círculo azul no meio da tela e fale o que precisa.',
             onTapped: _stopAllAudioAndTts,
           ),
           body: SafeArea(
@@ -1970,7 +1984,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
           ),
           const SizedBox(width: 8),
           Text(
-            _isOnline ? 'Cuidador conectado' : 'Cuidador conectado, sem internet',
+            _isOnline ? 'Ajudante conectado' : 'Ajudante conectado, sem internet',
             style: TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.w700,

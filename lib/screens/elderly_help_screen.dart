@@ -55,7 +55,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
       );
     } else {
       TTSService.instance.falar(
-        'Olá! Esta é a tela de ajuda. Para usar as funções de ligação e recados, você precisa de um cuidador conectado.',
+        'Olá! Esta é a tela de ajuda. Para ligar, mandar recado ou pedir socorro, você precisa de um ajudante conectado.',
         caller: this,
       );
     }
@@ -68,7 +68,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
     );
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Você precisa de um cuidador conectado para usar esta função.'),
+        content: Text('Você precisa de um ajudante conectado para usar esta função.'),
         backgroundColor: AppColors.error,
       ),
     );
@@ -76,7 +76,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
 
   void _showAmbulancePhoneMissingWarning() {
     const message =
-        'O telefone da ambulância ainda não foi configurado. Peça ajuda ao seu cuidador.';
+        'O telefone da ambulância ainda não foi colocado no aplicativo. Peça ajuda ao seu ajudante.';
     TTSService.instance.falar(message, caller: this);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -193,13 +193,13 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                     isRecording = true;
                     recordedFilePath = null;
                     statusMsg =
-                        'Gravando áudio...\nToque no botão vermelho para parar';
+                        'Gravando recado de voz...\nToque no botão vermelho para parar';
                   });
                 } else {
                   setDialogState(() {
                     isRecording = true;
                     recordedFilePath = null;
-                    statusMsg = 'Gravando (Simulado)...';
+                    statusMsg = 'Gravando...';
                   });
                   Future.delayed(const Duration(seconds: 4), () async {
                     if (context.mounted && isRecording) {
@@ -208,7 +208,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                       setDialogState(() {
                         isRecording = false;
                         recordedFilePath = path;
-                        statusMsg = 'Áudio gravado!';
+                        statusMsg = 'Recado gravado!';
                       });
                     }
                   });
@@ -223,7 +223,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                 setDialogState(() {
                   isRecording = false;
                   recordedFilePath = path;
-                  statusMsg = 'Áudio gravado (Simulado)!';
+                  statusMsg = 'Recado gravado!';
                 });
               }
             }
@@ -235,7 +235,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                   setDialogState(() {
                     isRecording = false;
                     recordedFilePath = path;
-                    statusMsg = 'Áudio gravado!\nToque no Play para ouvir.';
+                    statusMsg = 'Recado gravado!\nToque no botão de ouvir.';
                   });
                 } else {
                   setDialogState(() {
@@ -445,22 +445,22 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
 
                         final sent = await MessageService.instance.sendAudio(
                           audioPath: recordedFilePath!,
-                          fallbackText: 'Mensagem de áudio enviada',
+                          fallbackText: 'Recado de voz enviado',
                           nomeIdoso: idosoName,
                         );
                         if (!sent) {
-                          throw StateError('Nenhum cuidador conectado para receber a mensagem.');
+                          throw StateError('Nenhum ajudante conectado para receber a mensagem.');
                         }
 
                         TTSService.instance.falar(
-                          'Mensagem de áudio enviada com sucesso!',
+                          'Recado de voz enviado.',
                           caller: this,
                         );
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text(
-                                'Mensagem de áudio enviada com sucesso!',
+                                'Recado de voz enviado.',
                               ),
                               backgroundColor: AppColors.tertiaryFixedDim,
                             ),
@@ -505,7 +505,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
       backgroundColor: AppColors.background,
       floatingActionButton: const AlexFloatingHelpButton(
         textoExplicacao:
-            'Olá! Esta é a tela para pedir ajuda. Aqui você pode ligar para quem cuida de você apertando o grande botão amarelo com a foto de quem cuida de você, mandar um recado de voz, ver recados, fazer uma chamada de vídeo, ligar para a ambulância ou enviar sua localização.',
+            'Olá! Esta é a tela para pedir ajuda. Aqui você pode ligar para o seu ajudante, mandar recado de voz, ouvir recados, fazer ligação com imagem, ligar para a ambulância ou mandar onde você está.',
       ),
       body: SafeArea(
         child: Column(
@@ -715,7 +715,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                           Icon(Icons.videocam, size: 36, color: Color(0xFF2E7D32)),
                           SizedBox(height: 6),
                           Text(
-                            'Chamada\nde Vídeo',
+                            'Ligação\ncom Imagem',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 16,
@@ -857,7 +857,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                         return;
                       }
                       TTSService.instance.falar(
-                        'Abrindo seus recados do cuidador.',
+                        'Abrindo os recados do seu ajudante.',
                         caller: this,
                       );
                       Navigator.pushNamed(context, '/messages');
@@ -970,7 +970,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                     if (!hasAmbulance) ...[
                       const SizedBox(height: 8),
                       const Text(
-                        'Número da ambulância não configurado no perfil',
+                        'O número da ambulância ainda não foi colocado',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 14,
@@ -1263,7 +1263,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Não foi possível abrir o discador.')),
+          const SnackBar(content: Text('Não consegui abrir a ligação no celular.')),
         );
       }
     }
@@ -1276,7 +1276,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
       if (idosoId == null || idosoId.isEmpty) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Nenhum cuidador vinculado.')),
+            const SnackBar(content: Text('Nenhum ajudante conectado.')),
           );
         }
         return;
@@ -1296,19 +1296,19 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
       } else if (mounted) {
         final label = callType == 'voice' ? 'voz' : 'vídeo';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Não foi possível iniciar chamada de $label.')),
+          SnackBar(content: Text('Não consegui começar a ligação de $label.')),
         );
       } else if (mounted) {
         final label = callType == 'voice' ? 'voz' : 'vídeo';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Não foi possível iniciar chamada de $label.')),
+          SnackBar(content: Text('Não consegui começar a ligação de $label.')),
         );
       }
     } catch (e) {
       if (mounted) {
         final label = callType == 'voice' ? 'voz' : 'vídeo';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao iniciar chamada de $label.')),
+          SnackBar(content: Text('Não consegui começar a ligação de $label.')),
         );
       }
     }
@@ -1316,7 +1316,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
 
   void _enviarLocalizacaoChat() async {
     TTSService.instance.falar(
-      'Estou buscando sua localização para enviar ao chat.',
+      'Estou vendo onde você está para avisar o seu ajudante.',
       caller: this,
     );
 
@@ -1330,15 +1330,15 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
           location.mapsUrl!,
         );
       } else {
-        final message = 'SOS! Preciso de ajuda urgente. Não consegui obter minha localização automaticamente. ${location.errorMessage ?? ''}';
+        final message = 'SOS! Preciso de ajuda urgente. Não consegui ver onde estou pelo celular. ${location.errorMessage ?? ''}';
         sent = await MessageService.instance.sendText(message);
       }
 
       if (!sent) {
-        throw StateError('Nenhum cuidador conectado para receber a localização.');
+        throw StateError('Nenhum ajudante conectado para receber a localização.');
       }
       const feedback =
-          'Localização enviada para o chat do supervisor com sucesso.';
+          'Pronto. Enviei onde você está para o seu ajudante.';
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text(feedback)),
@@ -1346,13 +1346,13 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
       }
       TTSService.instance.falar(feedback, caller: this);
     } catch (e) {
-      final erroMsg = 'Erro ao enviar localização: $e';
+      const erroMsg = 'Não consegui mandar onde você está. Tente de novo.';
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(erroMsg)),
         );
       }
-      TTSService.instance.falar('Não foi possível enviar a localização.', caller: this);
+      TTSService.instance.falar('Não consegui mandar onde você está.', caller: this);
     }
   }
 }

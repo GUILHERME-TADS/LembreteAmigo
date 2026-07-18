@@ -74,7 +74,7 @@ class _VoiceSettingsScreenState extends State<VoiceSettingsScreen> {
       debugPrint('Erro ao salvar voz: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Não foi possível salvar a voz.')),
+          const SnackBar(content: Text('Não consegui salvar a voz.')),
         );
       }
     } finally {
@@ -148,7 +148,7 @@ class _VoiceSettingsScreenState extends State<VoiceSettingsScreen> {
     return Scaffold(
       floatingActionButton: const AlexFloatingHelpButton(
         textoExplicacao:
-            'Olá! Esta é a tela de voz do Alex. Aqui você pode regular a velocidade em que ele fala. Arraste a barra para o lado esquerdo se quiser que ele fale mais devagar, ou para o lado direito se quiser que fale mais rápido. Toque no botão de "Testar Voz" para ouvir como ficou e depois aperte em "Salvar" quando terminar.',
+            'Olá! Esta é a tela da voz do Alex. Aqui você escolhe se ele fala devagar, normal ou rápido. Toque em Testar Voz para ouvir. Quando estiver bom, aperte Salvar.',
       ),
       appBar: AppBar(
         backgroundColor: AppColors.surface,
@@ -179,14 +179,14 @@ class _VoiceSettingsScreenState extends State<VoiceSettingsScreen> {
           padding: const EdgeInsets.all(24),
           children: [
             Text(
-              'Ajuste as configurações de áudio do Alex para o idoso.',
+              'Ajuste a voz do Alex para ficar boa de ouvir.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: AppColors.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: 32),
             Text(
-              'VELOCIDADE DA FALA',
+              'VELOCIDADE DA VOZ',
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                 fontWeight: FontWeight.w800,
                 color: AppColors.onSurfaceVariant,
@@ -207,7 +207,7 @@ class _VoiceSettingsScreenState extends State<VoiceSettingsScreen> {
             const Divider(color: AppColors.outlineVariant),
             const SizedBox(height: 24),
             Text(
-              'ESCUTA DO ALEX',
+              'ALEX OUVINDO',
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                 fontWeight: FontWeight.w800,
                 color: AppColors.onSurfaceVariant,
@@ -229,7 +229,7 @@ class _VoiceSettingsScreenState extends State<VoiceSettingsScreen> {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text(
-                                'Nao foi possivel ativar a escuta. Verifique a permissao do microfone e do reconhecimento de fala.',
+                                'Não consegui ligar a escuta. Se o celular pedir, aperte Permitir para o microfone.',
                               ),
                               backgroundColor: AppColors.error,
                             ),
@@ -276,7 +276,7 @@ class _VoiceSettingsScreenState extends State<VoiceSettingsScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            'Chamar por Voz ("Alex")',
+                            'Chamar dizendo "Alex"',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,

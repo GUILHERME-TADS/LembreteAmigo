@@ -247,6 +247,7 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
             TextButton(
               onPressed: () {
                 Navigator.pop(ctx);
+                Navigator.pop(context, true);
               },
               child: const Text(
                 'Concluir',

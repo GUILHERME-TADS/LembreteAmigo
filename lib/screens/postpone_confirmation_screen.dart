@@ -78,8 +78,8 @@ class _PostponeConfirmationScreenState extends State<PostponeConfirmationScreen>
               ? 'Não se preocupe, seu ajudante já foi avisado!'
               : 'Vou te chamar de novo em 10 minutos.',
           detailedExplanation: isDificuldade
-              ? 'Esta tela avisa que você precisa de ajuda com o remédio e eu já avisei quem cuida de você. Agora você pode apertar o botão amarelo de voltar ao início.'
-              : 'Esta tela avisa que o remédio foi adiado por dez minutos. Eu vou te chamar de novo quando passar esse tempo. Agora você pode apertar o botão amarelo de voltar ao início.',
+              ? 'Você pediu ajuda com o remédio. Eu já avisei seu ajudante. Agora aperte o botão amarelo para voltar ao início.'
+              : 'O remédio ficou para daqui a dez minutos. Eu vou chamar você de novo. Agora aperte o botão amarelo para voltar ao início.',
         );
       case 'refeicoes':
         return _CategoryConfig(
@@ -87,14 +87,14 @@ class _PostponeConfirmationScreenState extends State<PostponeConfirmationScreen>
           color: AppColors.mealsColor,
           titleText: 'HORA DE COMER',
           message: isDificuldade
-              ? 'Tudo bem, não se preocupe! Já enviei um recado para o seu ajudante avisando que você precisa de ajuda com a sua refeição.'
+              ? 'Tudo bem, não se preocupe! Já enviei um recado para o seu ajudante avisando que você precisa de ajuda para comer.'
               : 'Combinado! Não se preocupe, eu vou te lembrar de comer novamente em dez minutos.',
           tip: isDificuldade
               ? 'Não se preocupe, seu ajudante já foi avisado!'
               : 'Vou te chamar de novo em 10 minutos.',
           detailedExplanation: isDificuldade
-              ? 'Esta tela avisa que você precisa de ajuda com a refeição e eu já avisei quem cuida de você. Agora você pode apertar o botão amarelo de voltar ao início.'
-              : 'Esta tela avisa que a refeição foi adiada por dez minutos. Eu vou te chamar de novo quando passar esse tempo para você comer. Agora você pode apertar o botão amarelo de voltar ao início.',
+              ? 'Você pediu ajuda para comer. Eu já avisei seu ajudante. Agora aperte o botão amarelo para voltar ao início.'
+              : 'A comida ficou para daqui a dez minutos. Eu vou chamar você de novo para comer. Agora aperte o botão amarelo para voltar ao início.',
         );
       case 'hidratacao':
         return _CategoryConfig(
@@ -102,14 +102,14 @@ class _PostponeConfirmationScreenState extends State<PostponeConfirmationScreen>
           color: const Color(0xFF0288D1),
           titleText: 'HORA DE BEBER ÁGUA',
           message: isDificuldade
-              ? 'Tudo bem, não se preocupe! Já enviei um recado para o seu ajudante avisando que você precisa de ajuda para se hidratar.'
+              ? 'Tudo bem, não se preocupe! Já enviei um recado para o seu ajudante avisando que você precisa de ajuda para beber água.'
               : 'Combinado! Não se preocupe, eu vou te lembrar de beber água novamente em dez minutos.',
           tip: isDificuldade
               ? 'Não se preocupe, seu ajudante já foi avisado!'
               : 'Vou te chamar de novo em 10 minutos.',
           detailedExplanation: isDificuldade
-              ? 'Esta tela avisa que você precisa de ajuda com a água e eu já avisei quem cuida de você. Agora você pode apertar o botão amarelo de voltar ao início.'
-              : 'Esta tela avisa que a água foi adiada por dez minutos. Eu vou te chamar de novo quando passar esse tempo para você se hidratar. Agora você pode apertar o botão amarelo de voltar ao início.',
+              ? 'Você pediu ajuda para beber água. Eu já avisei seu ajudante. Agora aperte o botão amarelo para voltar ao início.'
+              : 'A água ficou para daqui a dez minutos. Eu vou chamar você de novo para beber água. Agora aperte o botão amarelo para voltar ao início.',
         );
       case 'exercicio':
         return _CategoryConfig(
@@ -123,14 +123,14 @@ class _PostponeConfirmationScreenState extends State<PostponeConfirmationScreen>
               ? 'Não se preocupe, seu ajudante já foi avisado!'
               : 'Vou te chamar de novo em 10 minutos.',
           detailedExplanation: isDificuldade
-              ? 'Esta tela avisa que você precisa de ajuda com o exercício e eu já avisei quem cuida de você. Agora você pode apertar o botão amarelo de voltar ao início.'
-              : 'Esta tela avisa que o exercício foi adiado por dez minutos. Eu vou te chamar de novo quando passar esse tempo. Agora você pode apertar o botão amarelo de voltar ao início.',
+              ? 'Você pediu ajuda com o exercício. Eu já avisei seu ajudante. Agora aperte o botão amarelo para voltar ao início.'
+              : 'O exercício ficou para daqui a dez minutos. Eu vou chamar você de novo. Agora aperte o botão amarelo para voltar ao início.',
         );
       default:
         return _CategoryConfig(
           icon: Icons.alarm,
           color: AppColors.primary,
-          titleText: 'HORA DO LEMBRETE',
+          titleText: 'HORA DA TAREFA',
           message: isDificuldade
               ? 'Tudo bem, não se preocupe! Já enviei um recado para o seu ajudante avisando que você precisa de ajuda com a sua tarefa.'
               : 'Combinado! Não se preocupe, eu vou te lembrar novamente em dez minutos.',
@@ -138,8 +138,8 @@ class _PostponeConfirmationScreenState extends State<PostponeConfirmationScreen>
               ? 'Não se preocupe, seu ajudante já foi avisado!'
               : 'Vou te chamar de novo em 10 minutos.',
           detailedExplanation: isDificuldade
-              ? 'Esta tela avisa que você precisa de ajuda com a tarefa e eu já avisei quem cuida de você. Agora você pode apertar o botão amarelo de voltar ao início.'
-              : 'Esta tela avisa que a tarefa foi adiada por dez minutos. Eu vou te chamar de novo quando passar esse tempo. Agora você pode apertar o botão amarelo de voltar ao início.',
+              ? 'Você pediu ajuda com a tarefa. Eu já avisei seu ajudante. Agora aperte o botão amarelo para voltar ao início.'
+              : 'A tarefa ficou para daqui a dez minutos. Eu vou chamar você de novo. Agora aperte o botão amarelo para voltar ao início.',
         );
     }
   }
@@ -221,7 +221,7 @@ class _PostponeConfirmationScreenState extends State<PostponeConfirmationScreen>
                                 child: Column(
                                   children: [
                                     const Text(
-                                      'STATUS DO LEMBRETE:',
+                                      'O QUE ACONTECEU:',
                                       style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w800,
@@ -231,7 +231,7 @@ class _PostponeConfirmationScreenState extends State<PostponeConfirmationScreen>
                                     ),
                                     const SizedBox(height: 12),
                                     Text(
-                                      _tipo == 'dificuldade' ? 'Ajuda Solicitada' : 'Adiado por 10 Minutos',
+                                      _tipo == 'dificuldade' ? 'Ajuda Pedida' : 'Lembro de novo em 10 min',
                                       textAlign: TextAlign.center,
                                       style: TextStyle(
                                         fontSize: 32,

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -15,6 +16,11 @@ class SessionRoleService {
 
   static String? _activeRole;
   static bool _lastVerificationFailedByError = false;
+  static StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
+      _elderlyProfileSubscription;
+  static String? _watchedElderlyId;
+  static final ValueNotifier<bool?> elderlyConnectionNotifier =
+      ValueNotifier<bool?>(null);
 
   static String? get activeRole => _activeRole;
   static bool get isSupervisor => _activeRole == supervisor;
@@ -152,7 +158,67 @@ class SessionRoleService {
     return !(prefs.getBool('elderly_autonomous_mode') ?? false);
   }
 
+  static Future<void> watchElderlyConnection() async {
+    if (!isElderly || Firebase.apps.isEmpty) return;
+    final idosoId = await getActiveIdosoIdOrNull();
+    if (isLocalOnlyIdosoId(idosoId)) {
+      elderlyConnectionNotifier.value = false;
+      return;
+    }
+    if (_watchedElderlyId == idosoId &&
+        _elderlyProfileSubscription != null) {
+      return;
+    }
+
+    await _elderlyProfileSubscription?.cancel();
+    _watchedElderlyId = idosoId;
+    _elderlyProfileSubscription = FirebaseFirestore.instance
+        .collection('idoso_perfil')
+        .doc(idosoId)
+        .snapshots()
+        .listen((snapshot) async {
+      final data = snapshot.data();
+      final connected = snapshot.exists &&
+          data?['status'] == 'active' &&
+          data?['supervisorId'] != null;
+      final prefs = await SharedPreferences.getInstance();
+      final cachedJson = prefs.getString('idoso_perfil');
+      final cachedProfile = <String, dynamic>{};
+      if (cachedJson != null) {
+        try {
+          cachedProfile.addAll(
+            Map<String, dynamic>.from(
+              jsonDecode(cachedJson) as Map<String, dynamic>,
+            ),
+          );
+        } catch (error) {
+          debugPrint('Perfil local invalido substituido: $error');
+        }
+      }
+      if (data != null) {
+        cachedProfile.addAll(data);
+      }
+      if (!connected) {
+        cachedProfile['supervisorId'] = null;
+      }
+      cachedProfile['status'] = connected ? 'active' : 'pending';
+      await prefs.setString('idoso_perfil', jsonEncode(cachedProfile));
+      await prefs.setBool('elderly_autonomous_mode', !connected);
+      elderlyConnectionNotifier.value = connected;
+    }, onError: (Object error) {
+      debugPrint('Erro ao acompanhar vinculo do idoso: $error');
+    });
+  }
+
+  static Future<void> stopWatchingElderlyConnection() async {
+    await _elderlyProfileSubscription?.cancel();
+    _elderlyProfileSubscription = null;
+    _watchedElderlyId = null;
+    elderlyConnectionNotifier.value = null;
+  }
+
   static Future<void> logout() async {
+    await stopWatchingElderlyConnection();
     _activeRole = null;
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_roleKey);
@@ -161,6 +227,7 @@ class SessionRoleService {
   }
 
   static Future<void> exitElderlyModeOnly() async {
+    await stopWatchingElderlyConnection();
     _activeRole = null;
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_roleKey);

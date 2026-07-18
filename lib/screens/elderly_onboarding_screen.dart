@@ -19,20 +19,20 @@ class _ElderlyOnboardingScreenState extends State<ElderlyOnboardingScreen> {
     _OnboardingStep(
       icon: Icons.waving_hand,
       title: 'Bem-vindo ao\nLembrete Amigo!',
-      subtitle: 'Eu sou o Alex, assistente virtual que vai te ajudar no dia a dia.',
-      ttsMessage: 'Olá, seja muito bem-vindo! Eu sou o Alex, seu assistente virtual. Vou te ajudar a lembrar dos seus compromissos e atividades.',
+      subtitle: 'Eu sou o Alex. Vou ajudar você no dia a dia.',
+      ttsMessage: 'Olá, seja muito bem-vindo! Eu sou o Alex. Vou ajudar você a lembrar das suas tarefas do dia.',
     ),
     _OnboardingStep(
       icon: Icons.campaign,
       title: 'Lembretes\nem Voz Alta',
-      subtitle: 'O aplicativo vai falar com você sobre remédios, refeições, exercícios e muito mais.',
-      ttsMessage: 'Eu vou falar os seus lembretes em voz alta para facilitar o seu dia. Você vai ouvir sobre remédios, refeições, exercícios e outros cuidados.',
+      subtitle: 'O aplicativo vai falar com você sobre remédios, comida, água e exercícios.',
+      ttsMessage: 'Eu vou falar em voz alta para ajudar você. Você vai ouvir sobre remédios, comida, água e exercícios.',
     ),
     _OnboardingStep(
       icon: Icons.mic,
       title: 'Comandos\nde Voz',
-      subtitle: 'Responda falando! Diga "já tomei", "adiar" ou "me explica" que eu entendo.',
-      ttsMessage: 'Você pode responder falando comigo. Diga "já tomei" quando concluir algo, "adiar" para deixar para depois, ou "me explica" que eu repito a informação.',
+      subtitle: 'Você pode falar comigo. Diga "já tomei", "adiar" ou "me explica".',
+      ttsMessage: 'Você pode falar comigo. Diga "já tomei" quando fizer uma tarefa. Diga "adiar" para eu lembrar depois. Diga "me explica" para eu explicar de novo.',
     ),
   ];
 

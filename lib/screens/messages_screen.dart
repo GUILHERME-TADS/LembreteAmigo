@@ -210,7 +210,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Permissão de microfone negada.'),
+            content: Text('Não consegui usar o microfone. Se o celular pedir, aperte Permitir.'),
             backgroundColor: AppColors.error,
           ),
         );
@@ -252,16 +252,16 @@ class _MessagesScreenState extends State<MessagesScreen> {
           duracaoSegundos: _recordingSeconds,
         );
         if (!sent) {
-          throw StateError('Nenhum cuidador conectado para receber a mensagem.');
+          throw StateError('Nenhum ajudante conectado para receber a mensagem.');
         }
         if (mounted && !_isSupervisor) {
-          TTSService.instance.falar('Mensagem de voz enviada.', caller: this);
+          TTSService.instance.falar('Recado de voz enviado.', caller: this);
         }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Não foi possível enviar: $e'),
+              content: Text('Não consegui enviar. Tente de novo.'),
               backgroundColor: AppColors.error,
             ),
           );
@@ -282,7 +282,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Não foi possível salvar o áudio. Tente gravar novamente.'),
+          content: Text('Não consegui guardar o recado. Grave de novo.'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -296,14 +296,14 @@ class _MessagesScreenState extends State<MessagesScreen> {
     try {
       final sent = await MessageService.instance.sendText(text);
       if (!sent) {
-        throw StateError('Nenhum cuidador conectado para receber a mensagem.');
+        throw StateError('Nenhum ajudante conectado para receber a mensagem.');
       }
       _textController.clear();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Não foi possível enviar: $e'),
+            content: Text('Não consegui enviar. Tente de novo.'),
             backgroundColor: AppColors.error,
           ),
         );
@@ -321,11 +321,11 @@ class _MessagesScreenState extends State<MessagesScreen> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text(
-            'Excluir Recado',
+            'Apagar Recado',
             style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF008069)),
           ),
           content: const Text(
-            'Deseja realmente apagar este recado para ambos?',
+            'Apagar este recado do seu celular e do celular do ajudante?',
             style: TextStyle(fontSize: 16),
           ),
           actions: [
@@ -344,7 +344,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Recado excluído com sucesso.'),
+                        content: Text('Recado apagado.'),
                         backgroundColor: Colors.green,
                       ),
                     );
@@ -353,7 +353,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Erro ao excluir recado. Verifique sua conexão.'),
+                        content: Text('Não consegui apagar. Veja se a internet está ligada.'),
                         backgroundColor: AppColors.error,
                       ),
                     );
@@ -361,7 +361,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                 }
               },
               child: const Text(
-                'EXCLUIR',
+                'APAGAR',
                 style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold),
               ),
             ),
@@ -387,7 +387,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
       floatingActionButton: !_isSupervisor
           ? const AlexFloatingHelpButton(
               textoExplicacao:
-                  'Olá! Esta é a tela de mensagens. Aqui você pode ler ou ouvir os recados do seu cuidador, digitar mensagens ou mandar áudios segurando o microfone.',
+                  'Olá! Esta é a tela de recados. Aqui você pode ler ou ouvir os recados do seu ajudante. Para responder, aperte o microfone e grave um recado de voz.',
             )
           : null,
       body: SafeArea(
@@ -422,7 +422,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
   }
 
   Widget _buildTopBar() {
-    final contactName = _isSupervisor ? 'Idoso' : (_nomeSupervisor ?? 'Cuidador');
+    final contactName = _isSupervisor ? 'Idoso' : (_nomeSupervisor ?? 'Ajudante');
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -476,7 +476,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   ),
                 ),
                 const Text(
-                  'online',
+                  'conectado',
                   style: TextStyle(
                     fontSize: 13,
                     color: Colors.white70,
@@ -515,7 +515,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
             ),
             SizedBox(height: 8),
             Text(
-              'As mensagens de texto e áudio aparecerão aqui.',
+              'Os recados escritos e falados aparecem aqui.',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 16, color: Colors.grey),
             ),
@@ -628,7 +628,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                       ),
                       icon: const Icon(Icons.map, size: 20),
                       label: const Text(
-                        'ABRIR NO GOOGLE MAPS',
+                        'ABRIR MAPA',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,

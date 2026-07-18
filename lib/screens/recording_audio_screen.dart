@@ -80,7 +80,7 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('Reconhecimento de fala não disponível neste dispositivo.'),
+              content: const Text('Não consegui ouvir sua voz neste celular.'),
               backgroundColor: AppColors.error,
             ),
           );
@@ -324,9 +324,9 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
   Widget _buildCategorySelector() {
     final categories = [
       {'icon': Icons.medication, 'label': 'Remédio', 'key': 'medicacao', 'color': AppColors.medicationsColor},
-      {'icon': Icons.restaurant, 'label': 'Refeição', 'key': 'refeicoes', 'color': AppColors.mealsColor},
+      {'icon': Icons.restaurant, 'label': 'Comida', 'key': 'refeicoes', 'color': AppColors.mealsColor},
       {'icon': Icons.directions_walk, 'label': 'Exercício', 'key': 'exercicio', 'color': AppColors.tertiaryContainer},
-      {'icon': Icons.water_drop, 'label': 'Hidratação', 'key': 'hidratacao', 'color': AppColors.voiceFeedbackBlue},
+      {'icon': Icons.water_drop, 'label': 'Água', 'key': 'hidratacao', 'color': AppColors.voiceFeedbackBlue},
       {'icon': Icons.notifications, 'label': 'Personalizado', 'key': 'personalizado', 'color': AppColors.customColor},
     ];
     return Container(
@@ -341,7 +341,7 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Categoria',
+            'Tipo de tarefa',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: AppColors.onSurfaceVariant),
           ),
           const SizedBox(height: 12),
@@ -422,7 +422,7 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.onPrimaryContainer),
           ),
           const SizedBox(width: 8),
-          const Text('detectado', style: TextStyle(fontSize: 14, color: AppColors.onPrimaryContainer)),
+          const Text('encontrado', style: TextStyle(fontSize: 14, color: AppColors.onPrimaryContainer)),
         ],
       ),
     );
@@ -439,7 +439,7 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
       TTSService.instance.falar(texto, caller: this);
     } else {
       TTSService.instance.falar(
-        'Não entendi o horário do lembrete. Por favor, tente de novo dizendo o lembrete e a hora.',
+        'Não entendi a hora. Fale a tarefa e a hora de novo.',
         caller: this,
       );
     }
@@ -622,7 +622,7 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
       backgroundColor: AppColors.background,
       floatingActionButton: const AlexFloatingHelpButton(
         textoExplicacao:
-            'Olá! Esta é a tela para criar tarefas com a voz. Aperte no rosto do Alex no meio e fale a sua tarefa e o horário. Depois, confirme se a gravação ficou certa.',
+            'Olá! Esta é a tela para criar tarefas falando. Aperte no rosto do Alex e fale a tarefa e a hora. Depois, veja se eu entendi certo.',
       ),
       body: SafeArea(
         child: Column(
@@ -817,7 +817,7 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
                                       },
                                       icon: const Icon(Icons.volume_up, size: 28),
                                       label: const Text(
-                                        'Ouvir o Alex repetindo',
+                                        'Ouvir o que falei',
                                         style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                                       ),
                                       style: ElevatedButton.styleFrom(

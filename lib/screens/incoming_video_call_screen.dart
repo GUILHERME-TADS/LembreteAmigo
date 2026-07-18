@@ -88,10 +88,11 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen>
   void _announceCall() {
     try {
       final isVoice = widget.callType == 'voice';
-      final callName = isVoice ? 'voz' : 'vídeo';
       final msg = SessionRoleService.isElderly
-          ? '$_callerName está chamando você por $callName! Toque no botão verde grande para atender.'
-          : 'Chamada de $callName de $_callerName.';
+          ? (isVoice
+              ? '$_callerName quer falar com você. Toque no botão verde grande para atender.'
+              : '$_callerName quer fazer uma ligação com imagem com você. Toque no botão verde grande para atender.')
+          : 'Ligação de ${isVoice ? 'voz' : 'vídeo'} de $_callerName.';
       TTSService.instance.falar(msg, caller: this);
     } catch (_) {}
   }
@@ -146,7 +147,7 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen>
       final prefs = await SharedPreferences.getInstance();
 
       if (SessionRoleService.isElderly) {
-        String nome = prefs.getString('caregiver_name') ?? 'Cuidador';
+        String nome = prefs.getString('caregiver_name') ?? 'Ajudante';
         bool useFirebase = false;
         try {
           useFirebase = Firebase.apps.isNotEmpty;
@@ -274,7 +275,7 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen>
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            'EMERGÊNCIA SOS!\nAtendimento automático em $_sosSecondsRemaining segundos.',
+                            'EMERGÊNCIA SOS!\nVou atender sozinho em $_sosSecondsRemaining segundos.',
                             textAlign: TextAlign.center,
                             style: const TextStyle(
                               color: Colors.white,
@@ -339,7 +340,7 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen>
                 Text(
                   _callerName.isNotEmpty
                       ? _callerName
-                      : (isVoice ? 'Chamada de Voz' : 'Chamada de Vídeo'),
+                      : (isVoice ? 'Ligação de Voz' : 'Ligação com Imagem'),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: isElderly ? 36 : 28,
@@ -359,7 +360,7 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen>
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    isVoice ? 'CHAMADA DE VOZ (Só Som)' : 'CHAMADA DE VÍDEO (Com Imagem)',
+                    isVoice ? 'LIGAÇÃO SÓ COM SOM' : 'LIGAÇÃO COM IMAGEM',
                     style: TextStyle(
                       fontSize: isElderly ? 18 : 14,
                       fontWeight: FontWeight.w700,

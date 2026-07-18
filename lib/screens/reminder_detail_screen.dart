@@ -67,17 +67,17 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
         topBarTitle: 'Hora do Remédio',
         defaultTitle: 'HORA DO REMÉDIO',
         defaultSubtitle: _lembrete != null
-            ? 'Medicamento agendado para às ${_lembrete!.horarioFormatado}.'
-            : 'Sua medicação está no horário!',
+            ? 'Remédio marcado para às ${_lembrete!.horarioFormatado}.'
+            : 'Está na hora do seu remédio!',
         detailedExplanation:
-            'Olá, esta é a tela de detalhes do seu remédio. Aqui você pode ver a foto, o horário e a instrução. Aperte o botão de alto-falante para ouvir tudo de novo.',
+            'Olá, esta é a tela do seu remédio. Aqui você pode ver a foto, o horário e como tomar. Aperte o botão de ouvir para eu falar de novo.',
         spokenText: (l, timeStr) {
           final inst = (l.medicamentoInstrucoes != null && l.medicamentoInstrucoes!.isNotEmpty)
-              ? ' Instrução: ${l.medicamentoInstrucoes}.'
+              ? ' Como tomar: ${l.medicamentoInstrucoes}.'
               : '';
-          return 'Hora do remédio. ${l.titulo} agendado para às $timeStr.$inst Por favor, tome seu medicamento.';
+          return 'Hora do remédio. ${l.titulo} marcado para às $timeStr.$inst Por favor, tome seu remédio.';
         },
-        defaultSpokenText: () => 'Hora do remédio. Por favor, tome seu medicamento.',
+        defaultSpokenText: () => 'Hora do remédio. Por favor, tome seu remédio.',
       );
     } else if (cat == 'refeicoes') {
       return _ReminderCategoryConfig(
@@ -86,13 +86,13 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
         topBarTitle: 'Hora de Comer',
         defaultTitle: 'HORA DE COMER',
         defaultSubtitle: _lembrete != null
-            ? 'Refeição agendada para às ${_lembrete!.horarioFormatado}. Bom apetite!'
-            : 'Sua refeição está pronta. Bom apetite!',
+            ? 'Comida marcada para às ${_lembrete!.horarioFormatado}. Bom apetite!'
+            : 'Sua comida está pronta. Bom apetite!',
         detailedExplanation:
-            'Olá, esta é a tela de detalhes da sua refeição. Aqui você pode conferir o horário e ouvir a orientação novamente.',
+            'Olá, esta é a tela da sua comida. Aqui você pode ver o horário e ouvir de novo o que fazer.',
         spokenText: (l, timeStr) =>
-            'Hora de comer. ${l.titulo} agendado para às $timeStr. Por favor, faça sua refeição.',
-        defaultSpokenText: () => 'Hora de comer. Sua refeição está pronta. Bom apetite!',
+            'Hora de comer. ${l.titulo} marcado para às $timeStr. Por favor, coma agora.',
+        defaultSpokenText: () => 'Hora de comer. Sua comida está pronta. Bom apetite!',
       );
     } else if (cat == 'exercicio') {
       return _ReminderCategoryConfig(
@@ -101,43 +101,43 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
         topBarTitle: 'Vamos nos Mexer',
         defaultTitle: 'HORA DO EXERCÍCIO',
         defaultSubtitle: _lembrete != null
-            ? 'Atividade física agendada para às ${_lembrete!.horarioFormatado}. Vamos lá!'
+            ? 'Exercício marcado para às ${_lembrete!.horarioFormatado}. Vamos lá!'
             : 'Vamos nos movimentar!',
         detailedExplanation:
-            'Olá, esta é a tela do seu exercício. Aqui você pode conferir o horário e ouvir a orientação novamente.',
+            'Olá, esta é a tela do seu exercício. Aqui você pode ver o horário e ouvir de novo o que fazer.',
         spokenText: (l, timeStr) =>
-            'Hora de se mexer. ${l.titulo} agendado para às $timeStr. Vamos nos movimentar.',
+            'Hora de se mexer. ${l.titulo} marcado para às $timeStr. Vamos nos movimentar.',
         defaultSpokenText: () => 'Hora de se exercitar. Vamos nos movimentar!',
       );
     } else if (cat == 'hidratacao') {
       return _ReminderCategoryConfig(
         icon: Icons.water_drop_rounded,
         color: AppColors.voiceFeedbackBlue,
-        topBarTitle: 'Hora da Hidratação',
-        defaultTitle: 'HORA DA HIDRATAÇÃO',
+        topBarTitle: 'Hora da Água',
+        defaultTitle: 'HORA DA ÁGUA',
         defaultSubtitle: _lembrete != null
-            ? 'Lembrete de água agendado para às ${_lembrete!.horarioFormatado}.'
+            ? 'Água marcada para às ${_lembrete!.horarioFormatado}.'
             : 'Hora de beber um copo d\'água!',
         detailedExplanation:
-            'Olá! Beber água faz bem para a saúde. Aqui você pode conferir o horário e ouvir a orientação novamente.',
+            'Olá! Beber água faz bem. Aqui você pode ver o horário e ouvir de novo o que fazer.',
         spokenText: (l, timeStr) =>
-            'Hora de beber água. ${l.titulo} agendado para às $timeStr.',
+            'Hora de beber água. ${l.titulo} marcado para às $timeStr.',
         defaultSpokenText: () => 'Hora de beber um copo d\'água!',
       );
     } else {
       return _ReminderCategoryConfig(
         icon: Icons.notifications_active_rounded,
         color: AppColors.primary,
-        topBarTitle: 'Detalhes do Lembrete',
-        defaultTitle: 'LEMBRETE',
+        topBarTitle: 'Minha Tarefa',
+        defaultTitle: 'TAREFA',
         defaultSubtitle: _lembrete != null
-            ? 'Lembrete agendado para às ${_lembrete!.horarioFormatado}.'
-            : 'Atenção ao seu lembrete!',
+            ? 'Tarefa marcada para às ${_lembrete!.horarioFormatado}.'
+            : 'Atenção à sua tarefa!',
         detailedExplanation:
-            'Olá, esta é a tela do seu lembrete. Aperte no botão de alto-falante para ouvir as orientações por voz.',
+            'Olá, esta é a tela da sua tarefa. Aperte o botão de ouvir para eu falar de novo.',
         spokenText: (l, timeStr) =>
-            'Atenção ao seu lembrete. ${l.titulo} agendado para às $timeStr.',
-        defaultSpokenText: () => 'Atenção ao seu lembrete!',
+            'Atenção à sua tarefa. ${l.titulo} marcada para às $timeStr.',
+        defaultSpokenText: () => 'Atenção à sua tarefa!',
       );
     }
   }
@@ -266,7 +266,7 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
                                 Icon(Icons.info_outline, color: cfg.color, size: 30),
                                 const SizedBox(width: 10),
                                 Text(
-                                  'INSTRUÇÕES:',
+                                  'COMO FAZER:',
                                   style: TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.w900,
@@ -384,7 +384,7 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
           Icon(icon, color: Colors.white, size: 32),
           const SizedBox(width: 12),
           Text(
-            'PERÍODO DA $title',
+            'TAREFA DA $title',
             style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w900,

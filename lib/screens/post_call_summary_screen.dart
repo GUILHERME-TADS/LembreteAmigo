@@ -20,9 +20,9 @@ class PostCallSummaryScreen extends StatelessWidget {
 
   String get _formattedDuration {
     if (durationSeconds <= 0) {
-      if (status == VideoCallStatus.declined) return 'Chamada recusada';
-      if (status == VideoCallStatus.missed) return 'Chamada não atendida';
-      return 'Duração rápida';
+      if (status == VideoCallStatus.declined) return 'Ligação recusada';
+      if (status == VideoCallStatus.missed) return 'Ligação não atendida';
+      return 'Foi bem rápida';
     }
     final min = durationSeconds ~/ 60;
     final sec = durationSeconds % 60;
@@ -115,8 +115,8 @@ class PostCallSummaryScreen extends StatelessWidget {
                       const SizedBox(width: 8),
                       Text(
                         status == VideoCallStatus.ended
-                            ? 'Chamada Finalizada'
-                            : 'Chamada Encerrada',
+                            ? 'Ligação terminou'
+                            : 'Ligação terminou',
                         style: TextStyle(
                           fontSize: isElderly ? 18 : 16,
                           fontWeight: FontWeight.bold,
@@ -186,7 +186,7 @@ class PostCallSummaryScreen extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        'Duração: $_formattedDuration',
+                        'Tempo: $_formattedDuration',
                         style: TextStyle(
                           fontSize: isElderly ? 20 : 16,
                           fontWeight: FontWeight.w700,
@@ -213,7 +213,7 @@ class PostCallSummaryScreen extends StatelessWidget {
                           size: isElderly ? 30 : 24,
                         ),
                         label: Text(
-                          isVoice ? 'Ligar de Volta (Voz)' : 'Ligar de Volta (Vídeo)',
+                          isVoice ? 'Ligar de novo (voz)' : 'Ligar de novo (vídeo)',
                           style: TextStyle(
                             fontSize: isElderly ? 20 : 16,
                             fontWeight: FontWeight.bold,

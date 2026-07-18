@@ -43,7 +43,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
   void _speakWelcome() {
     if (_showModeSelection) {
       TTSService.instance.falar(
-        'Como você deseja usar o aplicativo? Você pode entrar de forma autônoma para usar sozinho, ou com um supervisor.',
+        'Como você quer usar o aplicativo? Você pode usar sozinho ou conectar com o celular do seu ajudante.',
         caller: this,
       );
     } else {
@@ -88,7 +88,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
           (route) => false,
           arguments: {
             'connected': false,
-            'speak': 'Bem-vindo! Modo autônomo ativado.',
+            'speak': 'Bem-vindo! Você já pode usar o aplicativo sozinho.',
           },
         );
       }
@@ -109,7 +109,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
 
     if (!_useFirebase) {
       setState(() {
-        _errorMessage = 'Não foi possível conectar. Por favor, verifique se seu celular está conectado à internet e tente novamente.';
+        _errorMessage = 'Não consegui conectar. Veja se a internet está ligada e tente de novo.';
         _isLoading = false;
       });
       return;
@@ -202,14 +202,14 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
       });
       
       TTSService.instance.falar(
-        'Seu código de conexão é: ${code.split('').join(' ')}. Mostre este número para quem cuida de você. Ela vai digitar esse número no celular dela para conectar os dois aparelhos.',
+        'Seu código para conectar é: ${code.split('').join(' ')}. Mostre este número para o seu ajudante. O seu ajudante vai digitar esse número no celular dele para conectar os dois aparelhos.',
         caller: this,
       );
 
     } catch (e) {
       debugPrint('Erro ao gerar código de pareamento: $e');
       setState(() {
-        _errorMessage = 'Erro ao gerar o código. Verifique sua conexão e tente novamente.';
+        _errorMessage = 'Não consegui criar o código. Veja se a internet está ligada e tente de novo.';
         _isLoading = false;
       });
     }
@@ -251,7 +251,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
       (route) => false,
       arguments: {
         'connected': true,
-        'speak': 'Aparelho conectado com sucesso! Bem vindo.',
+        'speak': 'Pronto. O celular do seu ajudante foi conectado. Bem-vindo.',
       },
     );
   }
@@ -262,7 +262,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
       backgroundColor: AppColors.background,
       floatingActionButton: const AlexFloatingHelpButton(
         textoExplicacao:
-            'Olá! Esta é a tela para conectar o aplicativo com quem cuida de você. Aqui você pode escolher se vai usar o aplicativo sozinho ou se vai conectar com o celular do seu ajudante ou cuidador para ele te acompanhar.',
+            'Olá! Esta é a tela para conectar com quem ajuda você. Você pode usar o aplicativo sozinho ou conectar com o celular do seu ajudante para ele acompanhar você.',
       ),
       body: SafeArea(
         child: Column(

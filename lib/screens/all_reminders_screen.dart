@@ -274,7 +274,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'Instrução: ${r.medicamentoInstrucoes}',
+                              'Como fazer: ${r.medicamentoInstrucoes}',
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
@@ -307,7 +307,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
       {'id': 'medicacao', 'label': 'Remédios', 'icon': Icons.medication},
       {'id': 'refeicoes', 'label': 'Refeições', 'icon': Icons.restaurant},
       {'id': 'exercicio', 'label': 'Exercícios', 'icon': Icons.directions_walk},
-      {'id': 'hidratacao', 'label': 'Hidratação', 'icon': Icons.water_drop},
+      {'id': 'hidratacao', 'label': 'Água', 'icon': Icons.water_drop},
     ];
 
     final filteredList = _selectedCategory == 'todos'
@@ -331,7 +331,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
       backgroundColor: AppColors.background,
       floatingActionButton: AlexFloatingHelpButton(
         textoExplicacao:
-            'Olá! Esta é a tela com todas as suas tarefas de hoje, organizadas do horário mais cedo para o mais tarde.',
+            'Olá! Esta tela mostra todas as suas tarefas de hoje, em ordem de horário.',
         onTapped: _stopAllAudioAndTts,
       ),
       bottomNavigationBar: _buildBottomNav(context),
@@ -359,7 +359,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                     ),
                     const SizedBox(height: 4),
                     const Text(
-                      'Organizadas por período e categoria',
+                      'Separadas pela hora do dia',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w400,
@@ -407,7 +407,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                                 Expanded(
                                   child: Text(
                                     isAllDone
-                                        ? 'Tudo concluído! Excelente!'
+                                        ? 'Tudo feito! Excelente!'
                                         : 'Seu progresso de hoje',
                                     style: const TextStyle(
                                       color: Colors.white,
@@ -595,26 +595,26 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                                 ? 'Ouça as tarefas que ainda faltam'
                                 : 'Ouça todas as tarefas de hoje')
                             : 'Ouça tarefas de ${_selectedCategory == 'medicacao'
-                                  ? 'remédios'
+                                  ? 'remédio'
                                   : _selectedCategory == 'refeicoes'
-                                  ? 'refeições'
+                                  ? 'comida'
                                   : _selectedCategory == 'exercicio'
-                                  ? 'exercícios'
+                                  ? 'exercício'
                                   : 'água'}',
                         textsToSpeak: () {
                           final catLabel = _selectedCategory == 'medicacao'
-                              ? 'remédios'
+                              ? 'tarefas de remédio'
                               : _selectedCategory == 'refeicoes'
-                              ? 'refeições'
+                              ? 'tarefas de comida'
                               : _selectedCategory == 'exercicio'
-                              ? 'exercícios'
+                              ? 'tarefas de exercício'
                               : _selectedCategory == 'hidratacao'
-                              ? 'lembretes de água'
+                              ? 'tarefas de água'
                               : 'tarefas';
                           final audioListDone = audioSummaryList.isNotEmpty &&
                               audioSummaryList.every((l) => l.concluido);
                           final introText = audioSummaryList.isEmpty
-                              ? 'Você não tem tarefas nesta categoria.'
+                              ? 'Você não tem tarefas deste tipo.'
                               : audioListDone
                               ? 'Muito bem! Você já fez todas as suas $catLabel de hoje!'
                               : 'Aqui estão suas $catLabel de hoje:';
@@ -687,7 +687,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                               Text(
                                 _selectedCategory == 'todos'
                                     ? 'Você concluiu todas as tarefas de hoje.'
-                                    : 'Você concluiu todas as tarefas nesta categoria.',
+                                    : 'Você já fez todas as tarefas deste tipo.',
                                 textAlign: TextAlign.center,
                                 style: const TextStyle(
                                   fontSize: 16,
@@ -722,7 +722,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                               ),
                               const SizedBox(width: 8),
                               const Text(
-                                'Tarefas Concluídas',
+                                'O que já foi feito',
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
@@ -806,8 +806,8 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                             const SizedBox(height: 16),
                             Text(
                               _selectedCategory == 'todos'
-                                  ? 'Nenhum lembrete criado'
-                                  : 'Nenhum lembrete nesta categoria',
+                                  ? 'Nada para lembrar hoje'
+                                  : 'Nada deste tipo',
                               style: const TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.w600,
@@ -817,8 +817,8 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                             const SizedBox(height: 8),
                             Text(
                               _selectedCategory == 'todos'
-                                  ? 'Use o botão de voz na tela inicial para criar lembretes.'
-                                  : 'Você não tem tarefas registradas nesta categoria.',
+                                  ? 'Aperte o botão de voz na tela inicial para criar uma tarefa.'
+                                  : 'Você não tem tarefas deste tipo.',
                               textAlign: TextAlign.center,
                               style: const TextStyle(
                                 fontSize: 16,
@@ -854,7 +854,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
             mainAxisSize: MainAxisSize.min,
             children: const [
               Text(
-                'Todos os Lembretes',
+                'Minhas Tarefas',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.w700,

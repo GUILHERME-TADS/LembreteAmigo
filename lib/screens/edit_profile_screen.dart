@@ -131,12 +131,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(
-                'Reconhecimento de voz indisponível no dispositivo.',
+                'Não consegui ouvir sua voz neste celular.',
               ),
             ),
           );
           TTSService.instance.falar(
-            'Reconhecimento de voz indisponível.',
+            'Não consegui ouvir sua voz neste celular.',
             caller: this,
           );
         }
@@ -213,7 +213,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         text = 'Agora, digite o dia, o mês e o ano em que você nasceu.';
         break;
       case 2:
-        text = 'Por favor, digite o número do seu celular com o D D D.';
+        text = 'Digite o número do seu celular com o código da cidade.';
         break;
       case 3:
         text = 'Se você tiver, digite o telefone da ambulância da sua cidade. Se não tiver, pode deixar em branco e avançar.';
@@ -234,7 +234,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       final nome = _nameController.text.trim();
       if (nome.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Por favor, digite o nome completo do idoso.')),
+          const SnackBar(content: Text('Por favor, digite seu nome completo.')),
         );
         TTSService.instance.falar('Por favor, digite o seu nome completo.', caller: this);
         return;
@@ -244,9 +244,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       final dateRegex = RegExp(r'^\d{2}/\d{2}/\d{4}$');
       if (dataNasc.isNotEmpty && !dateRegex.hasMatch(dataNasc)) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Use o formato DD/MM/AAAA para a data de nascimento.')),
+          const SnackBar(content: Text('Digite a data assim: dia, mês e ano.')),
         );
-        TTSService.instance.falar('A data de nascimento deve estar no formato dia, mês e ano.', caller: this);
+        TTSService.instance.falar('Digite a data assim: dia, mês e ano.', caller: this);
         return;
       }
     } else if (_currentStep == 2) {
@@ -254,9 +254,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       final phoneRegex = RegExp(r'^(\(?\d{2}\)?\s?)?\d{4,5}\-?\d{4}$');
       if (telefone.isNotEmpty && !phoneRegex.hasMatch(telefone)) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Por favor, digite um telefone válido.')),
+          const SnackBar(content: Text('Confira o número do telefone.')),
         );
-        TTSService.instance.falar('Por favor, digite um telefone válido.', caller: this);
+        TTSService.instance.falar('Confira o número do telefone.', caller: this);
         return;
       }
     } else if (_currentStep == 3) {
@@ -264,9 +264,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       final phoneRegex = RegExp(r'^(\(?\d{2}\)?\s?)?\d{4,5}\-?\d{4}$');
       if (ambulancePhone.isNotEmpty && !phoneRegex.hasMatch(ambulancePhone)) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Por favor, digite um telefone de ambulância válido.')),
+          const SnackBar(content: Text('Confira o número da ambulância.')),
         );
-        TTSService.instance.falar('Por favor, digite um telefone de ambulância válido.', caller: this);
+        TTSService.instance.falar('Confira o número da ambulância.', caller: this);
         return;
       }
     }
@@ -414,7 +414,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Nenhum perfil de idoso encontrado para editar.'),
+            content: Text('Não encontrei seus dados para editar.'),
             backgroundColor: AppColors.error,
           ),
         );
@@ -461,11 +461,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (nome.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Por favor, digite o nome completo do idoso.'),
+          content: Text('Por favor, digite seu nome completo.'),
         ),
       );
       TTSService.instance.falar(
-        'Por favor, digite o nome completo do idoso.',
+        'Por favor, digite seu nome completo.',
         caller: this,
       );
       return;
@@ -477,11 +477,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (dataNasc.isNotEmpty && !dateRegex.hasMatch(dataNasc)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Use o formato DD/MM/AAAA para a data de nascimento.'),
+          content: Text('Digite a data assim: dia, mês e ano.'),
         ),
       );
       TTSService.instance.falar(
-        'A data de nascimento deve estar no formato dia, mês e ano.',
+        'Digite a data assim: dia, mês e ano.',
         caller: this,
       );
       return;
@@ -490,11 +490,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (telefone.isNotEmpty && !phoneRegex.hasMatch(telefone)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Por favor, digite um telefone válido.'),
+          content: Text('Confira o número do telefone.'),
         ),
       );
       TTSService.instance.falar(
-        'Por favor, digite um telefone válido.',
+        'Confira o número do telefone.',
         caller: this,
       );
       return;
@@ -503,18 +503,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (ambulancePhone.isNotEmpty && !phoneRegex.hasMatch(ambulancePhone)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Por favor, digite um telefone de ambulância válido.'),
+          content: Text('Confira o número da ambulância.'),
         ),
       );
       TTSService.instance.falar(
-        'Por favor, digite um telefone de ambulância válido.',
+        'Confira o número da ambulância.',
         caller: this,
       );
       return;
     }
 
     TTSService.instance.falar(
-      'Salvando suas informações, por favor aguarde...',
+      'Salvando seus dados, por favor aguarde...',
       caller: this,
     );
     setState(() => _isSaving = true);
@@ -583,7 +583,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text(
-                  'Dados salvos no aparelho, mas a sincronização com a nuvem falhou. Os dados serão enviados quando houver conexão.',
+                  'Seus dados foram salvos neste celular. Quando a internet voltar, vou avisar o outro celular também.',
                 ),
                 duration: Duration(seconds: 4),
               ),
@@ -593,11 +593,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
 
       TTSService.instance.parar(caller: this);
-      TTSService.instance.falar('Perfil atualizado com sucesso!', caller: this);
+      TTSService.instance.falar('Pronto. Seus dados foram salvos.', caller: this);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Perfil atualizado com sucesso!')),
+        const SnackBar(content: Text('Pronto. Seus dados foram salvos.')),
       );
       Navigator.pop(context, true);
     } catch (e) {
@@ -605,7 +605,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Erro ao salvar: $e')));
+        ).showSnackBar(const SnackBar(content: Text('Não consegui salvar seus dados. Tente de novo.')));
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -633,7 +633,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             mainAxisSize: MainAxisSize.min,
             children: const [
               Text(
-                'Editar Perfil',
+                'Meus Dados',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.w700,
@@ -658,8 +658,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       case 0:
         stepTitle = 'Qual o seu nome completo?';
         currentField = SeniorInputField(
-          label: 'Nome Completo',
-          placeholder: 'Nome do idoso',
+          label: 'Meu nome completo',
+          placeholder: 'Meu nome',
           prefixIcon: Icons.person,
           controller: _nameController,
           onTapAudio: () => TTSService.instance.falar(
@@ -673,7 +673,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       case 1:
         stepTitle = 'Quando você nasceu?';
         currentField = SeniorInputField(
-          label: 'Data de Nascimento',
+          label: 'Meu nascimento',
           placeholder: 'DD/MM/AAAA',
           prefixIcon: Icons.calendar_today,
           controller: _birthDateController,
@@ -690,14 +690,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       case 2:
         stepTitle = 'Qual o seu telefone?';
         currentField = SeniorInputField(
-          label: 'Telefone de Contato',
+          label: 'Meu telefone',
           placeholder: '(11) 99999-9999',
           prefixIcon: Icons.phone,
           controller: _phoneController,
           keyboardType: TextInputType.phone,
           inputFormatters: [PhoneInputFormatter()],
           onTapAudio: () => TTSService.instance.falar(
-            'Digite o número do seu celular com o D D D ou aperte no microfone para ditar.',
+            'Digite o número do seu celular com o código da cidade ou aperte no microfone para ditar.',
             caller: this,
           ),
           onTapMic: () => _ditarCampo(2, _phoneController),
@@ -705,7 +705,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         );
         break;
       case 3:
-        stepTitle = 'Telefone da Ambulância (Opcional)';
+        stepTitle = 'Telefone da Ambulância';
         currentField = SeniorInputField(
           label: 'Telefone da Ambulância',
           placeholder: 'Número local da ambulância',
@@ -742,7 +742,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       backgroundColor: AppColors.background,
       floatingActionButton: const AlexFloatingHelpButton(
         textoExplicacao:
-            'Olá! Aqui você altera as suas informações, como seu nome completo, sua data de nascimento, seu telefone e seu endereço. Quando terminar, aperte o botão salvar perfil no final.',
+            'Olá! Aqui você muda seus dados, como nome, nascimento, telefone e endereço. Quando terminar, aperte o botão salvar no final.',
       ),
       body: SafeArea(
         child: Column(

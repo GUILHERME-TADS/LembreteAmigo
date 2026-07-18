@@ -72,17 +72,17 @@ class _VideoCallHistoryScreenState extends State<VideoCallHistoryScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(isElderly ? 'Histórico de Chamadas' : 'Chamadas de Voz e Vídeo'),
+        title: Text(isElderly ? 'Ligações' : 'Ligações de Voz e Vídeo'),
         actions: [
           if (!isElderly) ...[
             IconButton(
               icon: const Icon(Icons.phone),
-              tooltip: 'Nova chamada de voz',
+              tooltip: 'Nova ligação de voz',
               onPressed: () => _startCall('voice'),
             ),
             IconButton(
               icon: const Icon(Icons.videocam),
-              tooltip: 'Nova chamada de vídeo',
+              tooltip: 'Nova ligação com imagem',
               onPressed: () => _startCall('video'),
             ),
           ],
@@ -115,7 +115,7 @@ class _VideoCallHistoryScreenState extends State<VideoCallHistoryScreen> {
                   heroTag: 'fab_voice',
                   onPressed: () => _startCall('voice'),
                   icon: const Icon(Icons.phone),
-                  label: const Text('Chamada Voz'),
+                  label: const Text('Ligação Voz'),
                   backgroundColor: AppColors.primaryContainer,
                   foregroundColor: AppColors.onPrimaryContainer,
                 ),
@@ -124,7 +124,7 @@ class _VideoCallHistoryScreenState extends State<VideoCallHistoryScreen> {
                   heroTag: 'fab_video',
                   onPressed: () => _startCall('video'),
                   icon: const Icon(Icons.videocam),
-                  label: const Text('Chamada Vídeo'),
+                  label: const Text('Ligação Imagem'),
                   backgroundColor: AppColors.primary,
                   foregroundColor: AppColors.onPrimary,
                 ),
@@ -155,7 +155,7 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              'Nenhuma chamada realizada.',
+              'Nenhuma ligação ainda.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: isElderly ? 22 : 18,
@@ -168,7 +168,7 @@ class _EmptyState extends StatelessWidget {
               ElevatedButton.icon(
                 onPressed: onStartCall,
                 icon: const Icon(Icons.videocam),
-                label: const Text('Iniciar Chamada'),
+                label: const Text('Iniciar Ligação'),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                 ),
@@ -240,7 +240,7 @@ class _CallHistoryTile extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  call.isFromSupervisor ? 'Chamada do Cuidador' : 'Chamada do Idoso',
+                  call.isFromSupervisor ? 'Ligação do Ajudante' : 'Ligação do Idoso',
                   style: TextStyle(
                     fontWeight: FontWeight.w900,
                     fontSize: isElderly ? 20 : 16,
@@ -268,7 +268,7 @@ class _CallHistoryTile extends StatelessWidget {
           subtitle: Padding(
             padding: const EdgeInsets.only(top: 4.0),
             child: Text(
-              '${call.formattedStartTime} • ${call.statusDescription}\nDuração: ${call.formattedDetailedDuration}',
+              '${call.formattedStartTime} • ${call.statusDescription}\nTempo: ${call.formattedDetailedDuration}',
               style: TextStyle(
                 fontSize: isElderly ? 16 : 13,
                 fontWeight: FontWeight.w600,

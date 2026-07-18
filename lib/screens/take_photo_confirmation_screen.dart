@@ -68,7 +68,7 @@ class _TakePhotoConfirmationScreenState
       }
       if (_isProfilePhoto) {
         TTSService.instance.falar(
-          'Olhe para a câmera e aperte na tela para tirar a foto de perfil.',
+          'Olhe para a câmera e aperte na tela para tirar sua foto.',
           caller: this,
         );
       } else {
@@ -136,7 +136,7 @@ class _TakePhotoConfirmationScreenState
         setState(() {
           _isCameraInitialized = false;
           _cameraErrorMessage =
-              'Não foi possível abrir a câmera. Verifique a permissão e tente novamente.';
+              'Não consegui abrir a câmera. Se o celular pedir, aperte Permitir e tente de novo.';
         });
       }
       debugPrint('Erro ao inicializar câmera: $e');
@@ -161,7 +161,7 @@ class _TakePhotoConfirmationScreenState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Camera indisponivel. Tente novamente.'),
+            content: Text('Não consegui usar a câmera. Tente de novo.'),
             backgroundColor: AppColors.error,
           ),
         );
@@ -278,7 +278,7 @@ class _TakePhotoConfirmationScreenState
           ),
           const Expanded(
             child: Text(
-              'Confirmar com Foto',
+              'Tirar Foto',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 24,
@@ -523,7 +523,7 @@ class _TakePhotoConfirmationScreenState
                     });
                     TTSService.instance.falar(
                       _isProfilePhoto
-                          ? 'Olhe para a câmera e aperte na tela para tirar a foto de perfil.'
+                          ? 'Olhe para a câmera e aperte na tela para tirar sua foto.'
                           : 'Coloque o remédio na frente do celular e aperte na tela para tirar a foto.',
                       caller: this,
                     );
@@ -628,7 +628,7 @@ class _TakePhotoConfirmationScreenState
                               scaffoldMessenger.showSnackBar(
                                   const SnackBar(
                                     content: Text(
-                                      'Lembrete invalido. Abra o lembrete novamente.',
+                                      'Não consegui achar este lembrete. Volte e abra de novo.',
                                     ),
                                     backgroundColor: AppColors.error,
                                   ),
@@ -639,7 +639,7 @@ class _TakePhotoConfirmationScreenState
                             if (mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content: Text('Erro ao processar foto: $e'),
+                                  content: Text('Não consegui salvar a foto. Tente de novo.'),
                                   backgroundColor: AppColors.error,
                                 ),
                               );
@@ -658,7 +658,7 @@ class _TakePhotoConfirmationScreenState
                         )
                       : const Icon(Icons.thumb_up_alt_rounded, size: 36),
                   label: Text(
-                    _isUploading ? 'ENVIANDO...' : 'FICOU BOA 👍',
+                    _isUploading ? 'SALVANDO...' : 'FICOU BOA 👍',
                     style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
                   ),
                   style: ElevatedButton.styleFrom(

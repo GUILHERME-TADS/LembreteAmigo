@@ -19,7 +19,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       TTSService.instance.falar(
-        'Aperte o botão amarelo se você for o idoso, ou o botão branco se você for o supervisor.',
+        'Aperte o botão amarelo se você for o idoso. Aperte o botão branco se você ajuda o idoso.',
         caller: this,
       );
     });
@@ -38,7 +38,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       floatingActionButton: !SessionRoleService.isSupervisor
           ? const AlexFloatingHelpButton(
               textoExplicacao:
-                  'Olá! Esta é a tela para começar a usar o aplicativo. Por favor, aperte no botão amarelo de cima se você for o idoso, ou no botão de baixo se você for o supervisor ou ajudante.',
+                  'Olá! Esta é a tela para começar. Aperte o botão amarelo se você for o idoso. Aperte o botão branco se você ajuda o idoso.',
             )
           : null,
       body: SafeArea(
@@ -67,7 +67,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                           GestureDetector(
                             onTap: () {
                               TTSService.instance.falar(
-                                'Aperte o botão amarelo se você for o idoso, ou o botão branco se você for o supervisor.',
+                                'Aperte o botão amarelo se você for o idoso. Aperte o botão branco se você ajuda o idoso.',
                                 caller: this,
                               );
                             },

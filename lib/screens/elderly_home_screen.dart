@@ -1797,7 +1797,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
           backgroundColor: bgColor,
           floatingActionButton: AlexFloatingHelpButton(
             textoExplicacao:
-                'Olá! Esta é a tela do seu dia. Aqui você vê o que precisa fazer hoje: tomar remédio, beber água, comer ou se mexer. Para falar com o Alex, aperte o grande círculo azul no meio da tela e fale o que precisa.',
+                'Olá! Esta é a tela do seu dia. Aqui você vê o que precisa fazer hoje: tomar remédio, beber água, comer ou se mexer. Para falar com o Alex, aperte o grande círculo amarelo no meio da tela e fale o que precisa.',
             onTapped: _stopAllAudioAndTts,
           ),
           body: SafeArea(

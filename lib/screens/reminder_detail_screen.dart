@@ -75,9 +75,9 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
           final inst = (l.medicamentoInstrucoes != null && l.medicamentoInstrucoes!.isNotEmpty)
               ? ' Como tomar: ${l.medicamentoInstrucoes}.'
               : '';
-          return 'Hora do remédio. ${l.titulo} marcado para às $timeStr.$inst Por favor, tome seu remédio.';
+          return 'Remédio: ${l.titulo} às $timeStr.$inst';
         },
-        defaultSpokenText: () => 'Hora do remédio. Por favor, tome seu remédio.',
+        defaultSpokenText: () => 'Hora de tomar seu remédio.',
       );
     } else if (cat == 'refeicoes') {
       return _ReminderCategoryConfig(
@@ -91,8 +91,8 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
         detailedExplanation:
             'Olá, esta é a tela da sua comida. Aqui você pode ver o horário e ouvir de novo o que fazer.',
         spokenText: (l, timeStr) =>
-            'Hora de comer. ${l.titulo} marcado para às $timeStr. Por favor, coma agora.',
-        defaultSpokenText: () => 'Hora de comer. Sua comida está pronta. Bom apetite!',
+            'Comer: ${l.titulo} às $timeStr.',
+        defaultSpokenText: () => 'Hora de comer.',
       );
     } else if (cat == 'exercicio') {
       return _ReminderCategoryConfig(
@@ -106,8 +106,8 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
         detailedExplanation:
             'Olá, esta é a tela do seu exercício. Aqui você pode ver o horário e ouvir de novo o que fazer.',
         spokenText: (l, timeStr) =>
-            'Hora de se mexer. ${l.titulo} marcado para às $timeStr. Vamos nos movimentar.',
-        defaultSpokenText: () => 'Hora de se exercitar. Vamos nos movimentar!',
+            'Exercício: ${l.titulo} às $timeStr.',
+        defaultSpokenText: () => 'Hora de fazer exercício.',
       );
     } else if (cat == 'hidratacao') {
       return _ReminderCategoryConfig(
@@ -121,8 +121,8 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
         detailedExplanation:
             'Olá! Beber água faz bem. Aqui você pode ver o horário e ouvir de novo o que fazer.',
         spokenText: (l, timeStr) =>
-            'Hora de beber água. ${l.titulo} marcado para às $timeStr.',
-        defaultSpokenText: () => 'Hora de beber um copo d\'água!',
+            'Beber água: ${l.titulo} às $timeStr.',
+        defaultSpokenText: () => 'Hora de beber água.',
       );
     } else {
       return _ReminderCategoryConfig(
@@ -136,8 +136,8 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
         detailedExplanation:
             'Olá, esta é a tela da sua tarefa. Aperte o botão de ouvir para eu falar de novo.',
         spokenText: (l, timeStr) =>
-            'Atenção à sua tarefa. ${l.titulo} marcada para às $timeStr.',
-        defaultSpokenText: () => 'Atenção à sua tarefa!',
+            'Tarefa: ${l.titulo} às $timeStr.',
+        defaultSpokenText: () => 'Hora da tarefa.',
       );
     }
   }

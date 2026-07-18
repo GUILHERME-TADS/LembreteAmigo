@@ -189,22 +189,18 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
         continue;
       }
 
-      final prefix = 'ATENÇÃO! Por favor, faça agora: ';
-
       if (l.medicamentoAudioTexto != null && l.medicamentoAudioTexto!.isNotEmpty) {
         _speakText = l.medicamentoAudioTexto!;
       } else if (l.categoria == 'medicacao') {
-        _speakText = '$prefix tomar o seu remédio: ${l.titulo}.';
+        _speakText = 'Atenção! Hora do remédio: ${l.titulo}.';
       } else if (l.categoria == 'refeicoes') {
-        _speakText = '$prefix comer: ${l.titulo}. Coma agora.';
+        _speakText = 'Atenção! Hora de comer: ${l.titulo}.';
       } else if (l.categoria == 'hidratacao') {
-        _speakText =
-            '$prefix beber água: ${l.titulo}. Beba um copo de água agora.';
+        _speakText = 'Atenção! Hora de beber água: ${l.titulo}.';
       } else if (l.categoria == 'exercicio') {
-        _speakText =
-            '$prefix fazer o seu exercício: ${l.titulo}. Faça agora.';
+        _speakText = 'Atenção! Hora de fazer exercício: ${l.titulo}.';
       } else {
-        _speakText = '$prefix sua atividade: ${l.titulo}.';
+        _speakText = 'Atenção! Hora da tarefa: ${l.titulo}.';
       }
 
       await _playFamilyAudioIfAvailable(l);
@@ -728,9 +724,9 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
       },
       child: Scaffold(
         backgroundColor: isHighContrast ? Colors.white : AppColors.background,
-        floatingActionButton: const AlexFloatingHelpButton(
+        floatingActionButton: AlexFloatingHelpButton(
           textoExplicacao:
-              'Esta tela mostra o que você precisa fazer agora. Aperte JÁ FIZ quando terminar. Aperte DAQUI A POUCO para lembrar depois. Aperte PRECISO DE AJUDA se não conseguir.',
+              'Esta tela mostra o que você precisa fazer agora. Aperte $confirmButtonText quando terminar. Aperte DAQUI A POUCO para lembrar depois. Aperte PRECISO DE AJUDA se não conseguir.',
         ),
         body: SafeArea(
           child: Column(

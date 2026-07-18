@@ -151,6 +151,8 @@ class _VoiceSettingsScreenState extends State<VoiceSettingsScreen> {
             'Olá! Esta é a tela de voz do Alex. Aqui você pode regular a velocidade em que ele fala. Arraste a barra para o lado esquerdo se quiser que ele fale mais devagar, ou para o lado direito se quiser que fale mais rápido. Toque no botão de "Testar Voz" para ouvir como ficou e depois aperte em "Salvar" quando terminar.',
       ),
       appBar: AppBar(
+        backgroundColor: AppColors.surface,
+        elevation: 0,
         centerTitle: true,
         leading: IconButton(
           onPressed: () {
@@ -163,7 +165,14 @@ class _VoiceSettingsScreenState extends State<VoiceSettingsScreen> {
             size: 36,
           ),
         ),
-        title: const Text('Voz do Alex'),
+        title: const Text(
+          'Voz do Alex',
+          style: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.w700,
+            color: AppColors.primary,
+          ),
+        ),
       ),
       body: SafeArea(
         child: ListView(

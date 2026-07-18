@@ -143,6 +143,8 @@ class SeniorInputField extends StatefulWidget {
   final List<TextInputFormatter>? inputFormatters;
   final TextInputType? keyboardType;
   final VoidCallback? onTapAudio;
+  final VoidCallback? onTapMic;
+  final bool isListening;
 
   const SeniorInputField({
     super.key,
@@ -154,6 +156,8 @@ class SeniorInputField extends StatefulWidget {
     this.inputFormatters,
     this.keyboardType,
     this.onTapAudio,
+    this.onTapMic,
+    this.isListening = false,
   });
 
   @override
@@ -177,40 +181,128 @@ class _SeniorInputFieldState extends State<SeniorInputField> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              widget.label,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.05,
-                color: AppColors.onSurfaceVariant,
-              ),
-            ),
-            if (widget.onTapAudio != null)
-              GestureDetector(
-                onTap: widget.onTapAudio,
-                child: Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.volume_up,
-                    size: 16,
-                    color: AppColors.primary,
-                  ),
+            Expanded(
+              child: Text(
+                widget.label,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.05,
+                  color: AppColors.onSurfaceVariant,
                 ),
               ),
+            ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (widget.onTapMic != null) ...[
+                  GestureDetector(
+                    onTap: widget.onTapMic,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: widget.isListening
+                            ? const Color(0xFFD32F2F)
+                            : const Color(0xFF00796B),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: (widget.isListening
+                                    ? const Color(0xFFD32F2F)
+                                    : const Color(0xFF00796B))
+                                .withValues(alpha: 0.35),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            widget.isListening ? Icons.mic : Icons.mic_none,
+                            size: 20,
+                            color: Colors.white,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            widget.isListening ? 'Ouvindo...' : 'Falar',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                if (widget.onTapAudio != null)
+                  GestureDetector(
+                    onTap: widget.onTapAudio,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.35),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Icon(
+                            Icons.volume_up,
+                            size: 20,
+                            color: Colors.white,
+                          ),
+                          SizedBox(width: 6),
+                          Text(
+                            'Ouvir',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
         Container(
           constraints: const BoxConstraints(minHeight: 64),
           padding: const EdgeInsets.symmetric(vertical: 4),
           decoration: BoxDecoration(
-            color: AppColors.surfaceContainerLow,
-            border: Border.all(color: AppColors.outlineVariant),
+            color: widget.isListening
+                ? Colors.red.withValues(alpha: 0.08)
+                : AppColors.surfaceContainerLow,
+            border: Border.all(
+              color: widget.isListening
+                  ? const Color(0xFFD32F2F)
+                  : AppColors.outlineVariant,
+              width: widget.isListening ? 2.5 : 1.5,
+            ),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Row(
@@ -218,7 +310,13 @@ class _SeniorInputFieldState extends State<SeniorInputField> {
               if (widget.prefixIcon != null)
                 Padding(
                   padding: const EdgeInsets.only(left: 16),
-                  child: Icon(widget.prefixIcon, color: AppColors.outline),
+                  child: Icon(
+                    widget.prefixIcon,
+                    color: widget.isListening
+                        ? const Color(0xFFD32F2F)
+                        : AppColors.primary,
+                    size: 26,
+                  ),
                 ),
               Expanded(
                 child: TextField(
@@ -226,14 +324,56 @@ class _SeniorInputFieldState extends State<SeniorInputField> {
                   obscureText: _obscureText,
                   keyboardType: widget.keyboardType,
                   inputFormatters: widget.inputFormatters,
-                  style: const TextStyle(fontSize: 18),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                  ),
                   decoration: InputDecoration(
-                    hintText: widget.placeholder,
+                    hintText: widget.isListening
+                        ? 'Fale agora...'
+                        : widget.placeholder,
+                    hintStyle: TextStyle(
+                      color: widget.isListening
+                          ? const Color(0xFFD32F2F)
+                          : AppColors.onSurfaceVariant.withValues(alpha: 0.6),
+                      fontWeight: widget.isListening
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                    ),
                     border: InputBorder.none,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16),
                   ),
                 ),
               ),
+              if (widget.onTapMic != null)
+                Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  decoration: BoxDecoration(
+                    color: widget.isListening
+                        ? const Color(0xFFD32F2F)
+                        : const Color(0xFF00796B),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: (widget.isListening
+                                ? const Color(0xFFD32F2F)
+                                : const Color(0xFF00796B))
+                            .withValues(alpha: 0.3),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: IconButton(
+                    onPressed: widget.onTapMic,
+                    tooltip: 'Ditar por voz',
+                    icon: Icon(
+                      widget.isListening ? Icons.mic : Icons.mic_none,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ),
+                ),
               if (widget.isPassword)
                 IconButton(
                   onPressed: () {

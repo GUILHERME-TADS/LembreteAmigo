@@ -925,36 +925,63 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                 ],
               ),
               const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                height: 72,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    final ambulancePhone = _ambulancePhone;
-                    if (ambulancePhone == null || ambulancePhone.isEmpty) {
-                      _showAmbulancePhoneMissingWarning();
-                      return;
-                    }
-                    _confirmarAcaoSOSComContagem(
-                      'Ligar para Ambulância',
-                      'Iniciando ligação para a ambulância',
-                      () => _ligar(ambulancePhone),
-                    );
-                  },
-                  icon: const Icon(Icons.local_hospital, size: 32, color: Colors.white),
-                  label: const Text(
-                    'Ligar para Ambulância (192)',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.error,
-                    elevation: 2,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+              Builder(builder: (context) {
+                final bool hasAmbulance =
+                    _ambulancePhone != null && _ambulancePhone!.trim().isNotEmpty;
+
+                return Column(
+                  children: [
+                    SizedBox(
+                      width: double.infinity,
+                      height: 72,
+                      child: ElevatedButton.icon(
+                        onPressed: hasAmbulance
+                            ? () {
+                                _confirmarAcaoSOSComContagem(
+                                  'Ligar para Ambulância',
+                                  'Iniciando ligação para a ambulância',
+                                  () => _ligar(_ambulancePhone!.trim()),
+                                );
+                              }
+                            : null,
+                        icon: Icon(
+                          Icons.local_hospital,
+                          size: 32,
+                          color: hasAmbulance ? Colors.white : Colors.grey.shade600,
+                        ),
+                        label: Text(
+                          'Ligar para Ambulância',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                            color: hasAmbulance ? Colors.white : Colors.grey.shade600,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.error,
+                          disabledBackgroundColor: Colors.grey.shade300,
+                          elevation: hasAmbulance ? 2 : 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-              ),
+                    if (!hasAmbulance) ...[
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Número da ambulância não configurado no perfil',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ],
+                );
+              }),
             ],
           ),
         ),

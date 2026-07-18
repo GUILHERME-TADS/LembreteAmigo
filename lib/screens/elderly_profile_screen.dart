@@ -6,6 +6,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:flutter/services.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../theme/app_theme.dart';
 import '../services/tts_service.dart';
 import '../services/lembrete_service.dart';
@@ -322,14 +324,14 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
         await prefs.setString('idoso_perfil', jsonEncode(data));
       }
 
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
       final message = syncError == null
           ? 'Aplicativo desconectado com sucesso.'
           : 'Ajudante desconectado neste aparelho. A sincronizacao com a nuvem sera tentada novamente quando houver conexao.';
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message)),
-        );
-      }
+      messenger.showSnackBar(
+        SnackBar(content: Text(message)),
+      );
       await TTSService.instance.falar(message, caller: this);
       await _loadProfile();
     } catch (e) {
@@ -768,15 +770,54 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                                 GestureDetector(
                                   onTap: () =>
                                       _falarInfo('Nome completo', _nome),
-                                  child: Text(
-                                    _nome.toUpperCase(),
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(
-                                      fontSize: 26,
-                                      fontWeight: FontWeight.w900,
-                                      letterSpacing: 1.1,
-                                      color: Colors.white,
-                                    ),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        _nome.toUpperCase(),
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          fontSize: 26,
+                                          fontWeight: FontWeight.w900,
+                                          letterSpacing: 1.1,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withValues(
+                                            alpha: 0.25,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                        ),
+                                        child: const Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              Icons.volume_up,
+                                              size: 16,
+                                              color: Colors.white,
+                                            ),
+                                            SizedBox(width: 4),
+                                            Text(
+                                              'Ouvir nome',
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                                 const SizedBox(height: 8),
@@ -1160,15 +1201,39 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
                   ),
-                  child: const Icon(
-                    Icons.volume_up,
-                    size: 16,
+                  decoration: BoxDecoration(
                     color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withValues(alpha: 0.3),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.volume_up,
+                        size: 18,
+                        color: Colors.white,
+                      ),
+                      SizedBox(width: 4),
+                      Text(
+                        'Ouvir',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -1264,15 +1329,39 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                               );
                             },
                             child: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: color.withValues(alpha: 0.12),
-                                shape: BoxShape.circle,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
                               ),
-                              child: Icon(
-                                Icons.volume_up,
+                              decoration: BoxDecoration(
                                 color: color,
-                                size: 20,
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: color.withValues(alpha: 0.3),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.volume_up,
+                                    color: Colors.white,
+                                    size: 18,
+                                  ),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'Ouvir',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
@@ -1396,15 +1485,39 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                               );
                             },
                             child: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: color.withValues(alpha: 0.12),
-                                shape: BoxShape.circle,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
                               ),
-                              child: Icon(
-                                Icons.volume_up,
+                              decoration: BoxDecoration(
                                 color: color,
-                                size: 20,
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: color.withValues(alpha: 0.3),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.volume_up,
+                                    color: Colors.white,
+                                    size: 18,
+                                  ),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'Ouvir',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
@@ -1780,6 +1893,8 @@ class _EditTitleDialog extends StatefulWidget {
 
 class _EditTitleDialogState extends State<_EditTitleDialog> {
   late final TextEditingController _controller;
+  final stt.SpeechToText _speech = stt.SpeechToText();
+  bool _isListening = false;
 
   @override
   void initState() {
@@ -1789,31 +1904,125 @@ class _EditTitleDialogState extends State<_EditTitleDialog> {
 
   @override
   void dispose() {
+    TTSService.instance.parar(caller: this);
+    _speech.stop();
     _controller.dispose();
     super.dispose();
+  }
+
+  Future<void> _ditarNome() async {
+    await TTSService.instance.parar(caller: this);
+    if (_isListening) {
+      await _speech.stop();
+      if (mounted) setState(() => _isListening = false);
+      return;
+    }
+
+    try {
+      final available = await _speech.initialize(
+        onError: (error) {
+          debugPrint('Erro no ditado: ${error.errorMsg}');
+          if (mounted) setState(() => _isListening = false);
+        },
+        onStatus: (status) {
+          final isDone =
+              status == stt.SpeechToText.doneStatus ||
+              status == stt.SpeechToText.notListeningStatus;
+          if (isDone && mounted && _isListening) {
+            setState(() => _isListening = false);
+          }
+        },
+      );
+
+      if (!available) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Reconhecimento de voz indisponível.')),
+          );
+        }
+        return;
+      }
+
+      if (!mounted) return;
+      setState(() => _isListening = true);
+      SystemSound.play(SystemSoundType.click);
+      await TTSService.instance.falar('Fale o novo nome...', caller: this);
+      await Future.delayed(const Duration(milliseconds: 1200));
+
+      if (!mounted || !_isListening) return;
+
+      _speech.listen(
+        onResult: (result) {
+          if (mounted) {
+            setState(() {
+              _controller.text = result.recognizedWords;
+            });
+            if (result.finalResult) {
+              setState(() => _isListening = false);
+            }
+          }
+        },
+        listenOptions: stt.SpeechListenOptions(
+          listenFor: const Duration(seconds: 10),
+          localeId: 'pt_BR',
+        ),
+      );
+    } catch (e) {
+      debugPrint('Erro ao iniciar ditado: $e');
+      if (mounted) setState(() => _isListening = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Mudar nome do lembrete'),
-      content: TextField(
-        controller: _controller,
-        autofocus: true,
-        textCapitalization: TextCapitalization.sentences,
-        decoration: const InputDecoration(
-          labelText: 'Escreva o novo nome aqui',
-          border: OutlineInputBorder(),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      title: const Text(
+        'Mudar nome do lembrete',
+        textAlign: TextAlign.center,
+        style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primary),
+      ),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SeniorInputField(
+              label: 'Novo Nome',
+              placeholder: 'Escreva ou dite o novo nome',
+              prefixIcon: Icons.edit,
+              controller: _controller,
+              onTapAudio: () => TTSService.instance.falar(
+                'Digite o novo nome do lembrete ou aperte no botão verde de ditar para falar o nome.',
+                caller: this,
+              ),
+              onTapMic: _ditarNome,
+              isListening: _isListening,
+            ),
+          ],
         ),
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('VOLTAR'),
+          onPressed: () {
+            TTSService.instance.parar(caller: this);
+            _speech.stop();
+            Navigator.pop(context);
+          },
+          child: const Text('VOLTAR', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         ),
         ElevatedButton(
-          onPressed: () => Navigator.pop(context, _controller.text.trim()),
-          child: const Text('SALVAR'),
+          onPressed: () {
+            TTSService.instance.parar(caller: this);
+            _speech.stop();
+            Navigator.pop(context, _controller.text.trim());
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          child: const Text('SALVAR', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         ),
       ],
     );

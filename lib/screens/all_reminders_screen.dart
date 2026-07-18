@@ -249,6 +249,20 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                         arguments: r,
                       );
                     },
+                    onStatusTap: () async {
+                      _stopAllAudioAndTts();
+                      if (r.categoria == 'medicacao' && !r.concluido) {
+                        await Navigator.pushNamed(
+                          context,
+                          '/take-photo-confirmation',
+                          arguments: r.id,
+                        );
+                        _loadReminders();
+                      } else {
+                        await LembreteService.instance.alternarConclusao(r.id);
+                        _loadReminders();
+                      }
+                    },
                   ),
                   if (r.medicamentoInstrucoes != null && r.medicamentoInstrucoes!.isNotEmpty) ...[
                     const Divider(height: 1, color: AppColors.outlineVariant, thickness: 2),
@@ -758,7 +772,19 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                                 audioPath: r.audioPath == 'ia_generated' ? null : r.audioPath,
                                 ttsText: r.audioPath == 'ia_generated' ? r.medicamentoAudioTexto : null,
                                 status: reminderVisualStatusFromLembrete(r),
-                                onTap: () {},
+                                onTap: () {
+                                  _stopAllAudioAndTts();
+                                  Navigator.pushNamed(
+                                    context,
+                                    '/reminder-detail',
+                                    arguments: r,
+                                  );
+                                },
+                                onStatusTap: () async {
+                                  _stopAllAudioAndTts();
+                                  await LembreteService.instance.alternarConclusao(r.id);
+                                  _loadReminders();
+                                },
                               ),
                             ),
                           );

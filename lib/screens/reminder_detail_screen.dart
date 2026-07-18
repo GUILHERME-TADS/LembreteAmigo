@@ -360,27 +360,9 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
   }
 
   Widget _buildPeriodBanner(int hour, _ReminderCategoryConfig cfg) {
-    String title;
-    IconData icon;
-    Color bg;
-
-    if (hour >= 0 && hour < 6) {
-      title = 'MADRUGADA';
-      icon = Icons.nightlight_round;
-      bg = const Color(0xFF2C3E50);
-    } else if (hour >= 6 && hour < 12) {
-      title = 'MANHÃ';
-      icon = Icons.wb_sunny_rounded;
-      bg = const Color(0xFFE67E22);
-    } else if (hour >= 12 && hour < 18) {
-      title = 'TARDE';
-      icon = Icons.brightness_5_rounded;
-      bg = const Color(0xFFD35400);
-    } else {
-      title = 'NOITE';
-      icon = Icons.bedtime_rounded;
-      bg = const Color(0xFF1E3C72);
-    }
+    final title = PeriodHelper.getPeriodLabel(hour).toUpperCase();
+    final icon = PeriodHelper.getPeriodIcon(hour);
+    final bg = PeriodHelper.getPeriodColor(hour);
 
     return Container(
       width: double.infinity,

@@ -171,10 +171,10 @@ class _NewReminderAudioScreenState extends State<NewReminderAudioScreen> {
             _buildTopBar(context),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 child: Column(
                   children: [
-                    const SizedBox(height: 28),
+                    const SizedBox(height: 20),
                     Expanded(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -183,12 +183,12 @@ class _NewReminderAudioScreenState extends State<NewReminderAudioScreen> {
                             GestureDetector(
                               onTap: _startRecording,
                               child: Container(
-                                width: 160,
-                                height: 160,
+                                width: 170,
+                                height: 170,
                                 decoration: BoxDecoration(
                                   color: AppColors.secondaryContainer,
                                   shape: BoxShape.circle,
-                                  border: Border.all(color: Colors.white, width: 8),
+                                  border: Border.all(color: Colors.white, width: 6),
                                   boxShadow: const [
                                     BoxShadow(
                                       color: Colors.black26,
@@ -199,26 +199,27 @@ class _NewReminderAudioScreenState extends State<NewReminderAudioScreen> {
                                 ),
                                 child: const Icon(
                                   Icons.mic,
-                                  size: 64,
+                                  size: 72,
                                   color: AppColors.onSecondaryContainer,
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 24),
+                            const SizedBox(height: 28),
                             const Text(
-                              'Toque para comecar a gravar',
+                              'Toque para começar a gravar',
                               style: TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w700,
+                                fontSize: 24,
+                                fontWeight: FontWeight.w800,
                                 color: AppColors.primary,
                               ),
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 10),
                             const Text(
-                              'Diga as instrucoes de forma simples e pausada.',
+                              'Fale com tom carinhoso e calmo.\nSua voz traz segurança para o idoso.',
                               textAlign: TextAlign.center,
                               style: TextStyle(
-                                fontSize: 16,
+                                fontSize: 17,
+                                fontWeight: FontWeight.w500,
                                 color: AppColors.onSurfaceVariant,
                               ),
                             ),
@@ -226,22 +227,23 @@ class _NewReminderAudioScreenState extends State<NewReminderAudioScreen> {
                             GestureDetector(
                               onTap: _stopRecording,
                               child: Container(
-                                width: 160,
-                                height: 160,
-                                decoration: const BoxDecoration(
-                                  color: AppColors.error,
+                                width: 170,
+                                height: 170,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFD32F2F),
                                   shape: BoxShape.circle,
-                                  boxShadow: [
+                                  border: Border.all(color: Colors.white, width: 6),
+                                  boxShadow: const [
                                     BoxShadow(
-                                      color: Colors.black26,
-                                      blurRadius: 16,
-                                      offset: Offset(0, 8),
+                                      color: Colors.redAccent,
+                                      blurRadius: 24,
+                                      offset: Offset(0, 4),
                                     ),
                                   ],
                                 ),
                                 child: const Icon(
                                   Icons.stop,
-                                  size: 64,
+                                  size: 72,
                                   color: Colors.white,
                                 ),
                               ),
@@ -250,83 +252,107 @@ class _NewReminderAudioScreenState extends State<NewReminderAudioScreen> {
                             const Text(
                               'Gravando sua voz...',
                               style: TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.error,
+                                fontSize: 26,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFFD32F2F),
                               ),
                             ),
                             const SizedBox(height: 8),
                             const Text(
-                              'Toque no botao vermelho para parar.',
+                              'Toque no botão vermelho quando terminar.',
                               style: TextStyle(
-                                fontSize: 16,
+                                fontSize: 17,
+                                fontWeight: FontWeight.w500,
                                 color: AppColors.onSurfaceVariant,
                               ),
                             ),
                           ] else ...[
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                GestureDetector(
-                                  onTap: _togglePlayback,
-                                  child: Container(
-                                    width: 120,
-                                    height: 120,
-                                    decoration: BoxDecoration(
-                                      color: AppColors.primaryContainer,
-                                      shape: BoxShape.circle,
-                                      boxShadow: const [
-                                        BoxShadow(
-                                          color: Colors.black12,
-                                          blurRadius: 8,
-                                          offset: Offset(0, 4),
-                                        ),
-                                      ],
-                                    ),
-                                    child: Icon(
-                                      _isPlaying ? Icons.stop : Icons.play_arrow,
-                                      size: 56,
-                                      color: AppColors.onPrimaryContainer,
-                                    ),
+                            // CARD DE ÁUDIO GRAVADO
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(24),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(24),
+                                border: Border.all(color: AppColors.primaryContainer, width: 2),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: Colors.black12,
+                                    blurRadius: 16,
+                                    offset: Offset(0, 6),
                                   ),
-                                ),
-                                const SizedBox(width: 24),
-                                GestureDetector(
-                                  onTap: _startRecording,
-                                  child: Container(
-                                    width: 80,
-                                    height: 80,
-                                    decoration: BoxDecoration(
-                                      color: AppColors.surfaceContainerHigh,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: AppColors.outlineVariant,
+                                ],
+                              ),
+                              child: Column(
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      GestureDetector(
+                                        onTap: _togglePlayback,
+                                        child: Container(
+                                          width: 110,
+                                          height: 110,
+                                          decoration: BoxDecoration(
+                                            color: _isPlaying ? AppColors.error : AppColors.primaryContainer,
+                                            shape: BoxShape.circle,
+                                            boxShadow: const [
+                                              BoxShadow(
+                                                color: Colors.black26,
+                                                blurRadius: 10,
+                                                offset: Offset(0, 4),
+                                              ),
+                                            ],
+                                          ),
+                                          child: Icon(
+                                            _isPlaying ? Icons.stop : Icons.play_arrow_rounded,
+                                            size: 64,
+                                            color: Colors.white,
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                    child: const Icon(
-                                      Icons.refresh,
-                                      size: 32,
+                                      const SizedBox(width: 28),
+                                      GestureDetector(
+                                        onTap: _startRecording,
+                                        child: Container(
+                                          width: 76,
+                                          height: 76,
+                                          decoration: BoxDecoration(
+                                            color: AppColors.surfaceContainerHigh,
+                                            shape: BoxShape.circle,
+                                            border: Border.all(
+                                              color: AppColors.outlineVariant,
+                                              width: 2,
+                                            ),
+                                          ),
+                                          child: const Icon(
+                                            Icons.refresh,
+                                            size: 36,
+                                            color: AppColors.primary,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 20),
+                                  Text(
+                                    _isPlaying ? 'Tocando voz gravada...' : 'Voz gravada com sucesso!',
+                                    style: const TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w800,
                                       color: AppColors.primary,
                                     ),
                                   ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 24),
-                            const Text(
-                              'Voz gravada com sucesso!',
-                              style: TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              'Toque no botao de play para ouvir a gravacao.',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: AppColors.onSurfaceVariant,
+                                  const SizedBox(height: 6),
+                                  const Text(
+                                    'Toque no play azul para escutar antes de salvar.',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w500,
+                                      color: AppColors.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
@@ -336,27 +362,28 @@ class _NewReminderAudioScreenState extends State<NewReminderAudioScreen> {
                     if (_recordedFilePath != null) ...[
                       SizedBox(
                         width: double.infinity,
-                        height: 64,
+                        height: 72,
                         child: ElevatedButton.icon(
                           onPressed: _salvarRetornar,
-                          icon: const Icon(Icons.check),
+                          icon: const Icon(Icons.check_circle, size: 32),
                           label: const Text(
                             'SALVAR E VINCULAR',
                             style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w800,
+                              fontSize: 22,
+                              fontWeight: FontWeight.w900,
                             ),
                           ),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.secondaryContainer,
-                            foregroundColor: AppColors.onSecondaryContainer,
+                            backgroundColor: const Color(0xFF2E7D32),
+                            foregroundColor: Colors.white,
+                            elevation: 4,
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(20),
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 16),
                     ],
                   ],
                 ),
@@ -371,7 +398,7 @@ class _NewReminderAudioScreenState extends State<NewReminderAudioScreen> {
   Widget _buildTopBar(BuildContext context) {
     return Container(
       height: 64,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: const BoxDecoration(
         color: AppColors.surface,
         border: Border(bottom: BorderSide(color: AppColors.outlineVariant)),
@@ -381,9 +408,9 @@ class _NewReminderAudioScreenState extends State<NewReminderAudioScreen> {
           IconButton(
             onPressed: () => Navigator.pop(context),
             icon: const Icon(
-              Icons.close,
+              Icons.arrow_back,
               color: AppColors.primary,
-              size: 32,
+              size: 36,
             ),
           ),
           const Expanded(
@@ -391,7 +418,7 @@ class _NewReminderAudioScreenState extends State<NewReminderAudioScreen> {
               'Gravar Voz do Familiar',
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 24,
+                fontSize: 28,
                 fontWeight: FontWeight.w700,
                 color: AppColors.primary,
               ),

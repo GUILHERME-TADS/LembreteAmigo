@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../theme/app_theme.dart';
 import '../services/session_role_service.dart';
 import '../services/tts_service.dart';
@@ -23,6 +24,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final TextEditingController _ambulancePhoneController =
       TextEditingController();
   final TextEditingController _addressController = TextEditingController();
+
+  final stt.SpeechToText _speech = stt.SpeechToText();
+  bool _isListening = false;
+  int? _listeningStep;
 
   bool _isLoading = true;
   bool _isSaving = false;
@@ -46,12 +51,152 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   void dispose() {
     TTSService.instance.parar(caller: this);
+    _speech.stop();
     _nameController.dispose();
     _birthDateController.dispose();
     _phoneController.dispose();
     _ambulancePhoneController.dispose();
     _addressController.dispose();
     super.dispose();
+  }
+
+  String _formatSpokenDate(String input) {
+    final digits = input.replaceAll(RegExp(r'\D'), '');
+    if (digits.length == 8) {
+      return '${digits.substring(0, 2)}/${digits.substring(2, 4)}/${digits.substring(4, 8)}';
+    }
+    return input;
+  }
+
+  String _formatSpokenPhone(String input) {
+    final digits = input.replaceAll(RegExp(r'\D'), '');
+    if (digits.length == 11) {
+      return '(${digits.substring(0, 2)}) ${digits.substring(2, 7)}-${digits.substring(7, 11)}';
+    } else if (digits.length == 10) {
+      return '(${digits.substring(0, 2)}) ${digits.substring(2, 6)}-${digits.substring(6, 10)}';
+    }
+    return input;
+  }
+
+  Future<void> _ditarCampo(int step, TextEditingController controller) async {
+    await TTSService.instance.parar(caller: this);
+
+    if (_isListening && _listeningStep == step) {
+      await _speech.stop();
+      if (mounted) {
+        setState(() {
+          _isListening = false;
+          _listeningStep = null;
+        });
+      }
+      return;
+    }
+
+    try {
+      final available = await _speech.initialize(
+        onError: (error) {
+          debugPrint('Erro no ditado: ${error.errorMsg}');
+          if (mounted) {
+            setState(() {
+              _isListening = false;
+              _listeningStep = null;
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Não entendi bem. Tente falar novamente.'),
+              ),
+            );
+          }
+        },
+        onStatus: (status) {
+          final isDone =
+              status == stt.SpeechToText.doneStatus ||
+              status == stt.SpeechToText.notListeningStatus;
+          if (isDone && mounted && _isListening && _listeningStep == step) {
+            setState(() {
+              _isListening = false;
+              _listeningStep = null;
+            });
+          }
+        },
+      );
+
+      if (!available) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Reconhecimento de voz indisponível no dispositivo.',
+              ),
+            ),
+          );
+          TTSService.instance.falar(
+            'Reconhecimento de voz indisponível.',
+            caller: this,
+          );
+        }
+        return;
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _isListening = true;
+        _listeningStep = step;
+      });
+
+      SystemSound.play(SystemSoundType.click);
+      await TTSService.instance.falar('Pode falar agora...', caller: this);
+      await Future.delayed(const Duration(milliseconds: 1200));
+
+      if (!mounted || !_isListening) return;
+
+      _speech.listen(
+        listenOptions: stt.SpeechListenOptions(
+          listenFor: const Duration(seconds: 10),
+          pauseFor: const Duration(seconds: 3),
+          localeId: 'pt_BR',
+          cancelOnError: true,
+          partialResults: true,
+        ),
+        onResult: (result) {
+          if (!mounted) return;
+          String text = result.recognizedWords;
+          if (step == 1) {
+            text = _formatSpokenDate(text);
+          } else if (step == 2 || step == 3) {
+            text = _formatSpokenPhone(text);
+          }
+
+          setState(() {
+            controller.text = text;
+            controller.selection = TextSelection.collapsed(
+              offset: controller.text.length,
+            );
+          });
+
+          if (result.finalResult) {
+            setState(() {
+              _isListening = false;
+              _listeningStep = null;
+            });
+            if (controller.text.isNotEmpty) {
+              TTSService.instance.falar(
+                'Anotado: ${controller.text}',
+                caller: this,
+              );
+            }
+          }
+        },
+      );
+    } catch (e) {
+      debugPrint('Erro ao iniciar voz: $e');
+      if (mounted) {
+        setState(() {
+          _isListening = false;
+          _listeningStep = null;
+        });
+      }
+    }
   }
 
   void _speakCurrentStep() {
@@ -78,6 +223,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   void _avancar() {
     TTSService.instance.parar(caller: this);
+    _speech.stop();
+    _isListening = false;
+    _listeningStep = null;
     if (_currentStep == 0) {
       final nome = _nameController.text.trim();
       if (nome.isEmpty) {
@@ -131,6 +279,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   void _voltar() {
     TTSService.instance.parar(caller: this);
+    _speech.stop();
+    _isListening = false;
+    _listeningStep = null;
     if (_currentStep > 0) {
       setState(() {
         _currentStep--;
@@ -508,9 +659,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           prefixIcon: Icons.person,
           controller: _nameController,
           onTapAudio: () => TTSService.instance.falar(
-            'Digite o seu nome completo nesta caixa.',
+            'Digite o seu nome completo nesta caixa ou aperte no microfone para ditar.',
             caller: this,
           ),
+          onTapMic: () => _ditarCampo(0, _nameController),
+          isListening: _isListening && _listeningStep == 0,
         );
         break;
       case 1:
@@ -523,9 +676,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           keyboardType: TextInputType.number,
           inputFormatters: [DateInputFormatter()],
           onTapAudio: () => TTSService.instance.falar(
-            'Digite o dia, o mês e o ano em que você nasceu.',
+            'Digite o dia, o mês e o ano em que você nasceu ou aperte no microfone para ditar.',
             caller: this,
           ),
+          onTapMic: () => _ditarCampo(1, _birthDateController),
+          isListening: _isListening && _listeningStep == 1,
         );
         break;
       case 2:
@@ -538,9 +693,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           keyboardType: TextInputType.phone,
           inputFormatters: [PhoneInputFormatter()],
           onTapAudio: () => TTSService.instance.falar(
-            'Digite o número do seu celular com o D D D.',
+            'Digite o número do seu celular com o D D D ou aperte no microfone para ditar.',
             caller: this,
           ),
+          onTapMic: () => _ditarCampo(2, _phoneController),
+          isListening: _isListening && _listeningStep == 2,
         );
         break;
       case 3:
@@ -553,9 +710,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           keyboardType: TextInputType.phone,
           inputFormatters: [PhoneInputFormatter()],
           onTapAudio: () => TTSService.instance.falar(
-            'Digite o telefone da ambulância da sua cidade. Se deixar vazio, a opção de ligar para ambulância não aparece no SOS.',
+            'Digite o telefone da ambulância da sua cidade ou aperte no microfone para ditar.',
             caller: this,
           ),
+          onTapMic: () => _ditarCampo(3, _ambulancePhoneController),
+          isListening: _isListening && _listeningStep == 3,
         );
         break;
       case 4:
@@ -566,9 +725,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           prefixIcon: Icons.location_on,
           controller: _addressController,
           onTapAudio: () => TTSService.instance.falar(
-            'Digite o nome da sua rua e o número da sua casa.',
+            'Digite o nome da sua rua e o número da sua casa ou aperte no microfone para ditar.',
             caller: this,
           ),
+          onTapMic: () => _ditarCampo(4, _addressController),
+          isListening: _isListening && _listeningStep == 4,
         );
         break;
     }

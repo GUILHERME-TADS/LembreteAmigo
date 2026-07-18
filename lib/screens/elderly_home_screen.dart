@@ -1411,7 +1411,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                 shape: BoxShape.circle,
               ),
               child: const Icon(
-                Icons.notifications_none,
+                Icons.notifications_off_outlined,
                 size: 80,
                 color: AppColors.outline,
               ),

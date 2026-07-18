@@ -499,17 +499,21 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
               height: 80,
               child: ElevatedButton.icon(
                 onPressed: _reiniciarGravacao,
-                icon: const Icon(Icons.refresh, size: 28),
-                label: const Text(
-                  'Não, falar de novo',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-                  textAlign: TextAlign.center,
+                icon: const Icon(Icons.refresh, size: 30),
+                label: const FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    'FALAR DE NOVO',
+                    maxLines: 1,
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
+                  ),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.error,
-                  foregroundColor: AppColors.onError,
+                  backgroundColor: const Color(0xFFD32F2F),
+                  foregroundColor: Colors.white,
+                  elevation: 4,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(20),
                   ),
                 ),
               ),
@@ -521,17 +525,21 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
               height: 80,
               child: ElevatedButton.icon(
                 onPressed: _isSaving ? null : () => _salvarLembrete(horario),
-                icon: const Icon(Icons.check_circle_outline, size: 28),
-                label: Text(
-                  _isSaving ? 'Salvando...' : 'Sim, está correto',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-                  textAlign: TextAlign.center,
+                icon: const Icon(Icons.check_circle, size: 30),
+                label: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    _isSaving ? 'SALVANDO...' : 'SIM, SALVAR',
+                    maxLines: 1,
+                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
+                  ),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.tertiaryFixedDim,
-                  foregroundColor: AppColors.onTertiaryFixed,
+                  backgroundColor: const Color(0xFF2E7D32),
+                  foregroundColor: Colors.white,
+                  elevation: 4,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(20),
                   ),
                 ),
               ),
@@ -545,21 +553,62 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
         height: 80,
         child: ElevatedButton.icon(
           onPressed: _reiniciarGravacao,
-          icon: const Icon(Icons.refresh, size: 28),
-          label: const Text(
-            'Não entendi, tentar de novo',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+          icon: const Icon(Icons.refresh, size: 30),
+          label: const FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              'NÃO ENTENDI, TENTAR DE NOVO',
+              maxLines: 1,
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+            ),
           ),
           style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.error,
-            foregroundColor: AppColors.onError,
+            backgroundColor: const Color(0xFFD32F2F),
+            foregroundColor: Colors.white,
+            elevation: 4,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(20),
             ),
           ),
         ),
       );
     }
+  }
+
+  Widget _buildTopBar(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            onPressed: () {
+              TTSService.instance.parar(caller: this);
+              Navigator.pop(context);
+            },
+            icon: const Icon(
+              Icons.arrow_back,
+              color: AppColors.primary,
+              size: 36,
+            ),
+          ),
+          const Expanded(
+            child: Text(
+              'Gravar Lembrete',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w700,
+                color: AppColors.primary,
+              ),
+            ),
+          ),
+          const SizedBox(width: 48),
+        ],
+      ),
+    );
   }
 
   @override
@@ -578,195 +627,233 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
         child: Column(
           children: [
             const VolumeWarningBanner(),
+            _buildTopBar(context),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 child: Column(
                   children: [
-              Row(
-                children: [
-                  IconButton(
-                    onPressed: () {
-                      TTSService.instance.parar(caller: this);
-                      Navigator.pop(context);
-                    },
-                    icon: const Icon(Icons.arrow_back, color: AppColors.primary, size: 36),
-                  ),
-                  const Expanded(
-                    child: Text(
-                      'Lembrete Amigo',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.primary),
-                    ),
-                  ),
-                  const SizedBox(width: 48),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: [
-                       const Text(
-                        'Fale a sua tarefa',
-                        style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.onSurface),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Fale a tarefa e a hora dela.\nExemplo: "Tomar remédio às duas da tarde"',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 18, color: AppColors.onSurfaceVariant),
-                      ),
-                      const SizedBox(height: 24),
-                      GestureDetector(
-                        onTap: () {
-                          TTSService.instance.parar(caller: this);
-                          _toggleListening();
-                        },
+                    Expanded(
+                      child: SingleChildScrollView(
                         child: Column(
-                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Stack(
-                              alignment: Alignment.center,
-                              clipBehavior: Clip.none,
-                              children: [
-                                AlexAvatar(
-                                  isListening: _isListening,
-                                  size: 180,
-                                ),
-                                Positioned(
-                                  bottom: 0,
-                                  right: 0,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(12),
+                            const Text(
+                              'Fale a tarefa e a hora dela',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.onSurface,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            const Text(
+                              'Exemplo: "Tomar remédio às duas da tarde"',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+
+                            // BOTÃO DO ALEX E ONDAS
+                            GestureDetector(
+                              onTap: () {
+                                TTSService.instance.parar(caller: this);
+                                _toggleListening();
+                              },
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Stack(
+                                    alignment: Alignment.center,
+                                    clipBehavior: Clip.none,
+                                    children: [
+                                      if (_isListening)
+                                        const _PulsingWaves(size: 220),
+                                      AlexAvatar(
+                                        isListening: _isListening,
+                                        size: 180,
+                                      ),
+                                      Positioned(
+                                        bottom: 0,
+                                        right: 0,
+                                        child: Container(
+                                          padding: const EdgeInsets.all(14),
+                                          decoration: BoxDecoration(
+                                            color: _isListening
+                                                ? AppColors.voiceFeedbackBlue
+                                                : AppColors.secondaryContainer,
+                                            shape: BoxShape.circle,
+                                            border: Border.all(color: Colors.white, width: 4),
+                                            boxShadow: const [
+                                              BoxShadow(
+                                                color: Colors.black26,
+                                                blurRadius: 8,
+                                                offset: Offset(0, 4),
+                                              ),
+                                            ],
+                                          ),
+                                          child: Icon(
+                                            _isListening ? Icons.stop : Icons.mic,
+                                            color: _isListening
+                                                ? Colors.white
+                                                : AppColors.onSecondaryContainer,
+                                            size: 36,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                                     decoration: BoxDecoration(
                                       color: _isListening
-                                          ? AppColors.voiceFeedbackBlue
-                                          : AppColors.secondaryContainer,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(color: Colors.white, width: 4),
-                                      boxShadow: const [
-                                        BoxShadow(
-                                          color: Colors.black12,
-                                          blurRadius: 8,
-                                          offset: Offset(0, 4),
+                                          ? AppColors.voiceFeedbackBlue.withValues(alpha: 0.12)
+                                          : AppColors.surfaceContainerLow,
+                                      borderRadius: BorderRadius.circular(9999),
+                                      border: Border.all(
+                                        color: _isListening
+                                            ? AppColors.voiceFeedbackBlue
+                                            : AppColors.outlineVariant,
+                                        width: 2,
+                                      ),
+                                    ),
+                                    child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          if (_isListening) ...[
+                                            const Icon(Icons.mic, color: AppColors.voiceFeedbackBlue, size: 24),
+                                            const SizedBox(width: 8),
+                                          ],
+                                          Text(
+                                            _isListening
+                                                ? 'Estou ouvindo... Toque para parar'
+                                                : 'Toque no rosto para começar',
+                                            style: TextStyle(
+                                              fontSize: 20,
+                                              fontWeight: FontWeight.w800,
+                                              color: _isListening
+                                                  ? AppColors.voiceFeedbackBlue
+                                                  : AppColors.primary,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  if (_isListening) ...[
+                                    const SizedBox(height: 16),
+                                    AudioWaveformIndicator(isListening: _isListening),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+
+
+
+                            // ENTIDADES RECONHECIDAS EM CHIPS DE ALTO CONTRASTE
+                            if (_transcricao.isNotEmpty)
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(20),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(color: AppColors.primaryContainer, width: 2),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Colors.black12,
+                                      blurRadius: 12,
+                                      offset: Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  children: [
+                                    const Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.record_voice_over, color: AppColors.primary, size: 26),
+                                        SizedBox(width: 8),
+                                        Text(
+                                          'O que eu entendi:',
+                                          style: TextStyle(
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.w800,
+                                            color: AppColors.primary,
+                                          ),
                                         ),
                                       ],
                                     ),
-                                    child: Icon(
-                                      _isListening ? Icons.stop : Icons.mic,
-                                      color: _isListening
-                                          ? Colors.white
-                                          : AppColors.onSecondaryContainer,
-                                      size: 36,
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      '"$_transcricao"',
+                                      style: const TextStyle(
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.onSurface,
+                                      ),
+                                      textAlign: TextAlign.center,
                                     ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                              decoration: BoxDecoration(
-                                color: _isListening
-                                    ? AppColors.voiceFeedbackBlue.withValues(alpha: 0.1)
-                                    : AppColors.surfaceContainerLow,
-                                borderRadius: BorderRadius.circular(9999),
-                                border: Border.all(
-                                  color: _isListening
-                                      ? AppColors.voiceFeedbackBlue
-                                      : AppColors.outlineVariant,
-                                  width: 2,
-                                ),
-                              ),
-                              child: Text(
-                                _isListening
-                                    ? 'Estou ouvindo... Toque para parar'
-                                    : 'Toque no rosto para começar',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w700,
-                                  color: _isListening
-                                      ? AppColors.voiceFeedbackBlue
-                                      : AppColors.primary,
+                                    const SizedBox(height: 16),
+                                    ElevatedButton.icon(
+                                      onPressed: () async {
+                                        if (_isListening) {
+                                          await _speech.stop();
+                                          setState(() {
+                                            _isListening = false;
+                                            _hasRecorded = true;
+                                          });
+                                        }
+                                        _falarConfirmacao();
+                                      },
+                                      icon: const Icon(Icons.volume_up, size: 28),
+                                      label: const Text(
+                                        'Ouvir o Alex repetindo',
+                                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                      ),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppColors.primaryContainer,
+                                        foregroundColor: AppColors.onPrimaryContainer,
+                                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(16),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            ),
-                            if (_isListening) ...[
+                            if (horario != null) ...[
+                              Padding(
+                                padding: const EdgeInsets.only(top: 16),
+                                child: _buildTimeBadge(horario),
+                              ),
                               const SizedBox(height: 16),
-                              AudioWaveformIndicator(isListening: _isListening),
+                              _buildCategorySelector(),
                             ],
                           ],
                         ),
                       ),
-                      const SizedBox(height: 24),
-                      if (_transcricao.isNotEmpty)
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: AppColors.surfaceContainerLow,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Column(
-                            children: [
-                              Text(
-                                _transcricao,
-                                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w600, color: AppColors.onSurface),
-                                textAlign: TextAlign.center,
-                              ),
-                              const SizedBox(height: 12),
-                              ElevatedButton.icon(
-                                onPressed: () async {
-                                  if (_isListening) {
-                                    await _speech.stop();
-                                    setState(() {
-                                      _isListening = false;
-                                      _hasRecorded = true;
-                                    });
-                                  }
-                                  _falarConfirmacao();
-                                },
-                                icon: const Icon(Icons.volume_up, size: 28),
-                                label: const Text(
-                                  'Ouvir o lembrete',
-                                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                                ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.primaryContainer,
-                                  foregroundColor: AppColors.onPrimaryContainer,
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      if (horario != null) ...[
-                        Padding(
-                          padding: const EdgeInsets.only(top: 12),
-                          child: _buildTimeBadge(horario),
-                        ),
-                        const SizedBox(height: 12),
-                        _buildCategorySelector(),
-                      ],
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 12),
+                    _buildBottomPanel(horario),
+                    const SizedBox(height: 12),
+                  ],
                 ),
               ),
-              const SizedBox(height: 12),
-              _buildBottomPanel(horario),
-              const SizedBox(height: 12),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
-    ],
-  ),
-),
-);
+    );
   }
 }
 

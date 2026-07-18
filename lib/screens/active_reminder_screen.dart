@@ -10,6 +10,7 @@ import '../services/lembrete_service.dart';
 import '../services/tts_service.dart';
 import '../services/notification_service.dart';
 import '../services/vibration_service.dart';
+import '../services/session_role_service.dart';
 import '../utils/audio_path_helper.dart';
 import '../utils/period_helper.dart';
 import '../widgets/index.dart';
@@ -37,6 +38,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
   Timer? _urgencyReinforcementTimer;
   Timer? _noResponseTimer;
   bool _isProcessingAction = false;
+  bool _isPaired = false;
 
   void _runInBackground(Future<void> future, String action) {
     unawaited(
@@ -52,6 +54,16 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
     WidgetsBinding.instance.addObserver(this);
     LembreteService.instance.carregar();
     LembreteService.instance.notifier.addListener(_onLembretesChanged);
+    _loadPairedStatus();
+  }
+
+  Future<void> _loadPairedStatus() async {
+    final connected = await SessionRoleService.isElderlyConnectedToSupervisor();
+    if (mounted) {
+      setState(() {
+        _isPaired = connected;
+      });
+    }
   }
 
   void _onLembretesChanged() {
@@ -1082,61 +1094,68 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                               ),
                             ),
                             const SizedBox(height: 16),
+                            // BOTAO PRECISO DE AJUDA (Apenas se tiver ajudante conectado)
                             SizedBox(
                               width: double.infinity,
                               height: 80,
                               child: ElevatedButton.icon(
-                                onPressed: () async {
-                                  if (_isProcessingAction) return;
-                                  setState(() => _isProcessingAction = true);
-                                  try {
-                                    _isSpeakingLoopActive = false;
-                                    _isLoopPaused = false;
-                                    VibrationService.stopVibration();
-                                    TTSService.instance.parar();
-                                    final navigator = Navigator.of(context);
-                                    if (lembrete != null) {
-                                      _runInBackground(
-                                        NotificationService.instance.cancelar(
-                                          lembrete!.id,
-                                        ),
-                                        'cancelar notificacao',
-                                      );
-                                      try {
-                                        final ok = await LembreteService.instance
-                                            .registrarDificuldade(
-                                          lembrete!.id,
-                                          'O idoso informou que nao conseguiu realizar a atividade.',
-                                        );
-                                        if (!ok) return;
-                                        navigator.pushNamedAndRemoveUntil(
-                                          '/reinforcement-alert',
-                                          (route) => false,
-                                          arguments: {
-                                            'categoria': lembrete?.categoria,
-                                            'tipo': 'dificuldade',
-                                          },
-                                        );
-                                      } catch (e) {
-                                        debugPrint('Erro ao registrar dificuldade: $e');
-                                        if (mounted) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(
-                                              content: Text('Erro ao registrar dificuldade: $e'),
-                                              backgroundColor: AppColors.error,
-                                            ),
-                                          );
+                                onPressed: _isPaired
+                                    ? () async {
+                                        if (_isProcessingAction) return;
+                                        setState(() => _isProcessingAction = true);
+                                        try {
+                                          _isSpeakingLoopActive = false;
+                                          _isLoopPaused = false;
+                                          VibrationService.stopVibration();
+                                          TTSService.instance.parar();
+                                          final navigator = Navigator.of(context);
+                                          if (lembrete != null) {
+                                            _runInBackground(
+                                              NotificationService.instance.cancelar(
+                                                lembrete!.id,
+                                              ),
+                                              'cancelar notificacao',
+                                            );
+                                            try {
+                                              final ok = await LembreteService.instance
+                                                  .registrarDificuldade(
+                                                lembrete!.id,
+                                                'O idoso informou que nao conseguiu realizar a atividade.',
+                                              );
+                                              if (!ok) return;
+                                              navigator.pushNamedAndRemoveUntil(
+                                                '/reinforcement-alert',
+                                                (route) => false,
+                                                arguments: {
+                                                  'categoria': lembrete?.categoria,
+                                                  'tipo': 'dificuldade',
+                                                },
+                                              );
+                                            } catch (e) {
+                                              debugPrint('Erro ao registrar dificuldade: $e');
+                                              if (mounted) {
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  SnackBar(
+                                                    content: Text('Erro ao registrar dificuldade: $e'),
+                                                    backgroundColor: AppColors.error,
+                                                  ),
+                                                );
+                                              }
+                                            }
+                                          }
+                                        } finally {
+                                          if (mounted) {
+                                            setState(() => _isProcessingAction = false);
+                                          }
                                         }
                                       }
-                                    }
-                                  } finally {
-                                    if (mounted) {
-                                      setState(() => _isProcessingAction = false);
-                                    }
-                                  }
-                                },
-                                icon: const Icon(Icons.support_agent, size: 30),
-                                label: const FittedBox(
+                                    : null,
+                                icon: Icon(
+                                  Icons.support_agent,
+                                  size: 30,
+                                  color: _isPaired ? Colors.white : Colors.grey.shade600,
+                                ),
+                                label: FittedBox(
                                   fit: BoxFit.scaleDown,
                                   child: Text(
                                     'PRECISO DE AJUDA',
@@ -1144,20 +1163,34 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                     style: TextStyle(
                                       fontSize: 20,
                                       fontWeight: FontWeight.w800,
+                                      color: _isPaired ? Colors.white : Colors.grey.shade600,
                                     ),
                                   ),
                                 ),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: isHighContrast ? Colors.red : const Color(0xFFD32F2F),
+                                  disabledBackgroundColor: Colors.grey.shade300,
                                   foregroundColor: Colors.white,
-                                  elevation: 4,
+                                  elevation: _isPaired ? 4 : 0,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(24),
                                   ),
-                                  side: isHighContrast ? const BorderSide(color: Colors.black, width: 3) : null,
+                                  side: isHighContrast && _isPaired ? const BorderSide(color: Colors.black, width: 3) : null,
                                 ),
                               ),
                             ),
+                            if (!_isPaired) ...[
+                              const SizedBox(height: 8),
+                              const Text(
+                                'Precisa de um ajudante conectado para pedir ajuda',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
                             const SizedBox(height: 100),
                           ],
                         ),

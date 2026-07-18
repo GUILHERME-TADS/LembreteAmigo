@@ -75,7 +75,7 @@ class _MedicationConfirmationScreenState extends State<MedicationConfirmationScr
       return const _ConfirmationConfig(
         icon: Icons.water_drop,
         color: Color(0xFF0288D1),
-        titleText: 'HORA DE BEBER ÁGUA',
+        titleText: 'HORA DA HIDRATAÇÃO',
         statusText: 'Água Bebida',
         tip: 'Parabéns por beber água!',
         detailedExplanation: 'Muito bem! Você bebeu a sua água. Parabéns por cuidar do seu corpo! Agora, aperte no botão amarelo abaixo para voltar à tela inicial.',
@@ -88,7 +88,7 @@ class _MedicationConfirmationScreenState extends State<MedicationConfirmationScr
       return const _ConfirmationConfig(
         icon: Icons.restaurant,
         color: AppColors.mealsColor,
-        titleText: 'HORA DE COMER',
+        titleText: 'HORA DA REFEIÇÃO',
         statusText: 'Você Comeu',
         tip: 'Comer nos horários certos cuida do seu corpo!',
         detailedExplanation: 'Muito bem! Você comeu. Parabéns por cuidar do seu corpo! Agora, aperte no botão amarelo abaixo para voltar à tela inicial.',

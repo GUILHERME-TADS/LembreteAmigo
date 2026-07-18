@@ -85,7 +85,7 @@ class _PostponeConfirmationScreenState extends State<PostponeConfirmationScreen>
         return _CategoryConfig(
           icon: Icons.restaurant,
           color: AppColors.mealsColor,
-          titleText: 'HORA DE COMER',
+          titleText: 'HORA DA REFEIÇÃO',
           message: isDificuldade
               ? 'Tudo bem, não se preocupe! Já enviei um recado para o seu cuidador avisando que você precisa de ajuda para comer.'
               : 'Combinado! Não se preocupe, eu vou te lembrar de comer novamente em dez minutos.',
@@ -100,7 +100,7 @@ class _PostponeConfirmationScreenState extends State<PostponeConfirmationScreen>
         return _CategoryConfig(
           icon: Icons.water_drop,
           color: const Color(0xFF0288D1),
-          titleText: 'HORA DE BEBER ÁGUA',
+          titleText: 'HORA DA HIDRATAÇÃO',
           message: isDificuldade
               ? 'Tudo bem, não se preocupe! Já enviei um recado para o seu cuidador avisando que você precisa de ajuda para beber água.'
               : 'Combinado! Não se preocupe, eu vou te lembrar de beber água novamente em dez minutos.',

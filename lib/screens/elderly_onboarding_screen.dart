@@ -25,8 +25,8 @@ class _ElderlyOnboardingScreenState extends State<ElderlyOnboardingScreen> {
     _OnboardingStep(
       icon: Icons.campaign,
       title: 'Lembretes\nem Voz Alta',
-      subtitle: 'O aplicativo vai falar com você sobre remédios, comida, água e exercícios.',
-      ttsMessage: 'Eu vou falar em voz alta para ajudar você. Você vai ouvir sobre remédios, comida, água e exercícios.',
+      subtitle: 'O aplicativo vai falar com você sobre remédios, refeições, hidratação e exercícios.',
+      ttsMessage: 'Eu vou falar em voz alta para ajudar você. Você vai ouvir sobre remédios, refeições, hidratação e exercícios.',
     ),
     _OnboardingStep(
       icon: Icons.mic,

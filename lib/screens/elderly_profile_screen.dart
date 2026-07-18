@@ -894,7 +894,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                           if (lembretesReais.isEmpty)
                             _buildEmptyState(
                               'Nenhum lembrete de rotina cadastrado.',
-                              Icons.notifications_none,
+                              Icons.notifications_off_outlined,
                             )
                           else
                             ...lembretesReais.map((lembrete) {

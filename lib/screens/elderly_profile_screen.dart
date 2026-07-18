@@ -630,7 +630,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
       backgroundColor: AppColors.background,
       floatingActionButton: const AlexFloatingHelpButton(
         textoExplicacao:
-            'Olá! Esta é a tela com os seus dados. Aqui você vê seu nome, telefone, remédios e tarefas. Para mudar sua foto, aperte no círculo da foto. Para mudar seus dados ou conectar com um ajudante, use os botões da lista abaixo.',
+            'Olá! Esta é a tela com os seus dados. Aqui você vê seu nome, telefone, remédios e tarefas. Para mudar sua foto, aperte no círculo da foto. Para mudar seus dados, aperte o botão amarelo. Para arrumar a minha voz, aperte o botão azul.',
       ),
       body: SafeArea(
         child: Column(
@@ -1013,8 +1013,8 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                                       );
                                     },
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppColors.secondaryContainer,
-                                      foregroundColor: AppColors.onSecondaryFixed,
+                                      backgroundColor: AppColors.primaryFixed,
+                                      foregroundColor: AppColors.onPrimaryFixed,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(12),
                                       ),

@@ -1074,7 +1074,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                 label: const FittedBox(
                                   fit: BoxFit.scaleDown,
                                   child: Text(
-                                    'DAQUI A POUCO',
+                                    'DAQUI A POUCO (10 MINUTOS)',
                                     maxLines: 1,
                                     style: TextStyle(
                                       fontSize: 20,

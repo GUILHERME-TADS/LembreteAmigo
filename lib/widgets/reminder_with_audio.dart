@@ -225,9 +225,6 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
         widget.status == ReminderStatus.late ||
         widget.status == ReminderStatus.missed ||
         widget.status == ReminderStatus.needsHelp;
-    final isClosedStatus =
-        isDoneStatus || isPostponed || widget.status == ReminderStatus.missed || widget.status == ReminderStatus.needsHelp;
-
     final Color sideBarColor = isDoneStatus
         ? AppColors.tertiaryFixedDim
         : isAttentionStatus
@@ -270,47 +267,52 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
                     Padding(
                       padding: const EdgeInsets.all(16),
                       child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
+                          GestureDetector(
+                            onTap: widget.onTap,
+                            behavior: HitTestBehavior.opaque,
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: isDoneStatus
+                                    ? AppColors.tertiaryFixedDim.withValues(
+                                        alpha: 0.3,
+                                      )
+                                    : isAttentionStatus
+                                    ? AppColors.error.withValues(alpha: 0.15)
+                                    : isPostponed
+                                    ? AppColors.secondaryFixed.withValues(
+                                        alpha: 0.3,
+                                      )
+                                    : widget.iconBg,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                widget.icon,
+                                color: isDoneStatus
+                                    ? AppColors.onTertiaryFixedVariant
+                                    : isAttentionStatus
+                                    ? AppColors.error
+                                    : isPostponed
+                                    ? AppColors.onSecondaryFixedVariant
+                                    : widget.iconColor,
+                                size: 32,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
                           Expanded(
-                            child: GestureDetector(
-                              onTap: widget.onTap,
-                              behavior: HitTestBehavior.opaque,
-                              child: Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: isDoneStatus
-                                          ? AppColors.tertiaryFixedDim.withValues(
-                                              alpha: 0.3,
-                                            )
-                                          : isAttentionStatus
-                                          ? AppColors.error.withValues(alpha: 0.15)
-                                          : isPostponed
-                                          ? AppColors.secondaryFixed.withValues(
-                                              alpha: 0.3,
-                                            )
-                                          : widget.iconBg,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: Icon(
-                                      widget.icon,
-                                      color: isDoneStatus
-                                          ? AppColors.onTertiaryFixedVariant
-                                          : isAttentionStatus
-                                          ? AppColors.error
-                                          : isPostponed
-                                          ? AppColors.onSecondaryFixedVariant
-                                          : widget.iconColor,
-                                      size: 32,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                GestureDetector(
+                                  onTap: widget.onTap,
+                                  behavior: HitTestBehavior.opaque,
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
                                           widget.title,
                                           maxLines: 2,
                                           overflow: TextOverflow.ellipsis,
@@ -328,15 +330,23 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
                                                 : widget.accentColor,
                                           ),
                                         ),
-                                        const SizedBox(height: 8),
-                                        Column(
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    Expanded(
+                                      child: GestureDetector(
+                                        onTap: widget.onTap,
+                                        behavior: HitTestBehavior.opaque,
+                                        child: Column(
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: [
-                                            Column(
-                                              mainAxisSize: MainAxisSize.min,
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.center,
+                                            Row(
                                               children: [
                                                 Icon(
                                                   PeriodHelper.getPeriodIconFromStr(
@@ -349,7 +359,7 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
                                                         widget.accentColor,
                                                       ),
                                                 ),
-                                                const SizedBox(height: 8),
+                                                const SizedBox(width: 8),
                                                 Container(
                                                   padding: const EdgeInsets.symmetric(
                                                     horizontal: 10,
@@ -389,111 +399,116 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
                                             ),
                                           ],
                                         ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        GestureDetector(
+                                          onTap: _togglePlay,
+                                          child: Container(
+                                            width: 56,
+                                            height: 56,
+                                            decoration: BoxDecoration(
+                                              color: _isPlaying || _isSpeaking
+                                                  ? (isDoneStatus
+                                                        ? AppColors.tertiaryFixedDim
+                                                        : isPostponed
+                                                        ? AppColors.secondaryFixed
+                                                        : isAttentionStatus
+                                                        ? AppColors.error.withValues(alpha: 0.2)
+                                                        : widget.accentColor.withValues(
+                                                            alpha: 0.2,
+                                                          ))
+                                                  : widget.accentColor.withValues(alpha: 0.1),
+                                              shape: BoxShape.rectangle,
+                                              borderRadius: BorderRadius.circular(14),
+                                              border: Border.all(
+                                                color: isDoneStatus
+                                                    ? AppColors.onTertiaryFixedVariant
+                                                    : isPostponed
+                                                    ? AppColors.onSecondaryFixedVariant
+                                                    : isAttentionStatus
+                                                    ? AppColors.error
+                                                    : widget.accentColor,
+                                                width: 3,
+                                              ),
+                                            ),
+                                            child: Icon(
+                                              _isPlaying || _isSpeaking
+                                                  ? Icons.stop
+                                                  : Icons.play_arrow,
+                                              color: isDoneStatus
+                                                  ? AppColors.onTertiaryFixedVariant
+                                                  : isPostponed
+                                                  ? AppColors.onSecondaryFixedVariant
+                                                  : isAttentionStatus
+                                                  ? AppColors.error
+                                                  : widget.accentColor,
+                                              size: 32,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        GestureDetector(
+                                          onTap: widget.onStatusTap ?? widget.onTap,
+                                          child: Container(
+                                            width: 56,
+                                            height: 56,
+                                            decoration: BoxDecoration(
+                                              color: isDoneStatus
+                                                  ? const Color(0xFFC8E6C9)
+                                                  : isPostponed
+                                                  ? const Color(0xFFFFF59D)
+                                                  : isAttentionStatus
+                                                  ? const Color(0xFFFFCDD2)
+                                                  : widget.accentColor.withValues(alpha: 0.1),
+                                              shape: BoxShape.rectangle,
+                                              borderRadius: BorderRadius.circular(14),
+                                              border: Border.all(
+                                                color: isDoneStatus
+                                                    ? const Color(0xFF388E3C)
+                                                    : isPostponed
+                                                    ? const Color(0xFFFBC02D)
+                                                    : isAttentionStatus
+                                                    ? AppColors.error
+                                                    : widget.accentColor,
+                                                width: 3,
+                                              ),
+                                            ),
+                                            child: isDoneStatus ||
+                                                    isPostponed ||
+                                                    isAttentionStatus
+                                                ? Icon(
+                                                    isDoneStatus
+                                                        ? Icons.check
+                                                        : isPostponed
+                                                            ? Icons.schedule
+                                                            : widget.status == ReminderStatus.needsHelp
+                                                                ? Icons.support_agent
+                                                            : widget.status == ReminderStatus.missed
+                                                                ? Icons.close
+                                                                : Icons.priority_high,
+                                                    color: isDoneStatus
+                                                        ? const Color(0xFF005312)
+                                                        : isPostponed
+                                                            ? const Color(0xFF827717)
+                                                            : AppColors.error,
+                                                    size: 32,
+                                                  )
+                                                : Icon(
+                                                    Icons.radio_button_unchecked,
+                                                    color: isHighContrast ? Colors.black : widget.accentColor,
+                                                    size: 32,
+                                                  ),
+                                          ),
+                                        ),
                                       ],
                                     ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          GestureDetector(
-                            onTap: _togglePlay,
-                            child: Container(
-                              width: 56,
-                              height: 56,
-                              decoration: BoxDecoration(
-                                color: _isPlaying || _isSpeaking
-                                    ? (isDoneStatus
-                                          ? AppColors.tertiaryFixedDim
-                                          : isPostponed
-                                          ? AppColors.secondaryFixed
-                                          : isAttentionStatus
-                                          ? AppColors.error.withValues(alpha: 0.2)
-                                          : widget.accentColor.withValues(
-                                              alpha: 0.2,
-                                            ))
-                                    : widget.accentColor.withValues(alpha: 0.1),
-                                shape: BoxShape.rectangle,
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(
-                                  color: isDoneStatus
-                                      ? AppColors.onTertiaryFixedVariant
-                                      : isPostponed
-                                      ? AppColors.onSecondaryFixedVariant
-                                      : isAttentionStatus
-                                      ? AppColors.error
-                                      : widget.accentColor,
-                                  width: 3,
+                                  ],
                                 ),
-                              ),
-                              child: Icon(
-                                _isPlaying || _isSpeaking
-                                    ? Icons.stop
-                                    : Icons.play_arrow,
-                                color: isDoneStatus
-                                    ? AppColors.onTertiaryFixedVariant
-                                    : isPostponed
-                                    ? AppColors.onSecondaryFixedVariant
-                                    : isAttentionStatus
-                                    ? AppColors.error
-                                    : widget.accentColor,
-                                size: 32,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          GestureDetector(
-                            onTap: widget.onStatusTap ?? widget.onTap,
-                            child: Container(
-                              width: 56,
-                              height: 56,
-                              decoration: BoxDecoration(
-                                color: isDoneStatus
-                                    ? const Color(0xFFC8E6C9)
-                                    : isPostponed
-                                    ? const Color(0xFFFFF59D)
-                                    : isAttentionStatus
-                                    ? const Color(0xFFFFCDD2)
-                                    : widget.accentColor.withValues(alpha: 0.1),
-                                shape: BoxShape.rectangle,
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(
-                                  color: isDoneStatus
-                                      ? const Color(0xFF388E3C)
-                                      : isPostponed
-                                      ? const Color(0xFFFBC02D)
-                                      : isAttentionStatus
-                                      ? AppColors.error
-                                      : widget.accentColor,
-                                  width: 3,
-                                ),
-                              ),
-                              child: isDoneStatus ||
-                                      isPostponed ||
-                                      isAttentionStatus
-                                  ? Icon(
-                                      isDoneStatus
-                                          ? Icons.check
-                                          : isPostponed
-                                              ? Icons.schedule
-                                              : widget.status == ReminderStatus.needsHelp
-                                                  ? Icons.support_agent
-                                              : widget.status == ReminderStatus.missed
-                                                  ? Icons.close
-                                                  : Icons.priority_high,
-                                      color: isDoneStatus
-                                          ? const Color(0xFF005312)
-                                          : isPostponed
-                                              ? const Color(0xFF827717)
-                                              : AppColors.error,
-                                      size: 32,
-                                    )
-                                  : Icon(
-                                      Icons.radio_button_unchecked,
-                                      color: isHighContrast ? Colors.black : widget.accentColor,
-                                      size: 32,
-                                    ),
+                              ],
                             ),
                           ),
                         ],

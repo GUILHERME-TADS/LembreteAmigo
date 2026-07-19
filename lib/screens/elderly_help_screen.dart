@@ -1113,6 +1113,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                     prefixIcon: Icons.local_hospital,
                     controller: controller,
                     keyboardType: TextInputType.phone,
+                    inputFormatters: [AmbulancePhoneInputFormatter()],
                     isListening: isListening,
                     onTapAudio: () {
                       TTSService.instance.falar(
@@ -1152,8 +1153,12 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                             onResult: (result) {
                               String text = result.recognizedWords;
                               text = text.replaceAll(RegExp(r'\D'), '');
-                              controller.text = text;
-                              controller.selection = TextSelection.collapsed(offset: controller.text.length);
+                              final formatter = AmbulancePhoneInputFormatter();
+                              final formattedValue = formatter.formatEditUpdate(
+                                TextEditingValue.empty,
+                                TextEditingValue(text: text),
+                              );
+                              controller.value = formattedValue;
                               if (result.finalResult) {
                                 if (isListening) SystemSound.play(SystemSoundType.click);
                                 setDialogState(() => isListening = false);
@@ -1339,5 +1344,45 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
     } finally {
       if (mounted) setState(() => _isSendingLocation = false);
     }
+  }
+}
+
+class AmbulancePhoneInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final text = newValue.text;
+    if (text.length < oldValue.text.length) {
+      return newValue;
+    }
+    final clean = text.replaceAll(RegExp(r'\D'), '');
+    
+    // Se for um número de emergência curto (3 a 4 dígitos, como 192, 193) não coloca parênteses
+    if (clean.length <= 4) {
+      return TextEditingValue(
+        text: clean,
+        selection: TextSelection.collapsed(offset: clean.length),
+      );
+    }
+    
+    // Formata no padrão de telefone/celular: (XX) XXXXX-XXXX
+    final buffer = StringBuffer();
+    for (int i = 0; i < clean.length; i++) {
+      if (i == 0) buffer.write('(');
+      if (i == 2) buffer.write(') ');
+      if (i == 7 && clean.length > 10) {
+        buffer.write('-');
+      } else if (i == 6 && clean.length <= 10) {
+        buffer.write('-');
+      }
+      if (i < 11) buffer.write(clean[i]);
+    }
+    final formatted = buffer.toString();
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
   }
 }

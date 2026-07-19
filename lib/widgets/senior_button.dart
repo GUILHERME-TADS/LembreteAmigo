@@ -27,8 +27,11 @@ class SeniorButton extends StatelessWidget {
     return Container(
       width: double.infinity,
       constraints: BoxConstraints(minHeight: height),
-      child: ElevatedButton(
-        onPressed: onPressed,
+      child: Semantics(
+        button: true,
+        label: label,
+        child: ElevatedButton(
+          onPressed: onPressed,
         style: ElevatedButton.styleFrom(
           backgroundColor: bg,
           foregroundColor: fg,
@@ -58,6 +61,7 @@ class SeniorButton extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -100,12 +104,19 @@ class SeniorBottomNav extends StatelessWidget {
     final textScale = MediaQuery.textScalerOf(context).scale(14);
     return GestureDetector(
       onTap: () => onTap?.call(index),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.secondaryContainer : null,
-          borderRadius: BorderRadius.circular(12),
-        ),
+      child: Semantics(
+        button: true,
+        label: label,
+        selected: selected,
+        child: Tooltip(
+          message: label,
+          preferBelow: false,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: selected ? AppColors.secondaryContainer : null,
+              borderRadius: BorderRadius.circular(12),
+            ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -128,6 +139,8 @@ class SeniorBottomNav extends StatelessWidget {
               ),
             ],
           ],
+        ),
+      ),
         ),
       ),
     );

@@ -1781,14 +1781,17 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                     ),
                                     if (remainingTime.isNotEmpty) ...[
                                       const SizedBox(height: 4),
-                                      Text(
-                                        remainingTime.toUpperCase(),
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w900,
-                                          color: isHighContrast
-                                              ? Colors.black
-                                              : Colors.red[700],
+                                      Semantics(
+                                        label: 'Faltam $remainingTime para este lembrete.',
+                                        child: Text(
+                                          remainingTime.toUpperCase(),
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w900,
+                                            color: isHighContrast
+                                                ? Colors.black
+                                                : Colors.red[700],
+                                          ),
                                         ),
                                       ),
                                     ],
@@ -1798,15 +1801,18 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                             ],
                           ),
                           const SizedBox(height: 16),
-                          Text(
-                            '${lembrete.titulo} — ${lembrete.horarioFormatado}',
-                            style: TextStyle(
-                              fontSize: 26,
-                              fontWeight: FontWeight.w900,
-                              color: isHighContrast
-                                  ? Colors.black
-                                  : AppColors.primary,
-                              height: 1.2,
+                          Semantics(
+                            label: 'Lembrete: ${lembrete.titulo}, marcado para ${lembrete.horarioFormatado}',
+                            child: Text(
+                              '${lembrete.titulo} — ${lembrete.horarioFormatado}',
+                              style: TextStyle(
+                                fontSize: 26,
+                                fontWeight: FontWeight.w900,
+                                color: isHighContrast
+                                    ? Colors.black
+                                    : AppColors.primary,
+                                height: 1.2,
+                              ),
                             ),
                           ),
                           const SizedBox(height: 16),

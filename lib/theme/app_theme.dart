@@ -135,12 +135,12 @@ class AppRadius {
 
 class AppTheme {
   static TextTheme get _boldTextTheme => const TextTheme(
-    bodyLarge: TextStyle(fontWeight: FontWeight.bold),
-    bodyMedium: TextStyle(fontWeight: FontWeight.bold),
-    bodySmall: TextStyle(fontWeight: FontWeight.bold),
-    labelLarge: TextStyle(fontWeight: FontWeight.bold),
-    labelMedium: TextStyle(fontWeight: FontWeight.bold),
-    labelSmall: TextStyle(fontWeight: FontWeight.bold),
+    bodyLarge: TextStyle(fontWeight: FontWeight.w500),
+    bodyMedium: TextStyle(fontWeight: FontWeight.w500),
+    bodySmall: TextStyle(fontWeight: FontWeight.w500),
+    labelLarge: TextStyle(fontWeight: FontWeight.w500),
+    labelMedium: TextStyle(fontWeight: FontWeight.w500),
+    labelSmall: TextStyle(fontWeight: FontWeight.w500),
     titleLarge: TextStyle(fontWeight: FontWeight.bold),
     titleMedium: TextStyle(fontWeight: FontWeight.bold),
     titleSmall: TextStyle(fontWeight: FontWeight.bold),

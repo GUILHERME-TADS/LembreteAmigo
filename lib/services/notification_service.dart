@@ -416,7 +416,7 @@ class NotificationService {
       importance: Importance.max,
       priority: Priority.max,
       category: AndroidNotificationCategory.call,
-      fullScreenIntent: true,
+      fullScreenIntent: false,
       ongoing: true,
       autoCancel: false,
       playSound: true,

@@ -34,8 +34,8 @@ class AlarmService {
     final bodyText = (isMedication &&
             lembrete.medicamentoInstrucoes != null &&
             lembrete.medicamentoInstrucoes!.isNotEmpty)
-        ? '${lembrete.horarioFormatado} • ${lembrete.titulo}\nInstruções: ${lembrete.medicamentoInstrucoes}\n[Toque para abrir]'
-        : '${lembrete.horarioFormatado} • ${lembrete.titulo}\n[Toque para abrir]';
+        ? '${lembrete.horarioFormatado} • ${lembrete.titulo}\nInstruções: ${lembrete.medicamentoInstrucoes}\nToque para abrir'
+        : '${lembrete.horarioFormatado} • ${lembrete.titulo}\nToque para abrir';
 
     final alarmSettings = AlarmSettings(
       id: id,

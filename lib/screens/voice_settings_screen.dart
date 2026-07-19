@@ -221,7 +221,7 @@ class _VoiceSettingsScreenState extends State<VoiceSettingsScreen> {
                   : () async {
                       final newValue = !_alwaysListeningEnabled;
                       final success = await AlwaysListeningService.instance.setEnabled(newValue);
-                      if (mounted) {
+                      if (context.mounted) {
                         setState(() {
                           _alwaysListeningEnabled = AlwaysListeningService.instance.enabled.value;
                         });

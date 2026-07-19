@@ -337,7 +337,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                 Navigator.pop(context);
                 try {
                   await MessageService.instance.deleteMessage(message.id);
-                  if (mounted) {
+                  if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Recado apagado.'),
@@ -346,7 +346,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                     );
                   }
                 } catch (e) {
-                  if (mounted) {
+                  if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text(
@@ -550,7 +550,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.06),
+                color: Colors.black.withValues(alpha: 0.06),
                 blurRadius: 1,
                 offset: const Offset(0, 1),
               ),

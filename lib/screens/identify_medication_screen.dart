@@ -112,7 +112,7 @@ class _IdentifyMedicationScreenState
                             File(_fotoPath!),
                             height: 300,
                             fit: BoxFit.contain,
-                            errorBuilder: (_, __, ___) =>
+                            errorBuilder: (_, error, stackTrace) =>
                                 const Icon(Icons.broken_image, size: 64),
                           ),
                         )

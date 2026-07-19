@@ -322,7 +322,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
         await prefs.setString('idoso_perfil', jsonEncode(data));
       }
 
-      if (!mounted) return;
+      if (!context.mounted) return;
       final messenger = ScaffoldMessenger.of(context);
       final message = syncError == null
           ? 'Pronto. O cuidador foi desconectado.'
@@ -334,7 +334,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
       await _loadProfile();
     } catch (e) {
       debugPrint('Erro ao desvincular: $e');
-      if (mounted) {
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Não consegui desconectar o cuidador. Tente de novo.')),
         );

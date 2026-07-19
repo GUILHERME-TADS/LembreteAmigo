@@ -104,8 +104,9 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
 
   String get _motivoAlerta {
     final lembrete = widget.lembrete;
-    if (lembrete == null)
+    if (lembrete == null) {
       return 'Existe uma atividade recente que precisa de verificacao.';
+    }
     switch (reminderVisualStatusFromLembrete(lembrete)) {
       case ReminderStatus.needsHelp:
         return 'pediu ajuda no lembrete "${lembrete.titulo}".';

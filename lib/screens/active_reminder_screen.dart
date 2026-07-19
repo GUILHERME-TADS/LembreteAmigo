@@ -642,9 +642,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                     : () async {
                                         if (!_tryStartAction()) return;
                                         try {
-                                          final navigator = Navigator.of(
-                                            context,
-                                          );
+                                          final navigator = Navigator.of(context);
                                           _isLoopPaused = true;
                                           VibrationService.stopVibration();
                                           AudioManager.stopAll();
@@ -661,7 +659,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                           if (requiresPhoto) {
                                             final id = lembrete?.id;
                                             if (id == null || id.isEmpty) {
-                                              if (mounted) {
+                                              if (context.mounted) {
                                                 setState(
                                                   () => _notFound = true,
                                                 );
@@ -674,7 +672,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                               '/take-photo-confirmation',
                                               arguments: id,
                                             );
-                                            if (mounted) {
+                                            if (context.mounted) {
                                               _isLoopPaused = false;
                                             }
                                           } else {
@@ -708,7 +706,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                                 debugPrint(
                                                   'Erro ao concluir lembrete: $e',
                                                 );
-                                                if (mounted) {
+                                                if (context.mounted) {
                                                   ScaffoldMessenger.of(
                                                     context,
                                                   ).showSnackBar(
@@ -725,7 +723,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                             }
                                           }
                                         } finally {
-                                          if (mounted) {
+                                          if (context.mounted) {
                                             setState(
                                               () => _isProcessingAction = false,
                                             );
@@ -801,7 +799,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                               debugPrint(
                                                 'Erro ao adiar lembrete: $e',
                                               );
-                                              if (mounted) {
+                                              if (context.mounted) {
                                                 ScaffoldMessenger.of(
                                                   context,
                                                 ).showSnackBar(
@@ -817,7 +815,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                             }
                                           }
                                         } finally {
-                                          if (mounted) {
+                                          if (context.mounted) {
                                             setState(
                                               () => _isProcessingAction = false,
                                             );
@@ -866,14 +864,14 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                     ? () async {
                                         if (!_tryStartAction()) return;
                                         try {
+                                          final navigator = Navigator.of(
+                                            context,
+                                          );
                                           _isSpeakingLoopActive = false;
                                           _isLoopPaused = false;
                                           VibrationService.stopVibration();
                                           await _familyAudioPlayer.stop();
                                           TTSService.instance.parar();
-                                          final navigator = Navigator.of(
-                                            context,
-                                          );
                                           if (lembrete != null) {
                                             _runInBackground(
                                               NotificationService.instance
@@ -901,7 +899,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                               debugPrint(
                                                 'Erro ao registrar dificuldade: $e',
                                               );
-                                              if (mounted) {
+                                              if (context.mounted) {
                                                 ScaffoldMessenger.of(
                                                   context,
                                                 ).showSnackBar(
@@ -917,7 +915,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                             }
                                           }
                                         } finally {
-                                          if (mounted) {
+                                          if (context.mounted) {
                                             setState(
                                               () => _isProcessingAction = false,
                                             );

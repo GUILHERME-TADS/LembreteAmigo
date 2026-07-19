@@ -152,7 +152,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
             width: 72,
             height: 72,
             fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => const Icon(
+            errorBuilder: (_, error, stackTrace) => const Icon(
               Icons.check_circle,
               color: AppColors.onTertiaryFixedVariant,
               size: 36,
@@ -163,7 +163,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
             width: 72,
             height: 72,
             fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => const Icon(
+            errorBuilder: (_, error, stackTrace) => const Icon(
               Icons.check_circle,
               color: AppColors.onTertiaryFixedVariant,
               size: 36,

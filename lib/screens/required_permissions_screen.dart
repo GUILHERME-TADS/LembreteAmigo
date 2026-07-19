@@ -71,7 +71,7 @@ class _RequiredPermissionsScreenState extends State<RequiredPermissionsScreen>
             Expanded(child: _loading ? const Center(child: CircularProgressIndicator())
               : ListView.separated(
                   itemCount: _items.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  separatorBuilder: (_, index) => const SizedBox(height: 8),
                   itemBuilder: (_, index) {
                     final item = _items[index];
                     return Card(child: ListTile(

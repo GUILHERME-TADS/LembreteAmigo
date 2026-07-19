@@ -89,7 +89,7 @@ class SupervisorAIService {
 
     final pct = total > 0 ? (concluidos.length / total * 100).round() : 0;
     final summary = pendentes.isEmpty
-        ? 'O idoso concluiu todos os ${total} lembretes de hoje.'
+        ? 'O idoso concluiu todos os $total lembretes de hoje.'
         : 'O idoso concluiu $pct% dos lembretes '
             '(${concluidos.length} de $total). '
             'Ainda pendentes: ${pendentes.length}.';

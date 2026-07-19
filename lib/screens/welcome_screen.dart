@@ -171,10 +171,11 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                 );
                                 await PushNotificationService.instance
                                     .saveCurrentToken();
-                                if (!mounted) return;
+                                if (!context.mounted) return;
                                 if (previousId == user.uid) {
                                   final isPaired =
                                       await SessionRoleService.isElderlyConnectedToSupervisor();
+                                  if (!context.mounted) return;
                                   Navigator.pushNamedAndRemoveUntil(
                                     context,
                                     '/elderly-home',
@@ -182,13 +183,14 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                     arguments: {'connected': isPaired},
                                   );
                                 } else {
+                                  if (!context.mounted) return;
                                   Navigator.pushNamed(
                                     context,
                                     '/elderly-onboarding',
                                   );
                                 }
                               } on FirebaseAuthException catch (e) {
-                                if (!mounted) return;
+                                if (!context.mounted) return;
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text(
@@ -200,7 +202,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                   ),
                                 );
                               } catch (e) {
-                                if (!mounted) return;
+                                if (!context.mounted) return;
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text(
@@ -232,7 +234,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                 await LembreteService.instance.reset();
                                 await MessageService.instance.reset();
                                 await SessionRoleService.setSupervisor();
-                                if (!mounted) return;
+                                if (!context.mounted) return;
                                 Navigator.pushNamed(
                                   context,
                                   '/supervisor-login',

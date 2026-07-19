@@ -625,7 +625,7 @@ class _TakePhotoConfirmationScreenState
                             }
                           } catch (e) {
                             debugPrint('Erro ao processar confirmacao de foto: $e');
-                            if (mounted) {
+                            if (context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text('Não consegui salvar a foto. Tente de novo.'),

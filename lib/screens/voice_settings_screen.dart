@@ -16,25 +16,15 @@ class _VoiceSettingsScreenState extends State<VoiceSettingsScreen> {
   late AlexVoiceProfile _profile;
   late double _speechRate;
   bool _saving = false;
-  bool _alwaysListeningEnabled = false;
-  bool _loadingListeningSetting = true;
 
   @override
   void initState() {
     super.initState();
     _profile = TTSService.instance.voiceProfile;
     _speechRate = _profile.speechRate;
-    _loadListeningSetting();
   }
 
-  Future<void> _loadListeningSetting() async {
-    await AlwaysListeningService.instance.initialize();
-    if (!mounted) return;
-    setState(() {
-      _alwaysListeningEnabled = AlwaysListeningService.instance.enabled.value;
-      _loadingListeningSetting = false;
-    });
-  }
+
 
   Future<void> _testVoice() async {
     try {
@@ -203,119 +193,7 @@ class _VoiceSettingsScreenState extends State<VoiceSettingsScreen> {
                 _buildSpeedPreset('RÁPIDO', '⚡', 0.65),
               ],
             ),
-            const SizedBox(height: 24),
-            const Divider(color: AppColors.outlineVariant),
-            const SizedBox(height: 24),
-            Text(
-              'ALEX OUVINDO',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                fontWeight: FontWeight.w800,
-                color: AppColors.onSurfaceVariant,
-                letterSpacing: 1,
-              ),
-            ),
-            const SizedBox(height: 12),
-            InkWell(
-              onTap: _loadingListeningSetting
-                  ? null
-                  : () async {
-                      final newValue = !_alwaysListeningEnabled;
-                      final success = await AlwaysListeningService.instance.setEnabled(newValue);
-                      if (context.mounted) {
-                        setState(() {
-                          _alwaysListeningEnabled = AlwaysListeningService.instance.enabled.value;
-                        });
-                        if (newValue && !success) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Não consegui ligar a escuta. Se o celular pedir, aperte Permitir para o microfone.',
-                              ),
-                              backgroundColor: AppColors.error,
-                            ),
-                          );
-                        } else {
-                          TTSService.instance.falar(
-                            newValue ? 'Escuta ligada.' : 'Escuta desligada.',
-                          );
-                        }
-                      }
-                    },
-              borderRadius: BorderRadius.circular(20),
-              child: Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: _alwaysListeningEnabled
-                      ? AppColors.tertiary.withValues(alpha: 0.05)
-                      : AppColors.surfaceContainerLow,
-                  border: Border.all(
-                    color: _alwaysListeningEnabled ? AppColors.tertiaryContainer : AppColors.outlineVariant,
-                    width: 2,
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: _alwaysListeningEnabled
-                            ? AppColors.tertiaryContainer.withValues(alpha: 0.2)
-                            : AppColors.outlineVariant.withValues(alpha: 0.2),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        _alwaysListeningEnabled ? Icons.mic : Icons.mic_off,
-                        size: 32,
-                        color: _alwaysListeningEnabled ? AppColors.onTertiaryFixedVariant : AppColors.outline,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Chamar dizendo "Alex"',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.onSurface,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            _alwaysListeningEnabled
-                                ? 'LIGADO - O Alex está ouvindo você'
-                                : 'DESLIGADO - Toque para ligar',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: _alwaysListeningEnabled ? AppColors.onTertiaryFixedVariant : AppColors.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: _alwaysListeningEnabled ? AppColors.tertiaryContainer : AppColors.outlineVariant,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        _alwaysListeningEnabled ? 'SIM' : 'NÃO',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+
             const SizedBox(height: 48),
             SizedBox(
               width: double.infinity,

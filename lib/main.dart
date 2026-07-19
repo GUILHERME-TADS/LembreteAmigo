@@ -75,6 +75,7 @@ import 'services/app_permission_service.dart';
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 final _RouteTracker _routeTracker = _RouteTracker();
 Uri? _pendingWidgetUri;
+bool _reminderNotificationActionInProgress = false;
 const String _lastNotificationLaunchKey = 'last_notification_launch_key';
 const String _lastNotificationLaunchAtKey = 'last_notification_launch_at';
 
@@ -119,6 +120,25 @@ void _openWidgetUri(Uri? uri) {
   } else {
     navigator.pushNamed('/elderly-home');
   }
+}
+
+Future<void> _confirmReminderPostponed() async {
+  const message = 'Tudo bem. Vou lembrar você novamente em 10 minutos.';
+  await TTSService.instance.falar(message);
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    final context = navigatorKey.currentContext;
+    if (context == null) return;
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      const SnackBar(
+        content: Text(
+          message,
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+        ),
+        duration: Duration(seconds: 4),
+      ),
+    );
+  });
 }
 
 bool isElderlyOnlyRoute(String routeName) {
@@ -289,6 +309,8 @@ void main() async {
       };
       NotificationService.instance.onReminderAction =
           (lembreteId, actionId) async {
+        _reminderNotificationActionInProgress = true;
+        try {
         await LembreteService.instance.carregar();
         if (actionId == NotificationService.reminderDoneAction) {
           await LembreteService.instance.concluir(lembreteId);
@@ -300,6 +322,8 @@ void main() async {
           await NotificationService.instance.agendarTodos(
             LembreteService.instance.lembretes,
           );
+          await _confirmReminderPostponed();
+          _reminderNotificationActionInProgress = false;
           return;
         }
         if (actionId == NotificationService.reminderHelpAction) {
@@ -308,6 +332,9 @@ void main() async {
             'Ajuda solicitada pela notificação',
           );
           await NotificationService.instance.cancelar(lembreteId);
+        }
+        } finally {
+        _reminderNotificationActionInProgress = false;
         }
       };
       NotificationService.instance.onMessageAction =
@@ -483,6 +510,13 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    _reminderNotificationActionInProgress =
+        widget.pendingNotificationAction ==
+            NotificationService.reminderDoneAction ||
+        widget.pendingNotificationAction ==
+            NotificationService.reminderPostponeAction ||
+        widget.pendingNotificationAction ==
+            NotificationService.reminderHelpAction;
     WidgetsBinding.instance.addObserver(this);
     unawaited(OfflineSyncService.instance.startAutoSync());
     _loadAccessibilityPreferences();
@@ -714,6 +748,7 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
   }
 
   void _openDueReminderIfNeeded() {
+    if (_reminderNotificationActionInProgress) return;
     if (_lifecycleState != AppLifecycleState.resumed) return;
     if (SessionRoleService.isSupervisor) return;
 
@@ -1160,6 +1195,7 @@ class _AppStartupState extends State<_AppStartup> {
           NotificationService.reminderDoneAction) {
         await LembreteService.instance.concluir(pendingPayload);
         await NotificationService.instance.cancelar(pendingPayload);
+        _reminderNotificationActionInProgress = false;
         return false;
       }
       if (widget.pendingNotificationAction ==
@@ -1168,6 +1204,8 @@ class _AppStartupState extends State<_AppStartup> {
         await NotificationService.instance.agendarTodos(
           LembreteService.instance.lembretes,
         );
+        await _confirmReminderPostponed();
+        _reminderNotificationActionInProgress = false;
         return false;
       }
       if (widget.pendingNotificationAction ==
@@ -1177,6 +1215,7 @@ class _AppStartupState extends State<_AppStartup> {
           'Ajuda solicitada pela notificação',
         );
         await NotificationService.instance.cancelar(pendingPayload);
+        _reminderNotificationActionInProgress = false;
         return false;
       }
       final lembrete = await LembreteService.instance.buscarPorId(
@@ -1192,6 +1231,7 @@ class _AppStartupState extends State<_AppStartup> {
       );
       return true;
     } catch (e) {
+      _reminderNotificationActionInProgress = false;
       debugPrint('Payload de notificacao ignorado na inicializacao: $e');
       return false;
     }

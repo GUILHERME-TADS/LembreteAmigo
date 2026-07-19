@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'alex_voice_profile.dart';
 
@@ -129,6 +131,27 @@ class TTSService {
     _activeCaller = null;
     if (_completer != null && !_completer!.isCompleted) {
       _completer!.complete();
+    }
+  }
+
+  /// Gera um arquivo de áudio local com a voz da assistente e retorna o caminho absoluto.
+  Future<String?> gerarAudioDoTexto(String texto, String idLembrete) async {
+    try {
+      await _applyProfileSettings();
+      final dir = await getApplicationDocumentsDirectory();
+      final extension = Platform.isIOS ? 'caf' : 'wav';
+      final filePath = '${dir.path}/tts_lembrete_$idLembrete.$extension';
+      
+      final result = await _tts.synthesizeToFile(texto, filePath);
+      if (result == 1) {
+        return filePath;
+      } else {
+        debugPrint('Erro ao sintetizar arquivo de áudio para o lembrete $idLembrete');
+        return null;
+      }
+    } catch (e) {
+      debugPrint('Erro inesperado em gerarAudioDoTexto: $e');
+      return null;
     }
   }
 }

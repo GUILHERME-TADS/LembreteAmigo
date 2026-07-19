@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:alarm/alarm.dart';
 
 import 'models/lembrete.dart';
 import 'models/video_call.dart';
@@ -64,6 +65,7 @@ import 'services/voice_notification_service.dart';
 import 'services/widget_service.dart';
 import 'services/analytics_service.dart';
 import 'services/remote_config_service.dart';
+import 'services/alarm_service.dart';
 import 'di/injection.dart';
 
 import 'theme/app_theme.dart';
@@ -231,6 +233,8 @@ class _RouteTracker extends NavigatorObserver {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Alarm.init();
+  AlarmService.instance.init();
   Uri? initialWidgetUri;
   if (!kIsWeb) {
     try {

@@ -10,6 +10,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/lembrete.dart';
 import '../models/smart_alert.dart';
 import '../theme/app_theme.dart';
+import '../services/tts_service.dart';
+import '../services/alarm_service.dart';
 
 class NotificationService {
   NotificationService._();
@@ -67,6 +69,7 @@ class NotificationService {
         _pendingNotificationCancellations.remove(notificationId);
         try {
           await _plugin.cancel(notificationId);
+          await AlarmService.instance.cancelar(notificationId);
         } finally {
           _cancellingNotification = false;
         }
@@ -734,6 +737,13 @@ class NotificationService {
     return _stableStringHash('${id}_$slot');
   }
 
+  String? getLembreteIdByNotificationId(int notificationId) {
+    for (final entry in _scheduledReminderIds.entries) {
+      if (entry.value.contains(notificationId)) return entry.key;
+    }
+    return null;
+  }
+
   int _stableStringHash(String value) {
     var hash = 0x811c9dc5;
     for (final codeUnit in value.codeUnits) {
@@ -758,20 +768,35 @@ class NotificationService {
   }) async {
     final notificationId = _notificationIdFor(lembrete.id, slot);
     _pendingNotificationCancellations.remove(notificationId);
-    await _plugin.zonedSchedule(
-      notificationId,
-      lembrete.categoria == LembreteCategoria.medicacao
-          ? 'Hora do medicamento'
-          : 'Lembrete de ${LembreteCategoria.nome(lembrete.categoria)}',
-      '${lembrete.horarioFormatado} • ${lembrete.titulo}',
-      scheduledDate,
-      _reminderNotificationDetails(lembrete),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-      payload: lembrete.id,
-      matchDateTimeComponents: matchDateTimeComponents,
-    );
+    
+    // Gerar audio dinâmico e tentar agendar via AlarmService
+    final audioText = lembrete.medicamentoAudioTexto != null && lembrete.medicamentoAudioTexto!.isNotEmpty 
+        ? lembrete.medicamentoAudioTexto! 
+        : 'Atenção! Lembrete: ${lembrete.titulo}.';
+        
+    final audioPath = await TTSService.instance.gerarAudioDoTexto(audioText, '${lembrete.id}_$slot');
+    
+    if (audioPath != null) {
+      // Usa o AlarmService (Pacote alarm) com o áudio gerado
+      await AlarmService.instance.agendarAlarmeLembrete(lembrete, scheduledDate, audioPath, notificationId);
+    } else {
+      // Fallback para notificações locais antigas se o TTS falhar
+      await _plugin.zonedSchedule(
+        notificationId,
+        lembrete.categoria == LembreteCategoria.medicacao
+            ? 'Hora do medicamento'
+            : 'Lembrete de ${LembreteCategoria.nome(lembrete.categoria)}',
+        '${lembrete.horarioFormatado} • ${lembrete.titulo}',
+        scheduledDate,
+        _reminderNotificationDetails(lembrete),
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        payload: lembrete.id,
+        matchDateTimeComponents: matchDateTimeComponents,
+      );
+    }
+    
     _scheduledReminderIds.putIfAbsent(lembrete.id, () => <int>{}).add(
           notificationId,
         );

@@ -1,0 +1,52 @@
+import 'dart:async';
+import 'package:alarm/alarm.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import '../models/lembrete.dart';
+import '../services/notification_service.dart';
+import '../main.dart';
+
+class AlarmService {
+  AlarmService._();
+  static final AlarmService instance = AlarmService._();
+
+  StreamSubscription<AlarmSettings>? _ringSubscription;
+
+  void init() {
+    _ringSubscription?.cancel();
+    _ringSubscription = Alarm.ringStream.stream.listen((AlarmSettings settings) async {
+      debugPrint('Alarme tocou! ID: ${settings.id}');
+      final lembreteId = NotificationService.instance.getLembreteIdByNotificationId(settings.id);
+      if (lembreteId != null) {
+        await Alarm.stop(settings.id); // Parar o som nativo para não sobrepor o TTS da tela
+        navigatorKey.currentState?.pushNamed('/active-reminder', arguments: lembreteId);
+      }
+    });
+  }
+
+  Future<void> agendarAlarmeLembrete(
+      Lembrete lembrete, DateTime date, String audioPath, int id) async {
+    final alarmSettings = AlarmSettings(
+      id: id,
+      dateTime: date,
+      assetAudioPath: audioPath,
+      loopAudio: true,
+      vibrate: true,
+      volumeSettings: VolumeSettings.fade(
+        volume: 1.0, 
+        fadeDuration: const Duration(seconds: 3), 
+        volumeEnforced: true,
+      ),
+      notificationSettings: NotificationSettings(
+        title: 'Lembrete Amigo',
+        body: lembrete.titulo,
+        stopButton: 'Abrir',
+      ),
+    );
+    await Alarm.set(alarmSettings: alarmSettings);
+  }
+
+  Future<void> cancelar(int id) async {
+    await Alarm.stop(id);
+  }
+}

@@ -45,6 +45,25 @@ class EmergencyContactService {
     return _phoneFromFirestore('idosos', idosoId);
   }
 
+  Future<void> saveAmbulancePhone(String phone) async {
+    final cleaned = _cleanPhone(phone);
+    if (cleaned == null) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('ambulancia_telefone', cleaned);
+
+    if (Firebase.apps.isNotEmpty) {
+      try {
+        final idosoId = await SessionRoleService.getActiveIdosoId();
+        if (!SessionRoleService.isLocalOnlyIdosoId(idosoId)) {
+          await FirebaseFirestore.instance.collection('idosos').doc(idosoId).set({
+            'ambulancia_telefone': cleaned,
+          }, SetOptions(merge: true));
+        }
+      } catch (_) {}
+    }
+  }
+
   String? _phoneFromJson(String? jsonStr) {
     if (jsonStr == null || jsonStr.isEmpty) return null;
     try {

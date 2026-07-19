@@ -7,6 +7,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:record/record.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
 import '../services/message_service.dart';
 import '../services/emergency_contact_service.dart';
@@ -984,28 +986,25 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                                   );
                                   _ligar(_ambulancePhone!.trim());
                                 }
-                              : null,
-                          icon: Icon(
+                              : _abrirDialogoConfigurarAmbulancia,
+                          icon: const Icon(
                             Icons.local_hospital,
                             size: 32,
-                            color: hasAmbulance
-                                ? Colors.white
-                                : Colors.grey.shade600,
+                            color: Colors.white,
                           ),
                           label: Text(
-                            'Ligar para Ambulância',
-                            style: TextStyle(
+                            hasAmbulance
+                                ? 'Ligar para Ambulância'
+                                : 'Configurar Ambulância',
+                            style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w900,
-                              color: hasAmbulance
-                                  ? Colors.white
-                                  : Colors.grey.shade600,
+                              color: Colors.white,
                             ),
                           ),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.error,
-                            disabledBackgroundColor: Colors.grey.shade300,
-                            elevation: hasAmbulance ? 2 : 0,
+                            elevation: 2,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),
                             ),
@@ -1015,12 +1014,33 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                       if (!hasAmbulance) ...[
                         const SizedBox(height: 8),
                         const Text(
-                          'O número da ambulância ainda não foi colocado',
+                          'Toque acima para adicionar o número',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                             color: AppColors.onSurfaceVariant,
+                          ),
+                        ),
+                      ] else ...[
+                        const SizedBox(height: 8),
+                        TextButton.icon(
+                          onPressed: _abrirDialogoConfigurarAmbulancia,
+                          icon: const Icon(Icons.edit, size: 20, color: AppColors.error),
+                          label: const Text(
+                            'Editar número',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.error,
+                              decoration: TextDecoration.underline,
+                              decorationColor: AppColors.error,
+                            ),
+                          ),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
                         ),
                       ],
@@ -1032,6 +1052,146 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Future<void> _abrirDialogoConfigurarAmbulancia() async {
+    final controller = TextEditingController(text: _ambulancePhone ?? '');
+    final stt.SpeechToText speech = stt.SpeechToText();
+    bool isListening = false;
+    
+    // Anuncia imediatamente ao abrir
+    TTSService.instance.falar(
+      'Por favor, digite o número da ambulância local ou aperte no microfone para falar o número.',
+      caller: this,
+    );
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
+              backgroundColor: AppColors.background,
+              title: const Text(
+                'Número da Ambulância',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                ),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Digite o número da ambulância da sua região (exemplo: 192).',
+                    style: TextStyle(fontSize: 18, color: AppColors.onSurfaceVariant),
+                  ),
+                  const SizedBox(height: 16),
+                  SeniorInputField(
+                    label: 'Ambulância',
+                    placeholder: '192',
+                    prefixIcon: Icons.local_hospital,
+                    controller: controller,
+                    keyboardType: TextInputType.phone,
+                    isListening: isListening,
+                    onTapAudio: () {
+                      TTSService.instance.falar(
+                        'Digite o número da ambulância local ou aperte no microfone para ditar o número em voz alta.',
+                        caller: this,
+                      );
+                    },
+                    onTapMic: () async {
+                      await TTSService.instance.parar(caller: this);
+                      if (isListening) {
+                        await speech.stop();
+                        SystemSound.play(SystemSoundType.click);
+                        setDialogState(() => isListening = false);
+                        return;
+                      }
+                      try {
+                        final available = await speech.initialize(
+                          onError: (e) {
+                            if (isListening) SystemSound.play(SystemSoundType.click);
+                            setDialogState(() => isListening = false);
+                          },
+                          onStatus: (status) {
+                            if (status == stt.SpeechToText.doneStatus || status == stt.SpeechToText.notListeningStatus) {
+                              if (isListening) SystemSound.play(SystemSoundType.click);
+                              setDialogState(() => isListening = false);
+                            }
+                          },
+                        );
+                        if (available) {
+                          setDialogState(() => isListening = true);
+                          SystemSound.play(SystemSoundType.click);
+                          speech.listen(
+                            listenMode: stt.ListenMode.dictation,
+                            localeId: 'pt_BR',
+                            onResult: (result) {
+                              String text = result.recognizedWords;
+                              text = text.replaceAll(RegExp(r'\D'), '');
+                              controller.text = text;
+                              controller.selection = TextSelection.collapsed(offset: controller.text.length);
+                              if (result.finalResult) {
+                                if (isListening) SystemSound.play(SystemSoundType.click);
+                                setDialogState(() => isListening = false);
+                                if (controller.text.isNotEmpty) {
+                                  TTSService.instance.falar('Anotado: ${controller.text}', caller: this);
+                                }
+                              }
+                            },
+                          );
+                        } else {
+                          TTSService.instance.falar('Não consegui ouvir sua voz neste celular.', caller: this);
+                        }
+                      } catch (e) {
+                        setDialogState(() => isListening = false);
+                      }
+                    },
+                  ),
+                ],
+              ),
+              actionsAlignment: MainAxisAlignment.spaceEvenly,
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    TTSService.instance.parar(caller: this);
+                    if (isListening) speech.stop();
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Cancelar', style: TextStyle(fontSize: 18)),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    TTSService.instance.parar(caller: this);
+                    if (isListening) speech.stop();
+                    final num = controller.text.trim();
+                    if (num.isNotEmpty) {
+                      await EmergencyContactService.instance.saveAmbulancePhone(num);
+                      if (mounted) {
+                        setState(() {
+                          _ambulancePhone = num;
+                        });
+                      }
+                    }
+                    if (mounted) Navigator.pop(context);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Salvar', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 

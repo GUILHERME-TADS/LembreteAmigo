@@ -30,9 +30,9 @@ class _ElderlyOnboardingScreenState extends State<ElderlyOnboardingScreen> {
     ),
     _OnboardingStep(
       icon: Icons.mic,
-      title: 'Falar com o Alex',
-      subtitle: 'Para tirar dúvidas ou pesquisar algo, basta tocar no grande botão amarelo de microfone no meio da tela.',
-      ttsMessage: 'No meio da tela inicial, você pode tocar no grande círculo amarelo de microfone para conversar comigo, tirar dúvidas ou pedir para eu explicar algo.',
+      title: 'Lembrete por Voz',
+      subtitle: 'Para criar um novo lembrete rápido, basta tocar no grande botão amarelo de microfone no meio da tela.',
+      ttsMessage: 'No meio da tela inicial, você pode tocar no grande círculo amarelo de microfone para gravar um novo lembrete com a sua voz.',
     ),
     _OnboardingStep(
       icon: Icons.local_hospital,

@@ -26,6 +26,18 @@ class AlarmService {
 
   Future<void> agendarAlarmeLembrete(
       Lembrete lembrete, DateTime date, String audioPath, int id) async {
+      
+    final isMedication = LembreteCategoria.normalizar(lembrete.categoria) == LembreteCategoria.medicacao;
+    final contentTitle = isMedication
+        ? '💊 Hora do medicamento'
+        : '🔔 Lembrete de ${LembreteCategoria.nome(lembrete.categoria)}';
+
+    final bodyText = (isMedication &&
+            lembrete.medicamentoInstrucoes != null &&
+            lembrete.medicamentoInstrucoes!.isNotEmpty)
+        ? '${lembrete.horarioFormatado} • ${lembrete.titulo}\nInstruções: ${lembrete.medicamentoInstrucoes}'
+        : '${lembrete.horarioFormatado} • ${lembrete.titulo}';
+
     final alarmSettings = AlarmSettings(
       id: id,
       dateTime: date,
@@ -38,8 +50,8 @@ class AlarmService {
         volumeEnforced: true,
       ),
       notificationSettings: NotificationSettings(
-        title: 'Lembrete Amigo',
-        body: lembrete.titulo,
+        title: contentTitle,
+        body: bodyText,
         stopButton: 'Abrir',
       ),
     );

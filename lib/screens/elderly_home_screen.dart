@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -12,6 +12,7 @@ import '../services/tts_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/audio_path_helper.dart';
 import '../utils/period_helper.dart';
+import '../services/elderly_profile_repository.dart';
 import '../widgets/index.dart';
 
 class ElderlyHomeScreen extends StatefulWidget {

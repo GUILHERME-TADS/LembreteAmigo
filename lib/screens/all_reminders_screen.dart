@@ -44,11 +44,12 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
     } catch (e) {
       debugPrint('Erro ao carregar lembretes na tela do idoso: $e');
     } finally {
-      if (!mounted) return;
-      setState(() {
-        _loadReminders();
-        _isLoadingReminders = false;
-      });
+      if (mounted) {
+        setState(() {
+          _loadReminders();
+          _isLoadingReminders = false;
+        });
+      }
     }
   }
 

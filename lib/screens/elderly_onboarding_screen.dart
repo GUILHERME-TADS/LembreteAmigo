@@ -19,20 +19,26 @@ class _ElderlyOnboardingScreenState extends State<ElderlyOnboardingScreen> {
     _OnboardingStep(
       icon: Icons.waving_hand,
       title: 'Bem-vindo ao\nLembrete Amigo!',
-      subtitle: 'Eu sou o Alex. Vou ajudar você no dia a dia.',
-      ttsMessage: 'Olá, seja muito bem-vindo! Eu sou o Alex. Vou ajudar você a lembrar dos seus lembretes do dia.',
+      subtitle: 'Eu sou o Alex. Um assistente por voz que vai te acompanhar em cada momento do dia.',
+      ttsMessage: 'Olá! Seja muito bem-vindo ao Lembrete Amigo. Eu sou o Alex e vou te ajudar a lembrar dos seus compromissos, remédios e bem-estar no dia a dia.',
     ),
     _OnboardingStep(
-      icon: Icons.campaign,
-      title: 'Lembretes\nem Voz Alta',
-      subtitle: 'O aplicativo vai falar com você sobre remédios, refeições, hidratação e exercícios.',
-      ttsMessage: 'Eu vou falar em voz alta para ajudar você. Você vai ouvir sobre remédios, refeições, hidratação e exercícios.',
+      icon: Icons.volume_up,
+      title: 'Lembretes em\nSom Alto',
+      subtitle: 'O aplicativo fala em voz alta sobre seus remédios, refeições e exercícios. Os botões são grandes e fáceis de tocar.',
+      ttsMessage: 'Eu vou ler todos os seus lembretes em voz alta na hora certa. Os botões na tela são grandes e coloridos para você tocar sem dificuldade.',
     ),
     _OnboardingStep(
       icon: Icons.mic,
-      title: 'Comandos\nde Voz',
-      subtitle: 'Você pode falar comigo. Diga "já tomei", "adiar" ou "me explica".',
-      ttsMessage: 'Você pode falar comigo. Diga "já tomei" quando fizer um lembrete. Diga "adiar" para eu lembrar depois. Diga "me explica" para eu explicar de novo.',
+      title: 'Sua Voz tem\nComando',
+      subtitle: 'Você não precisa digitar. Pode falar comigo dizendo "já tomei", "adiar" ou perguntar o que precisa fazer.',
+      ttsMessage: 'Você pode falar diretamente comigo. Quando um lembrete tocar, diga em voz alta: "já tomei" para confirmar, ou "adiar" para eu te avisar mais tarde.',
+    ),
+    _OnboardingStep(
+      icon: Icons.contact_emergency,
+      title: 'SOS e Recados\npor Voz',
+      subtitle: 'Se precisar de ajuda, use o botão vermelho de SOS para chamar seu cuidador. Você também pode enviar recados falando.',
+      ttsMessage: 'Se você não se sentir bem, toque no botão vermelho de SOS para alertar seu cuidador imediatamente. E na tela de Recados, você pode ouvir mensagens do seu cuidador e responder gravando sua voz.',
     ),
   ];
 

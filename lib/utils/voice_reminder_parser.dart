@@ -68,23 +68,9 @@ class VoiceReminderParser {
   };
 
   static VoiceReminderParseResult? parse(String text) {
-    // 1. Opcional: Tentativa com o Dicionário Direto (O(N) super otimizado para as 4709 variações)
     final textNormalizedLower = _normalize(text).toLowerCase();
     
-    // Procura pela maior string que dê match dentro da frase falada (ex: "duas da tarde e trinta")
-    for (final entry in TimeDictionary.map.entries) {
-      if (textNormalizedLower.contains(entry.key)) {
-        final parts = entry.value.split(':');
-        final h = int.parse(parts[0]);
-        final m = int.parse(parts[1]);
-        
-        // Remove a parte do horário do título para ficar mais limpo
-        final title = _cleanTitle(text, textNormalizedLower, entry.key);
-        return VoiceReminderParseResult(hour: h, minute: m, title: title);
-      }
-    }
-
-    // 2. Se o dicionário não achar, continua para o Parser Algorítmico tradicional (Regex e Regras relativas)
+    // 1. Parser Algorítmico tradicional (Regex e Regras relativas)
     final normalized = _wordsToNumbers(textNormalizedLower);
 
     final special = _parseSpecialTime(normalized);
@@ -100,6 +86,19 @@ class VoiceReminderParser {
     final absolute = _parseAbsoluteTime(normalized);
     if (absolute != null) {
       return _result(absolute.$1, absolute.$2, text, normalized, absolute.$3);
+    }
+
+    // 2. Se o parser falhar, tenta o Dicionário Direto como último recurso
+    for (final entry in TimeDictionary.map.entries) {
+      if (textNormalizedLower.contains(entry.key)) {
+        final parts = entry.value.split(':');
+        final h = int.parse(parts[0]);
+        final m = int.parse(parts[1]);
+        
+        // Remove a parte do horário do título para ficar mais limpo
+        final title = _cleanTitle(text, textNormalizedLower, entry.key);
+        return VoiceReminderParseResult(hour: h, minute: m, title: title);
+      }
     }
 
     return null;

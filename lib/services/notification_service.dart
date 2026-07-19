@@ -10,7 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/lembrete.dart';
 import '../models/smart_alert.dart';
 import '../theme/app_theme.dart';
-import '../services/tts_service.dart';
+
 import '../services/alarm_service.dart';
 
 class NotificationService {
@@ -746,7 +746,6 @@ class NotificationService {
     Lembrete lembrete,
     tz.TZDateTime scheduledDate, {
     int slot = 0,
-    DateTimeComponents? matchDateTimeComponents,
   }) async {
     final notificationId = _notificationIdFor(lembrete.id, slot);
     _pendingNotificationCancellations.remove(notificationId);

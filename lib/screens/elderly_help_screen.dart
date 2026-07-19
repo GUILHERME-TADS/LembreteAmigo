@@ -901,7 +901,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                           'Abrindo os recados do seu cuidador.',
                           caller: this,
                         );
-                        if (mounted) {
+                        if (context.mounted) {
                           await Navigator.pushNamed(context, '/messages');
                         }
                       } finally {
@@ -1145,8 +1145,10 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                           setDialogState(() => isListening = true);
                           SystemSound.play(SystemSoundType.click);
                           speech.listen(
-                            listenMode: stt.ListenMode.dictation,
-                            localeId: 'pt_BR',
+                            listenOptions: stt.SpeechListenOptions(
+                              listenMode: stt.ListenMode.dictation,
+                              localeId: 'pt_BR',
+                            ),
                             onResult: (result) {
                               String text = result.recognizedWords;
                               text = text.replaceAll(RegExp(r'\D'), '');
@@ -1194,7 +1196,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                         });
                       }
                     }
-                    if (mounted) Navigator.pop(context);
+                    if (context.mounted) Navigator.pop(context);
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,

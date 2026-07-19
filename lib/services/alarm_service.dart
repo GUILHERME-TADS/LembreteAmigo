@@ -14,6 +14,7 @@ class AlarmService {
 
   void init() {
     _ringSubscription?.cancel();
+    // ignore: deprecated_member_use
     _ringSubscription = Alarm.ringStream.stream.listen((AlarmSettings settings) async {
       debugPrint('Alarme tocou! ID: ${settings.id}');
       final lembreteId = NotificationService.instance.getLembreteIdByNotificationId(settings.id);

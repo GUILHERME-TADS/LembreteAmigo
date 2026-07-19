@@ -290,51 +290,24 @@ class _CustomTimePickerDialogState extends State<CustomTimePickerDialog> {
 
         const SizedBox(height: 12),
 
-        // Mostrador numérico estilizado como cartão
         GestureDetector(
           onTap: () async {
             // Abrir caixa de diálogo simples para entrada direta via teclado se o idoso preferir
-            final controller = TextEditingController(text: value.toString().padLeft(2, '0'));
-            try {
-              final res = await showDialog<int>(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: Text('Digite o valor de $label'),
-                  content: TextField(
-                    controller: controller,
-                    keyboardType: TextInputType.number,
-                    autofocus: true,
-                    maxLength: 2,
-                    style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
-                    textAlign: TextAlign.center,
-                    decoration: const InputDecoration(counterText: ''),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('CANCELAR'),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        final val = int.tryParse(controller.text);
-                        Navigator.pop(context, val);
-                      },
-                      child: const Text('OK'),
-                    ),
-                  ],
-                ),
-              );
-              if (res != null) {
-                setState(() {
-                  if (label == 'HORA') {
-                    _hour = res.clamp(0, 23);
-                  } else {
-                    _minute = res.clamp(0, 59);
-                  }
-                });
-              }
-            } finally {
-              controller.dispose();
+            final res = await showDialog<int>(
+              context: context,
+              builder: (context) => _NumberInputDialog(
+                label: label,
+                initialValue: value,
+              ),
+            );
+            if (res != null) {
+              setState(() {
+                if (label == 'HORA') {
+                  _hour = res.clamp(0, 23);
+                } else {
+                  _minute = res.clamp(0, 59);
+                }
+              });
             }
           },
           child: Container(
@@ -490,6 +463,66 @@ class _CustomTimePickerDialogState extends State<CustomTimePickerDialog> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _NumberInputDialog extends StatefulWidget {
+  final String label;
+  final int initialValue;
+
+  const _NumberInputDialog({
+    required this.label,
+    required this.initialValue,
+  });
+
+  @override
+  State<_NumberInputDialog> createState() => _NumberInputDialogState();
+}
+
+class _NumberInputDialogState extends State<_NumberInputDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(
+      text: widget.initialValue.toString().padLeft(2, '0'),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('Digite o valor de ${widget.label}'),
+      content: TextField(
+        controller: _controller,
+        keyboardType: TextInputType.number,
+        autofocus: true,
+        maxLength: 2,
+        style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+        textAlign: TextAlign.center,
+        decoration: const InputDecoration(counterText: ''),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('CANCELAR'),
+        ),
+        TextButton(
+          onPressed: () {
+            final val = int.tryParse(_controller.text);
+            Navigator.pop(context, val);
+          },
+          child: const Text('OK'),
+        ),
+      ],
     );
   }
 }

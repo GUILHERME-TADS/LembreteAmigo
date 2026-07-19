@@ -124,24 +124,7 @@ void _openWidgetUri(Uri? uri) {
   }
 }
 
-Future<void> _confirmReminderPostponed() async {
-  const message = 'Tudo bem. Vou lembrar você novamente em 10 minutos.';
-  await TTSService.instance.falar(message);
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    final context = navigatorKey.currentContext;
-    if (context == null) return;
-    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-      const SnackBar(
-        content: Text(
-          message,
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-        ),
-        duration: Duration(seconds: 4),
-      ),
-    );
-  });
-}
+
 
 bool isElderlyOnlyRoute(String routeName) {
   const elderlyRoutes = {

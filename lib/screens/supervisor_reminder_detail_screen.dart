@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/lembrete_service.dart';
@@ -112,14 +113,7 @@ class SupervisorReminderDetailScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Center(
-                      child: Container(
-                        width: 120, height: 120,
-                        decoration: BoxDecoration(
-                          color: accentColor.withValues(alpha: 0.15),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(iconData, size: 56, color: accentColor),
-                      ),
+                      child: _buildPhotoOrIcon(context),
                     ),
                     const SizedBox(height: 24),
                     Text(
@@ -246,6 +240,85 @@ class SupervisorReminderDetailScreen extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPhotoOrIcon(BuildContext context) {
+    final photoPath = lembrete?.medicamentoFotoPath;
+    final hasPhoto = photoPath != null && photoPath.isNotEmpty;
+
+    if (!hasPhoto) {
+      return Container(
+        width: 120, height: 120,
+        decoration: BoxDecoration(
+          color: accentColor.withValues(alpha: 0.15),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(iconData, size: 56, color: accentColor),
+      );
+    }
+
+    return GestureDetector(
+      onTap: () {
+        showDialog(
+          context: context,
+          builder: (context) => Dialog(
+            backgroundColor: Colors.black,
+            insetPadding: EdgeInsets.zero,
+            child: Stack(
+              children: [
+                Center(
+                  child: InteractiveViewer(
+                    child: Image(
+                      image: photoPath.startsWith('assets/')
+                          ? AssetImage(photoPath) as ImageProvider
+                          : photoPath.startsWith('http')
+                          ? NetworkImage(photoPath)
+                          : FileImage(File(photoPath)),
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 20,
+                  right: 20,
+                  child: IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white, size: 40),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+      child: Container(
+        width: 140, height: 140,
+        decoration: BoxDecoration(
+          color: accentColor.withValues(alpha: 0.15),
+          shape: BoxShape.circle,
+          border: Border.all(color: accentColor, width: 4),
+          boxShadow: [
+            BoxShadow(
+              color: accentColor.withValues(alpha: 0.25),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: ClipOval(
+          child: Image(
+            image: photoPath.startsWith('assets/')
+                ? AssetImage(photoPath) as ImageProvider
+                : photoPath.startsWith('http')
+                ? NetworkImage(photoPath)
+                : FileImage(File(photoPath)),
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) =>
+                Icon(iconData, size: 56, color: accentColor),
+          ),
         ),
       ),
     );

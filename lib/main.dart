@@ -161,8 +161,6 @@ bool isSupervisorProtectedRoute(String routeName) {
     '/detailed-history',
     '/monthly-reports',
     '/activity-history',
-    '/new-reminder',
-    '/new-reminder-audio',
     '/identify-medication',
     '/medication-bulk-confirmation',
     '/barcode-scanner',

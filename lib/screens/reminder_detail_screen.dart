@@ -2,10 +2,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../models/lembrete.dart';
+import '../services/lembrete_service.dart';
 import '../services/tts_service.dart';
 import '../services/elderly_profile_repository.dart';
 import '../utils/period_helper.dart';
 import '../widgets/index.dart';
+import '../widgets/custom_time_picker.dart';
+import 'elderly_profile_screen.dart';
 
 class ReminderDetailScreen extends StatefulWidget {
   const ReminderDetailScreen({super.key});
@@ -56,6 +59,8 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
     TTSService.instance.parar(caller: this);
     super.dispose();
   }
+
+
 
   _ReminderCategoryConfig get _config {
     final cat = _lembrete?.categoria ?? '';
@@ -295,6 +300,91 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
                     // 6. Botão Gigante "🔊 OUVIR NOVAMENTE"
                     _buildListenAgainButton(cfg),
 
+                    if (_lembrete != null) ...[
+                      const SizedBox(height: 32),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 60,
+                        child: ElevatedButton.icon(
+                          onPressed: () async {
+                            TTSService.instance.parar(caller: this);
+                            final result = await showDialog<String>(
+                              context: context,
+                              builder: (context) => ElderlyEditTitleDialog(initialValue: _lembrete!.titulo),
+                            );
+                            if (result == null || result.isEmpty || result == _lembrete!.titulo) return;
+                            await LembreteService.instance.atualizarTitulo(_lembrete!.id, result);
+                            if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pronto. O nome foi trocado.')));
+                          },
+                          icon: const Icon(Icons.edit, size: 28),
+                          label: const Text('MUDAR NOME', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: cfg.color,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 60,
+                        child: ElevatedButton.icon(
+                          onPressed: () async {
+                            TTSService.instance.parar(caller: this);
+                            final picked = await showCustomTimePicker(
+                              context: context,
+                              initialTime: TimeOfDay(
+                                hour: _lembrete!.horarioHour,
+                                minute: _lembrete!.horarioMinute,
+                              ),
+                            );
+                            if (picked == null) return;
+                            await LembreteService.instance.atualizarHorario(
+                              _lembrete!.id,
+                              picked.hour,
+                              picked.minute,
+                            );
+                            if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pronto. O horário foi trocado.')));
+                          },
+                          icon: const Icon(Icons.access_time, size: 28),
+                          label: const Text('MUDAR HORÁRIO', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: cfg.color,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 60,
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            TTSService.instance.parar(caller: this);
+                            final confirm = await showDialog<bool>(
+                              context: context,
+                              builder: (context) => ElderlyDeleteReminderDialog(lembrete: _lembrete!),
+                            );
+                            if (confirm != true) return;
+                            await LembreteService.instance.remover(_lembrete!.id);
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lembrete apagado.')));
+                              Navigator.pop(context);
+                            }
+                          },
+                          icon: const Icon(Icons.delete_forever, size: 28),
+                          label: const Text('APAGAR LEMBRETE', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.error,
+                            side: const BorderSide(color: AppColors.error, width: 3),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          ),
+                        ),
+                      ),
+                    ],
+
                     const SizedBox(height: 80),
                   ],
                 ),
@@ -429,9 +519,43 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
 
 
   Widget _buildMedicinePhotoContainer(String path, _ReminderCategoryConfig cfg) {
-    return Container(
-      width: 190,
-      height: 190,
+    return GestureDetector(
+      onTap: () {
+        showDialog(
+          context: context,
+          builder: (context) => Dialog(
+            backgroundColor: Colors.black,
+            insetPadding: EdgeInsets.zero,
+            child: Stack(
+              children: [
+                Center(
+                  child: InteractiveViewer(
+                    child: Image(
+                      image: path.startsWith('assets/')
+                          ? AssetImage(path) as ImageProvider
+                          : path.startsWith('http')
+                          ? NetworkImage(path)
+                          : FileImage(File(path)),
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 20,
+                  right: 20,
+                  child: IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white, size: 40),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+      child: Container(
+        width: 190,
+        height: 190,
       decoration: BoxDecoration(
         color: cfg.color.withValues(alpha: 0.15),
         shape: BoxShape.circle,
@@ -456,8 +580,9 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
               Icon(cfg.icon, size: 80, color: cfg.color),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildPulsingIcon(_ReminderCategoryConfig cfg) {
     return Stack(

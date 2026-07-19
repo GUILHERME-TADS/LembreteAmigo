@@ -549,7 +549,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
   Future<void> _editTitle(Lembrete lembrete) async {
     final result = await showDialog<String>(
       context: context,
-      builder: (context) => _EditTitleDialog(initialValue: lembrete.titulo),
+      builder: (context) => ElderlyEditTitleDialog(initialValue: lembrete.titulo),
     );
 
     if (result == null || result.isEmpty || result == lembrete.titulo) return;
@@ -563,7 +563,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
   Future<void> _deleteReminder(Lembrete lembrete) async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) => _DeleteReminderDialog(lembrete: lembrete),
+      builder: (context) => ElderlyDeleteReminderDialog(lembrete: lembrete),
     );
 
     if (confirm != true) return;
@@ -1843,16 +1843,16 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
   }
 }
 
-class _EditTitleDialog extends StatefulWidget {
+class ElderlyEditTitleDialog extends StatefulWidget {
   final String initialValue;
 
-  const _EditTitleDialog({required this.initialValue});
+  const ElderlyEditTitleDialog({super.key, required this.initialValue});
 
   @override
-  State<_EditTitleDialog> createState() => _EditTitleDialogState();
+  State<ElderlyEditTitleDialog> createState() => _ElderlyEditTitleDialogState();
 }
 
-class _EditTitleDialogState extends State<_EditTitleDialog> {
+class _ElderlyEditTitleDialogState extends State<ElderlyEditTitleDialog> {
   late final TextEditingController _controller;
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _isListening = false;
@@ -2003,16 +2003,16 @@ class _EditTitleDialogState extends State<_EditTitleDialog> {
   }
 }
 
-class _DeleteReminderDialog extends StatefulWidget {
+class ElderlyDeleteReminderDialog extends StatefulWidget {
   final Lembrete lembrete;
 
-  const _DeleteReminderDialog({required this.lembrete});
+  const ElderlyDeleteReminderDialog({super.key, required this.lembrete});
 
   @override
-  State<_DeleteReminderDialog> createState() => _DeleteReminderDialogState();
+  State<ElderlyDeleteReminderDialog> createState() => _ElderlyDeleteReminderDialogState();
 }
 
-class _DeleteReminderDialogState extends State<_DeleteReminderDialog> {
+class _ElderlyDeleteReminderDialogState extends State<ElderlyDeleteReminderDialog> {
   @override
   void initState() {
     super.initState();

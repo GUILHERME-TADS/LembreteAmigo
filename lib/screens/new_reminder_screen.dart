@@ -9,6 +9,7 @@ import '../services/lembrete_service.dart';
 import '../widgets/supervisor_bottom_nav.dart';
 import '../widgets/custom_time_picker.dart';
 import '../widgets/supervisor_drawer.dart';
+import '../services/session_role_service.dart';
 
 class NewReminderScreen extends StatefulWidget {
   final Lembrete? lembrete;
@@ -260,10 +261,12 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      drawer: const SupervisorDrawer(currentRoute: '/new-reminder'),
-      bottomNavigationBar: const SupervisorBottomNav(
-        selected: SupervisorNavDestination.newReminder,
-      ),
+      drawer: SessionRoleService.isSupervisor 
+          ? const SupervisorDrawer(currentRoute: '/new-reminder') 
+          : null,
+      bottomNavigationBar: SessionRoleService.isSupervisor
+          ? const SupervisorBottomNav(selected: SupervisorNavDestination.newReminder)
+          : null,
       body: SafeArea(
         child: Column(
           children: [

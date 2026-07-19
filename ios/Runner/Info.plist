@@ -13,7 +13,9 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>lembretes_app</string>
+	<string>Lembrete Amigo</string>
+	<key>CFBundleDisplayName</key>
+	<string>Lembrete Amigo</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

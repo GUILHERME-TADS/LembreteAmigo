@@ -6,6 +6,9 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'alex_voice_profile.dart';
+import 'tts_service.dart';
+import 'always_listening_service.dart';
 
 class SessionRoleService {
   static const String _roleKey = 'active_user_role';
@@ -269,6 +272,9 @@ class SessionRoleService {
             cachedProfile['status'] = connected ? 'active' : 'pending';
             await prefs.setString('idoso_perfil', jsonEncode(cachedProfile));
             await prefs.setBool('elderly_autonomous_mode', !connected);
+            if (data != null) {
+              await syncVoiceAndListeningSettings(data);
+            }
             elderlyConnectionNotifier.value = connected;
             if (!connected) {
               await stopWatchingElderlyConnection();
@@ -365,6 +371,39 @@ class SessionRoleService {
     } catch (e) {
       debugPrint('Erro ao verificar conexao do supervisor no Firestore: $e');
       return false;
+    }
+  }
+
+  static Future<void> syncVoiceAndListeningSettings(Map<String, dynamic> data) async {
+    final prefs = await SharedPreferences.getInstance();
+    final rate = data['alex_voice_rate'] as num?;
+    final pitch = data['alex_voice_pitch'] as num?;
+    final listening = data['always_listening_enabled'] as bool?;
+
+    bool voiceUpdated = false;
+    if (rate != null) {
+      final currentRate = prefs.getDouble('alex_voice_rate');
+      if (currentRate != rate.toDouble()) {
+        await prefs.setDouble('alex_voice_rate', rate.toDouble());
+        voiceUpdated = true;
+      }
+    }
+    if (pitch != null) {
+      final currentPitch = prefs.getDouble('alex_voice_pitch');
+      if (currentPitch != pitch.toDouble()) {
+        await prefs.setDouble('alex_voice_pitch', pitch.toDouble());
+        voiceUpdated = true;
+      }
+    }
+    if (voiceUpdated) {
+      final newProfile = await AlexVoiceProfile.load();
+      await TTSService.instance.initFromProfile(newProfile);
+    }
+    if (listening != null) {
+      final currentListening = prefs.getBool('always_listening_enabled') ?? false;
+      if (currentListening != listening) {
+        unawaited(AlwaysListeningService.instance.setEnabled(listening));
+      }
     }
   }
 }

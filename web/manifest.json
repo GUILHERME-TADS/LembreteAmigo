@@ -1,6 +1,6 @@
 {
-    "name": "lembretes_app",
-    "short_name": "lembretes_app",
+    "name": "Lembrete Amigo",
+    "short_name": "Lembrete Amigo",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

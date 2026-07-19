@@ -220,6 +220,8 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
                     await prefsInstance.setString('idoso_foto_path', fotoPath);
                   }
 
+                  await SessionRoleService.syncVoiceAndListeningSettings(data);
+
                   _handleSuccess();
                 }
               }

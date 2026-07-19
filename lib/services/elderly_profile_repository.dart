@@ -27,6 +27,9 @@ class ElderlyProfileRepository {
     'pairingCodeExpires',
     'createdAt',
     'updatedAt',
+    'alex_voice_rate',
+    'alex_voice_pitch',
+    'always_listening_enabled',
   };
 
   bool get isFirebaseAvailable => FirebaseHelper.isInitialized;

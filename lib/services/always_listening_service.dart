@@ -5,6 +5,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:record/record.dart';
 import '../services/tts_service.dart';
 import '../services/alex_ai_service.dart';
+import 'session_role_service.dart';
+import 'offline_sync_service.dart';
+import '../utils/firebase_helper.dart';
 
 enum ListeningState { paused, listening, processing, sleeping }
 
@@ -83,6 +86,23 @@ class AlwaysListeningService {
 
     await prefs.setBool('always_listening_enabled', value);
     enabled.value = value;
+
+    if (FirebaseHelper.isInitialized) {
+      final idosoId = await SessionRoleService.getActiveIdosoId();
+      if (!SessionRoleService.isLocalOnlyIdosoId(idosoId) &&
+          await SessionRoleService.canSyncElderlyPrivateData()) {
+        await OfflineSyncService.instance.setOrQueue(
+          'idoso_perfil',
+          idosoId,
+          {'always_listening_enabled': value},
+        );
+        await OfflineSyncService.instance.setOrQueue(
+          'idosos',
+          idosoId,
+          {'always_listening_enabled': value},
+        );
+      }
+    }
 
     if (value) {
       start();

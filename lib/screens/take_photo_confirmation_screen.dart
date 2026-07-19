@@ -4,13 +4,13 @@ import 'package:flutter/services.dart';
 import 'package:camera/camera.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../theme/app_theme.dart';
 import '../services/tts_service.dart';
 import '../services/lembrete_service.dart';
 import '../utils/firebase_helper.dart';
 import '../services/session_role_service.dart';
+import '../services/durable_media_service.dart';
+import '../services/offline_sync_service.dart';
 import '../models/lembrete.dart';
 import '../widgets/index.dart';
 
@@ -554,9 +554,13 @@ class _TakePhotoConfirmationScreenState
                             TTSService.instance.parar(caller: this);
                             if (_isProfilePhoto || lembreteId == 'profile_photo') {
                               final prefs = await SharedPreferences.getInstance();
+                              final durablePath = await DurableMediaService.instance.preserve(
+                                _capturedFile!.path,
+                                prefix: 'profile_photo',
+                              );
                               await prefs.setString(
                                 'idoso_foto_path',
-                                _capturedFile!.path,
+                                durablePath,
                               );
                               final idosoId =
                                   await SessionRoleService.getActiveIdosoId();
@@ -564,42 +568,30 @@ class _TakePhotoConfirmationScreenState
                               if (_useFirebase &&
                                   await SessionRoleService
                                       .canSyncElderlyPrivateData()) {
-                                Future(() async {
-                                  try {
-                                    final file = File(_capturedFile!.path);
-                                    final ref = FirebaseStorage.instance
-                                        .ref()
-                                        .child('perfis')
-                                        .child(idosoId)
-                                        .child('profile.jpg');
-                                    final uploadTask = await ref.putFile(
-                                      file,
-                                      SettableMetadata(contentType: 'image/jpeg'),
-                                    );
-                                    final downloadUrl = await uploadTask.ref
-                                        .getDownloadURL();
-
-                                    await FirebaseFirestore.instance
-                                        .collection('idoso_perfil')
-                                        .doc(idosoId)
-                                        .set({
-                                          'fotoPath': downloadUrl,
-                                        }, SetOptions(merge: true));
-                                    await FirebaseFirestore.instance
-                                        .collection('idosos')
-                                        .doc(idosoId)
-                                        .set({
-                                          'fotoPath': downloadUrl,
-                                        }, SetOptions(merge: true));
-                                  } catch (uploadError) {
-                                    debugPrint('Erro no upload da foto de perfil em background: $uploadError');
-                                  }
-                                });
+                                final profileSynced = await OfflineSyncService.instance.setOrQueue(
+                                  'idoso_perfil',
+                                  idosoId,
+                                  {'fotoPath': durablePath},
+                                );
+                                final idososSynced = await OfflineSyncService.instance.setOrQueue(
+                                  'idosos',
+                                  idosoId,
+                                  {'fotoPath': durablePath},
+                                );
+                                if ((!profileSynced || !idososSynced) && mounted) {
+                                  scaffoldMessenger.showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Sua foto foi salva localmente. Será sincronizada quando a internet voltar.',
+                                      ),
+                                    ),
+                                  );
+                                }
                               }
 
                               SystemSound.play(SystemSoundType.click);
                               HapticFeedback.vibrate();
-                              navigator.pop(_capturedFile!.path);
+                              navigator.pop(durablePath);
                               return;
                             } else if (lembreteId != null) {
                               await LembreteService.instance.concluirComFoto(

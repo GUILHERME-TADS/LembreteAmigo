@@ -1,4 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'session_role_service.dart';
+import 'offline_sync_service.dart';
+import '../utils/firebase_helper.dart';
 
 class AlexVoiceProfile {
   final double speechRate;
@@ -26,6 +29,29 @@ class AlexVoiceProfile {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble(_keyRate, speechRate);
     await prefs.setDouble(_keyPitch, pitch);
+
+    if (FirebaseHelper.isInitialized) {
+      final idosoId = await SessionRoleService.getActiveIdosoId();
+      if (!SessionRoleService.isLocalOnlyIdosoId(idosoId) &&
+          await SessionRoleService.canSyncElderlyPrivateData()) {
+        await OfflineSyncService.instance.setOrQueue(
+          'idoso_perfil',
+          idosoId,
+          {
+            'alex_voice_rate': speechRate,
+            'alex_voice_pitch': pitch,
+          },
+        );
+        await OfflineSyncService.instance.setOrQueue(
+          'idosos',
+          idosoId,
+          {
+            'alex_voice_rate': speechRate,
+            'alex_voice_pitch': pitch,
+          },
+        );
+      }
+    }
   }
 
   static Future<AlexVoiceProfile> load() async {

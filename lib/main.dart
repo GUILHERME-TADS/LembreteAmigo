@@ -262,13 +262,6 @@ void main() async {
     debugPrint(
       'Erro ao inicializar Firebase. Operando em modo de simulacao local: $e',
     );
-    AppStatusService.instance.report(
-      id: 'firebase-init',
-      title: 'Modo offline',
-      message:
-          'Nao foi possivel conectar aos servicos online. Algumas funcoes podem ficar pendentes.',
-      severity: AppStatusSeverity.critical,
-    );
   }
   await SessionRoleService.load();
   try {
@@ -443,11 +436,6 @@ void main() async {
     } catch (e) {
       debugPrint(
         'Erro ao inicializar push notifications. Continuando sem FCM: $e',
-      );
-      AppStatusService.instance.report(
-        id: 'push-notifications',
-        title: 'Avisos entre aparelhos indisponiveis',
-        message: 'Chamadas e alertas podem nao chegar ao outro aparelho.',
       );
     }
   }

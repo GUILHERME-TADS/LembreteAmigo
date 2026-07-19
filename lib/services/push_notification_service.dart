@@ -6,7 +6,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../services/session_role_service.dart';
-import '../services/app_status_service.dart';
 import '../services/notification_service.dart';
 import '../utils/firebase_helper.dart';
 
@@ -141,11 +140,6 @@ class PushNotificationService {
           });
     } catch (e) {
       debugPrint('Erro ao salvar FCM token: $e');
-      AppStatusService.instance.report(
-        id: 'fcm-token',
-        title: 'Avisos podem falhar',
-        message: 'Nao foi possivel registrar este aparelho para notificacoes.',
-      );
     }
   }
 

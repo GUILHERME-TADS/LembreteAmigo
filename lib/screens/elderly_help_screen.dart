@@ -149,7 +149,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
   Future<void> _enviarMensagemDialog() async {
     if (_isMessageDialogOpen) return;
     _isMessageDialogOpen = true;
-    await TTSService.instance.parar(caller: this);
+    await TTSService.instance.parar();
     bool isRecording = false;
     bool isPlaying = false;
     bool isBusy = false;

@@ -101,7 +101,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
         _urgencyReinforcementTimer?.cancel();
         VibrationService.stopVibration();
         _familyAudioPlayer.stop();
-        TTSService.instance.parar(caller: this);
+        TTSService.instance.parar();
         if (mounted && (ModalRoute.of(context)?.isCurrent ?? false)) {
           Navigator.pop(context);
         }
@@ -230,7 +230,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
     StreamSubscription? sub;
     try {
       AudioManager.stopAll();
-      await TTSService.instance.parar(caller: this);
+      await TTSService.instance.parar();
       await _familyAudioPlayer.stop();
       final completed = Completer<void>();
       sub = _familyAudioPlayer.onPlayerComplete.listen((_) {
@@ -331,7 +331,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
     VibrationService.stopVibration();
     _familyAudioPlayer.dispose();
     LembreteService.instance.notifier.removeListener(_onLembretesChanged);
-    TTSService.instance.parar(caller: this);
+    TTSService.instance.parar();
     super.dispose();
   }
 

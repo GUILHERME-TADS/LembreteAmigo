@@ -18,7 +18,7 @@ class _ElderlyBottomNavState extends State<ElderlyBottomNav> {
   bool _isProcessingAction = false;
 
   void _stopAllAudioAndTts() {
-    TTSService.instance.parar(caller: this);
+    TTSService.instance.parar();
   }
 
   void _handleTap(String routeName, BuildContext context) async {

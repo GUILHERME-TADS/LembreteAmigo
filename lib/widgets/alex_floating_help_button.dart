@@ -24,6 +24,7 @@ class _AlexFloatingHelpButtonState extends State<AlexFloatingHelpButton>
   late final AnimationController _entryController;
   late final Animation<double> _slideAnimation;
   late final Animation<double> _scaleAnimation;
+  static Offset _globalDragOffset = Offset.zero;
 
   @override
   void initState() {
@@ -90,13 +91,33 @@ class _AlexFloatingHelpButtonState extends State<AlexFloatingHelpButton>
 
         _syncAnimation(isThisSpeaking);
 
-        final widgetStack = Stack(
-          alignment: Alignment.bottomRight,
-          clipBehavior: Clip.none,
-          children: [
+        final size = MediaQuery.of(context).size;
+        final isFlipped = _globalDragOffset.dx < -(size.width / 2);
+
+        final widgetStack = GestureDetector(
+          onPanUpdate: (details) {
+            final size = MediaQuery.of(context).size;
+            setState(() {
+              _globalDragOffset += details.delta;
+              _globalDragOffset = Offset(
+                _globalDragOffset.dx.clamp(-size.width + 100, 0.0),
+                _globalDragOffset.dy.clamp(-size.height + 280, 0.0),
+              );
+            });
+          },
+          child: Padding(
+            padding: EdgeInsets.only(
+              right: -_globalDragOffset.dx,
+              bottom: -_globalDragOffset.dy,
+            ),
+            child: Stack(
+              alignment: Alignment.bottomRight,
+              clipBehavior: Clip.none,
+              children: [
             // Speech bubble next to Alex
             Positioned(
-              right: 80,
+              right: isFlipped ? null : 80,
+              left: isFlipped ? 80 : null,
               bottom: 10,
               child: AnimatedOpacity(
                 duration: const Duration(milliseconds: 250),
@@ -112,11 +133,11 @@ class _AlexFloatingHelpButtonState extends State<AlexFloatingHelpButton>
                       color: isThisSpeaking
                           ? AppColors.error
                           : AppColors.primary,
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(20),
-                        topRight: Radius.circular(20),
-                        bottomLeft: Radius.circular(20),
-                        bottomRight: Radius.circular(4),
+                      borderRadius: BorderRadius.only(
+                        topLeft: const Radius.circular(20),
+                        topRight: const Radius.circular(20),
+                        bottomLeft: Radius.circular(isFlipped ? 4 : 20),
+                        bottomRight: Radius.circular(isFlipped ? 20 : 4),
                       ),
                       boxShadow: [
                         BoxShadow(
@@ -190,6 +211,8 @@ class _AlexFloatingHelpButtonState extends State<AlexFloatingHelpButton>
               ),
             ),
           ],
+            ),
+          ),
         );
 
         return AnimatedBuilder(

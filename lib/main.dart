@@ -304,36 +304,7 @@ void main() async {
           }
         } catch (_) {}
       };
-      NotificationService.instance.onReminderAction =
-          (lembreteId, actionId) async {
-            _reminderNotificationActionInProgress = true;
-            try {
-              await LembreteService.instance.carregar();
-              if (actionId == NotificationService.reminderDoneAction) {
-                await LembreteService.instance.concluir(lembreteId);
-                await NotificationService.instance.cancelar(lembreteId);
-                return;
-              }
-              if (actionId == NotificationService.reminderPostponeAction) {
-                await LembreteService.instance.adiar(lembreteId, 10);
-                await NotificationService.instance.agendarTodos(
-                  LembreteService.instance.lembretes,
-                );
-                await _confirmReminderPostponed();
-                _reminderNotificationActionInProgress = false;
-                return;
-              }
-              if (actionId == NotificationService.reminderHelpAction) {
-                await LembreteService.instance.registrarDificuldade(
-                  lembreteId,
-                  'Ajuda solicitada pela notificação',
-                );
-                await NotificationService.instance.cancelar(lembreteId);
-              }
-            } finally {
-              _reminderNotificationActionInProgress = false;
-            }
-          };
+      // onReminderAction foi removido na migração para o pacote alarm
       NotificationService.instance.onMessageAction =
           (messageId, actionId) async {
             await MessageService.instance.load();
@@ -502,13 +473,7 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
-    _reminderNotificationActionInProgress =
-        widget.pendingNotificationAction ==
-            NotificationService.reminderDoneAction ||
-        widget.pendingNotificationAction ==
-            NotificationService.reminderPostponeAction ||
-        widget.pendingNotificationAction ==
-            NotificationService.reminderHelpAction;
+    _reminderNotificationActionInProgress = false;
     WidgetsBinding.instance.addObserver(this);
     unawaited(OfflineSyncService.instance.startAutoSync());
     _loadAccessibilityPreferences();
@@ -1174,39 +1139,15 @@ class _AppStartupState extends State<_AppStartup> {
 
     try {
       await LembreteService.instance.carregar();
-      if (widget.pendingNotificationAction ==
-          NotificationService.reminderDoneAction) {
-        await LembreteService.instance.concluir(pendingPayload);
-        await NotificationService.instance.cancelar(pendingPayload);
-        _reminderNotificationActionInProgress = false;
-        return false;
-      }
-      if (widget.pendingNotificationAction ==
-          NotificationService.reminderPostponeAction) {
-        await LembreteService.instance.adiar(pendingPayload, 10);
-        await NotificationService.instance.agendarTodos(
-          LembreteService.instance.lembretes,
-        );
-        await _confirmReminderPostponed();
-        _reminderNotificationActionInProgress = false;
-        return false;
-      }
-      if (widget.pendingNotificationAction ==
-          NotificationService.reminderHelpAction) {
-        await LembreteService.instance.registrarDificuldade(
-          pendingPayload,
-          'Ajuda solicitada pela notificação',
-        );
-        await NotificationService.instance.cancelar(pendingPayload);
-        _reminderNotificationActionInProgress = false;
-        return false;
-      }
+      _reminderNotificationActionInProgress = false;
+
       final lembrete = await LembreteService.instance.buscarPorId(
         pendingPayload,
       );
       if (!mounted || lembrete == null || lembrete.concluido) {
         return false;
       }
+
 
       navigatorKey.currentState?.pushNamed(
         '/active-reminder',

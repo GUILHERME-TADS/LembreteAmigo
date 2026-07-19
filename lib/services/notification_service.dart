@@ -747,19 +747,10 @@ class NotificationService {
     final notificationId = _notificationIdFor(lembrete.id, slot);
     _pendingNotificationCancellations.remove(notificationId);
     
-    // Gerar audio dinâmico e tentar agendar via AlarmService
-    final audioText = lembrete.medicamentoAudioTexto != null && lembrete.medicamentoAudioTexto!.isNotEmpty 
-        ? lembrete.medicamentoAudioTexto! 
-        : 'Atenção! Lembrete: ${lembrete.titulo}.';
-        
-    final audioPath = await TTSService.instance.gerarAudioDoTexto(audioText, '${lembrete.id}_$slot');
+    // Usa o AlarmService (Pacote alarm) com o áudio do despertador fixo
+    final audioPath = 'assets/alarm.mp3';
     
-    if (audioPath != null) {
-      // Usa o AlarmService (Pacote alarm) com o áudio gerado
-      await AlarmService.instance.agendarAlarmeLembrete(lembrete, scheduledDate, audioPath, notificationId);
-    } else {
-      debugPrint('Falha ao gerar TTS para lembrete ${lembrete.id}, alarme não agendado localmente.');
-    }
+    await AlarmService.instance.agendarAlarmeLembrete(lembrete, scheduledDate, audioPath, notificationId);
     
     _scheduledReminderIds.putIfAbsent(lembrete.id, () => <int>{}).add(
           notificationId,

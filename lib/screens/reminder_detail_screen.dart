@@ -1,9 +1,9 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
 import '../models/lembrete.dart';
 import '../services/tts_service.dart';
+import '../services/elderly_profile_repository.dart';
 import '../utils/period_helper.dart';
 import '../widgets/index.dart';
 
@@ -28,8 +28,8 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
 
   Future<void> _loadProfilePhoto() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final localFoto = prefs.getString('idoso_foto_path');
+      final localFoto =
+          await ElderlyProfileRepository.instance.getCachedPhotoPath();
       if (mounted) {
         setState(() {
           _fotoPath = localFoto;

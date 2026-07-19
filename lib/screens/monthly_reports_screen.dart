@@ -12,7 +12,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:fl_chart/fl_chart.dart';
 
-import '../models/lembrete.dart';
 import '../services/lembrete_service.dart';
 import '../services/effectiveness_service.dart';
 import '../services/session_role_service.dart';
@@ -94,15 +93,19 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
       final monthStart = DateTime(now.year, now.month, 1);
       final monthlyOccurrences = EffectivenessService.instance
           .collapseOccurrences(
-        eventos.where((evento) => !evento.registradoEm.isBefore(monthStart)),
-      );
+            eventos.where(
+              (evento) => !evento.registradoEm.isBefore(monthStart),
+            ),
+          );
 
       int getPctForCategory(String category) {
         final items = monthlyOccurrences
             .where((evento) => evento.categoria == category)
             .toList();
         if (items.isEmpty) return 0;
-        final completed = items.where((evento) => evento.status.isConcluido).length;
+        final completed = items
+            .where((evento) => evento.status.isConcluido)
+            .length;
         return ((completed / items.length) * 100).round();
       }
 
@@ -113,9 +116,7 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
         weekStart.day,
       );
       final routineEvents = EffectivenessService.instance.collapseOccurrences(
-        eventos.where(
-          (evento) => !evento.registradoEm.isBefore(weekStartDate),
-        ),
+        eventos.where((evento) => !evento.registradoEm.isBefore(weekStartDate)),
       );
       final completedCount = routineEvents
           .where((evento) => evento.status.isConcluido)
@@ -136,10 +137,10 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
         _geralPct = monthlyOccurrences.isEmpty
             ? 0
             : ((monthlyOccurrences
-                            .where((evento) => evento.status.isConcluido)
-                            .length /
-                        monthlyOccurrences.length) *
-                    100)
+                              .where((evento) => evento.status.isConcluido)
+                              .length /
+                          monthlyOccurrences.length) *
+                      100)
                   .round();
         _weeklyTotal = routineEvents.length;
         _weeklyDone = completedCount;
@@ -150,10 +151,7 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
           completedCount,
           missedCount,
         );
-        _weeklyAttention = _buildAttentionSummary(
-          weeklyPct,
-          missedCount,
-        );
+        _weeklyAttention = _buildAttentionSummary(weeklyPct, missedCount);
       });
     } catch (e) {
       debugPrint('Erro ao carregar dados de relatorios: $e');
@@ -166,7 +164,10 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
     try {
       final fontData = await rootBundle.load("assets/fonts/Roboto-Regular.ttf");
       final robotoFont = pw.Font.ttf(fontData);
-      final pdfTheme = pw.ThemeData.withFont(base: robotoFont, bold: robotoFont);
+      final pdfTheme = pw.ThemeData.withFont(
+        base: robotoFont,
+        bold: robotoFont,
+      );
 
       final pdf = pw.Document();
       final weeklyPct = _weeklyTotal == 0
@@ -294,14 +295,16 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
     return Container(
       height: 64,
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-      ),
+      decoration: const BoxDecoration(color: AppColors.surface),
       child: Row(
         children: [
           IconButton(
             onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.arrow_back, color: AppColors.primary, size: 32),
+            icon: const Icon(
+              Icons.arrow_back,
+              color: AppColors.primary,
+              size: 32,
+            ),
           ),
           const Expanded(
             child: Text(
@@ -658,9 +661,7 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
                           child: Text(
                             'Sem ocorrências neste mês',
                             textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: AppColors.onSurfaceVariant,
-                            ),
+                            style: TextStyle(color: AppColors.onSurfaceVariant),
                           ),
                         )
                       : PieChart(
@@ -750,9 +751,9 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
     for (int i = 13; i >= 0; i--) {
       final day = DateTime(now.year, now.month, now.day - i);
       final dayEnd = DateTime(day.year, day.month, day.day, 23, 59, 59);
-      final dayEvents = eventos.where((e) =>
-          !e.registradoEm.isBefore(day) &&
-          !e.registradoEm.isAfter(dayEnd));
+      final dayEvents = eventos.where(
+        (e) => !e.registradoEm.isBefore(day) && !e.registradoEm.isAfter(dayEnd),
+      );
       final total = dayEvents.length;
       if (total == 0) {
         dailyAdherence[day] = -1;
@@ -765,21 +766,27 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
     final weekStart = DateTime(now.year, now.month, now.day - 6);
     final twoWeeksAgo = DateTime(now.year, now.month, now.day - 13);
 
-    final currentWeekEvents = eventos.where((e) =>
-        !e.registradoEm.isBefore(weekStart) &&
-        !e.registradoEm.isAfter(now) &&
-        e.categoria != 'bem_estar');
+    final currentWeekEvents = eventos.where(
+      (e) =>
+          !e.registradoEm.isBefore(weekStart) &&
+          !e.registradoEm.isAfter(now) &&
+          e.categoria != 'bem_estar',
+    );
     final currentTotal = currentWeekEvents.length;
-    final currentDone =
-        currentWeekEvents.where((e) => e.status.isConcluido).length;
+    final currentDone = currentWeekEvents
+        .where((e) => e.status.isConcluido)
+        .length;
 
-    final previousWeekEvents = eventos.where((e) =>
-        !e.registradoEm.isBefore(twoWeeksAgo) &&
-        e.registradoEm.isBefore(weekStart) &&
-        e.categoria != 'bem_estar');
+    final previousWeekEvents = eventos.where(
+      (e) =>
+          !e.registradoEm.isBefore(twoWeeksAgo) &&
+          e.registradoEm.isBefore(weekStart) &&
+          e.categoria != 'bem_estar',
+    );
     final previousTotal = previousWeekEvents.length;
-    final previousDone =
-        previousWeekEvents.where((e) => e.status.isConcluido).length;
+    final previousDone = previousWeekEvents
+        .where((e) => e.status.isConcluido)
+        .length;
 
     return Column(
       children: [

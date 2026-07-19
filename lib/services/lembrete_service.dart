@@ -882,30 +882,6 @@ class LembreteService {
     );
   }
 
-  Future<void> _atualizarStatus(
-    String id,
-    LembreteStatus status, {
-    String? observacao,
-  }) async {
-    final lembrete = await _findLocalOrRemote(id);
-    if (lembrete == null) return;
-    if (_bloqueiaConclusaoSemFoto(lembrete, status)) return;
-
-    final atualizado = lembrete.copyWith(status: status);
-    _upsertLocal(atualizado);
-    await _salvar();
-
-    if (_canSyncIdosoId(atualizado.idosoId)) {
-      await OfflineSyncService.instance.updateOrQueue('lembretes', id, {
-        'status': status.storageValue,
-        'concluido': status.isConcluido,
-        'concluidoComFoto': status == LembreteStatus.concluidoComFoto,
-      });
-    }
-
-    await _registrarEvento(atualizado, status, observacao: observacao);
-  }
-
   Future<void> _atualizarLocalERemoto(
     String id,
     Lembrete Function(Lembrete lembrete) updateLocal,

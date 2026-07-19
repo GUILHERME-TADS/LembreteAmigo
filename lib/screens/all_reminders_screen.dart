@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../models/lembrete.dart';
 import '../services/lembrete_service.dart';
+import '../services/elderly_profile_repository.dart';
 import '../services/tts_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/index.dart';
 import '../utils/period_helper.dart';
-import '../utils/reminder_state_helper.dart';
 
 class AllRemindersScreen extends StatefulWidget {
   const AllRemindersScreen({super.key});
@@ -64,8 +62,8 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
 
   Future<void> _loadProfilePhoto() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final localFoto = prefs.getString('idoso_foto_path');
+      final localFoto =
+          await ElderlyProfileRepository.instance.getCachedPhotoPath();
       if (mounted) {
         setState(() {
           _fotoPath = localFoto;
@@ -152,7 +150,9 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
   ) {
     if (list.isEmpty) return const SizedBox.shrink();
 
-    final countText = list.length == 1 ? '1 lembrete' : '${list.length} lembretes';
+    final countText = list.length == 1
+        ? '1 lembrete'
+        : '${list.length} lembretes';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -178,7 +178,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                       color: color.withValues(alpha: 0.3),
                       blurRadius: 6,
                       offset: const Offset(0, 3),
-                    )
+                    ),
                   ],
                 ),
                 child: Icon(icon, color: Colors.white, size: 28),
@@ -238,8 +238,12 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                     accentColor: accentColor,
                     title: r.titulo,
                     time: r.horarioFormatado,
-                    audioPath: r.audioPath == 'ia_generated' ? null : r.audioPath,
-                    ttsText: r.audioPath == 'ia_generated' ? r.medicamentoAudioTexto : null,
+                    audioPath: r.audioPath == 'ia_generated'
+                        ? null
+                        : r.audioPath,
+                    ttsText: r.audioPath == 'ia_generated'
+                        ? r.medicamentoAudioTexto
+                        : null,
                     status: reminderVisualStatusFromLembrete(r),
                     onTap: () {
                       _stopAllAudioAndTts();
@@ -264,13 +268,25 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                       }
                     },
                   ),
-                  if (r.medicamentoInstrucoes != null && r.medicamentoInstrucoes!.isNotEmpty) ...[
-                    const Divider(height: 1, color: AppColors.outlineVariant, thickness: 2),
+                  if (r.medicamentoInstrucoes != null &&
+                      r.medicamentoInstrucoes!.isNotEmpty) ...[
+                    const Divider(
+                      height: 1,
+                      color: AppColors.outlineVariant,
+                      thickness: 2,
+                    ),
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                       child: Row(
                         children: [
-                          const Icon(Icons.info_outline, size: 20, color: AppColors.primary),
+                          const Icon(
+                            Icons.info_outline,
+                            size: 20,
+                            color: AppColors.primary,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -346,495 +362,519 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
               child: _isLoadingReminders
                   ? const Center(child: CircularProgressIndicator())
                   : SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Seus lembretes do dia',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w500,
-                        height: 1.5,
-                        color: AppColors.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Separadas pela hora do dia',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w400,
-                        color: AppColors.onSurfaceVariant,
-                      ),
-                    ),
-
-                    // Card de Progresso
-                    if (total > 0)
-                      Container(
-                        margin: const EdgeInsets.only(top: 16),
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: isAllDone
-                                ? [const Color(0xFF003709), AppColors.tertiary]
-                                : [AppColors.primary, const Color(0xFF1E3A8A)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(24),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.12),
-                              blurRadius: 12,
-                              offset: const Offset(0, 6),
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Seus lembretes do dia',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w500,
+                              height: 1.5,
+                              color: AppColors.onSurfaceVariant,
                             ),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  isAllDone
-                                      ? Icons.check_circle
-                                      : Icons.trending_up,
-                                  color: isAllDone
-                                      ? AppColors.tertiaryFixed
-                                      : AppColors.secondaryContainer,
-                                  size: 32,
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Separadas pela hora do dia',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w400,
+                              color: AppColors.onSurfaceVariant,
+                            ),
+                          ),
+
+                          // Card de Progresso
+                          if (total > 0)
+                            Container(
+                              margin: const EdgeInsets.only(top: 16),
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: isAllDone
+                                      ? [
+                                          const Color(0xFF003709),
+                                          AppColors.tertiary,
+                                        ]
+                                      : [
+                                          AppColors.primary,
+                                          const Color(0xFF1E3A8A),
+                                        ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
                                 ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
+                                borderRadius: BorderRadius.circular(24),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.12),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 6),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        isAllDone
+                                            ? Icons.check_circle
+                                            : Icons.trending_up,
+                                        color: isAllDone
+                                            ? AppColors.tertiaryFixed
+                                            : AppColors.secondaryContainer,
+                                        size: 32,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          isAllDone
+                                              ? 'Tudo feito! Excelente!'
+                                              : 'Seu progresso de hoje',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
                                     isAllDone
-                                        ? 'Tudo feito! Excelente!'
-                                        : 'Seu progresso de hoje',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
+                                        ? 'Você realizou todos os seus lembretes. Parabéns por se cuidar!'
+                                        : 'Você já fez $completed de $total lembretes de hoje. Continue assim!',
+                                    style: TextStyle(
+                                      color: Colors.white.withValues(
+                                        alpha: 0.9,
+                                      ),
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w500,
                                     ),
                                   ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              isAllDone
-                                  ? 'Você realizou todos os seus lembretes. Parabéns por se cuidar!'
-                                  : 'Você já fez $completed de $total lembretes de hoje. Continue assim!',
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.9),
-                                fontSize: 15,
-                                fontWeight: FontWeight.w500,
+                                  const SizedBox(height: 16),
+                                  Stack(
+                                    alignment: Alignment.center,
+                                    children: [
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(14),
+                                        child: SizedBox(
+                                          height: 28,
+                                          child: LinearProgressIndicator(
+                                            value: progress,
+                                            backgroundColor: Colors.white
+                                                .withValues(alpha: 0.2),
+                                            valueColor:
+                                                AlwaysStoppedAnimation<Color>(
+                                                  isAllDone
+                                                      ? AppColors
+                                                            .tertiaryFixedDim
+                                                      : AppColors
+                                                            .secondaryContainer,
+                                                ),
+                                          ),
+                                        ),
+                                      ),
+                                      Text(
+                                        '${(progress * 100).toInt()}% COMPLETO  ${progress >= 1.0
+                                            ? "🥳 🎉"
+                                            : progress >= 0.7
+                                            ? "😎"
+                                            : progress >= 0.3
+                                            ? "🙂"
+                                            : "💪"}',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w900,
+                                          letterSpacing: 0,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
                             ),
-                            const SizedBox(height: 16),
-                            Stack(
-                              alignment: Alignment.center,
+                          const SizedBox(height: 16),
+                          // Option 2 Toggle Button
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.surfaceContainerHigh,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: AppColors.outlineVariant.withValues(
+                                  alpha: 0.5,
+                                ),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(14),
-                                  child: SizedBox(
-                                    height: 28,
-                                    child: LinearProgressIndicator(
-                                      value: progress,
-                                      backgroundColor: Colors.white.withValues(
-                                        alpha: 0.2,
+                                const Expanded(
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.visibility_off,
+                                        color: AppColors.primary,
+                                        size: 24,
                                       ),
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                        isAllDone
-                                            ? AppColors.tertiaryFixedDim
-                                            : AppColors.secondaryContainer,
+                                      SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          'Mostrar apenas o que falta',
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w700,
+                                            color: AppColors.primary,
+                                          ),
+                                        ),
                                       ),
-                                    ),
+                                    ],
                                   ),
                                 ),
-                                Text(
-                                  '${(progress * 100).toInt()}% COMPLETO  ${progress >= 1.0
-                                      ? "🥳 🎉"
-                                      : progress >= 0.7
-                                      ? "😎"
-                                      : progress >= 0.3
-                                      ? "🙂"
-                                      : "💪"}',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: 0,
-                                  ),
+                                Switch(
+                                  value: _showOnlyPending,
+                                  onChanged: (val) {
+                                    setState(() {
+                                      _showOnlyPending = val;
+                                    });
+                                  },
+                                  activeThumbColor: AppColors.primary,
                                 ),
                               ],
+                            ),
+                          ),
+
+                          // Chips de Filtro por Categoria
+                          if (_voiceReminders.isNotEmpty)
+                            Container(
+                              height: 60,
+                              margin: const EdgeInsets.only(top: 16, bottom: 8),
+                              child: ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: categories.length,
+                                itemBuilder: (context, index) {
+                                  final cat = categories[index];
+                                  final isSelected =
+                                      _selectedCategory == cat['id'];
+                                  final icon = cat['icon'] as IconData;
+                                  final label = cat['label'] as String;
+                                  final catColor = _getCategoryColor(
+                                    cat['id'] as String,
+                                  );
+
+                                  return Padding(
+                                    padding: const EdgeInsets.only(right: 8),
+                                    child: ChoiceChip(
+                                      iconTheme: IconThemeData(
+                                        color: isSelected
+                                            ? Colors.white
+                                            : AppColors.onSurfaceVariant,
+                                      ),
+                                      avatar: Icon(icon, size: 20),
+                                      label: Text(
+                                        label,
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: isSelected
+                                              ? Colors.white
+                                              : AppColors.onSurfaceVariant,
+                                        ),
+                                      ),
+                                      selected: isSelected,
+                                      onSelected: (selected) {
+                                        if (selected) {
+                                          setState(() {
+                                            _selectedCategory =
+                                                cat['id'] as String;
+                                          });
+                                        }
+                                      },
+                                      selectedColor: catColor,
+                                      backgroundColor:
+                                          AppColors.surfaceContainerHigh,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                        side: BorderSide(
+                                          color: isSelected
+                                              ? catColor
+                                              : AppColors.outlineVariant,
+                                          width: 1.5,
+                                        ),
+                                      ),
+                                      showCheckmark: false,
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+
+                          if (audioSummaryList.isNotEmpty)
+                            AudioPlayerCard(
+                              subtitle: _selectedCategory == 'todos'
+                                  ? (_showOnlyPending
+                                        ? 'Ouça os lembretes que ainda faltam'
+                                        : 'Ouça todos os lembretes de hoje')
+                                  : 'Ouça lembretes de ${_selectedCategory == 'medicacao'
+                                        ? 'remédio'
+                                        : _selectedCategory == 'refeicoes'
+                                        ? 'comida'
+                                        : _selectedCategory == 'exercicio'
+                                        ? 'exercício'
+                                        : 'água'}',
+                              textsToSpeak: () {
+                                final catLabel =
+                                    _selectedCategory == 'medicacao'
+                                    ? 'lembretes de medicação'
+                                    : _selectedCategory == 'refeicoes'
+                                    ? 'lembretes de refeição'
+                                    : _selectedCategory == 'exercicio'
+                                    ? 'lembretes de exercício'
+                                    : _selectedCategory == 'hidratacao'
+                                    ? 'lembretes de hidratação'
+                                    : 'lembretes';
+                                final audioListDone =
+                                    audioSummaryList.isNotEmpty &&
+                                    audioSummaryList.every((l) => l.concluido);
+                                final introText = audioSummaryList.isEmpty
+                                    ? 'Você não tem lembretes desta categoria.'
+                                    : audioListDone
+                                    ? 'Muito bem! Você já fez todas as suas $catLabel de hoje!'
+                                    : 'Aqui estão suas $catLabel de hoje:';
+                                return [
+                                  introText,
+                                  ...audioSummaryList.map((l) {
+                                    final statusSuffix = l.concluido
+                                        ? ' já está pronto.'
+                                        : l.status == LembreteStatus.adiado
+                                        ? ' ficou para mais tarde.'
+                                        : '';
+                                    return '${l.titulo} ${PeriodHelper.getSpokenTimeWithPreposition(l.horarioHour, l.horarioMinute)}$statusSuffix';
+                                  }),
+                                ];
+                              }(),
+                            ),
+
+                          // Listas por Período (Pendentes)
+                          if (pending.isNotEmpty) ...[
+                            const SizedBox(height: 16),
+                            _buildPeriodSection(
+                              'Madrugada',
+                              Icons.nightlight_round,
+                              const Color(0xFF455A64),
+                              madrugadaList,
+                            ),
+                            _buildPeriodSection(
+                              'Manhã',
+                              Icons.wb_sunny,
+                              Colors.orange,
+                              manhaList,
+                            ),
+                            _buildPeriodSection(
+                              'Tarde',
+                              Icons.wb_twilight,
+                              AppColors.mealsColor,
+                              tardeList,
+                            ),
+                            _buildPeriodSection(
+                              'Noite',
+                              Icons.bedtime,
+                              Colors.indigo,
+                              noiteList,
+                            ),
+                          ] else if (filteredList.isNotEmpty &&
+                              pending.isEmpty) ...[
+                            // Se tem itens mas nenhum pendente
+                            Center(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 32,
+                                  horizontal: 16,
+                                ),
+                                child: Column(
+                                  children: [
+                                    const Icon(
+                                      Icons.done_all,
+                                      size: 64,
+                                      color: Colors.green,
+                                    ),
+                                    const SizedBox(height: 16),
+                                    const Text(
+                                      'Todos os lembretes feitos!',
+                                      style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      _selectedCategory == 'todos'
+                                          ? 'Você concluiu todos os lembretes de hoje.'
+                                          : 'Você já fez todos os lembretes desta categoria.',
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        color: AppColors.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
                           ],
-                        ),
-                      ),
-                    const SizedBox(height: 16),
-                    // Option 2 Toggle Button
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceContainerHigh,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: AppColors.outlineVariant.withValues(
-                            alpha: 0.5,
-                          ),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Expanded(
-                            child: Row(
-                              children: [
-                                Icon(
-                                Icons.visibility_off,
-                                color: AppColors.primary,
-                                size: 24,
+
+                          // Lembretes Concluídos (Retrátil)
+                          if (completedList.isNotEmpty) ...[
+                            const SizedBox(height: 16),
+                            InkWell(
+                              onTap: () {
+                                setState(() {
+                                  _showCompleted = !_showCompleted;
+                                });
+                              },
+                              borderRadius: BorderRadius.circular(12),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 8,
                                 ),
-                                SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    'Mostrar apenas o que falta',
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.primary,
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      _showCompleted
+                                          ? Icons.expand_more
+                                          : Icons.navigate_next,
+                                      color: AppColors.onSurfaceVariant,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    const Text(
+                                      'O que já foi feito',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.onSurfaceVariant,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.surfaceContainerHigh,
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Text(
+                                        '${completedList.length}',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColors.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            if (_showCompleted) ...[
+                              const SizedBox(height: 8),
+                              ...completedList.map((r) {
+                                final (icon, iconBg, accentColor) =
+                                    _categoriaIcon(r.categoria);
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: Opacity(
+                                    opacity: 0.6,
+                                    child: ReminderWithAudio(
+                                      icon: icon,
+                                      iconBg: iconBg,
+                                      iconColor: Colors.white,
+                                      accentColor: accentColor,
+                                      title: r.titulo,
+                                      time: r.horarioFormatado,
+                                      audioPath: r.audioPath == 'ia_generated'
+                                          ? null
+                                          : r.audioPath,
+                                      ttsText: r.audioPath == 'ia_generated'
+                                          ? r.medicamentoAudioTexto
+                                          : null,
+                                      status: reminderVisualStatusFromLembrete(
+                                        r,
+                                      ),
+                                      onTap: () {
+                                        _stopAllAudioAndTts();
+                                        Navigator.pushNamed(
+                                          context,
+                                          '/reminder-detail',
+                                          arguments: r,
+                                        );
+                                      },
+                                      onStatusTap: () async {
+                                        _stopAllAudioAndTts();
+                                        await LembreteService.instance
+                                            .alternarConclusao(r.id);
+                                        _loadReminders();
+                                      },
                                     ),
                                   ),
-                                ),
-                              ],
+                                );
+                              }),
+                            ],
+                          ],
+
+                          // Estado vazio (sem nenhum lembrete total)
+                          if (filteredList.isEmpty) ...[
+                            const SizedBox(height: 48),
+                            Center(
+                              child: Column(
+                                children: [
+                                  Icon(
+                                    Icons.notifications_off,
+                                    size: 64,
+                                    color: AppColors.outlineVariant,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    _selectedCategory == 'todos'
+                                        ? 'Nada para lembrar hoje'
+                                        : 'Nada deste tipo',
+                                    style: const TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.onSurfaceVariant,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    _selectedCategory == 'todos'
+                                        ? 'Aperte o botão de voz na tela inicial para criar um lembrete.'
+                                        : 'Você não tem lembretes desta categoria.',
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      color: AppColors.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                          Switch(
-                            value: _showOnlyPending,
-                            onChanged: (val) {
-                              setState(() {
-                                _showOnlyPending = val;
-                              });
-                            },
-                            activeThumbColor: AppColors.primary,
-                          ),
+                          ],
+                          const SizedBox(height: 24),
                         ],
                       ),
                     ),
-
-                    // Chips de Filtro por Categoria
-                    if (_voiceReminders.isNotEmpty)
-                      Container(
-                        height: 60,
-                        margin: const EdgeInsets.only(top: 16, bottom: 8),
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: categories.length,
-                          itemBuilder: (context, index) {
-                            final cat = categories[index];
-                            final isSelected = _selectedCategory == cat['id'];
-                            final icon = cat['icon'] as IconData;
-                            final label = cat['label'] as String;
-                            final catColor = _getCategoryColor(
-                              cat['id'] as String,
-                            );
-
-                            return Padding(
-                              padding: const EdgeInsets.only(right: 8),
-                              child: ChoiceChip(
-                                iconTheme: IconThemeData(
-                                  color: isSelected
-                                      ? Colors.white
-                                      : AppColors.onSurfaceVariant,
-                                ),
-                                avatar: Icon(icon, size: 20),
-                                label: Text(
-                                  label,
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: isSelected
-                                        ? Colors.white
-                                        : AppColors.onSurfaceVariant,
-                                  ),
-                                ),
-                                selected: isSelected,
-                                onSelected: (selected) {
-                                  if (selected) {
-                                    setState(() {
-                                      _selectedCategory = cat['id'] as String;
-                                    });
-                                  }
-                                },
-                                selectedColor: catColor,
-                                backgroundColor: AppColors.surfaceContainerHigh,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                  side: BorderSide(
-                                    color: isSelected
-                                        ? catColor
-                                        : AppColors.outlineVariant,
-                                    width: 1.5,
-                                  ),
-                                ),
-                                showCheckmark: false,
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-
-                    if (audioSummaryList.isNotEmpty)
-                      AudioPlayerCard(
-                        subtitle: _selectedCategory == 'todos'
-                            ? (_showOnlyPending
-                                ? 'Ouça os lembretes que ainda faltam'
-                                : 'Ouça todos os lembretes de hoje')
-                            : 'Ouça lembretes de ${_selectedCategory == 'medicacao'
-                                  ? 'remédio'
-                                  : _selectedCategory == 'refeicoes'
-                                  ? 'comida'
-                                  : _selectedCategory == 'exercicio'
-                                  ? 'exercício'
-                                  : 'água'}',
-                        textsToSpeak: () {
-                          final catLabel = _selectedCategory == 'medicacao'
-                              ? 'lembretes de medicação'
-                              : _selectedCategory == 'refeicoes'
-                              ? 'lembretes de refeição'
-                              : _selectedCategory == 'exercicio'
-                              ? 'lembretes de exercício'
-                              : _selectedCategory == 'hidratacao'
-                              ? 'lembretes de hidratação'
-                              : 'lembretes';
-                          final audioListDone = audioSummaryList.isNotEmpty &&
-                              audioSummaryList.every((l) => l.concluido);
-                          final introText = audioSummaryList.isEmpty
-                              ? 'Você não tem lembretes desta categoria.'
-                              : audioListDone
-                              ? 'Muito bem! Você já fez todas as suas $catLabel de hoje!'
-                              : 'Aqui estão suas $catLabel de hoje:';
-                          return [
-                            introText,
-                            ...audioSummaryList.map((l) {
-                              final statusSuffix = l.concluido
-                                  ? ' já está pronto.'
-                                  : l.status == LembreteStatus.adiado
-                                  ? ' ficou para mais tarde.'
-                                  : '';
-                              return '${l.titulo} ${PeriodHelper.getSpokenTimeWithPreposition(l.horarioHour, l.horarioMinute)}$statusSuffix';
-                            }),
-                          ];
-                        }(),
-                      ),
-
-                    // Listas por Período (Pendentes)
-                    if (pending.isNotEmpty) ...[
-                      const SizedBox(height: 16),
-                      _buildPeriodSection(
-                        'Madrugada',
-                        Icons.nightlight_round,
-                        const Color(0xFF455A64),
-                        madrugadaList,
-                      ),
-                      _buildPeriodSection(
-                        'Manhã',
-                        Icons.wb_sunny,
-                        Colors.orange,
-                        manhaList,
-                      ),
-                      _buildPeriodSection(
-                        'Tarde',
-                        Icons.wb_twilight,
-                        AppColors.mealsColor,
-                        tardeList,
-                      ),
-                      _buildPeriodSection(
-                        'Noite',
-                        Icons.bedtime,
-                        Colors.indigo,
-                        noiteList,
-                      ),
-                    ] else if (filteredList.isNotEmpty && pending.isEmpty) ...[
-                      // Se tem itens mas nenhum pendente
-                      Center(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 32,
-                            horizontal: 16,
-                          ),
-                          child: Column(
-                            children: [
-                              const Icon(
-                                Icons.done_all,
-                                size: 64,
-                                color: Colors.green,
-                              ),
-                              const SizedBox(height: 16),
-                              const Text(
-                                'Todos os lembretes feitos!',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.primary,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                _selectedCategory == 'todos'
-                                    ? 'Você concluiu todos os lembretes de hoje.'
-                                    : 'Você já fez todos os lembretes desta categoria.',
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  color: AppColors.onSurfaceVariant,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-
-                    // Lembretes Concluídos (Retrátil)
-                    if (completedList.isNotEmpty) ...[
-                      const SizedBox(height: 16),
-                      InkWell(
-                        onTap: () {
-                          setState(() {
-                            _showCompleted = !_showCompleted;
-                          });
-                        },
-                        borderRadius: BorderRadius.circular(12),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          child: Row(
-                            children: [
-                              Icon(
-                                _showCompleted
-                                    ? Icons.expand_more
-                                    : Icons.navigate_next,
-                                color: AppColors.onSurfaceVariant,
-                              ),
-                              const SizedBox(width: 8),
-                              const Text(
-                                'O que já foi feito',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.onSurfaceVariant,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppColors.surfaceContainerHigh,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  '${completedList.length}',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.onSurfaceVariant,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      if (_showCompleted) ...[
-                        const SizedBox(height: 8),
-                        ...completedList.map((r) {
-                          final (icon, iconBg, accentColor) = _categoriaIcon(
-                            r.categoria,
-                          );
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: Opacity(
-                              opacity: 0.6,
-                              child: ReminderWithAudio(
-                                icon: icon,
-                                iconBg: iconBg,
-                                iconColor: Colors.white,
-                                accentColor: accentColor,
-                                title: r.titulo,
-                                time: r.horarioFormatado,
-                                audioPath: r.audioPath == 'ia_generated' ? null : r.audioPath,
-                                ttsText: r.audioPath == 'ia_generated' ? r.medicamentoAudioTexto : null,
-                                status: reminderVisualStatusFromLembrete(r),
-                                onTap: () {
-                                  _stopAllAudioAndTts();
-                                  Navigator.pushNamed(
-                                    context,
-                                    '/reminder-detail',
-                                    arguments: r,
-                                  );
-                                },
-                                onStatusTap: () async {
-                                  _stopAllAudioAndTts();
-                                  await LembreteService.instance.alternarConclusao(r.id);
-                                  _loadReminders();
-                                },
-                              ),
-                            ),
-                          );
-                        }),
-                      ],
-                    ],
-
-                    // Estado vazio (sem nenhum lembrete total)
-                    if (filteredList.isEmpty) ...[
-                      const SizedBox(height: 48),
-                      Center(
-                        child: Column(
-                          children: [
-                            Icon(
-                              Icons.notifications_off,
-                              size: 64,
-                              color: AppColors.outlineVariant,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              _selectedCategory == 'todos'
-                                  ? 'Nada para lembrar hoje'
-                                  : 'Nada deste tipo',
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.onSurfaceVariant,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              _selectedCategory == 'todos'
-                                  ? 'Aperte o botão de voz na tela inicial para criar um lembrete.'
-                                  : 'Você não tem lembretes desta categoria.',
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                color: AppColors.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 24),
-                  ],
-                ),
-              ),
             ),
           ],
         ),
@@ -845,9 +885,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
   Widget _buildTopBar(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-      ),
+      decoration: const BoxDecoration(color: AppColors.surface),
       child: Row(
         children: [
           const SizedBox(width: 48),
@@ -874,15 +912,11 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
             },
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: [
-                ElderlyProfileAvatar(fotoPath: _fotoPath, size: 56),
-              ],
+              children: [ElderlyProfileAvatar(fotoPath: _fotoPath, size: 56)],
             ),
           ),
         ],
       ),
     );
   }
-
-
 }

@@ -7,7 +7,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:jitsi_meet_flutter_sdk/jitsi_meet_flutter_sdk.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../main.dart';
 import '../models/video_call.dart';
@@ -34,7 +33,6 @@ class VideoCallService {
   String? lastStartFailureMessage;
 
   DateTime? _joinedAt;
-  String? _joinedCallId;
   String _joinedCallType = 'video';
 
   bool get _useFirebase {
@@ -58,17 +56,19 @@ class VideoCallService {
           AppStatusService.instance.report(
             id: 'video-call-denied',
             title: 'Chamada bloqueada',
-            message: 'Nao foi possivel confirmar permissao para entrar nesta chamada.',
+            message:
+                'Nao foi possivel confirmar permissao para entrar nesta chamada.',
             severity: AppStatusSeverity.critical,
           );
           return;
         }
       }
       final displayName = await getMyDisplayName();
-      debugPrint('Jitsi: entrando na chamada. Tipo: $callType, ID: $callId, Web: $kIsWeb');
+      debugPrint(
+        'Jitsi: entrando na chamada. Tipo: $callType, ID: $callId, Web: $kIsWeb',
+      );
 
       _joinedAt = DateTime.now();
-      _joinedCallId = callId;
       _joinedCallType = callType;
 
       if (callId != null) {
@@ -78,7 +78,8 @@ class VideoCallService {
       if (kIsWeb) {
         final isVoice = callType == 'voice';
         final encodedName = Uri.encodeComponent(displayName);
-        final url = 'https://meet.ffmuc.net/$roomName#config.prejoinPageEnabled=false&config.prejoinConfig.enabled=false&config.startWithVideoMuted=$isVoice&userInfo.displayName="$encodedName"';
+        final url =
+            'https://meet.ffmuc.net/$roomName#config.prejoinPageEnabled=false&config.prejoinConfig.enabled=false&config.startWithVideoMuted=$isVoice&userInfo.displayName="$encodedName"';
         openJitsiWeb(url, callId, (id) => endCall(id));
         return;
       }
@@ -94,7 +95,9 @@ class VideoCallService {
             _navigateToSummary(
               callerName: displayName,
               callType: callType,
-              durationSeconds: _joinedAt != null ? DateTime.now().difference(_joinedAt!).inSeconds : 0,
+              durationSeconds: _joinedAt != null
+                  ? DateTime.now().difference(_joinedAt!).inSeconds
+                  : 0,
               status: VideoCallStatus.ended,
             );
           }
@@ -104,9 +107,7 @@ class VideoCallService {
       final options = JitsiMeetConferenceOptions(
         serverURL: 'https://meet.ffmuc.net',
         room: roomName,
-        userInfo: JitsiMeetUserInfo(
-          displayName: displayName,
-        ),
+        userInfo: JitsiMeetUserInfo(displayName: displayName),
         configOverrides: {
           "startWithAudioMuted": false,
           "startWithVideoMuted": isVoice,
@@ -145,12 +146,15 @@ class VideoCallService {
     try {
       final navState = navigatorKey.currentState;
       if (navState != null) {
-        navState.pushNamed('/post-call-summary', arguments: {
-          'callerName': callerName,
-          'callType': callType,
-          'durationSeconds': durationSeconds,
-          'status': status,
-        });
+        navState.pushNamed(
+          '/post-call-summary',
+          arguments: {
+            'callerName': callerName,
+            'callType': callType,
+            'durationSeconds': durationSeconds,
+            'status': status,
+          },
+        );
       }
     } catch (e) {
       debugPrint('Erro ao abrir resumo pós-chamada: $e');
@@ -262,13 +266,16 @@ class VideoCallService {
     lastStartFailureMessage = null;
 
     if (!_useFirebase) {
-      debugPrint('Chamada nao iniciada: Firebase indisponivel para notificar o outro aparelho.');
+      debugPrint(
+        'Chamada nao iniciada: Firebase indisponivel para notificar o outro aparelho.',
+      );
       lastStartFailureMessage =
           'Firebase indisponivel para iniciar a chamada neste aparelho.';
       AppStatusService.instance.report(
         id: 'video-call-no-firebase',
         title: 'Chamada indisponivel',
-        message: 'Nao foi possivel conectar ao Firebase para iniciar a chamada.',
+        message:
+            'Nao foi possivel conectar ao Firebase para iniciar a chamada.',
         severity: AppStatusSeverity.critical,
       );
       return null;
@@ -284,7 +291,8 @@ class VideoCallService {
       AppStatusService.instance.report(
         id: 'video-call-invalid-session',
         title: 'Chamada indisponivel',
-        message: 'Confirme o vinculo entre os aparelhos antes de iniciar chamada.',
+        message:
+            'Confirme o vinculo entre os aparelhos antes de iniciar chamada.',
         severity: AppStatusSeverity.critical,
       );
       return null;
@@ -354,8 +362,9 @@ class VideoCallService {
     await Future<void>.delayed(const Duration(seconds: 45));
     if (!_useFirebase) return;
     try {
-      final reference =
-          FirebaseFirestore.instance.collection('video_calls').doc(callId);
+      final reference = FirebaseFirestore.instance
+          .collection('video_calls')
+          .doc(callId);
       final snapshot = await reference.get();
       if (!snapshot.exists || snapshot.data()?['status'] != 'ringing') return;
       await reference.update({
@@ -377,7 +386,9 @@ class VideoCallService {
   }) async {
     if (!_useFirebase) return;
 
-    final targetRole = SessionRoleService.isSupervisor ? 'elderly' : 'supervisor';
+    final targetRole = SessionRoleService.isSupervisor
+        ? 'elderly'
+        : 'supervisor';
     String targetUserId;
     if (SessionRoleService.isSupervisor) {
       targetUserId = idosoId;
@@ -394,9 +405,7 @@ class VideoCallService {
         : 'Você está recebendo uma chamada de vídeo!';
 
     try {
-      await FirebaseFunctions.instance
-          .httpsCallable('sendPush')
-          .call({
+      await FirebaseFunctions.instance.httpsCallable('sendPush').call({
         'targetUserId': targetUserId,
         'targetRole': targetRole,
         'title': titleText,
@@ -423,38 +432,38 @@ class VideoCallService {
         .doc(callId)
         .snapshots()
         .listen((snapshot) {
-      if (!snapshot.exists) {
-        activeCallNotifier.value = null;
-        return;
-      }
-      final data = snapshot.data();
-      if (data == null) {
-        activeCallNotifier.value = null;
-        return;
-      }
-      final call = VideoCall.fromJson(callId, data);
-      activeCallNotifier.value = call;
+          if (!snapshot.exists) {
+            activeCallNotifier.value = null;
+            return;
+          }
+          final data = snapshot.data();
+          if (data == null) {
+            activeCallNotifier.value = null;
+            return;
+          }
+          final call = VideoCall.fromJson(callId, data);
+          activeCallNotifier.value = call;
 
-      // If call is ended or declined, terminate Jitsi on both Web and Mobile
-      if (call.status == VideoCallStatus.ended ||
-          call.status == VideoCallStatus.declined ||
-          call.status == VideoCallStatus.missed) {
-        NotificationService.instance.cancelarChamada(callId);
-        if (call.status == VideoCallStatus.missed) {
-          NotificationService.instance.mostrarChamadaPerdida(
-            callId: callId,
-            callType: call.callType,
-          );
-        }
-        if (kIsWeb) {
-          closeJitsiWeb();
-        } else {
-          JitsiMeet().hangUp();
-        }
-        _callSubscription?.cancel();
-        activeCallNotifier.value = null;
-      }
-    });
+          // If call is ended or declined, terminate Jitsi on both Web and Mobile
+          if (call.status == VideoCallStatus.ended ||
+              call.status == VideoCallStatus.declined ||
+              call.status == VideoCallStatus.missed) {
+            NotificationService.instance.cancelarChamada(callId);
+            if (call.status == VideoCallStatus.missed) {
+              NotificationService.instance.mostrarChamadaPerdida(
+                callId: callId,
+                callType: call.callType,
+              );
+            }
+            if (kIsWeb) {
+              closeJitsiWeb();
+            } else {
+              JitsiMeet().hangUp();
+            }
+            _callSubscription?.cancel();
+            activeCallNotifier.value = null;
+          }
+        });
   }
 
   /// Aceita uma chamada
@@ -475,9 +484,9 @@ class VideoCallService {
         .collection('video_calls')
         .doc(callId)
         .update({
-      'status': 'declined',
-      'endedAt': DateTime.now().toIso8601String(),
-    });
+          'status': 'declined',
+          'endedAt': DateTime.now().toIso8601String(),
+        });
     await _callSubscription?.cancel();
     activeCallNotifier.value = null;
   }
@@ -485,8 +494,11 @@ class VideoCallService {
   /// Encerra uma chamada
   Future<void> endCall(String callId, {int? durationSeconds}) async {
     await NotificationService.instance.cancelarChamada(callId);
-    final calculatedDuration = durationSeconds ??
-        (_joinedAt != null ? DateTime.now().difference(_joinedAt!).inSeconds : 0);
+    final calculatedDuration =
+        durationSeconds ??
+        (_joinedAt != null
+            ? DateTime.now().difference(_joinedAt!).inSeconds
+            : 0);
     final displayName = await getMyDisplayName();
 
     if (_useFirebase) {
@@ -512,7 +524,6 @@ class VideoCallService {
     );
 
     _joinedAt = null;
-    _joinedCallId = null;
   }
 
   /// Busca o histórico de chamadas de um idoso
@@ -523,9 +534,11 @@ class VideoCallService {
         .orderBy('startedAt', descending: true)
         .limit(50)
         .snapshots()
-        .map((snapshot) => snapshot.docs.map((doc) {
-              return VideoCall.fromJson(doc.id, doc.data());
-            }).toList());
+        .map(
+          (snapshot) => snapshot.docs.map((doc) {
+            return VideoCall.fromJson(doc.id, doc.data());
+          }).toList(),
+        );
   }
 
   /// Busca chamadas ativas (ringing ou connected) para um idoso/supervisor

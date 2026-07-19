@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import '../models/effectiveness_metrics.dart';
-import '../models/lembrete_evento.dart';
 import '../services/effectiveness_service.dart';
 import '../services/lembrete_service.dart';
 
@@ -12,7 +11,9 @@ class EffectivenessController {
   EffectivenessMetrics? _metrics;
   int _selectedDays = 14;
 
-  final ValueNotifier<EffectivenessMetrics?> metricsNotifier = ValueNotifier(null);
+  final ValueNotifier<EffectivenessMetrics?> metricsNotifier = ValueNotifier(
+    null,
+  );
   final ValueNotifier<int> selectedDaysNotifier = ValueNotifier(14);
   final ValueNotifier<bool> isLoadingNotifier = ValueNotifier(false);
 

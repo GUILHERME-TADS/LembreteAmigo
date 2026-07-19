@@ -1,15 +1,16 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class MockConnectivity extends Mock implements Connectivity {}
 
-void setupConnectivityMock([List<ConnectivityResult> result = const [ConnectivityResult.wifi]]) {
+void setupConnectivityMock([
+  List<ConnectivityResult> result = const [ConnectivityResult.wifi],
+]) {
   final mock = MockConnectivity();
-  when(() => mock.onConnectivityChanged).thenAnswer(
-    (_) => Stream.value(result),
-  );
+  when(
+    () => mock.onConnectivityChanged,
+  ).thenAnswer((_) => Stream.value(result));
   Connectivity();
 }
 

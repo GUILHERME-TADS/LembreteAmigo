@@ -7,6 +7,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../theme/app_theme.dart';
 import '../services/session_role_service.dart';
+import '../services/elderly_profile_repository.dart';
 import '../services/tts_service.dart';
 import '../services/offline_sync_service.dart';
 import '../widgets/index.dart';
@@ -432,30 +433,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return idosoId;
   }
 
-  Map<String, dynamic> _sanitizeProfileForFirestore(
-    Map<String, dynamic> source,
-  ) {
-    const allowedKeys = {
-      'nome',
-      'idade',
-      'telefone',
-      'ambulancia_telefone',
-      'dataNascimento',
-      'endereco',
-      'fotoPath',
-      'supervisorId',
-      'status',
-      'pairingCode',
-      'pairingCodeExpires',
-      'createdAt',
-      'updatedAt',
-    };
-    return {
-      for (final entry in source.entries)
-        if (allowedKeys.contains(entry.key)) entry.key: entry.value,
-    };
-  }
-
   Future<void> _salvar() async {
     final nome = _nameController.text.trim();
     final dataNasc = _birthDateController.text.trim();
@@ -557,7 +534,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       } catch (_) {}
     }
 
-    final sanitizedPerfil = _sanitizeProfileForFirestore(perfil);
+    final sanitizedPerfil =
+        ElderlyProfileRepository.instance.sanitize(perfil);
     perfil
       ..clear()
       ..addAll(sanitizedPerfil);

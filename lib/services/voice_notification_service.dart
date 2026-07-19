@@ -1,10 +1,10 @@
-import 'package:flutter/foundation.dart';
 import '../models/lembrete.dart';
 import 'tts_service.dart';
 
 class VoiceNotificationService {
   VoiceNotificationService._();
-  static final VoiceNotificationService _instance = VoiceNotificationService._();
+  static final VoiceNotificationService _instance =
+      VoiceNotificationService._();
   static VoiceNotificationService get instance => _instance;
 
   bool _initialized = false;
@@ -17,14 +17,22 @@ class VoiceNotificationService {
   Future<void> speakReminder(Lembrete lembrete) async {
     final prefix = _prefixForUrgency('critico');
     final categoryName = _categoryName(lembrete.categoria);
-    final text = '$prefix Alex diz: está na hora de $categoryName! ${lembrete.titulo}.';
+    final text =
+        '$prefix Alex diz: está na hora de $categoryName! ${lembrete.titulo}.';
     await TTSService.instance.falar(text);
   }
 
-  Future<void> speakTitle(String lembreteTitulo, {String? categoria, String? urgencia}) async {
+  Future<void> speakTitle(
+    String lembreteTitulo, {
+    String? categoria,
+    String? urgencia,
+  }) async {
     final prefix = _prefixForUrgency('critico');
-    final categoryInfo = categoria != null ? ' ${_categoryName(categoria)}' : '';
-    final text = '$prefix Alex diz: está na hora$categoryInfo! $lembreteTitulo.';
+    final categoryInfo = categoria != null
+        ? ' ${_categoryName(categoria)}'
+        : '';
+    final text =
+        '$prefix Alex diz: está na hora$categoryInfo! $lembreteTitulo.';
     await TTSService.instance.falar(text);
   }
 

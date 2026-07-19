@@ -16,12 +16,12 @@ import '../services/device_barrier_service.dart';
 import '../services/supervisor_ai_service.dart';
 import '../services/lembrete_service.dart';
 import '../services/session_role_service.dart';
+import '../services/elderly_profile_repository.dart';
 import '../services/smart_alert_service.dart';
 import '../services/message_service.dart';
 import '../services/video_call_service.dart';
 import '../services/effectiveness_service.dart';
 import '../theme/app_theme.dart';
-import '../utils/reminder_state_helper.dart';
 import '../widgets/skeleton_loading.dart';
 import '../widgets/audio_player_card.dart';
 import '../widgets/message_unread_badge.dart';
@@ -96,9 +96,13 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
         unawaited(_startDeviceBarrierWatcher());
         LembreteService.instance.notifier.removeListener(_onLembretesChanged);
         LembreteService.instance.notifier.addListener(_onLembretesChanged);
-        LembreteService.instance.eventosNotifier.removeListener(_onEventosChanged);
+        LembreteService.instance.eventosNotifier.removeListener(
+          _onEventosChanged,
+        );
         LembreteService.instance.eventosNotifier.addListener(_onEventosChanged);
-        SmartAlertService.instance.notifier.removeListener(_onSmartAlertsChanged);
+        SmartAlertService.instance.notifier.removeListener(
+          _onSmartAlertsChanged,
+        );
         SmartAlertService.instance.notifier.addListener(_onSmartAlertsChanged);
         _smartAlertTimer?.cancel();
         _smartAlertTimer = Timer.periodic(const Duration(minutes: 1), (_) {
@@ -112,8 +116,12 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
         _deviceBarrierSubscription = null;
         _smartAlertTimer?.cancel();
         LembreteService.instance.notifier.removeListener(_onLembretesChanged);
-        LembreteService.instance.eventosNotifier.removeListener(_onEventosChanged);
-        SmartAlertService.instance.notifier.removeListener(_onSmartAlertsChanged);
+        LembreteService.instance.eventosNotifier.removeListener(
+          _onEventosChanged,
+        );
+        SmartAlertService.instance.notifier.removeListener(
+          _onSmartAlertsChanged,
+        );
       }
     } catch (error) {
       debugPrint('Erro ao iniciar painel do cuidador: $error');
@@ -177,8 +185,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       final day = DateTime(now.year, now.month, now.day - i);
       final dayEnd = DateTime(day.year, day.month, day.day, 23, 59, 59);
       final dayEvents = eventos.where(
-        (e) => !e.registradoEm.isBefore(day) &&
-            !e.registradoEm.isAfter(dayEnd),
+        (e) => !e.registradoEm.isBefore(day) && !e.registradoEm.isAfter(dayEnd),
       );
       final total = dayEvents.length;
       if (total == 0) {
@@ -280,31 +287,15 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       }
       if (_useFirebase) {
         try {
-          final docPerfil = await FirebaseFirestore.instance
-              .collection('idoso_perfil')
-              .doc(idosoId)
-              .get()
+          final data = await ElderlyProfileRepository.instance
+              .getMergedData(idosoId)
               .timeout(const Duration(seconds: 6));
-          final docIdoso = await FirebaseFirestore.instance
-              .collection('idosos')
-              .doc(idosoId)
-              .get()
-              .timeout(const Duration(seconds: 6));
-          if (docIdoso.exists && docIdoso.data() != null) {
-            final data = docIdoso.data()!;
-            nome = data['nome'] as String? ?? nome;
-            endereco = data['endereco'] as String? ?? endereco;
-          }
-          if (docPerfil.exists && docPerfil.data() != null) {
-            final data = docPerfil.data()!;
-            nome = data['nome'] as String? ?? nome;
-            endereco = data['endereco'] as String? ?? endereco;
-          }
-          await prefs.setString('idoso_perfil', jsonEncode({
-            ...localProfile,
-            'nome': nome,
-            'endereco': endereco,
-          }));
+          nome = data['nome'] as String? ?? nome;
+          endereco = data['endereco'] as String? ?? endereco;
+          await prefs.setString(
+            'idoso_perfil',
+            jsonEncode({...localProfile, 'nome': nome, 'endereco': endereco}),
+          );
         } catch (error) {
           debugPrint('Usando perfil local no painel: $error');
         }
@@ -617,9 +608,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     return Container(
       height: 64,
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-      ),
+      decoration: const BoxDecoration(color: AppColors.surface),
       child: Row(
         children: [
           IconButton(
@@ -1050,7 +1039,11 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
               child: Row(
                 children: [
                   const MessageUnreadBadge(
-                    child: Icon(Icons.forum, color: AppColors.primary, size: 34),
+                    child: Icon(
+                      Icons.forum,
+                      color: AppColors.primary,
+                      size: 34,
+                    ),
                   ),
                   const SizedBox(width: 14),
                   const Expanded(
@@ -1858,9 +1851,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     List<LembreteEvento> targetEvents = eventosOntem;
 
     if (targetEvents.isEmpty && allEvents.isNotEmpty) {
-      final sortedEvents = List<LembreteEvento>.from(
-        allEvents,
-      )..sort((a, b) => b.registradoEm.compareTo(a.registradoEm));
+      final sortedEvents = List<LembreteEvento>.from(allEvents)
+        ..sort((a, b) => b.registradoEm.compareTo(a.registradoEm));
 
       final nonTodayEvents = sortedEvents.where((e) {
         return !(e.registradoEm.year == agora.year &&

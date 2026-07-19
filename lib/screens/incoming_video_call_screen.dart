@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
 import '../theme/app_theme.dart';
 import '../services/session_role_service.dart';
+import '../services/elderly_profile_repository.dart';
 import '../services/video_call_service.dart';
 import '../services/notification_service.dart';
 import '../services/tts_service.dart';
@@ -160,18 +161,9 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen>
 
         if (useFirebase) {
           final idosoId = await SessionRoleService.getActiveIdosoId();
-          final perfilDoc = await FirebaseFirestore.instance
-              .collection('idoso_perfil')
-              .doc(idosoId)
-              .get();
-          String? supervisorId = perfilDoc.data()?['supervisorId'] as String?;
-          if (supervisorId == null || supervisorId.isEmpty) {
-            final idosoDoc = await FirebaseFirestore.instance
-                .collection('idosos')
-                .doc(idosoId)
-                .get();
-            supervisorId = idosoDoc.data()?['supervisorId'] as String?;
-          }
+          final profile =
+              await ElderlyProfileRepository.instance.getData(idosoId);
+          final supervisorId = profile?['supervisorId'] as String?;
 
           if (supervisorId != null && supervisorId.isNotEmpty) {
             final supervisorDoc = await FirebaseFirestore.instance
@@ -201,13 +193,11 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen>
         } catch (_) {}
 
         if (useFirebase) {
-          final doc = await FirebaseFirestore.instance
-              .collection('idosos')
-              .doc(idosoId)
-              .get();
-          if (doc.exists && mounted) {
+          final data =
+              await ElderlyProfileRepository.instance.getData(idosoId);
+          if (data != null && mounted) {
             setState(() {
-              _callerName = doc.data()?['nome'] as String? ?? 'Idoso';
+              _callerName = data['nome'] as String? ?? 'Idoso';
             });
             _announceCall();
             return;

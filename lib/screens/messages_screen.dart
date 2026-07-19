@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
@@ -15,6 +14,7 @@ import '../models/app_message.dart';
 import '../services/message_service.dart';
 import '../services/offline_sync_service.dart';
 import '../services/session_role_service.dart';
+import '../services/elderly_profile_repository.dart';
 import '../services/tts_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/index.dart';
@@ -60,24 +60,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
     String? supervisorId = localProfile?['supervisorId'] as String?;
 
     if (Firebase.apps.isNotEmpty) {
-      final perfilDoc = await FirebaseFirestore.instance
-          .collection('idoso_perfil')
-          .doc(idosoId)
-          .get();
-      if (perfilDoc.exists && perfilDoc.data() != null) {
-        supervisorId =
-            perfilDoc.data()!['supervisorId'] as String? ?? supervisorId;
-      }
-      if (supervisorId == null || supervisorId.isEmpty) {
-        final idosoDoc = await FirebaseFirestore.instance
-            .collection('idosos')
-            .doc(idosoId)
-            .get();
-        if (idosoDoc.exists && idosoDoc.data() != null) {
-          supervisorId =
-              idosoDoc.data()!['supervisorId'] as String? ?? supervisorId;
-        }
-      }
+      final profile =
+          await ElderlyProfileRepository.instance.getData(idosoId);
+      supervisorId = profile?['supervisorId'] as String? ?? supervisorId;
 
       if (supervisorId != null && supervisorId.isNotEmpty) {
         final supervisorDoc = await FirebaseFirestore.instance
@@ -124,12 +109,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
       bool loadedFromFirebase = false;
       if (Firebase.apps.isNotEmpty) {
-        final doc = await FirebaseFirestore.instance
-            .collection('idosos')
-            .doc(idosoId)
-            .get();
-        if (doc.exists && doc.data() != null) {
-          final data = doc.data()!;
+        final data =
+            await ElderlyProfileRepository.instance.getData(idosoId);
+        if (data != null) {
           if (mounted) {
             setState(() {
               _fotoIdoso = _profilePhotoUrl(data);
@@ -153,11 +135,13 @@ class _MessagesScreenState extends State<MessagesScreen> {
       }
 
       if (!loadedFromFirebase) {
-        if (localProfile != null && mounted) {
+        final cachedProfile = localProfile;
+        if (cachedProfile != null && mounted) {
           setState(() {
-            _fotoIdoso = _profilePhotoUrl(localProfile!);
-            _fotoSupervisor ??=
-                _profilePhotoUrl({'fotoPath': localProfile!['fotoSupervisor']});
+            _fotoIdoso = _profilePhotoUrl(cachedProfile);
+            _fotoSupervisor ??= _profilePhotoUrl({
+              'fotoPath': cachedProfile['fotoSupervisor'],
+            });
           });
         }
       }
@@ -177,17 +161,20 @@ class _MessagesScreenState extends State<MessagesScreen> {
     MessageService.instance.notifier.removeListener(_markIncomingMessagesRead);
     _textController.dispose();
     _recordingTimer?.cancel();
-    _voiceRecorder.isRecording().then((recording) {
-      if (recording) {
-        _voiceRecorder.stop().then((_) => _voiceRecorder.dispose());
-      } else {
-        _voiceRecorder.dispose();
-      }
-    }).catchError((_) {
-      try {
-        _voiceRecorder.dispose();
-      } catch (_) {}
-    });
+    _voiceRecorder
+        .isRecording()
+        .then((recording) {
+          if (recording) {
+            _voiceRecorder.stop().then((_) => _voiceRecorder.dispose());
+          } else {
+            _voiceRecorder.dispose();
+          }
+        })
+        .catchError((_) {
+          try {
+            _voiceRecorder.dispose();
+          } catch (_) {}
+        });
     super.dispose();
   }
 
@@ -199,7 +186,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
         String path = '';
         if (!kIsWeb) {
           final tempDir = await getTemporaryDirectory();
-          path = '${tempDir.path}/msg_voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+          path =
+              '${tempDir.path}/msg_voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
         }
         await _voiceRecorder.start(
           const RecordConfig(encoder: AudioEncoder.aacLc),
@@ -223,7 +211,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Não consegui usar o microfone. Se o celular pedir, aperte Permitir.'),
+            content: Text(
+              'Não consegui usar o microfone. Se o celular pedir, aperte Permitir.',
+            ),
             backgroundColor: AppColors.error,
           ),
         );
@@ -271,7 +261,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
           duracaoSegundos: _recordingSeconds,
         );
         if (!sent) {
-          throw StateError('Nenhum cuidador conectado para receber a mensagem.');
+          throw StateError(
+            'Nenhum cuidador conectado para receber a mensagem.',
+          );
         }
         if (mounted && !_isSupervisor) {
           TTSService.instance.falar('Recado de voz enviado.', caller: this);
@@ -309,33 +301,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
     }
   }
 
-  void _sendTextMessage() async {
-    if (_sending) return;
-    final text = _textController.text.trim();
-    if (text.isEmpty) return;
-    setState(() => _sending = true);
-    try {
-      final sent = await MessageService.instance.sendText(text);
-      if (!sent) {
-        throw StateError('Nenhum cuidador conectado para receber a mensagem.');
-      }
-      _textController.clear();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Não consegui enviar. Tente de novo.'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _sending = false);
-      }
-    }
-  }
-
   void _confirmDeleteMessage(AppMessage message) {
     if (_deleteDialogMessageId != null) return;
     _deleteDialogMessageId = message.id;
@@ -345,7 +310,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
         return AlertDialog(
           title: const Text(
             'Apagar Recado',
-            style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF008069)),
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF008069),
+            ),
           ),
           content: const Text(
             'Apagar este recado do seu celular e do celular do cuidador?',
@@ -356,7 +324,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
               onPressed: () => Navigator.pop(context),
               child: const Text(
                 'CANCELAR',
-                style: TextStyle(color: Color(0xFF008069), fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  color: Color(0xFF008069),
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
             TextButton(
@@ -378,7 +349,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Não consegui apagar. Veja se a internet está ligada.'),
+                        content: Text(
+                          'Não consegui apagar. Veja se a internet está ligada.',
+                        ),
                         backgroundColor: AppColors.error,
                       ),
                     );
@@ -389,7 +362,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
               },
               child: const Text(
                 'APAGAR',
-                style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  color: AppColors.error,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ],
@@ -433,7 +409,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   }
                   return ListView.separated(
                     reverse: true,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                     itemBuilder: (context, index) =>
                         _messageBubble(messages[index]),
                     separatorBuilder: (context, index) =>
@@ -451,18 +430,16 @@ class _MessagesScreenState extends State<MessagesScreen> {
   }
 
   Widget _buildTopBar() {
-    final contactName = _isSupervisor ? 'Idoso' : (_nomeSupervisor ?? 'Cuidador');
+    final contactName = _isSupervisor
+        ? 'Idoso'
+        : (_nomeSupervisor ?? 'Cuidador');
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: const BoxDecoration(
         color: Color(0xFF008069),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 4,
-            offset: Offset(0, 2),
-          )
+          BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
         ],
       ),
       child: Row(
@@ -496,15 +473,11 @@ class _MessagesScreenState extends State<MessagesScreen> {
                 ),
                 const Text(
                   'conectado',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.white70,
-                  ),
+                  style: TextStyle(fontSize: 13, color: Colors.white70),
                 ),
               ],
             ),
           ),
-
         ],
       ),
     );
@@ -517,11 +490,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: const [
-            Icon(
-              Icons.mark_chat_unread_outlined,
-              size: 72,
-              color: Colors.grey,
-            ),
+            Icon(Icons.mark_chat_unread_outlined, size: 72, color: Colors.grey),
             SizedBox(height: 16),
             Text(
               'Nenhum recado ainda',
@@ -572,16 +541,20 @@ class _MessagesScreenState extends State<MessagesScreen> {
             borderRadius: BorderRadius.only(
               topLeft: const Radius.circular(12),
               topRight: const Radius.circular(12),
-              bottomLeft: sentByMe ? const Radius.circular(12) : const Radius.circular(0),
-              bottomRight: sentByMe ? const Radius.circular(0) : const Radius.circular(12),
+              bottomLeft: sentByMe
+                  ? const Radius.circular(12)
+                  : const Radius.circular(0),
+              bottomRight: sentByMe
+                  ? const Radius.circular(0)
+                  : const Radius.circular(12),
             ),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.06),
                 blurRadius: 1,
                 offset: const Offset(0, 1),
-              )
-            ]
+              ),
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.end,
@@ -594,9 +567,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   subtitle: '',
                   isChatDesign: true,
                   accentColor: const Color(0xFF008069),
-                  defaultDuration: Duration(seconds: message.duracaoSegundos ?? 0),
+                  defaultDuration: Duration(
+                    seconds: message.duracaoSegundos ?? 0,
+                  ),
                 )
-              else if (message.tipo == 'localizacao' && message.audioPath != null)
+              else if (message.tipo == 'localizacao' &&
+                  message.audioPath != null)
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -617,8 +593,15 @@ class _MessagesScreenState extends State<MessagesScreen> {
                         ),
                         const SizedBox(width: 8),
                         IconButton(
-                          icon: const Icon(Icons.volume_up, color: Color(0xFF008069), size: 24),
-                          onPressed: () => TTSService.instance.falar(message.texto, caller: this),
+                          icon: const Icon(
+                            Icons.volume_up,
+                            color: Color(0xFF008069),
+                            size: 24,
+                          ),
+                          onPressed: () => TTSService.instance.falar(
+                            message.texto,
+                            caller: this,
+                          ),
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
                         ),
@@ -629,7 +612,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
                       onPressed: () async {
                         try {
                           final Uri uri = Uri.parse(message.audioPath!);
-                          await launchUrl(uri, mode: LaunchMode.externalApplication);
+                          await launchUrl(
+                            uri,
+                            mode: LaunchMode.externalApplication,
+                          );
                         } catch (e) {
                           debugPrint('Erro ao abrir maps: $e');
                         }
@@ -675,8 +661,15 @@ class _MessagesScreenState extends State<MessagesScreen> {
                     ),
                     const SizedBox(width: 8),
                     IconButton(
-                      icon: const Icon(Icons.volume_up, color: Color(0xFF008069), size: 24),
-                      onPressed: () => TTSService.instance.falar(message.texto, caller: this),
+                      icon: const Icon(
+                        Icons.volume_up,
+                        color: Color(0xFF008069),
+                        size: 24,
+                      ),
+                      onPressed: () => TTSService.instance.falar(
+                        message.texto,
+                        caller: this,
+                      ),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                     ),
@@ -688,10 +681,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                 children: [
                   Text(
                     time,
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: Colors.grey[600],
-                    ),
+                    style: TextStyle(fontSize: 10, color: Colors.grey[600]),
                   ),
                   if (sentByMe) ...[
                     const SizedBox(width: 4),
@@ -707,7 +697,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                         );
                       },
                     ),
-                  ]
+                  ],
                 ],
               ),
             ],
@@ -720,10 +710,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
   Widget _buildComposer() {
     return Container(
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-      decoration: const BoxDecoration(
-        color: Colors.transparent,
-      ),
-      child: _isRecordingVoice ? _buildVoiceRecordingComposer() : _buildStandardComposer(),
+      decoration: const BoxDecoration(color: Colors.transparent),
+      child: _isRecordingVoice
+          ? _buildVoiceRecordingComposer()
+          : _buildStandardComposer(),
     );
   }
 
@@ -740,7 +730,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
             color: Colors.black12,
             blurRadius: 4,
             offset: const Offset(0, 1),
-          )
+          ),
         ],
       ),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),

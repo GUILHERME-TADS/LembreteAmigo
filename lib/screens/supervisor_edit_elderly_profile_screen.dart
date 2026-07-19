@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/session_role_service.dart';
+import '../services/elderly_profile_repository.dart';
 import '../theme/app_theme.dart';
 
 class SupervisorEditElderlyProfileScreen extends StatefulWidget {
@@ -83,16 +84,9 @@ class _SupervisorEditElderlyProfileScreenState
 
     if (_useFirebase) {
       try {
-        final perfilDoc = await FirebaseFirestore.instance
-            .collection('idoso_perfil')
-            .doc(idosoId)
-            .get();
-        final idosoDoc = await FirebaseFirestore.instance
-            .collection('idosos')
-            .doc(idosoId)
-            .get();
-        if (idosoDoc.data() != null) data.addAll(idosoDoc.data()!);
-        if (perfilDoc.data() != null) data.addAll(perfilDoc.data()!);
+        data.addAll(
+          await ElderlyProfileRepository.instance.getMergedData(idosoId),
+        );
       } catch (e) {
         debugPrint('Erro ao carregar dados do idoso para supervisor: $e');
       }
@@ -108,28 +102,6 @@ class _SupervisorEditElderlyProfileScreenState
       _addressController.text = data['endereco'] as String? ?? '';
       _isLoading = false;
     });
-  }
-
-  Map<String, dynamic> _sanitizeProfile(Map<String, dynamic> source) {
-    const allowedKeys = {
-      'nome',
-      'idade',
-      'telefone',
-      'ambulancia_telefone',
-      'dataNascimento',
-      'endereco',
-      'fotoPath',
-      'supervisorId',
-      'status',
-      'pairingCode',
-      'pairingCodeExpires',
-      'createdAt',
-      'updatedAt',
-    };
-    return {
-      for (final entry in source.entries)
-        if (allowedKeys.contains(entry.key)) entry.key: entry.value,
-    };
   }
 
   Future<void> _save() async {
@@ -181,7 +153,7 @@ class _SupervisorEditElderlyProfileScreenState
         if (perfilDoc.data() != null) profile.addAll(perfilDoc.data()!);
       }
 
-      final sanitized = _sanitizeProfile(profile)
+      final sanitized = ElderlyProfileRepository.instance.sanitize(profile)
         ..['nome'] = nome
         ..['dataNascimento'] = dataNascimento
         ..['telefone'] = telefone

@@ -11,6 +11,7 @@ import '../theme/app_theme.dart';
 import '../services/message_service.dart';
 import '../services/emergency_contact_service.dart';
 import '../services/session_role_service.dart';
+import '../services/elderly_profile_repository.dart';
 import '../services/tts_service.dart';
 import '../services/location_service.dart';
 import '../services/video_call_service.dart';
@@ -70,20 +71,10 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
     );
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Você precisa de um cuidador conectado para usar esta função.'),
+        content: Text(
+          'Você precisa de um cuidador conectado para usar esta função.',
+        ),
         backgroundColor: AppColors.error,
-      ),
-    );
-  }
-
-  void _showAmbulancePhoneMissingWarning() {
-    const message =
-        'O telefone da ambulância ainda não foi colocado no aplicativo. Peça ajuda ao seu cuidador.';
-    TTSService.instance.falar(message, caller: this);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(message),
-        backgroundColor: AppColors.primary,
       ),
     );
   }
@@ -95,7 +86,8 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
           prefs.getString('paired_idoso_id') ??
           SessionRoleService.unpairedIdosoId;
 
-      final isPaired = await SessionRoleService.isElderlyConnectedToSupervisor();
+      final isPaired =
+          await SessionRoleService.isElderlyConnectedToSupervisor();
 
       if (mounted) {
         setState(() {
@@ -103,7 +95,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
         });
         _speakIntroVoice(isPaired);
       }
-      final doc = await _getElderlyProfileDoc(idosoId);
+      final doc = await ElderlyProfileRepository.instance.getDocument(idosoId);
 
       if (doc.exists && doc.data() != null) {
         final data = doc.data()!;
@@ -132,18 +124,6 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
     } catch (e) {
       debugPrint('Erro ao carregar cuidador: $e');
     }
-  }
-
-  Future<DocumentSnapshot<Map<String, dynamic>>> _getElderlyProfileDoc(
-    String idosoId,
-  ) async {
-    final profileDoc = await FirebaseFirestore.instance
-        .collection('idoso_perfil')
-        .doc(idosoId)
-        .get();
-    if (profileDoc.exists) return profileDoc;
-
-    return FirebaseFirestore.instance.collection('idosos').doc(idosoId).get();
   }
 
   @override
@@ -424,16 +404,18 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
               actionsAlignment: MainAxisAlignment.spaceEvenly,
               actions: [
                 ElevatedButton(
-                  onPressed: isSending || isBusy ? null : () async {
-                    if (isSending || isBusy) return;
-                    if (isRecording) {
-                      await _audioRecorder.stop();
-                    }
-                    if (isPlaying) {
-                      await _audioPlayer.stop();
-                    }
-                    if (context.mounted) Navigator.pop(context);
-                  },
+                  onPressed: isSending || isBusy
+                      ? null
+                      : () async {
+                          if (isSending || isBusy) return;
+                          if (isRecording) {
+                            await _audioRecorder.stop();
+                          }
+                          if (isPlaying) {
+                            await _audioPlayer.stop();
+                          }
+                          if (context.mounted) Navigator.pop(context);
+                        },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.error,
                     foregroundColor: Colors.white,
@@ -453,57 +435,65 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                 ),
                 if (recordedFilePath != null)
                   ElevatedButton(
-                    onPressed: isSending ? null : () async {
-                      if (isSending) return;
-                      isSending = true;
-                      setDialogState(() {});
-                      if (isPlaying) {
-                        await _audioPlayer.stop();
-                      }
-                      try {
-                        final prefs = await SharedPreferences.getInstance();
-                        final idosoId =
-                            prefs.getString('paired_idoso_id') ??
-                            SessionRoleService.unpairedIdosoId;
+                    onPressed: isSending
+                        ? null
+                        : () async {
+                            if (isSending) return;
+                            isSending = true;
+                            setDialogState(() {});
+                            if (isPlaying) {
+                              await _audioPlayer.stop();
+                            }
+                            try {
+                              final prefs =
+                                  await SharedPreferences.getInstance();
+                              final idosoId =
+                                  prefs.getString('paired_idoso_id') ??
+                                  SessionRoleService.unpairedIdosoId;
 
-                        String idosoName = 'Idoso';
-                        final doc = await _getElderlyProfileDoc(idosoId);
-                        if (doc.exists) {
-                          idosoName = doc.data()?['nome'] ?? 'Idoso';
-                        }
+                              String idosoName = 'Idoso';
+                              final doc = await ElderlyProfileRepository
+                                  .instance
+                                  .getDocument(idosoId);
+                              if (doc.exists) {
+                                idosoName = doc.data()?['nome'] ?? 'Idoso';
+                              }
 
-                        final sent = await MessageService.instance.sendAudio(
-                          audioPath: recordedFilePath!,
-                          fallbackText: 'Recado de voz enviado',
-                          nomeIdoso: idosoName,
-                        );
-                        if (!sent) {
-                          throw StateError('Nenhum cuidador conectado para receber a mensagem.');
-                        }
+                              final sent = await MessageService.instance
+                                  .sendAudio(
+                                    audioPath: recordedFilePath!,
+                                    fallbackText: 'Recado de voz enviado',
+                                    nomeIdoso: idosoName,
+                                  );
+                              if (!sent) {
+                                throw StateError(
+                                  'Nenhum cuidador conectado para receber a mensagem.',
+                                );
+                              }
 
-                        TTSService.instance.falar(
-                          'Recado de voz enviado.',
-                          caller: this,
-                        );
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
+                              TTSService.instance.falar(
                                 'Recado de voz enviado.',
-                              ),
-                              backgroundColor: AppColors.tertiaryFixedDim,
-                            ),
-                          );
-                        }
-                      } catch (e) {
-                        debugPrint('Erro ao enviar mensagem de áudio: $e');
-                      }
-                      if (context.mounted) {
-                        isSending = false;
-                        setDialogState(() {});
-                        Navigator.pop(context);
-                      }
-                    },
+                                caller: this,
+                              );
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Recado de voz enviado.'),
+                                    backgroundColor: AppColors.tertiaryFixedDim,
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              debugPrint(
+                                'Erro ao enviar mensagem de áudio: $e',
+                              );
+                            }
+                            if (context.mounted) {
+                              isSending = false;
+                              setDialogState(() {});
+                              Navigator.pop(context);
+                            }
+                          },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.secondaryContainer,
                     ),
@@ -571,9 +561,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
   Widget _buildTopBar(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-      ),
+      decoration: const BoxDecoration(color: AppColors.surface),
       child: Row(
         children: [
           const SizedBox(width: 48),
@@ -600,9 +588,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
             },
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: [
-                ElderlyProfileAvatar(fotoPath: _fotoPath, size: 56),
-              ],
+              children: [ElderlyProfileAvatar(fotoPath: _fotoPath, size: 56)],
             ),
           ),
         ],
@@ -630,7 +616,10 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                   _ligarAjudante();
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 32,
+                    horizontal: 24,
+                  ),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(24),
                     border: Border.all(color: AppColors.secondary, width: 4),
@@ -646,7 +635,10 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                               decoration: BoxDecoration(
                                 color: AppColors.primaryContainer,
                                 shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white, width: 6),
+                                border: Border.all(
+                                  color: Colors.white,
+                                  width: 6,
+                                ),
                                 boxShadow: const [
                                   BoxShadow(
                                     color: Colors.black12,
@@ -739,7 +731,11 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: const [
-                          Icon(Icons.videocam, size: 36, color: Color(0xFF2E7D32)),
+                          Icon(
+                            Icons.videocam,
+                            size: 36,
+                            color: Color(0xFF2E7D32),
+                          ),
                           SizedBox(height: 6),
                           Text(
                             'Ligação\ncom Imagem',
@@ -767,13 +763,15 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                   borderRadius: BorderRadius.circular(AppRadius.lg),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(AppRadius.lg),
-                    onTap: _isSendingLocation ? null : () {
-                      if (!_isPaired) {
-                        _speakUnpairedWarning();
-                        return;
-                      }
-                      _enviarLocalizacaoChat();
-                    },
+                    onTap: _isSendingLocation
+                        ? null
+                        : () {
+                            if (!_isPaired) {
+                              _speakUnpairedWarning();
+                              return;
+                            }
+                            _enviarLocalizacaoChat();
+                          },
                     child: Container(
                       height: 110,
                       padding: const EdgeInsets.all(12),
@@ -787,7 +785,11 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: const [
-                          Icon(Icons.location_on, size: 36, color: Color(0xFF7B1FA2)),
+                          Icon(
+                            Icons.location_on,
+                            size: 36,
+                            color: Color(0xFF7B1FA2),
+                          ),
                           SizedBox(height: 6),
                           Text(
                             'Dizer onde\nestou',
@@ -903,7 +905,11 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           const MessageUnreadBadge(
-                            child: Icon(Icons.chat_bubble, size: 36, color: Color(0xFF1565C0)),
+                            child: Icon(
+                              Icons.chat_bubble,
+                              size: 36,
+                              color: Color(0xFF1565C0),
+                            ),
                           ),
                           const SizedBox(height: 6),
                           const Text(
@@ -941,7 +947,11 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: const [
-                  Icon(Icons.warning_amber_rounded, color: AppColors.error, size: 32),
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    color: AppColors.error,
+                    size: 32,
+                  ),
                   SizedBox(width: 8),
                   Text(
                     'Caso de Emergência',
@@ -954,63 +964,70 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                 ],
               ),
               const SizedBox(height: 16),
-              Builder(builder: (context) {
-                final bool hasAmbulance =
-                    _ambulancePhone != null && _ambulancePhone!.trim().isNotEmpty;
+              Builder(
+                builder: (context) {
+                  final bool hasAmbulance =
+                      _ambulancePhone != null &&
+                      _ambulancePhone!.trim().isNotEmpty;
 
-                return Column(
-                  children: [
-                    SizedBox(
-                      width: double.infinity,
-                      height: 72,
-                      child: ElevatedButton.icon(
-                        onPressed: hasAmbulance
-                            ? () async {
-                                await TTSService.instance.falar(
-                                  'Iniciando ligação para a ambulância',
-                                  caller: this,
-                                );
-                                _ligar(_ambulancePhone!.trim());
-                              }
-                            : null,
-                        icon: Icon(
-                          Icons.local_hospital,
-                          size: 32,
-                          color: hasAmbulance ? Colors.white : Colors.grey.shade600,
+                  return Column(
+                    children: [
+                      SizedBox(
+                        width: double.infinity,
+                        height: 72,
+                        child: ElevatedButton.icon(
+                          onPressed: hasAmbulance
+                              ? () async {
+                                  await TTSService.instance.falar(
+                                    'Iniciando ligação para a ambulância',
+                                    caller: this,
+                                  );
+                                  _ligar(_ambulancePhone!.trim());
+                                }
+                              : null,
+                          icon: Icon(
+                            Icons.local_hospital,
+                            size: 32,
+                            color: hasAmbulance
+                                ? Colors.white
+                                : Colors.grey.shade600,
+                          ),
+                          label: Text(
+                            'Ligar para Ambulância',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
+                              color: hasAmbulance
+                                  ? Colors.white
+                                  : Colors.grey.shade600,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.error,
+                            disabledBackgroundColor: Colors.grey.shade300,
+                            elevation: hasAmbulance ? 2 : 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
                         ),
-                        label: Text(
-                          'Ligar para Ambulância',
+                      ),
+                      if (!hasAmbulance) ...[
+                        const SizedBox(height: 8),
+                        const Text(
+                          'O número da ambulância ainda não foi colocado',
+                          textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w900,
-                            color: hasAmbulance ? Colors.white : Colors.grey.shade600,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.onSurfaceVariant,
                           ),
                         ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.error,
-                          disabledBackgroundColor: Colors.grey.shade300,
-                          elevation: hasAmbulance ? 2 : 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                      ),
-                    ),
-                    if (!hasAmbulance) ...[
-                      const SizedBox(height: 8),
-                      const Text(
-                        'O número da ambulância ainda não foi colocado',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.onSurfaceVariant,
-                        ),
-                      ),
+                      ],
                     ],
-                  ],
-                );
-              }),
+                  );
+                },
+              ),
             ],
           ),
         ),
@@ -1018,14 +1035,10 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
     );
   }
 
-
-
-
-
   Future<void> _loadProfilePhoto() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final localFoto = prefs.getString('idoso_foto_path');
+      final localFoto =
+          await ElderlyProfileRepository.instance.getCachedPhotoPath();
       if (mounted) {
         setState(() {
           _fotoPath = localFoto;
@@ -1036,173 +1049,6 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
     }
   }
 
-
-
-  void _confirmarAcaoSOSComContagem(
-    String acaoTitulo,
-    String ttsMensagem,
-    VoidCallback acaoConfirmada,
-  ) {
-    _stopAllAudioAndTts();
-
-    int segundosRestantes = 10;
-    Timer? countdownTimer;
-
-    TTSService.instance.falar(
-      '$ttsMensagem em $segundosRestantes segundos. Aperte no botão para cancelar.',
-      caller: this,
-    );
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        final isHighContrast =
-            Theme.of(context).colorScheme.primary == Colors.black;
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            countdownTimer ??= Timer.periodic(const Duration(seconds: 1), (
-              timer,
-            ) {
-              if (segundosRestantes > 1) {
-                if (mounted) {
-                  setDialogState(() {
-                    segundosRestantes--;
-                  });
-                  TTSService.instance.falar('$segundosRestantes', caller: this);
-                }
-              } else {
-                timer.cancel();
-                Navigator.pop(context); // Fechar o diálogo
-                acaoConfirmada(); // Executar a ação
-              }
-            });
-
-            return AlertDialog(
-              backgroundColor: isHighContrast
-                  ? Colors.white
-                  : AppColors.background,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
-                side: isHighContrast
-                    ? const BorderSide(color: Colors.black, width: 4)
-                    : BorderSide.none,
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 24,
-                vertical: 24,
-              ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
-                      Icon(Icons.warning, color: AppColors.error, size: 36),
-                      SizedBox(width: 12),
-                      Text(
-                        'Atenção',
-                        style: TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w900,
-                          color: AppColors.error,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    acaoTitulo.toUpperCase(),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w900,
-                      color: isHighContrast ? Colors.black : AppColors.primary,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Container(
-                    width: 120,
-                    height: 120,
-                    decoration: BoxDecoration(
-                      color: AppColors.error.withValues(alpha: 0.1),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.error, width: 4),
-                    ),
-                    child: Center(
-                      child: Text(
-                        '$segundosRestantes',
-                        style: const TextStyle(
-                          fontSize: 54,
-                          fontWeight: FontWeight.w900,
-                          color: AppColors.error,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 28),
-                  const Text(
-                    'O telefone fará a ação automaticamente.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        countdownTimer?.cancel();
-                        TTSService.instance.parar(caller: this);
-                        Navigator.pop(context);
-                      },
-                      icon: const Icon(Icons.cancel, size: 36),
-                      label: const Text(
-                        'Cancelar',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: isHighContrast
-                            ? Colors.black
-                            : AppColors.error,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 24),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          side: isHighContrast
-                              ? const BorderSide(color: Colors.white, width: 2)
-                              : BorderSide.none,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    ).then((_) {
-      countdownTimer?.cancel();
-      TTSService.instance.parar(caller: this);
-    });
-  }
-
-  void _stopAllAudioAndTts() {
-    TTSService.instance.parar(caller: this);
-    try {
-      _audioPlayer.stop();
-    } catch (_) {}
-  }
-
-
-
   void _ligar(String numero) async {
     final Uri launchUri = Uri(scheme: 'tel', path: numero);
     if (await canLaunchUrl(launchUri)) {
@@ -1210,7 +1056,9 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Não consegui abrir a ligação no celular.')),
+          const SnackBar(
+            content: Text('Não consegui abrir a ligação no celular.'),
+          ),
         );
       }
     }
@@ -1278,29 +1126,34 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
           location.mapsUrl!,
         );
       } else {
-        final message = 'SOS! Preciso de ajuda urgente. Não consegui ver onde estou pelo celular. ${location.errorMessage ?? ''}';
+        final message =
+            'SOS! Preciso de ajuda urgente. Não consegui ver onde estou pelo celular. ${location.errorMessage ?? ''}';
         sent = await MessageService.instance.sendText(message);
       }
 
       if (!sent) {
-        throw StateError('Nenhum cuidador conectado para receber a localização.');
-      }
-      const feedback =
-          'Pronto. Enviei onde você está para o seu cuidador.';
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text(feedback)),
+        throw StateError(
+          'Nenhum cuidador conectado para receber a localização.',
         );
+      }
+      const feedback = 'Pronto. Enviei onde você está para o seu cuidador.';
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text(feedback)));
       }
       TTSService.instance.falar(feedback, caller: this);
     } catch (e) {
       const erroMsg = 'Não consegui mandar onde você está. Tente de novo.';
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(erroMsg)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(erroMsg)));
       }
-      TTSService.instance.falar('Não consegui mandar onde você está.', caller: this);
+      TTSService.instance.falar(
+        'Não consegui mandar onde você está.',
+        caller: this,
+      );
     } finally {
       if (mounted) setState(() => _isSendingLocation = false);
     }

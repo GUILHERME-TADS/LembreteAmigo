@@ -2,18 +2,13 @@ import 'dart:io';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/lembrete.dart';
 import '../services/lembrete_service.dart';
-import '../services/location_service.dart';
-import '../services/message_service.dart';
-import '../services/emergency_contact_service.dart';
 import '../services/session_role_service.dart';
 import '../services/tts_service.dart';
-import '../services/video_call_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/audio_path_helper.dart';
 import '../utils/period_helper.dart';
@@ -146,11 +141,10 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     super.dispose();
   }
 
-
   Future<void> _loadProfilePhoto() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final localFoto = prefs.getString('idoso_foto_path');
+      final localFoto =
+          await ElderlyProfileRepository.instance.getCachedPhotoPath();
       if (mounted) {
         setState(() {
           _fotoPath = localFoto;
@@ -240,445 +234,6 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     TTSService.instance.falar(text, caller: this);
   }
 
-  void _confirmarAcaoSOSComContagem(
-    String acaoTitulo,
-    String ttsMensagem,
-    VoidCallback acaoConfirmada,
-  ) {
-    _stopAllAudioAndTts();
-
-    int segundosRestantes = 10;
-    Timer? countdownTimer;
-
-    TTSService.instance.falar(
-      '$ttsMensagem em $segundosRestantes segundos. Aperte no botão para cancelar.',
-      caller: this,
-    );
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        final isHighContrast =
-            Theme.of(context).colorScheme.primary == Colors.black;
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            countdownTimer ??= Timer.periodic(const Duration(seconds: 1), (
-              timer,
-            ) {
-              if (segundosRestantes > 1) {
-                if (mounted) {
-                  setDialogState(() {
-                    segundosRestantes--;
-                  });
-                  TTSService.instance.falar('$segundosRestantes', caller: this);
-                }
-              } else {
-                timer.cancel();
-                Navigator.pop(context); // Fechar o diálogo
-                acaoConfirmada(); // Executar a ação
-              }
-            });
-
-            return AlertDialog(
-              backgroundColor: isHighContrast
-                  ? Colors.white
-                  : AppColors.background,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
-                side: isHighContrast
-                    ? const BorderSide(color: Colors.black, width: 4)
-                    : BorderSide.none,
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 24,
-                vertical: 24,
-              ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
-                      Icon(Icons.warning, color: AppColors.error, size: 36),
-                      SizedBox(width: 12),
-                      Text(
-                        'ATENCAO',
-                        style: TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w900,
-                          color: AppColors.error,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    acaoTitulo.toUpperCase(),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w900,
-                      color: isHighContrast ? Colors.black : AppColors.primary,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Container(
-                    width: 120,
-                    height: 120,
-                    decoration: BoxDecoration(
-                      color: AppColors.error.withValues(alpha: 0.1),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.error, width: 4),
-                    ),
-                    child: Center(
-                      child: Text(
-                        '$segundosRestantes',
-                        style: const TextStyle(
-                          fontSize: 54,
-                          fontWeight: FontWeight.w900,
-                          color: AppColors.error,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 28),
-                  const Text(
-                    'O telefone fará a ação automaticamente.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        countdownTimer?.cancel();
-                        TTSService.instance.parar(caller: this);
-                        Navigator.pop(context);
-                      },
-                      icon: const Icon(Icons.cancel, size: 36),
-                      label: const Text(
-                        'CANCELAR',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: isHighContrast
-                            ? Colors.black
-                            : AppColors.error,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 24),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          side: isHighContrast
-                              ? const BorderSide(color: Colors.white, width: 2)
-                              : BorderSide.none,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    ).then((_) {
-      countdownTimer?.cancel();
-    });
-  }
-
-  void _showSOSModal() async {
-    final ambulancePhone =
-        await EmergencyContactService.instance.getAmbulancePhone();
-    if (!mounted) return;
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) {
-        final isHighContrast =
-            Theme.of(context).colorScheme.primary == Colors.black;
-        return Container(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.9,
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(32),
-              topRight: Radius.circular(32),
-            ),
-            border: isHighContrast
-                ? const Border(
-                    top: BorderSide(color: Colors.black, width: 4),
-                    left: BorderSide(color: Colors.black, width: 4),
-                    right: BorderSide(color: Colors.black, width: 4),
-                  )
-                : null,
-          ),
-          child: SafeArea(
-            top: false,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                if (!isHighContrast)
-                  Container(
-                    width: 60,
-                    height: 6,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(3),
-                    ),
-                  ),
-                const SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.warning, color: AppColors.error, size: 32),
-                    const SizedBox(width: 12),
-                    Flexible(
-                      child: Text(
-                      'SOS - EMERGÊNCIA',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w900,
-                        color: isHighContrast
-                            ? Colors.black
-                            : AppColors.error,
-                      ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Selecione uma opção de socorro imediato:',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: isHighContrast
-                        ? Colors.black
-                        : AppColors.onSurfaceVariant,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                Opacity(
-                  opacity: _isConnected ? 1.0 : 0.4,
-                  child: SeniorButton(
-                    label: 'Ligação de Voz SOS',
-                    icon: Icons.phone_in_talk,
-                    backgroundColor: const Color(0xFF2E7D32),
-                    textColor: Colors.white,
-                    onPressed: () {
-                      if (!_isConnected) {
-                        _speakUnpairedWarning();
-                        return;
-                      }
-                      Navigator.pop(context);
-                      TTSService.instance.falar(
-                        'Vou ligar por voz para o cuidador.',
-                        caller: this,
-                      );
-                      _initiateCall('voice');
-                    },
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                Opacity(
-                  opacity: _isConnected ? 1.0 : 0.4,
-                  child: SeniorButton(
-                    label: 'Ligação com Imagem SOS',
-                    icon: Icons.videocam,
-                    backgroundColor: const Color(0xFF1565C0),
-                    textColor: Colors.white,
-                    onPressed: () {
-                      if (!_isConnected) {
-                        _speakUnpairedWarning();
-                        return;
-                      }
-                      Navigator.pop(context);
-                      TTSService.instance.falar(
-                        'Vou ligar com imagem para o cuidador.',
-                        caller: this,
-                      );
-                      _initiateCall('video');
-                    },
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                if (ambulancePhone != null) ...[
-                SeniorButton(
-                  label: 'Ligar para Ambulância',
-                  icon: Icons.local_hospital,
-                  backgroundColor: AppColors.error,
-                  textColor: Colors.white,
-                  onPressed: () async {
-                    Navigator.pop(context);
-                    await TTSService.instance.falar(
-                      'Iniciando ligação para a ambulância',
-                      caller: this,
-                    );
-                    _ligar(ambulancePhone);
-                  },
-                ),
-                const SizedBox(height: 12),
-                ],
-
-                Opacity(
-                  opacity: _isConnected ? 1.0 : 0.4,
-                  child: SeniorButton(
-                    label: 'Mandar onde estou',
-                    icon: Icons.location_on,
-                    backgroundColor: const Color(0xFF5E35B1),
-                    textColor: Colors.white,
-                    onPressed: () {
-                      if (!_isConnected) {
-                        _speakUnpairedWarning();
-                        return;
-                      }
-                      Navigator.pop(context);
-                      _confirmarAcaoSOSComContagem(
-                        'Mandar onde estou',
-                        'Vou mandar onde você está para o seu cuidador',
-                        _enviarLocalizacaoChat,
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(height: 24),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _ligar(String numero) async {
-    final Uri launchUri = Uri(scheme: 'tel', path: numero);
-    if (await canLaunchUrl(launchUri)) {
-      await launchUrl(launchUri);
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Não consegui abrir a ligação no celular.')),
-        );
-      }
-    }
-  }
-
-  void _speakUnpairedWarning() {
-    TTSService.instance.falar(
-      'Esta opção precisa de um cuidador conectado. Por favor, peça para o seu cuidador conectar o celular dele ao seu.',
-      caller: this,
-    );
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Você precisa de um cuidador conectado para usar esta função.'),
-        backgroundColor: AppColors.error,
-      ),
-    );
-  }
-
-  Future<void> _initiateCall(String callType) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final idosoId = prefs.getString('paired_idoso_id');
-      if (idosoId == null || idosoId.isEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Nenhum cuidador conectado.')),
-          );
-        }
-        return;
-      }
-      final callStart = await VideoCallService.instance.initiateCall(
-        idosoId: idosoId,
-        initiatedBy: 'sos',
-        callType: callType,
-      );
-      if (callStart != null && mounted) {
-        await VideoCallService.instance.joinCall(
-          callStart.roomName,
-          callType: callType,
-          callId: callStart.callId,
-          alreadyVerified: true,
-        );
-      } else if (mounted) {
-        final label = callType == 'voice' ? 'voz' : 'vídeo';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Não consegui começar a ligação de $label.')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        final label = callType == 'voice' ? 'voz' : 'vídeo';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Não consegui começar a ligação de $label.')),
-        );
-      }
-    }
-  }
-
-  void _enviarLocalizacaoChat() async {
-    TTSService.instance.falar(
-      'Estou vendo onde você está para avisar o seu cuidador.',
-      caller: this,
-    );
-
-    final location = await LocationService.instance.getCurrentSosLocation();
-
-    try {
-      bool sent;
-      if (location.hasLocation && location.mapsUrl != null) {
-        sent = await MessageService.instance.sendLocation(
-          'SOS! Preciso de ajuda urgente.',
-          location.mapsUrl!,
-        );
-      } else {
-        final message = 'SOS! Preciso de ajuda urgente. Não consegui ver onde estou pelo celular. ${location.errorMessage ?? ''}';
-        sent = await MessageService.instance.sendText(message);
-      }
-
-      if (!sent) {
-        throw StateError('Nenhum cuidador conectado para receber a localização.');
-      }
-      const feedback =
-          'Pronto. Enviei onde você está para o seu cuidador.';
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text(feedback)),
-        );
-      }
-      TTSService.instance.falar(feedback, caller: this);
-    } catch (e) {
-      const erroMsg = 'Não consegui mandar onde você está. Tente de novo.';
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(erroMsg)),
-        );
-      }
-      TTSService.instance.falar('Não consegui mandar onde você está.', caller: this);
-    }
-  }
-
   Widget _buildRotinaToggle() {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
@@ -743,10 +298,6 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
       ),
     );
   }
-
-
-
-
 
   Future<void> _checkConnection() async {
     if (kIsWeb) {
@@ -850,36 +401,6 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
         });
       }
     }
-  }
-
-  void _speakReminder(Lembrete l) async {
-    if (_isPlaying) {
-      _audioPlayer.stop();
-      setState(() {
-        _isPlaying = false;
-        _playingAudioPath = null;
-      });
-    }
-
-    if (_isBannerSpeaking) {
-      TTSService.instance.parar(caller: this);
-      setState(() => _isBannerSpeaking = false);
-      return;
-    }
-
-    setState(() => _isBannerSpeaking = true);
-    final text = _descreverLembrete(l);
-    await TTSService.instance.falar(text, caller: this);
-    if (mounted) setState(() => _isBannerSpeaking = false);
-  }
-
-
-  String _descreverLembrete(Lembrete l) {
-    final spokenTime = PeriodHelper.getSpokenTimeWithPreposition(
-      l.horarioHour,
-      l.horarioMinute,
-    );
-    return '${l.titulo} $spokenTime.';
   }
 
   Widget _buildNode(Lembrete lembrete) {
@@ -1115,11 +636,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
         borderRadius: BorderRadius.circular(16),
         onTap: () {
           _stopAllAudioAndTts();
-          Navigator.pushNamed(
-            context,
-            '/reminder-detail',
-            arguments: lembrete,
-          );
+          Navigator.pushNamed(context, '/reminder-detail', arguments: lembrete);
         },
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1138,18 +655,31 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                           : accentColor.withValues(alpha: 0.12),
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: isHighContrast ? Colors.black : accentColor.withValues(alpha: 0.3),
+                        color: isHighContrast
+                            ? Colors.black
+                            : accentColor.withValues(alpha: 0.3),
                         width: 2,
                       ),
                     ),
                     child: ClipOval(
-                      child: lembrete.categoria == 'medicacao' && lembrete.medicamentoFotoPath != null && lembrete.medicamentoFotoPath!.isNotEmpty
+                      child:
+                          lembrete.categoria == 'medicacao' &&
+                              lembrete.medicamentoFotoPath != null &&
+                              lembrete.medicamentoFotoPath!.isNotEmpty
                           ? Image(
-                              image: lembrete.medicamentoFotoPath!.startsWith('assets/')
-                                  ? AssetImage(lembrete.medicamentoFotoPath!) as ImageProvider
-                                  : lembrete.medicamentoFotoPath!.startsWith('http')
+                              image:
+                                  lembrete.medicamentoFotoPath!.startsWith(
+                                    'assets/',
+                                  )
+                                  ? AssetImage(lembrete.medicamentoFotoPath!)
+                                        as ImageProvider
+                                  : lembrete.medicamentoFotoPath!.startsWith(
+                                      'http',
+                                    )
                                   ? NetworkImage(lembrete.medicamentoFotoPath!)
-                                  : FileImage(File(lembrete.medicamentoFotoPath!)),
+                                  : FileImage(
+                                      File(lembrete.medicamentoFotoPath!),
+                                    ),
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) {
                                 return Icon(
@@ -1162,7 +692,9 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                       : lembrete.categoria == 'exercicio'
                                       ? Icons.directions_walk
                                       : Icons.notifications,
-                                  color: isHighContrast ? Colors.white : accentColor,
+                                  color: isHighContrast
+                                      ? Colors.white
+                                      : accentColor,
                                   size: 22,
                                 );
                               },
@@ -1177,7 +709,9 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                   : lembrete.categoria == 'exercicio'
                                   ? Icons.directions_walk
                                   : Icons.notifications,
-                              color: isHighContrast ? Colors.white : accentColor,
+                              color: isHighContrast
+                                  ? Colors.white
+                                  : accentColor,
                               size: 22,
                             ),
                     ),
@@ -1302,7 +836,8 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                   : AppColors.secondaryFixed)
                             : (isAtrasado ||
                                   lembrete.status == LembreteStatus.perdido ||
-                                  lembrete.status == LembreteStatus.precisaDeAjuda)
+                                  lembrete.status ==
+                                      LembreteStatus.precisaDeAjuda)
                             ? (isHighContrast ? Colors.red : AppColors.error)
                             : (isHighContrast
                                   ? Colors.white
@@ -1337,7 +872,8 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                   ? Icons.check
                                   : lembrete.status == LembreteStatus.adiado
                                   ? Icons.schedule
-                                  : lembrete.status == LembreteStatus.precisaDeAjuda
+                                  : lembrete.status ==
+                                        LembreteStatus.precisaDeAjuda
                                   ? Icons.support_agent
                                   : lembrete.status == LembreteStatus.perdido
                                   ? Icons.close
@@ -1355,7 +891,9 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                             )
                           : Icon(
                               Icons.radio_button_unchecked,
-                              color: isHighContrast ? Colors.black : accentColor,
+                              color: isHighContrast
+                                  ? Colors.black
+                                  : accentColor,
                               size: 26,
                             ),
                     ),
@@ -1375,10 +913,10 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(barIcon, color: barFg, size: 20),
-                  const SizedBox(width: 8),
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(barIcon, color: barFg, size: 20),
+                    const SizedBox(width: 8),
                     Flexible(
                       child: Text(
                         barText,
@@ -1392,7 +930,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                         ),
                       ),
                     ),
-                ],
+                  ],
                 ),
               ),
             ),
@@ -1574,13 +1112,15 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                   decoration: BoxDecoration(
                     color: isHighContrast ? Colors.white : section.color,
                     shape: BoxShape.circle,
-                    boxShadow: isHighContrast ? null : [
-                      BoxShadow(
-                        color: section.color.withValues(alpha: 0.3),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
-                      )
-                    ],
+                    boxShadow: isHighContrast
+                        ? null
+                        : [
+                            BoxShadow(
+                              color: section.color.withValues(alpha: 0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
                   ),
                   child: Icon(
                     section.icon,
@@ -1712,7 +1252,10 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                             ),
                             const SizedBox(height: 6),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 8,
+                              ),
                               decoration: BoxDecoration(
                                 color: isHighContrast
                                     ? Colors.black
@@ -1852,9 +1395,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
   Widget _buildTopBar() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-      ),
+      decoration: const BoxDecoration(color: AppColors.surface),
       child: Row(
         children: [
           const SizedBox(width: 48),
@@ -1892,9 +1433,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
             },
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: [
-                ElderlyProfileAvatar(fotoPath: _fotoPath, size: 56),
-              ],
+              children: [ElderlyProfileAvatar(fotoPath: _fotoPath, size: 56)],
             ),
           ),
         ],
@@ -1986,7 +1525,9 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
           ),
           const SizedBox(width: 8),
           Text(
-            _isOnline ? 'Cuidador conectado' : 'Cuidador conectado, sem internet',
+            _isOnline
+                ? 'Cuidador conectado'
+                : 'Cuidador conectado, sem internet',
             style: TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.w700,
@@ -2097,7 +1638,9 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
         return Container(
           width: double.infinity,
           decoration: BoxDecoration(
-            color: isHighContrast ? Colors.white : AppColors.surfaceContainerLowest,
+            color: isHighContrast
+                ? Colors.white
+                : AppColors.surfaceContainerLowest,
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
               color: isHighContrast
@@ -2146,32 +1689,57 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                       : categoryColor.withValues(alpha: 0.12),
                                   shape: BoxShape.circle,
                                   border: Border.all(
-                                    color: isHighContrast ? Colors.black : categoryColor.withValues(alpha: 0.3),
+                                    color: isHighContrast
+                                        ? Colors.black
+                                        : categoryColor.withValues(alpha: 0.3),
                                     width: 2,
                                   ),
                                 ),
                                 child: ClipOval(
-                                  child: lembrete.categoria == 'medicacao' &&
-                                          lembrete.medicamentoFotoPath != null &&
-                                          lembrete.medicamentoFotoPath!.isNotEmpty
+                                  child:
+                                      lembrete.categoria == 'medicacao' &&
+                                          lembrete.medicamentoFotoPath !=
+                                              null &&
+                                          lembrete
+                                              .medicamentoFotoPath!
+                                              .isNotEmpty
                                       ? Image(
-                                          image: lembrete.medicamentoFotoPath!.startsWith('assets/')
-                                              ? AssetImage(lembrete.medicamentoFotoPath!) as ImageProvider
-                                              : lembrete.medicamentoFotoPath!.startsWith('http')
-                                              ? NetworkImage(lembrete.medicamentoFotoPath!)
-                                              : FileImage(File(lembrete.medicamentoFotoPath!)),
+                                          image:
+                                              lembrete.medicamentoFotoPath!
+                                                  .startsWith('assets/')
+                                              ? AssetImage(
+                                                      lembrete
+                                                          .medicamentoFotoPath!,
+                                                    )
+                                                    as ImageProvider
+                                              : lembrete.medicamentoFotoPath!
+                                                    .startsWith('http')
+                                              ? NetworkImage(
+                                                  lembrete.medicamentoFotoPath!,
+                                                )
+                                              : FileImage(
+                                                  File(
+                                                    lembrete
+                                                        .medicamentoFotoPath!,
+                                                  ),
+                                                ),
                                           fit: BoxFit.cover,
-                                          errorBuilder: (context, error, stackTrace) {
-                                            return Icon(
-                                              categoryIcon,
-                                              color: isHighContrast ? Colors.white : categoryColor,
-                                              size: 36,
-                                            );
-                                          },
+                                          errorBuilder:
+                                              (context, error, stackTrace) {
+                                                return Icon(
+                                                  categoryIcon,
+                                                  color: isHighContrast
+                                                      ? Colors.white
+                                                      : categoryColor,
+                                                  size: 36,
+                                                );
+                                              },
                                         )
                                       : Icon(
                                           categoryIcon,
-                                          color: isHighContrast ? Colors.white : categoryColor,
+                                          color: isHighContrast
+                                              ? Colors.white
+                                              : categoryColor,
                                           size: 36,
                                         ),
                                 ),
@@ -2184,10 +1752,14 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                     Row(
                                       children: [
                                         Icon(
-                                          PeriodHelper.getPeriodIcon(lembrete.horarioHour),
+                                          PeriodHelper.getPeriodIcon(
+                                            lembrete.horarioHour,
+                                          ),
                                           color: isHighContrast
                                               ? Colors.black
-                                              : PeriodHelper.getPeriodColor(lembrete.horarioHour),
+                                              : PeriodHelper.getPeriodColor(
+                                                  lembrete.horarioHour,
+                                                ),
                                           size: 24,
                                         ),
                                         const SizedBox(width: 8),
@@ -2338,7 +1910,6 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
       },
     );
   }
-
 }
 
 class _PeriodSection {

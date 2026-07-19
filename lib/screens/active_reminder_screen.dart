@@ -195,7 +195,8 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
         continue;
       }
 
-      if (l.medicamentoAudioTexto != null && l.medicamentoAudioTexto!.isNotEmpty) {
+      if (l.medicamentoAudioTexto != null &&
+          l.medicamentoAudioTexto!.isNotEmpty) {
         _speakText = l.medicamentoAudioTexto!;
       } else if (l.categoria == 'medicacao') {
         _speakText = 'Atenção! Hora do remédio: ${l.titulo}.';
@@ -241,8 +242,10 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
       });
       await _familyAudioPlayer.play(audioSourceForPath(path), volume: 1.0);
       final audioDuration = await _familyAudioPlayer.getDuration();
-      final safetySeconds = ((audioDuration?.inSeconds ?? 300) + 10)
-          .clamp(30, 600) as int;
+      final safetySeconds = ((audioDuration?.inSeconds ?? 300) + 10).clamp(
+        30,
+        600,
+      );
       await completed.future.timeout(
         Duration(seconds: safetySeconds),
         onTimeout: () async {
@@ -493,8 +496,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
           's',
         ]);
 
-    if ((isDifficulty || isPostpone || isConfirmation) &&
-        !_tryStartAction()) {
+    if ((isDifficulty || isPostpone || isConfirmation) && !_tryStartAction()) {
       return;
     }
 
@@ -680,9 +682,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
       return const Scaffold(
         backgroundColor: AppColors.background,
         body: Center(
-          child: CircularProgressIndicator(
-            color: AppColors.primary,
-          ),
+          child: CircularProgressIndicator(color: AppColors.primary),
         ),
       );
     }
@@ -737,7 +737,8 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
       confirmButtonText = 'JÁ FIZ';
     }
 
-    final isHighContrast = Theme.of(context).colorScheme.primary == Colors.black;
+    final isHighContrast =
+        Theme.of(context).colorScheme.primary == Colors.black;
 
     return PopScope(
       canPop: false,
@@ -775,10 +776,12 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                 fontWeight: FontWeight.w700,
                                 height: 1.2,
                                 letterSpacing: 0,
-                                color: isHighContrast ? Colors.black : AppColors.onSurfaceVariant,
+                                color: isHighContrast
+                                    ? Colors.black
+                                    : AppColors.onSurfaceVariant,
                               ),
                             ),
-                             const SizedBox(height: 24),
+                            const SizedBox(height: 24),
                             _buildPulsingMedication(
                               categoryIcon,
                               isHighContrast ? Colors.black : iconColor,
@@ -788,20 +791,16 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                             Builder(
                               builder: (context) {
                                 final border = isHighContrast
-                                    ? Border.all(
-                                        color: Colors.red,
-                                        width: 4,
-                                      )
-                                    : Border.all(
-                                        color: Colors.red,
-                                        width: 6,
-                                      );
+                                    ? Border.all(color: Colors.red, width: 4)
+                                    : Border.all(color: Colors.red, width: 6);
 
                                 final shadow = isHighContrast
                                     ? null
                                     : [
                                         BoxShadow(
-                                          color: Colors.red.withValues(alpha: 0.25),
+                                          color: Colors.red.withValues(
+                                            alpha: 0.25,
+                                          ),
                                           blurRadius: 24,
                                           offset: const Offset(0, 8),
                                         ),
@@ -819,13 +818,18 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                   child: Column(
                                     children: [
                                       Row(
-                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
                                         children: [
                                           Icon(
-                                            PeriodHelper.getPeriodIcon(lembrete!.horarioHour),
+                                            PeriodHelper.getPeriodIcon(
+                                              lembrete!.horarioHour,
+                                            ),
                                             color: isHighContrast
                                                 ? Colors.black
-                                                : PeriodHelper.getPeriodColor(lembrete!.horarioHour),
+                                                : PeriodHelper.getPeriodColor(
+                                                    lembrete!.horarioHour,
+                                                  ),
                                             size: 26,
                                           ),
                                           const SizedBox(width: 8),
@@ -835,7 +839,11 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                               fontSize: 18,
                                               fontWeight: FontWeight.w900,
                                               letterSpacing: 0,
-                                              color: isHighContrast ? Colors.black : PeriodHelper.getPeriodColor(lembrete!.horarioHour),
+                                              color: isHighContrast
+                                                  ? Colors.black
+                                                  : PeriodHelper.getPeriodColor(
+                                                      lembrete!.horarioHour,
+                                                    ),
                                             ),
                                           ),
                                         ],
@@ -848,7 +856,9 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                         style: TextStyle(
                                           fontSize: 32,
                                           fontWeight: FontWeight.w900,
-                                          color: isHighContrast ? Colors.black : AppColors.primary,
+                                          color: isHighContrast
+                                              ? Colors.black
+                                              : AppColors.primary,
                                           height: 1.3,
                                         ),
                                       ),
@@ -859,10 +869,11 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                         style: TextStyle(
                                           fontSize: 20,
                                           fontWeight: FontWeight.w500,
-                                          color: isHighContrast ? Colors.black : AppColors.onSurfaceVariant,
+                                          color: isHighContrast
+                                              ? Colors.black
+                                              : AppColors.onSurfaceVariant,
                                         ),
                                       ),
-
                                     ],
                                   ),
                                 );
@@ -873,8 +884,12 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                             // Play recorded audio if caregiver left a voice message
                             if (lembrete?.audioPath != null) ...[
                               AudioPlayerCard(
-                                audioPath: lembrete!.audioPath == 'ia_generated' ? null : lembrete!.audioPath,
-                                textsToSpeak: lembrete!.audioPath == 'ia_generated' && lembrete!.medicamentoAudioTexto != null
+                                audioPath: lembrete!.audioPath == 'ia_generated'
+                                    ? null
+                                    : lembrete!.audioPath,
+                                textsToSpeak:
+                                    lembrete!.audioPath == 'ia_generated' &&
+                                        lembrete!.medicamentoAudioTexto != null
                                     ? [lembrete!.medicamentoAudioTexto!]
                                     : null,
                                 subtitle: lembrete!.audioPath == 'ia_generated'
@@ -885,7 +900,9 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                             ],
 
                             if (_isListeningForCommand) ...[
-                              AudioWaveformIndicator(isListening: _isListeningForCommand),
+                              AudioWaveformIndicator(
+                                isListening: _isListeningForCommand,
+                              ),
                               const SizedBox(height: 16),
                             ],
 
@@ -893,7 +910,8 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                               width: double.infinity,
                               height: 72,
                               child: OutlinedButton.icon(
-                                onPressed: _isListeningForCommand ||
+                                onPressed:
+                                    _isListeningForCommand ||
                                         _isProcessingAction
                                     ? null
                                     : _listenForVoiceConfirmation,
@@ -917,9 +935,13 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                   ),
                                 ),
                                 style: OutlinedButton.styleFrom(
-                                  foregroundColor: isHighContrast ? Colors.black : AppColors.primary,
+                                  foregroundColor: isHighContrast
+                                      ? Colors.black
+                                      : AppColors.primary,
                                   side: BorderSide(
-                                    color: isHighContrast ? Colors.black : AppColors.primary,
+                                    color: isHighContrast
+                                        ? Colors.black
+                                        : AppColors.primary,
                                     width: isHighContrast ? 4 : 2,
                                   ),
                                   shape: RoundedRectangleBorder(
@@ -935,82 +957,101 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                               width: double.infinity,
                               height: 80,
                               child: ElevatedButton.icon(
-                                onPressed: _isProcessingAction ? null : () async {
-                                  if (!_tryStartAction()) return;
-                                  try {
-                                    final navigator = Navigator.of(context);
-                                    _isLoopPaused = true;
-                                    VibrationService.stopVibration();
-                                    AudioManager.stopAll();
-                                    _noResponseTimer?.cancel();
-                                    await _familyAudioPlayer.stop();
-                                    await TTSService.instance.parar();
-                                    if (lembrete != null) {
-                                      _runInBackground(
-                                        NotificationService.instance.cancelar(
-                                          lembrete!.id,
-                                        ),
-                                        'cancelar notificacao',
-                                      );
-                                    }
-                                    if (requiresPhoto) {
-                                      final id = lembrete?.id;
-                                      if (id == null || id.isEmpty) {
-                                        if (mounted) {
-                                          setState(() => _notFound = true);
-                                        }
-                                        return;
-                                      }
-                                      AudioManager.stopAll();
-                                      await TTSService.instance.parar();
-                                      await navigator.pushNamed(
-                                        '/take-photo-confirmation',
-                                        arguments: id,
-                                      );
-                                      if (mounted) {
-                                        _isLoopPaused = false;
-                                      }
-                                    } else {
-                                      if (lembrete != null) {
+                                onPressed: _isProcessingAction
+                                    ? null
+                                    : () async {
+                                        if (!_tryStartAction()) return;
                                         try {
-                                          final ok = await LembreteService.instance
-                                              .alternarConclusao(
-                                            lembrete!.id,
+                                          final navigator = Navigator.of(
+                                            context,
                                           );
-                                          if (!ok) return;
-                                          _isSpeakingLoopActive = false;
-                                          final feedbackMsg =
-                                              lembrete?.categoria == 'hidratacao'
-                                                  ? 'Você bebeu sua água.'
-                                                  : lembrete?.categoria == 'refeicoes'
-                                                      ? 'Você comeu.'
-                                                      : lembrete?.categoria == 'exercicio'
-                                                          ? 'Você fez seu exercício.'
-                                                          : 'Você concluiu sua atividade.';
-                                          navigator.pushNamedAndRemoveUntil(
-                                            '/medication-confirmation',
-                                            (route) => false,
-                                            arguments: feedbackMsg,
-                                          );
-                                        } catch (e) {
-                                          debugPrint('Erro ao concluir lembrete: $e');
+                                          _isLoopPaused = true;
+                                          VibrationService.stopVibration();
+                                          AudioManager.stopAll();
+                                          _noResponseTimer?.cancel();
+                                          await _familyAudioPlayer.stop();
+                                          await TTSService.instance.parar();
+                                          if (lembrete != null) {
+                                            _runInBackground(
+                                              NotificationService.instance
+                                                  .cancelar(lembrete!.id),
+                                              'cancelar notificacao',
+                                            );
+                                          }
+                                          if (requiresPhoto) {
+                                            final id = lembrete?.id;
+                                            if (id == null || id.isEmpty) {
+                                              if (mounted) {
+                                                setState(
+                                                  () => _notFound = true,
+                                                );
+                                              }
+                                              return;
+                                            }
+                                            AudioManager.stopAll();
+                                            await TTSService.instance.parar();
+                                            await navigator.pushNamed(
+                                              '/take-photo-confirmation',
+                                              arguments: id,
+                                            );
+                                            if (mounted) {
+                                              _isLoopPaused = false;
+                                            }
+                                          } else {
+                                            if (lembrete != null) {
+                                              try {
+                                                final ok = await LembreteService
+                                                    .instance
+                                                    .alternarConclusao(
+                                                      lembrete!.id,
+                                                    );
+                                                if (!ok) return;
+                                                _isSpeakingLoopActive = false;
+                                                final feedbackMsg =
+                                                    lembrete?.categoria ==
+                                                        'hidratacao'
+                                                    ? 'Você bebeu sua água.'
+                                                    : lembrete?.categoria ==
+                                                          'refeicoes'
+                                                    ? 'Você comeu.'
+                                                    : lembrete?.categoria ==
+                                                          'exercicio'
+                                                    ? 'Você fez seu exercício.'
+                                                    : 'Você concluiu sua atividade.';
+                                                navigator
+                                                    .pushNamedAndRemoveUntil(
+                                                      '/medication-confirmation',
+                                                      (route) => false,
+                                                      arguments: feedbackMsg,
+                                                    );
+                                              } catch (e) {
+                                                debugPrint(
+                                                  'Erro ao concluir lembrete: $e',
+                                                );
+                                                if (mounted) {
+                                                  ScaffoldMessenger.of(
+                                                    context,
+                                                  ).showSnackBar(
+                                                    SnackBar(
+                                                      content: Text(
+                                                        'Não consegui marcar como feito. Tente de novo.',
+                                                      ),
+                                                      backgroundColor:
+                                                          AppColors.error,
+                                                    ),
+                                                  );
+                                                }
+                                              }
+                                            }
+                                          }
+                                        } finally {
                                           if (mounted) {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              SnackBar(
-                                                content: Text('Não consegui marcar como feito. Tente de novo.'),
-                                                backgroundColor: AppColors.error,
-                                              ),
+                                            setState(
+                                              () => _isProcessingAction = false,
                                             );
                                           }
                                         }
-                                      }
-                                    }
-                                  } finally {
-                                    if (mounted) {
-                                      setState(() => _isProcessingAction = false);
-                                    }
-                                  }
-                                },
+                                      },
                                 icon: const Icon(Icons.check_circle, size: 36),
                                 label: FittedBox(
                                   fit: BoxFit.scaleDown,
@@ -1024,13 +1065,20 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                   ),
                                 ),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: isHighContrast ? Colors.black : const Color(0xFF2E7D32),
+                                  backgroundColor: isHighContrast
+                                      ? Colors.black
+                                      : const Color(0xFF2E7D32),
                                   foregroundColor: Colors.white,
                                   elevation: 6,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(24),
                                   ),
-                                  side: isHighContrast ? const BorderSide(color: Colors.black, width: 3) : null,
+                                  side: isHighContrast
+                                      ? const BorderSide(
+                                          color: Colors.black,
+                                          width: 3,
+                                        )
+                                      : null,
                                 ),
                               ),
                             ),
@@ -1041,48 +1089,61 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                               width: double.infinity,
                               height: 80,
                               child: ElevatedButton.icon(
-                                onPressed: _isProcessingAction ? null : () async {
-                                  if (!_tryStartAction()) return;
-                                  try {
-                                    _isSpeakingLoopActive = false;
-                                    _isLoopPaused = false;
-                                    VibrationService.stopVibration();
-                                    _noResponseTimer?.cancel();
-                                    _familyAudioPlayer.stop();
-                                    TTSService.instance.parar();
-                                    final navigator = Navigator.of(context);
-                                    final categoria = lembrete?.categoria;
-                                    if (lembrete != null) {
-                                      try {
-                                        final ok = await LembreteService.instance
-                                            .adiar(
-                                          lembrete!.id,
-                                          10,
-                                        );
-                                        if (!ok) return;
-                                        navigator.pushNamedAndRemoveUntil(
-                                          '/reinforcement-alert',
-                                          (route) => false,
-                                          arguments: {'categoria': categoria},
-                                        );
-                                      } catch (e) {
-                                        debugPrint('Erro ao adiar lembrete: $e');
-                                        if (mounted) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(
-                                              content: Text('Não consegui lembrar depois. Tente de novo.'),
-                                              backgroundColor: AppColors.error,
-                                            ),
+                                onPressed: _isProcessingAction
+                                    ? null
+                                    : () async {
+                                        if (!_tryStartAction()) return;
+                                        try {
+                                          _isSpeakingLoopActive = false;
+                                          _isLoopPaused = false;
+                                          VibrationService.stopVibration();
+                                          _noResponseTimer?.cancel();
+                                          _familyAudioPlayer.stop();
+                                          TTSService.instance.parar();
+                                          final navigator = Navigator.of(
+                                            context,
                                           );
+                                          final categoria = lembrete?.categoria;
+                                          if (lembrete != null) {
+                                            try {
+                                              final ok = await LembreteService
+                                                  .instance
+                                                  .adiar(lembrete!.id, 10);
+                                              if (!ok) return;
+                                              navigator.pushNamedAndRemoveUntil(
+                                                '/reinforcement-alert',
+                                                (route) => false,
+                                                arguments: {
+                                                  'categoria': categoria,
+                                                },
+                                              );
+                                            } catch (e) {
+                                              debugPrint(
+                                                'Erro ao adiar lembrete: $e',
+                                              );
+                                              if (mounted) {
+                                                ScaffoldMessenger.of(
+                                                  context,
+                                                ).showSnackBar(
+                                                  SnackBar(
+                                                    content: Text(
+                                                      'Não consegui lembrar depois. Tente de novo.',
+                                                    ),
+                                                    backgroundColor:
+                                                        AppColors.error,
+                                                  ),
+                                                );
+                                              }
+                                            }
+                                          }
+                                        } finally {
+                                          if (mounted) {
+                                            setState(
+                                              () => _isProcessingAction = false,
+                                            );
+                                          }
                                         }
-                                      }
-                                    }
-                                  } finally {
-                                    if (mounted) {
-                                      setState(() => _isProcessingAction = false);
-                                    }
-                                  }
-                                },
+                                      },
                                 icon: const Icon(Icons.access_time, size: 30),
                                 label: const FittedBox(
                                   fit: BoxFit.scaleDown,
@@ -1096,13 +1157,22 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                   ),
                                 ),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: isHighContrast ? Colors.yellow : const Color(0xFFFFD54F),
-                                  foregroundColor: isHighContrast ? Colors.black : const Color(0xFF5D4037),
+                                  backgroundColor: isHighContrast
+                                      ? Colors.yellow
+                                      : const Color(0xFFFFD54F),
+                                  foregroundColor: isHighContrast
+                                      ? Colors.black
+                                      : const Color(0xFF5D4037),
                                   elevation: 4,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(24),
                                   ),
-                                  side: isHighContrast ? const BorderSide(color: Colors.black, width: 3) : null,
+                                  side: isHighContrast
+                                      ? const BorderSide(
+                                          color: Colors.black,
+                                          width: 3,
+                                        )
+                                      : null,
                                 ),
                               ),
                             ),
@@ -1121,36 +1191,46 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                           VibrationService.stopVibration();
                                           await _familyAudioPlayer.stop();
                                           TTSService.instance.parar();
-                                          final navigator = Navigator.of(context);
+                                          final navigator = Navigator.of(
+                                            context,
+                                          );
                                           if (lembrete != null) {
                                             _runInBackground(
-                                              NotificationService.instance.cancelar(
-                                                lembrete!.id,
-                                              ),
+                                              NotificationService.instance
+                                                  .cancelar(lembrete!.id),
                                               'cancelar notificacao',
                                             );
                                             try {
-                                              final ok = await LembreteService.instance
+                                              final ok = await LembreteService
+                                                  .instance
                                                   .registrarDificuldade(
-                                                lembrete!.id,
-                                                'O idoso informou que nao conseguiu realizar a atividade.',
-                                              );
+                                                    lembrete!.id,
+                                                    'O idoso informou que nao conseguiu realizar a atividade.',
+                                                  );
                                               if (!ok) return;
                                               navigator.pushNamedAndRemoveUntil(
                                                 '/reinforcement-alert',
                                                 (route) => false,
                                                 arguments: {
-                                                  'categoria': lembrete?.categoria,
+                                                  'categoria':
+                                                      lembrete?.categoria,
                                                   'tipo': 'dificuldade',
                                                 },
                                               );
                                             } catch (e) {
-                                              debugPrint('Erro ao registrar dificuldade: $e');
+                                              debugPrint(
+                                                'Erro ao registrar dificuldade: $e',
+                                              );
                                               if (mounted) {
-                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                ScaffoldMessenger.of(
+                                                  context,
+                                                ).showSnackBar(
                                                   SnackBar(
-                                                    content: Text('Não consegui pedir ajuda. Tente de novo.'),
-                                                    backgroundColor: AppColors.error,
+                                                    content: Text(
+                                                      'Não consegui pedir ajuda. Tente de novo.',
+                                                    ),
+                                                    backgroundColor:
+                                                        AppColors.error,
                                                   ),
                                                 );
                                               }
@@ -1158,7 +1238,9 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                           }
                                         } finally {
                                           if (mounted) {
-                                            setState(() => _isProcessingAction = false);
+                                            setState(
+                                              () => _isProcessingAction = false,
+                                            );
                                           }
                                         }
                                       }
@@ -1166,7 +1248,9 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                 icon: Icon(
                                   Icons.support_agent,
                                   size: 30,
-                                  color: _isPaired ? Colors.white : Colors.grey.shade600,
+                                  color: _isPaired
+                                      ? Colors.white
+                                      : Colors.grey.shade600,
                                 ),
                                 label: FittedBox(
                                   fit: BoxFit.scaleDown,
@@ -1176,19 +1260,28 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                     style: TextStyle(
                                       fontSize: 20,
                                       fontWeight: FontWeight.w800,
-                                      color: _isPaired ? Colors.white : Colors.grey.shade600,
+                                      color: _isPaired
+                                          ? Colors.white
+                                          : Colors.grey.shade600,
                                     ),
                                   ),
                                 ),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: isHighContrast ? Colors.red : const Color(0xFFD32F2F),
+                                  backgroundColor: isHighContrast
+                                      ? Colors.red
+                                      : const Color(0xFFD32F2F),
                                   disabledBackgroundColor: Colors.grey.shade300,
                                   foregroundColor: Colors.white,
                                   elevation: _isPaired ? 4 : 0,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(24),
                                   ),
-                                  side: isHighContrast && _isPaired ? const BorderSide(color: Colors.black, width: 3) : null,
+                                  side: isHighContrast && _isPaired
+                                      ? const BorderSide(
+                                          color: Colors.black,
+                                          width: 3,
+                                        )
+                                      : null,
                                 ),
                               ),
                             ),
@@ -1220,13 +1313,16 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
   }
 
   Widget _buildTopBar(BuildContext context) {
-    final isHighContrast = Theme.of(context).colorScheme.primary == Colors.black;
+    final isHighContrast =
+        Theme.of(context).colorScheme.primary == Colors.black;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       height: 64,
       decoration: BoxDecoration(
         color: isHighContrast ? Colors.white : AppColors.surface,
-        border: isHighContrast ? const Border(bottom: BorderSide(color: Colors.black, width: 2)) : null,
+        border: isHighContrast
+            ? const Border(bottom: BorderSide(color: Colors.black, width: 2))
+            : null,
       ),
       child: Center(
         child: Text(

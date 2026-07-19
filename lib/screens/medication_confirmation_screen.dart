@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
 import '../services/tts_service.dart';
 import '../widgets/index.dart';
@@ -8,10 +7,12 @@ class MedicationConfirmationScreen extends StatefulWidget {
   const MedicationConfirmationScreen({super.key});
 
   @override
-  State<MedicationConfirmationScreen> createState() => _MedicationConfirmationScreenState();
+  State<MedicationConfirmationScreen> createState() =>
+      _MedicationConfirmationScreenState();
 }
 
-class _MedicationConfirmationScreenState extends State<MedicationConfirmationScreen>
+class _MedicationConfirmationScreenState
+    extends State<MedicationConfirmationScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _pulseAnimation;
@@ -27,9 +28,10 @@ class _MedicationConfirmationScreenState extends State<MedicationConfirmationScr
       duration: const Duration(seconds: 2),
     )..repeat(reverse: true);
 
-    _pulseAnimation = Tween<double>(begin: 0.95, end: 1.05).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _pulseAnimation = Tween<double>(
+      begin: 0.95,
+      end: 1.05,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override
@@ -66,7 +68,8 @@ class _MedicationConfirmationScreenState extends State<MedicationConfirmationScr
         titleText: 'HORA DO REMÉDIO',
         statusText: 'Remédio Tomado',
         tip: 'Parabéns por cuidar da sua saúde!',
-        detailedExplanation: 'Muito bem! Você tomou o seu remédio. Parabéns por cuidar da sua saúde! Agora, aperte no botão amarelo abaixo para voltar à tela inicial.',
+        detailedExplanation:
+            'Muito bem! Você tomou o seu remédio. Parabéns por cuidar da sua saúde! Agora, aperte no botão amarelo abaixo para voltar à tela inicial.',
       );
     } else if (msg.contains('água') ||
         msg.contains('hidratar') ||
@@ -78,7 +81,8 @@ class _MedicationConfirmationScreenState extends State<MedicationConfirmationScr
         titleText: 'HORA DA HIDRATAÇÃO',
         statusText: 'Água Bebida',
         tip: 'Parabéns por beber água!',
-        detailedExplanation: 'Muito bem! Você bebeu a sua água. Parabéns por cuidar do seu corpo! Agora, aperte no botão amarelo abaixo para voltar à tela inicial.',
+        detailedExplanation:
+            'Muito bem! Você bebeu a sua água. Parabéns por cuidar do seu corpo! Agora, aperte no botão amarelo abaixo para voltar à tela inicial.',
       );
     } else if (msg.contains('refeição') ||
         msg.contains('comer') ||
@@ -91,7 +95,8 @@ class _MedicationConfirmationScreenState extends State<MedicationConfirmationScr
         titleText: 'HORA DA REFEIÇÃO',
         statusText: 'Você Comeu',
         tip: 'Comer nos horários certos cuida do seu corpo!',
-        detailedExplanation: 'Muito bem! Você comeu. Parabéns por cuidar do seu corpo! Agora, aperte no botão amarelo abaixo para voltar à tela inicial.',
+        detailedExplanation:
+            'Muito bem! Você comeu. Parabéns por cuidar do seu corpo! Agora, aperte no botão amarelo abaixo para voltar à tela inicial.',
       );
     } else if (msg.contains('exercício') ||
         msg.contains('atividade') ||
@@ -103,7 +108,8 @@ class _MedicationConfirmationScreenState extends State<MedicationConfirmationScr
         titleText: 'HORA DO EXERCÍCIO',
         statusText: 'Exercício Feito',
         tip: 'Movimentar o corpo faz bem para o coração e mente!',
-        detailedExplanation: 'Muito bem! Você fez seu exercício. Parabéns por movimentar seu corpo! Agora, aperte no botão amarelo abaixo para voltar à tela inicial.',
+        detailedExplanation:
+            'Muito bem! Você fez seu exercício. Parabéns por movimentar seu corpo! Agora, aperte no botão amarelo abaixo para voltar à tela inicial.',
       );
     } else {
       return const _ConfirmationConfig(
@@ -112,7 +118,8 @@ class _MedicationConfirmationScreenState extends State<MedicationConfirmationScr
         titleText: 'LEMBRETE CONCLUÍDO',
         statusText: 'Lembrete concluído',
         tip: 'Parabéns por fazer sua atividade!',
-        detailedExplanation: 'Muito bem! Você concluiu seu lembrete. Parabéns! Agora, aperte no botão amarelo abaixo para voltar à tela inicial.',
+        detailedExplanation:
+            'Muito bem! Você concluiu seu lembrete. Parabéns! Agora, aperte no botão amarelo abaixo para voltar à tela inicial.',
       );
     }
   }
@@ -126,7 +133,11 @@ class _MedicationConfirmationScreenState extends State<MedicationConfirmationScr
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
         TTSService.instance.parar();
-        Navigator.pushNamedAndRemoveUntil(context, '/elderly-home', (route) => false);
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/elderly-home',
+          (route) => false,
+        );
       },
       child: Scaffold(
         backgroundColor: Colors.transparent,
@@ -178,7 +189,10 @@ class _MedicationConfirmationScreenState extends State<MedicationConfirmationScr
                                 decoration: BoxDecoration(
                                   color: AppColors.surfaceContainerLowest,
                                   borderRadius: BorderRadius.circular(24),
-                                  border: Border.all(color: cfg.color.withValues(alpha: 0.3), width: 3),
+                                  border: Border.all(
+                                    color: cfg.color.withValues(alpha: 0.3),
+                                    width: 3,
+                                  ),
                                   boxShadow: [
                                     BoxShadow(
                                       color: cfg.color.withValues(alpha: 0.1),
@@ -232,16 +246,25 @@ class _MedicationConfirmationScreenState extends State<MedicationConfirmationScr
                                 child: ElevatedButton.icon(
                                   onPressed: () {
                                     TTSService.instance.parar();
-                                    Navigator.pushNamedAndRemoveUntil(context, '/elderly-home', (route) => false);
+                                    Navigator.pushNamedAndRemoveUntil(
+                                      context,
+                                      '/elderly-home',
+                                      (route) => false,
+                                    );
                                   },
                                   icon: const Icon(Icons.home, size: 36),
                                   label: const Text(
                                     'VOLTAR PARA O INÍCIO',
-                                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
+                                    style: TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.w900,
+                                    ),
                                   ),
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.secondaryContainer,
-                                    foregroundColor: AppColors.onSecondaryContainer,
+                                    backgroundColor:
+                                        AppColors.secondaryContainer,
+                                    foregroundColor:
+                                        AppColors.onSecondaryContainer,
                                     elevation: 4,
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(16),
@@ -269,9 +292,7 @@ class _MedicationConfirmationScreenState extends State<MedicationConfirmationScr
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       height: 64,
-      decoration: const BoxDecoration(
-        color: Colors.transparent,
-      ),
+      decoration: const BoxDecoration(color: Colors.transparent),
       child: const Center(
         child: Text(
           'Lembrete Amigo',
@@ -312,11 +333,7 @@ class _MedicationConfirmationScreenState extends State<MedicationConfirmationScr
                 shape: BoxShape.circle,
                 border: Border.all(color: color, width: 2),
               ),
-              child: Icon(
-                Icons.check_circle,
-                color: color,
-                size: 22,
-              ),
+              child: Icon(Icons.check_circle, color: color, size: 22),
             ),
           ),
         ],

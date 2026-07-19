@@ -305,8 +305,8 @@ class OfflineSyncService {
 
   void _scheduleBackoff(int attempts) {
     if (_backoffTimer?.isActive ?? false) return;
-    final exponent = attempts.clamp(0, 8) as int;
-    final seconds = (5 * (1 << exponent)).clamp(10, 1800) as int;
+    final exponent = attempts.clamp(0, 8);
+    final seconds = (5 * (1 << exponent)).clamp(10, 1800);
     _backoffTimer = Timer(Duration(seconds: seconds), () {
       _backoffTimer = null;
       unawaited(syncPendingWrites());

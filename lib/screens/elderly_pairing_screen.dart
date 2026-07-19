@@ -10,6 +10,7 @@ import '../theme/app_theme.dart';
 import '../services/session_role_service.dart';
 import '../services/push_notification_service.dart';
 import '../services/offline_sync_service.dart';
+import '../services/elderly_profile_repository.dart';
 import '../services/tts_service.dart';
 import '../widgets/index.dart';
 
@@ -82,7 +83,8 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
       localPerfil.putIfAbsent('telefone', () => '');
       localPerfil.putIfAbsent('endereco', () => '');
       localPerfil.putIfAbsent('fotoPath', () => null);
-      final remotePerfil = _sanitizePairingProfile(localPerfil);
+      final remotePerfil =
+          ElderlyProfileRepository.instance.sanitize(localPerfil);
       remotePerfil['supervisorId'] = null;
       remotePerfil['status'] = 'pending';
       remotePerfil['updatedAt'] = DateTime.now().toIso8601String();
@@ -140,7 +142,8 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
           ? jsonDecode(jsonStr) as Map<String, dynamic>
           : <String, dynamic>{};
 
-      final pairingProfile = _sanitizePairingProfile(localPerfil);
+      final pairingProfile =
+          ElderlyProfileRepository.instance.sanitize(localPerfil);
       pairingProfile.putIfAbsent('nome', () => 'Minha Conta');
       pairingProfile.putIfAbsent('dataNascimento', () => '');
       pairingProfile.putIfAbsent('telefone', () => '');
@@ -248,28 +251,6 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
   Future<String> _generateUniquePairingCode() async {
     final random = math.Random.secure();
     return (100000 + random.nextInt(900000)).toString();
-  }
-
-  Map<String, dynamic> _sanitizePairingProfile(Map<String, dynamic> source) {
-    const allowedKeys = {
-      'nome',
-      'idade',
-      'telefone',
-      'ambulancia_telefone',
-      'dataNascimento',
-      'endereco',
-      'fotoPath',
-      'supervisorId',
-      'status',
-      'pairingCode',
-      'pairingCodeExpires',
-      'createdAt',
-      'updatedAt',
-    };
-    return {
-      for (final entry in source.entries)
-        if (allowedKeys.contains(entry.key)) entry.key: entry.value,
-    };
   }
 
   void _handleSuccess() async {

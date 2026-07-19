@@ -7,7 +7,6 @@ import '../theme/app_theme.dart';
 import 'package:firebase_core/firebase_core.dart';
 import '../services/session_role_service.dart';
 import '../models/lembrete.dart';
-import '../utils/reminder_state_helper.dart';
 import '../widgets/index.dart';
 
 class EmergencyAlertScreen extends StatefulWidget {

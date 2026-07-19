@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
 class MedicationIdentifierResult {
@@ -19,8 +18,7 @@ class MedicationIdentifierResult {
   bool get hasError => erro.isNotEmpty;
   bool get success => nome.isNotEmpty && !hasError;
 
-  factory MedicationIdentifierResult.fromJson(
-          Map<String, dynamic> json) =>
+  factory MedicationIdentifierResult.fromJson(Map<String, dynamic> json) =>
       MedicationIdentifierResult(
         nome: json['nome'] as String? ?? '',
         dosagem: json['dosagem'] as String? ?? '',
@@ -39,11 +37,10 @@ class MedicationIdentifierService {
     required String imageBase64,
   }) async {
     try {
-      final function = FirebaseFunctions.instance
-          .httpsCallable('identifyMedication');
-      final result = await function.call({
-        'imageBase64': imageBase64,
-      });
+      final function = FirebaseFunctions.instance.httpsCallable(
+        'identifyMedication',
+      );
+      final result = await function.call({'imageBase64': imageBase64});
 
       final data = Map<String, dynamic>.from(result.data as Map);
       return MedicationIdentifierResult.fromJson(data);

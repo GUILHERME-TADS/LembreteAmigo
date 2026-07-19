@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
 import '../models/lembrete.dart';
 import '../widgets/index.dart';
@@ -9,7 +8,8 @@ class PostponeConfirmationScreen extends StatefulWidget {
   const PostponeConfirmationScreen({super.key});
 
   @override
-  State<PostponeConfirmationScreen> createState() => _PostponeConfirmationScreenState();
+  State<PostponeConfirmationScreen> createState() =>
+      _PostponeConfirmationScreenState();
 }
 
 class _PostponeConfirmationScreenState extends State<PostponeConfirmationScreen>
@@ -29,9 +29,10 @@ class _PostponeConfirmationScreenState extends State<PostponeConfirmationScreen>
       duration: const Duration(seconds: 2),
     )..repeat(reverse: true);
 
-    _pulseAnimation = Tween<double>(begin: 0.95, end: 1.05).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _pulseAnimation = Tween<double>(
+      begin: 0.95,
+      end: 1.05,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override
@@ -157,7 +158,11 @@ class _PostponeConfirmationScreenState extends State<PostponeConfirmationScreen>
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
         TTSService.instance.parar();
-        Navigator.pushNamedAndRemoveUntil(context, '/elderly-home', (route) => false);
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/elderly-home',
+          (route) => false,
+        );
       },
       child: Scaffold(
         backgroundColor: Colors.transparent,
@@ -209,7 +214,10 @@ class _PostponeConfirmationScreenState extends State<PostponeConfirmationScreen>
                                 decoration: BoxDecoration(
                                   color: AppColors.surfaceContainerLowest,
                                   borderRadius: BorderRadius.circular(24),
-                                  border: Border.all(color: cfg.color.withValues(alpha: 0.3), width: 3),
+                                  border: Border.all(
+                                    color: cfg.color.withValues(alpha: 0.3),
+                                    width: 3,
+                                  ),
                                   boxShadow: [
                                     BoxShadow(
                                       color: cfg.color.withValues(alpha: 0.1),
@@ -231,7 +239,9 @@ class _PostponeConfirmationScreenState extends State<PostponeConfirmationScreen>
                                     ),
                                     const SizedBox(height: 12),
                                     Text(
-                                      _tipo == 'dificuldade' ? 'Ajuda Pedida' : 'Lembro de novo em 10 min',
+                                      _tipo == 'dificuldade'
+                                          ? 'Ajuda Pedida'
+                                          : 'Lembro de novo em 10 min',
                                       textAlign: TextAlign.center,
                                       style: TextStyle(
                                         fontSize: 32,
@@ -263,16 +273,25 @@ class _PostponeConfirmationScreenState extends State<PostponeConfirmationScreen>
                                 child: ElevatedButton.icon(
                                   onPressed: () {
                                     TTSService.instance.parar();
-                                    Navigator.pushNamedAndRemoveUntil(context, '/elderly-home', (route) => false);
+                                    Navigator.pushNamedAndRemoveUntil(
+                                      context,
+                                      '/elderly-home',
+                                      (route) => false,
+                                    );
                                   },
                                   icon: const Icon(Icons.home, size: 36),
                                   label: const Text(
                                     'VOLTAR PARA O INÍCIO',
-                                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
+                                    style: TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.w900,
+                                    ),
                                   ),
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.secondaryContainer,
-                                    foregroundColor: AppColors.onSecondaryContainer,
+                                    backgroundColor:
+                                        AppColors.secondaryContainer,
+                                    foregroundColor:
+                                        AppColors.onSecondaryContainer,
                                     elevation: 4,
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(16),
@@ -300,9 +319,7 @@ class _PostponeConfirmationScreenState extends State<PostponeConfirmationScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       height: 64,
-      decoration: const BoxDecoration(
-        color: Colors.transparent,
-      ),
+      decoration: const BoxDecoration(color: Colors.transparent),
       child: const Center(
         child: Text(
           'Lembrete Amigo',

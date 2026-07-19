@@ -27,58 +27,61 @@ class WidgetService {
         LembreteService.instance.lembretes,
         now: now,
       );
-      final proximos = ativosHoje
-          .where((l) =>
-              !l.concluido &&
-              l.status != LembreteStatus.perdido &&
-              l.status != LembreteStatus.precisaDeAjuda)
-          .map((l) {
-            var hour = l.horarioHour;
-            var minute = l.horarioMinute;
-            if (l.recorrenciaIntervalo || l.recorrencia == 'intervalo') {
-              final intervalHours =
-                  (l.intervaloHoras ?? 4).clamp(1, 24) as int;
-              final intervalMinutes = intervalHours * 60;
-              var occurrence = hour * 60 + minute;
-              while (occurrence < nowMinutes && occurrence < 24 * 60) {
-                occurrence += intervalMinutes;
-              }
-              if (occurrence >= 24 * 60) return null;
-              hour = occurrence ~/ 60;
-              minute = occurrence % 60;
-            }
-            final minutes = hour * 60 + minute;
-            final diff = minutes - nowMinutes;
-            final status = l.status == LembreteStatus.adiado
-                ? 'adiado'
-                : diff < -4
+      final proximos =
+          ativosHoje
+              .where(
+                (l) =>
+                    !l.concluido &&
+                    l.status != LembreteStatus.perdido &&
+                    l.status != LembreteStatus.precisaDeAjuda,
+              )
+              .map((l) {
+                var hour = l.horarioHour;
+                var minute = l.horarioMinute;
+                if (l.recorrenciaIntervalo || l.recorrencia == 'intervalo') {
+                  final intervalHours = (l.intervaloHoras ?? 4).clamp(1, 24);
+                  final intervalMinutes = intervalHours * 60;
+                  var occurrence = hour * 60 + minute;
+                  while (occurrence < nowMinutes && occurrence < 24 * 60) {
+                    occurrence += intervalMinutes;
+                  }
+                  if (occurrence >= 24 * 60) return null;
+                  hour = occurrence ~/ 60;
+                  minute = occurrence % 60;
+                }
+                final minutes = hour * 60 + minute;
+                final diff = minutes - nowMinutes;
+                final status = l.status == LembreteStatus.adiado
+                    ? 'adiado'
+                    : diff < -4
                     ? 'atrasado'
                     : diff <= 1
-                        ? 'agora'
-                        : 'proximo';
-            return WidgetData(
-              id: l.id,
-              titulo: l.titulo,
-              horarioHour: hour,
-              horarioMinute: minute,
-              categoria: l.categoria,
-              status: status,
-            );
-          })
-          .whereType<WidgetData>()
-          .toList()
-        ..sort((a, b) {
-          int priority(WidgetData item) => switch (item.status) {
-            'agora' => 0,
-            'atrasado' => 1,
-            'adiado' => 2,
-            _ => 3,
-          };
-          final statusCompare = priority(a).compareTo(priority(b));
-          if (statusCompare != 0) return statusCompare;
-          return (a.horarioHour * 60 + a.horarioMinute)
-              .compareTo(b.horarioHour * 60 + b.horarioMinute);
-        });
+                    ? 'agora'
+                    : 'proximo';
+                return WidgetData(
+                  id: l.id,
+                  titulo: l.titulo,
+                  horarioHour: hour,
+                  horarioMinute: minute,
+                  categoria: l.categoria,
+                  status: status,
+                );
+              })
+              .whereType<WidgetData>()
+              .toList()
+            ..sort((a, b) {
+              int priority(WidgetData item) => switch (item.status) {
+                'agora' => 0,
+                'atrasado' => 1,
+                'adiado' => 2,
+                _ => 3,
+              };
+              final statusCompare = priority(a).compareTo(priority(b));
+              if (statusCompare != 0) return statusCompare;
+              return (a.horarioHour * 60 + a.horarioMinute).compareTo(
+                b.horarioHour * 60 + b.horarioMinute,
+              );
+            });
 
       final pendentes = <WidgetData>[];
       for (final item in proximos) {

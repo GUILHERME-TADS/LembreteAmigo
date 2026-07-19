@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import '../models/effectiveness_metrics.dart';
 
@@ -12,8 +11,10 @@ class EffectivenessTrendChart extends StatelessWidget {
     final validDays = dailyTrend.where((d) => d.score >= 0).toList();
     if (validDays.isEmpty) {
       return const Center(
-        child: Text('Sem dados suficientes',
-            style: TextStyle(color: Color(0xFF94A3B8))),
+        child: Text(
+          'Sem dados suficientes',
+          style: TextStyle(color: Color(0xFF94A3B8)),
+        ),
       );
     }
 
@@ -37,17 +38,22 @@ class _TrendPainter extends CustomPainter {
     if (validDays.isEmpty) return;
 
     final maxScore = 100.0;
-    final stepX = size.width / (validDays.length - 1).clamp(1, validDays.length);
+    final stepX =
+        size.width / (validDays.length - 1).clamp(1, validDays.length);
     final padding = 20.0;
     final chartHeight = size.height - padding * 2;
-    final chartWidth = size.width - padding * 2;
 
     final points = <Offset>[];
     for (int i = 0; i < validDays.length; i++) {
       final x = padding + i * stepX;
-      final y = padding + chartHeight - (validDays[i].score / maxScore) * chartHeight;
-      points.add(Offset(x.clamp(padding, size.width - padding),
-          y.clamp(padding, size.height - padding)));
+      final y =
+          padding + chartHeight - (validDays[i].score / maxScore) * chartHeight;
+      points.add(
+        Offset(
+          x.clamp(padding, size.width - padding),
+          y.clamp(padding, size.height - padding),
+        ),
+      );
     }
 
     final linePaint = Paint()
@@ -83,11 +89,7 @@ class _TrendPainter extends CustomPainter {
     canvas.drawPath(fillPath, fillPaint);
 
     for (final point in points) {
-      canvas.drawCircle(
-        point,
-        3,
-        Paint()..color = const Color(0xFF3B82F6),
-      );
+      canvas.drawCircle(point, 3, Paint()..color = const Color(0xFF3B82F6));
     }
   }
 

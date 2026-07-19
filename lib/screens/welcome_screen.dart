@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
 import '../services/session_role_service.dart';
+import '../services/push_notification_service.dart';
 import '../services/tts_service.dart';
+import '../services/lembrete_service.dart';
+import '../services/message_service.dart';
 import '../widgets/index.dart';
 
 class WelcomeScreen extends StatefulWidget {
@@ -113,11 +116,15 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                               setState(() => _isProcessingTap = true);
                               try {
                                 TTSService.instance.parar(caller: this);
+                                await LembreteService.instance.reset();
+                                await MessageService.instance.reset();
                                 await SessionRoleService.setElderly();
                                 final prefs =
                                     await SharedPreferences.getInstance();
                                 final pairedIdosoId =
                                     prefs.getString('paired_idoso_id');
+                                await PushNotificationService.instance
+                                    .saveCurrentToken();
                                 if (!mounted) return;
                                 if (pairedIdosoId != null) {
                                   final isPaired = await SessionRoleService
@@ -155,6 +162,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                               setState(() => _isProcessingTap = true);
                               try {
                                 TTSService.instance.parar(caller: this);
+                                await LembreteService.instance.reset();
+                                await MessageService.instance.reset();
                                 await SessionRoleService.setSupervisor();
                                 if (!mounted) return;
                                 Navigator.pushNamed(context, '/supervisor-login');

@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -16,6 +17,8 @@ import 'offline_sync_service.dart';
 import 'secure_cache_service.dart';
 import 'session_role_service.dart';
 import 'app_status_service.dart';
+import 'durable_media_service.dart';
+import 'remote_media_cache_service.dart';
 
 class MessageService {
   MessageService._();
@@ -29,8 +32,18 @@ class MessageService {
   String? _loadedIdosoId;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
   _messagesSubscription;
+  bool _isMarkingIncomingRead = false;
 
   List<AppMessage> get messages => List.unmodifiable(_messages);
+
+  int get unreadIncomingCount {
+    final currentRole =
+        SessionRoleService.isSupervisor ? 'supervisor' : 'elderly';
+    return _messages
+        .where((message) =>
+            message.senderRole != currentRole && !message.lido)
+        .length;
+  }
 
   bool get _useFirebase {
     try {
@@ -89,19 +102,28 @@ class MessageService {
     await _loadLocal(idosoId);
 
     if (!_canSyncIdosoId(idosoId)) return;
+    if (SessionRoleService.isElderly &&
+        !await SessionRoleService.canSyncElderlyPrivateData()) {
+      _loaded = false;
+      return;
+    }
     _messagesSubscription = FirebaseFirestore.instance
         .collection('mensagens')
         .where('idosoId', isEqualTo: idosoId)
         .snapshots()
         .listen((snapshot) async {
           final pendingWrites = (await OfflineSyncService.instance.loadQueue())
-              .where((write) =>
-                  write.collection == 'mensagens' && !write.failed)
+              .where((write) => write.collection == 'mensagens')
               .toList();
-          final itemsById = <String, AppMessage>{
-            for (final doc in snapshot.docs)
-              doc.id: AppMessage.fromJson({'id': doc.id, ...doc.data()}),
-          };
+          final itemsById = <String, AppMessage>{};
+          await Future.wait(snapshot.docs.map((doc) async {
+            final data = <String, dynamic>{'id': doc.id, ...doc.data()};
+            if (data['tipo'] == 'audio' && data['audioPath'] is String) {
+              data['audioPath'] = await RemoteMediaCacheService.instance
+                  .resolve(data['audioPath'] as String?);
+            }
+            itemsById[doc.id] = AppMessage.fromJson(data);
+          }));
 
           for (final write in pendingWrites) {
             final data = Map<String, dynamic>.from(write.data);
@@ -209,10 +231,13 @@ class MessageService {
     if (!await _checkConnection()) return false;
     final idosoId = await getActiveIdosoId();
     final messageId = 'msg_${DateTime.now().microsecondsSinceEpoch}';
-    String storedAudioPath = audioPath;
+    String storedAudioPath = await DurableMediaService.instance.preserve(
+      audioPath,
+      prefix: messageId,
+    );
     try {
       storedAudioPath = await _uploadAudioIfNeeded(
-        audioPath: audioPath,
+        audioPath: storedAudioPath,
         idosoId: idosoId,
         messageId: messageId,
       );
@@ -221,7 +246,7 @@ class MessageService {
       AppStatusService.instance.report(
         id: 'message-audio-pending',
         title: 'Audio pendente',
-        message: 'A mensagem de audio sera enviada completamente quando sincronizar.',
+        message: 'A mensagem de audio sera enviada automaticamente quando a internet voltar.',
       );
     }
     final message = AppMessage(
@@ -245,7 +270,10 @@ class MessageService {
     required String idosoId,
     required String messageId,
   }) async {
-    if (!_canSyncIdosoId(idosoId) || isRemoteAudioPath(audioPath)) {
+    if (!_canSyncIdosoId(idosoId) ||
+        isRemoteAudioPath(audioPath) ||
+        (SessionRoleService.isElderly &&
+            !await SessionRoleService.canSyncElderlyPrivateData())) {
       return audioPath;
     }
 
@@ -320,6 +348,57 @@ class MessageService {
         message.id,
         message.toJson(),
       );
+      await _sendMessagePush(message);
+    }
+  }
+
+  Future<void> _sendMessagePush(AppMessage message) async {
+    if (SessionRoleService.isElderly &&
+        !await SessionRoleService.canSyncElderlyPrivateData()) {
+      return;
+    }
+    final sentBySupervisor = message.senderRole == 'supervisor';
+    final targetRole = sentBySupervisor ? 'elderly' : 'supervisor';
+    String targetUserId = message.idosoId;
+
+    try {
+      if (!sentBySupervisor) {
+        final profile = await FirebaseFirestore.instance
+            .collection('idoso_perfil')
+            .doc(message.idosoId)
+            .get()
+            .timeout(const Duration(seconds: 4));
+        final data = profile.data();
+        if (data?['status'] != 'active') return;
+        targetUserId = data?['supervisorId'] as String? ?? '';
+      }
+      if (targetUserId.isEmpty) return;
+
+      final title = sentBySupervisor
+          ? 'Novo recado do cuidador'
+          : 'Novo recado de ${message.nomeIdoso}';
+      final body = switch (message.tipo) {
+        'audio' => 'Você recebeu um recado de voz.',
+        'localizacao' => 'Você recebeu uma localização.',
+        _ => message.texto.length > 160
+            ? '${message.texto.substring(0, 157)}...'
+            : message.texto,
+      };
+
+      await FirebaseFunctions.instance.httpsCallable('sendPush').call({
+        'targetUserId': targetUserId,
+        'targetRole': targetRole,
+        'title': title,
+        'body': body,
+        'data': {
+          'type': 'app_message',
+          'messageId': message.id,
+          'idosoId': message.idosoId,
+          'senderRole': message.senderRole,
+        },
+      });
+    } catch (e) {
+      debugPrint('Erro ao enviar notificacao do recado: $e');
     }
   }
 
@@ -334,6 +413,44 @@ class MessageService {
       await OfflineSyncService.instance.updateOrQueue('mensagens', id, {
         'lido': true,
       });
+    }
+  }
+
+  Future<void> markIncomingMessagesRead() async {
+    if (_isMarkingIncomingRead) return;
+    final currentRole =
+        SessionRoleService.isSupervisor ? 'supervisor' : 'elderly';
+    final unreadIndexes = <int>[];
+    for (var i = 0; i < _messages.length; i++) {
+      final message = _messages[i];
+      if (message.senderRole != currentRole && !message.lido) {
+        unreadIndexes.add(i);
+      }
+    }
+    if (unreadIndexes.isEmpty) return;
+
+    _isMarkingIncomingRead = true;
+    try {
+      final changed = <AppMessage>[];
+      for (final index in unreadIndexes) {
+        final updated = _messages[index].copyWith(lido: true);
+        _messages[index] = updated;
+        changed.add(updated);
+      }
+      await _saveLocal(_loadedIdosoId ?? changed.first.idosoId);
+      notifier.value = List.from(_messages);
+
+      for (final message in changed) {
+        if (_canSyncIdosoId(message.idosoId)) {
+          await OfflineSyncService.instance.updateOrQueue(
+            'mensagens',
+            message.id,
+            {'lido': true},
+          );
+        }
+      }
+    } finally {
+      _isMarkingIncomingRead = false;
     }
   }
 

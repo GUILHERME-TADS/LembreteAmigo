@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import '../utils/web_upload_helper.dart';
 
 import '../models/offline_write.dart';
@@ -24,10 +25,14 @@ class OfflineSyncService {
   static const _syncSoonDelay = Duration(seconds: 5);
 
   final ValueNotifier<int> pendingCount = ValueNotifier(0);
+  final ValueNotifier<Set<String>> pendingMessageIds =
+      ValueNotifier(<String>{});
   bool _syncing = false;
   bool _autoSyncStarted = false;
   Timer? _autoSyncTimer;
   Timer? _syncSoonTimer;
+  Timer? _backoffTimer;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
 
   bool get _useFirebase {
     try {
@@ -35,6 +40,12 @@ class OfflineSyncService {
     } catch (_) {
       return false;
     }
+  }
+
+  Future<bool> _canAttemptRemoteSync() async {
+    if (!_useFirebase) return false;
+    if (!SessionRoleService.isElderly) return true;
+    return SessionRoleService.isElderlyConnectedToSupervisor();
   }
 
   Future<String> _queueKey() async {
@@ -52,6 +63,7 @@ class OfflineSyncService {
     final raw = await SecureCacheService.instance.read(queueKey);
     if (raw == null || raw.isEmpty) {
       pendingCount.value = 0;
+      pendingMessageIds.value = <String>{};
       return <OfflineWrite>[];
     }
 
@@ -70,9 +82,10 @@ class OfflineSyncService {
       debugPrint('Fila offline corrompida. Removendo cache local: $e');
       await SecureCacheService.instance.delete(queueKey);
       pendingCount.value = 0;
+      pendingMessageIds.value = <String>{};
       return <OfflineWrite>[];
     }
-    pendingCount.value = writes.where((write) => !write.failed).length;
+    _updatePendingNotifiers(writes);
     return writes;
   }
 
@@ -107,6 +120,15 @@ class OfflineSyncService {
     _autoSyncStarted = true;
     await loadQueue();
     unawaited(syncPendingWrites());
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen(
+      (results) {
+        if (results.any((result) => result != ConnectivityResult.none)) {
+          _backoffTimer?.cancel();
+          _backoffTimer = null;
+          unawaited(_retryTransientWritesAndSync());
+        }
+      },
+    );
     _autoSyncTimer = Timer.periodic(
       _autoSyncInterval,
       (_) => syncPendingWrites(),
@@ -116,6 +138,9 @@ class OfflineSyncService {
   void stopAutoSync() {
     _autoSyncTimer?.cancel();
     _syncSoonTimer?.cancel();
+    _backoffTimer?.cancel();
+    _connectivitySubscription?.cancel();
+    _connectivitySubscription = null;
     _autoSyncStarted = false;
   }
 
@@ -159,6 +184,15 @@ class OfflineSyncService {
     required OfflineWriteAction action,
     Map<String, dynamic> data = const {},
   }) async {
+    if (!await _canAttemptRemoteSync()) {
+      await enqueue(
+        collection: collection,
+        docId: docId,
+        action: action,
+        data: data,
+      );
+      return false;
+    }
     final queue = await loadQueue();
     if (queue.isEmpty && _useFirebase) {
       try {
@@ -187,7 +221,11 @@ class OfflineSyncService {
   }
 
   Future<void> syncPendingWrites() async {
-    if (_syncing || !_useFirebase) return;
+    if (_syncing || !_useFirebase || (_backoffTimer?.isActive ?? false)) return;
+    if (!await _canAttemptRemoteSync()) return;
+    AppStatusService.instance.clear('offline-sync-permission');
+    AppStatusService.instance.clear('offline-sync-pending');
+    AppStatusService.instance.clear('offline-sync-failed');
     _syncing = true;
     try {
       var queue = await loadQueue();
@@ -199,21 +237,6 @@ class OfflineSyncService {
       for (final write in queue) {
         if (write.failed) {
           remaining.add(write);
-          continue;
-        }
-
-        if (write.attempts >= 5) {
-          final failedWrite = write.copyWith(
-            failed: true,
-            lastError: 'Limite de tentativas excedido.',
-          );
-          remaining.add(failedWrite);
-          AppStatusService.instance.report(
-            id: 'offline-sync-failed',
-            title: 'Sincronizacao pendente',
-            message: 'Algumas alteracoes nao foram enviadas. Toque em sincronizar novamente quando a internet estiver estavel.',
-            severity: AppStatusSeverity.critical,
-          );
           continue;
         }
 
@@ -230,10 +253,12 @@ class OfflineSyncService {
           final updatedWrite = await _uploadPendingFilesIfNeeded(write);
           await _apply(updatedWrite).timeout(_writeTimeout);
         } catch (e) {
-          debugPrint(
-            'Falha ao sincronizar ${write.collection}/${write.docId}: $e',
-          );
           final permissionDenied = _isPermissionDenied(e);
+          if (!permissionDenied) {
+            debugPrint(
+              'Falha temporária ao sincronizar ${write.collection}/${write.docId}.',
+            );
+          }
           remaining.add(
             write.copyWith(
               attempts: permissionDenied ? 5 : write.attempts + 1,
@@ -243,18 +268,8 @@ class OfflineSyncService {
           );
           if (permissionDenied) {
             AppStatusService.instance.clear('offline-sync-pending');
-            AppStatusService.instance.report(
-              id: 'offline-sync-permission',
-              title: 'Sincronizacao bloqueada',
-              message: 'O Firestore recusou uma alteração. Verifique se o cuidador ainda está vinculado a este idoso e tente novamente.',
-              severity: AppStatusSeverity.critical,
-            );
           } else {
-            AppStatusService.instance.report(
-              id: 'offline-sync-pending',
-              title: 'Alteracoes aguardando envio',
-              message: 'Os dados foram guardados neste aparelho e serao sincronizados quando possivel.',
-            );
+            _scheduleBackoff(write.attempts + 1);
           }
           hasFailure = true;
         }
@@ -285,6 +300,29 @@ class OfflineSyncService {
     return error.toString().contains('permission-denied');
   }
 
+  void _scheduleBackoff(int attempts) {
+    if (_backoffTimer?.isActive ?? false) return;
+    final exponent = attempts.clamp(0, 8) as int;
+    final seconds = (5 * (1 << exponent)).clamp(10, 1800) as int;
+    _backoffTimer = Timer(Duration(seconds: seconds), () {
+      _backoffTimer = null;
+      unawaited(syncPendingWrites());
+    });
+  }
+
+  Future<void> _retryTransientWritesAndSync() async {
+    final queue = await loadQueue();
+    final reset = queue.map((write) {
+      final permissionError = write.lastError?.contains('permission-denied') ?? false;
+      if (write.failed && !permissionError) {
+        return write.copyWith(failed: false, attempts: 0, lastError: '');
+      }
+      return write;
+    }).toList();
+    await _saveQueue(_compact(reset));
+    await syncPendingWrites();
+  }
+
   bool _isLocalOnlyWrite(OfflineWrite write) {
     if (!write.data.containsKey('idosoId')) return false;
     final idosoId = write.data['idosoId'] as String?;
@@ -309,7 +347,16 @@ class OfflineSyncService {
   Future<void> _saveQueue(List<OfflineWrite> queue) async {
     final raw = jsonEncode(queue.map((write) => write.toJson()).toList());
     await SecureCacheService.instance.write(await _queueKey(), raw);
-    pendingCount.value = queue.where((write) => !write.failed).length;
+    _updatePendingNotifiers(queue);
+  }
+
+  void _updatePendingNotifiers(List<OfflineWrite> queue) {
+    final pending = queue.where((write) => !write.failed).toList();
+    pendingCount.value = pending.length;
+    pendingMessageIds.value = pending
+        .where((write) => write.collection == 'mensagens')
+        .map((write) => write.docId)
+        .toSet();
   }
 
   Future<void> retryFailedWrites() async {
@@ -442,6 +489,21 @@ class OfflineSyncService {
         }
       }
 
+      return write.copyWith(data: data);
+    }
+
+    if (write.collection == 'idosos' ||
+        write.collection == 'idoso_perfil') {
+      final data = Map<String, dynamic>.from(write.data);
+      final photoPath = data['fotoPath'] as String?;
+      if (photoPath != null && _isUploadableLocalPath(photoPath)) {
+        final remoteUrl = await _uploadToStorage(
+          localPath: photoPath,
+          destinationPath: 'perfis/${write.docId}/profile.jpg',
+          contentType: 'image/jpeg',
+        );
+        if (remoteUrl != null) data['fotoPath'] = remoteUrl;
+      }
       return write.copyWith(data: data);
     }
 

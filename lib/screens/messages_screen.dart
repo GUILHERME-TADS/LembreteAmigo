@@ -13,6 +13,7 @@ import 'package:record/record.dart';
 
 import '../models/app_message.dart';
 import '../services/message_service.dart';
+import '../services/offline_sync_service.dart';
 import '../services/session_role_service.dart';
 import '../services/tts_service.dart';
 import '../theme/app_theme.dart';
@@ -27,6 +28,9 @@ class MessagesScreen extends StatefulWidget {
 
 class _MessagesScreenState extends State<MessagesScreen> {
   bool _sending = false;
+  bool _isStartingRecording = false;
+  final Set<String> _deletingMessageIds = <String>{};
+  String? _deleteDialogMessageId;
   bool _isLoadingRole = true;
   String? _fotoIdoso;
   String? _fotoSupervisor;
@@ -92,12 +96,18 @@ class _MessagesScreenState extends State<MessagesScreen> {
   @override
   void initState() {
     super.initState();
+    MessageService.instance.notifier.addListener(_markIncomingMessagesRead);
     _loadSessionAndMessages();
+  }
+
+  void _markIncomingMessagesRead() {
+    unawaited(MessageService.instance.markIncomingMessagesRead());
   }
 
   Future<void> _loadSessionAndMessages() async {
     await SessionRoleService.load();
     await MessageService.instance.load();
+    await MessageService.instance.markIncomingMessagesRead();
 
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -164,6 +174,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
   @override
   void dispose() {
+    MessageService.instance.notifier.removeListener(_markIncomingMessagesRead);
     _textController.dispose();
     _recordingTimer?.cancel();
     _voiceRecorder.isRecording().then((recording) {
@@ -181,6 +192,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
   }
 
   Future<void> _startVoiceRecording() async {
+    if (_sending || _isStartingRecording || _isRecordingVoice) return;
+    setState(() => _isStartingRecording = true);
     try {
       if (await _voiceRecorder.hasPermission()) {
         String path = '';
@@ -217,10 +230,14 @@ class _MessagesScreenState extends State<MessagesScreen> {
       }
     } catch (e) {
       debugPrint('Erro ao iniciar gravacao: $e');
+    } finally {
+      if (mounted) setState(() => _isStartingRecording = false);
     }
   }
 
   Future<void> _cancelVoiceRecording() async {
+    if (_sending) return;
+    setState(() => _sending = true);
     try {
       await _voiceRecorder.stop();
     } catch (e) {
@@ -231,10 +248,13 @@ class _MessagesScreenState extends State<MessagesScreen> {
     setState(() {
       _isRecordingVoice = false;
       _recordingSeconds = 0;
+      _sending = false;
     });
   }
 
   Future<void> _stopAndSendVoiceRecording() async {
+    if (_sending) return;
+    setState(() => _sending = true);
     String? path;
     try {
       path = await _voiceRecorder.stop();
@@ -244,7 +264,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
     _recordingTimer?.cancel();
     if (path != null) {
       if (!mounted) return;
-      setState(() => _sending = true);
       try {
         final sent = await MessageService.instance.sendAudio(
           audioPath: path,
@@ -279,6 +298,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
       setState(() {
         _isRecordingVoice = false;
         _recordingSeconds = 0;
+        _sending = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -290,6 +310,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
   }
 
   void _sendTextMessage() async {
+    if (_sending) return;
     final text = _textController.text.trim();
     if (text.isEmpty) return;
     setState(() => _sending = true);
@@ -316,6 +337,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
   }
 
   void _confirmDeleteMessage(AppMessage message) {
+    if (_deleteDialogMessageId != null) return;
+    _deleteDialogMessageId = message.id;
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -338,6 +361,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
             ),
             TextButton(
               onPressed: () async {
+                if (_deletingMessageIds.contains(message.id)) return;
+                _deletingMessageIds.add(message.id);
                 Navigator.pop(context);
                 try {
                   await MessageService.instance.deleteMessage(message.id);
@@ -358,6 +383,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
                       ),
                     );
                   }
+                } finally {
+                  _deletingMessageIds.remove(message.id);
                 }
               },
               child: const Text(
@@ -368,7 +395,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
           ],
         );
       },
-    );
+    ).whenComplete(() {
+      _deleteDialogMessageId = null;
+    });
   }
 
   @override
@@ -446,20 +475,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
             },
           ),
           const SizedBox(width: 4),
-          CircleAvatar(
-            backgroundColor: Colors.white24,
-            radius: 20,
-            backgroundImage: _isSupervisor
-                ? (_fotoIdoso != null && _fotoIdoso!.isNotEmpty ? NetworkImage(_fotoIdoso!) : null)
-                : (_fotoSupervisor != null && _fotoSupervisor!.isNotEmpty ? NetworkImage(_fotoSupervisor!) : null),
-            child: (_isSupervisor
-                    ? _fotoIdoso == null || _fotoIdoso!.isEmpty
-                    : _fotoSupervisor == null || _fotoSupervisor!.isEmpty)
-                ? Icon(
-                    _isSupervisor ? Icons.elderly : Icons.person,
-                    color: Colors.white,
-                  )
-                : null,
+          ElderlyProfileAvatar(
+            fotoPath: _isSupervisor ? _fotoIdoso : _fotoSupervisor,
+            size: 40,
+            borderWidth: 0,
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -676,10 +695,17 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   ),
                   if (sentByMe) ...[
                     const SizedBox(width: 4),
-                    const Icon(
-                      Icons.done_all,
-                      size: 16,
-                      color: Colors.blue,
+                    ValueListenableBuilder<Set<String>>(
+                      valueListenable:
+                          OfflineSyncService.instance.pendingMessageIds,
+                      builder: (context, pendingIds, child) {
+                        final pending = pendingIds.contains(message.id);
+                        return Icon(
+                          pending ? Icons.schedule : Icons.done_all,
+                          size: 16,
+                          color: pending ? Colors.orange[700] : Colors.blue,
+                        );
+                      },
                     ),
                   ]
                 ],
@@ -733,7 +759,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
           const Spacer(),
           IconButton(
             icon: const Icon(Icons.delete, color: Colors.red, size: 26),
-            onPressed: _cancelVoiceRecording,
+            onPressed: _sending ? null : _cancelVoiceRecording,
           ),
           const SizedBox(width: 8),
           Container(
@@ -743,7 +769,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
             ),
             child: IconButton(
               icon: const Icon(Icons.send, color: Colors.white, size: 22),
-              onPressed: _stopAndSendVoiceRecording,
+              onPressed: _sending ? null : _stopAndSendVoiceRecording,
             ),
           ),
         ],
@@ -756,7 +782,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
       width: double.infinity,
       height: 72,
       child: ElevatedButton.icon(
-        onPressed: _sending ? null : _startVoiceRecording,
+        onPressed: _sending || _isStartingRecording
+            ? null
+            : _startVoiceRecording,
         icon: const Icon(Icons.mic, size: 32, color: Colors.white),
         label: const Text(
           'GRAVAR RECADO DE VOZ',

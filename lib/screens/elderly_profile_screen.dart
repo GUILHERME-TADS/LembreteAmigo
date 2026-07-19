@@ -12,6 +12,8 @@ import '../theme/app_theme.dart';
 import '../services/tts_service.dart';
 import '../services/lembrete_service.dart';
 import '../services/session_role_service.dart';
+import '../services/offline_sync_service.dart';
+import '../services/durable_media_service.dart';
 import '../widgets/index.dart';
 import '../widgets/custom_time_picker.dart';
 import '../models/lembrete.dart';
@@ -113,7 +115,8 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
           v != 'Não informado';
 
       // 2. Se o Firebase estiver ativo, tenta preencher campos vazios com dados da nuvem
-      if (_useFirebase) {
+      if (_useFirebase &&
+          await SessionRoleService.canSyncElderlyPrivateData()) {
         try {
           final idosoId = await SessionRoleService.getActiveIdosoId();
           if (SessionRoleService.isLocalOnlyIdosoId(idosoId)) {
@@ -313,7 +316,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
           }
         }
       }
-      await prefs.setString('paired_idoso_id', 'idoso_autonomo');
+      await SessionRoleService.ensureStableElderlyId();
       await prefs.setBool('elderly_autonomous_mode', true);
 
       final jsonStr = prefs.getString('idoso_perfil');
@@ -1069,6 +1072,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                                       );
                                       if (confirm == true) {
                                         await SessionRoleService.exitElderlyModeOnly();
+                                        await LembreteService.instance.reset();
                                         if (context.mounted) {
                                           Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
                                         }
@@ -1651,22 +1655,21 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
         });
       }
 
-      if (_useFirebase) {
+      if (_useFirebase &&
+          await SessionRoleService.canSyncElderlyPrivateData()) {
         final idosoId = await SessionRoleService.getActiveIdosoId();
 
         // Atualiza Firestore para remover a referência da foto
-        try {
-          await FirebaseFirestore.instance
-              .collection('idosos')
-              .doc(idosoId)
-              .set({'fotoPath': null}, SetOptions(merge: true));
-          await FirebaseFirestore.instance
-              .collection('idoso_perfil')
-              .doc(idosoId)
-              .set({'fotoPath': null}, SetOptions(merge: true));
-        } catch (firestoreError) {
-          debugPrint('Erro ao remover URL do Firestore: $firestoreError');
-        }
+        await OfflineSyncService.instance.setOrQueue(
+          'idosos',
+          idosoId,
+          {'fotoPath': null},
+        );
+        await OfflineSyncService.instance.setOrQueue(
+          'idoso_perfil',
+          idosoId,
+          {'fotoPath': null},
+        );
 
         // Tenta deletar a foto do Firebase Storage
         try {
@@ -1714,11 +1717,15 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
     final selectedImage = image;
     if (selectedImage != null) {
       try {
+        final durablePath = await DurableMediaService.instance.preserve(
+          selectedImage.path,
+          prefix: 'profile_photo',
+        );
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('idoso_foto_path', selectedImage.path);
+        await prefs.setString('idoso_foto_path', durablePath);
 
         setState(() {
-          _fotoPath = selectedImage.path;
+          _fotoPath = durablePath;
         });
 
         // Mostra o SnackBar instantaneamente para feedback imediato
@@ -1731,39 +1738,16 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
         if (_useFirebase) {
           final idosoId = await SessionRoleService.getActiveIdosoId();
 
-          // Executa o upload e salvamento no Firebase em background
-          Future(() async {
-            try {
-              final file = File(selectedImage.path);
-              final ref = FirebaseStorage.instance
-                  .ref()
-                  .child('perfis')
-                  .child(idosoId)
-                  .child('profile.jpg');
-              final uploadTask = ref.putFile(
-                file,
-                SettableMetadata(contentType: 'image/jpeg'),
-              );
-              final snapshot = await uploadTask;
-              final downloadUrl = await snapshot.ref.getDownloadURL();
-
-              await FirebaseFirestore.instance
-                  .collection('idosos')
-                  .doc(idosoId)
-                  .set({'fotoPath': downloadUrl}, SetOptions(merge: true));
-              await FirebaseFirestore.instance
-                  .collection('idoso_perfil')
-                  .doc(idosoId)
-                  .set({'fotoPath': downloadUrl}, SetOptions(merge: true));
-              debugPrint(
-                'Foto da galeria sincronizada no Firebase em background com sucesso!',
-              );
-            } catch (e) {
-              debugPrint(
-                'Erro ao sincronizar foto de perfil no Firebase em background: $e',
-              );
-            }
-          });
+          await OfflineSyncService.instance.setOrQueue(
+            'idosos',
+            idosoId,
+            {'fotoPath': durablePath},
+          );
+          await OfflineSyncService.instance.setOrQueue(
+            'idoso_perfil',
+            idosoId,
+            {'fotoPath': durablePath},
+          );
         }
 
         _loadProfile(reloadPhoto: false);
@@ -1848,13 +1832,16 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
 
     if (_useFirebase) {
       final idosoId = await SessionRoleService.getActiveIdosoId();
-      await FirebaseFirestore.instance.collection('idosos').doc(idosoId).set({
-        'fotoPath': avatarName,
-      }, SetOptions(merge: true));
-      await FirebaseFirestore.instance
-          .collection('idoso_perfil')
-          .doc(idosoId)
-          .set({'fotoPath': avatarName}, SetOptions(merge: true));
+      await OfflineSyncService.instance.setOrQueue(
+        'idosos',
+        idosoId,
+        {'fotoPath': avatarName},
+      );
+      await OfflineSyncService.instance.setOrQueue(
+        'idoso_perfil',
+        idosoId,
+        {'fotoPath': avatarName},
+      );
     }
 
     _loadProfile(reloadPhoto: false);

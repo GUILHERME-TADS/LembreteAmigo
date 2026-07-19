@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../theme/app_theme.dart';
@@ -141,6 +142,37 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
         setState(() => _isCapturingPhoto = false);
       }
     }
+  }
+
+  Widget _buildMedicationPhotoPreview() {
+    final path = _fotoPath!;
+    final image = kIsWeb || path.startsWith('http://') || path.startsWith('https://')
+        ? Image.network(
+            path,
+            width: 72,
+            height: 72,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => const Icon(
+              Icons.check_circle,
+              color: AppColors.onTertiaryFixedVariant,
+              size: 36,
+            ),
+          )
+        : Image.file(
+            File(path),
+            width: 72,
+            height: 72,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => const Icon(
+              Icons.check_circle,
+              color: AppColors.onTertiaryFixedVariant,
+              size: 36,
+            ),
+          );
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: image,
+    );
   }
 
   String _getRecurrenceDescription() {
@@ -949,20 +981,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                 ? Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.file(
-                          File(_fotoPath!),
-                          width: 72,
-                          height: 72,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const Icon(
-                            Icons.check_circle,
-                            color: AppColors.onTertiaryFixedVariant,
-                            size: 36,
-                          ),
-                        ),
-                      ),
+                      _buildMedicationPhotoPreview(),
                       const SizedBox(width: 12),
                       const Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -1276,6 +1295,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                 TextButton(
                   onPressed: () {
                     setState(() {
+                      _selectedDiasSemana = [_selectedSingleDate!.weekday];
                       _selectedSingleDate = null;
                     });
                   },
@@ -1676,7 +1696,11 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
       return;
     }
 
-    if (!_isUsoContinuo && _selectedCategory == 'medicacao') {
+    final isSingleReminder =
+        _selectedSingleDate != null || _selectedDiasSemana.isEmpty;
+    if (!_isUsoContinuo &&
+        _selectedCategory == 'medicacao' &&
+        !isSingleReminder) {
       if (_dataFim == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -1697,6 +1721,10 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
         );
         return;
       }
+    }
+
+    if (mounted) {
+      setState(() => _isSaving = true);
     }
 
     if (_selectedCategory == 'medicacao') {
@@ -1816,7 +1844,10 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
             ),
           );
 
-          if (confirmSave != true) return;
+          if (confirmSave != true) {
+            if (mounted) setState(() => _isSaving = false);
+            return;
+          }
         }
       }
     }
@@ -1853,7 +1884,6 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
     );
 
     try {
-      setState(() => _isSaving = true);
       await LembreteService.instance.adicionar(lembrete);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1868,10 +1898,13 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
       );
       Navigator.pop(context, lembrete);
     } catch (e) {
+      debugPrint('Erro interno ao salvar lembrete: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Não foi possível salvar o lembrete: $e'),
+        const SnackBar(
+          content: Text(
+            'Não foi possível salvar o lembrete agora. Tente novamente.',
+          ),
           backgroundColor: AppColors.error,
         ),
       );

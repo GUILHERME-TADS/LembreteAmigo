@@ -40,6 +40,12 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
   bool _isProcessingAction = false;
   bool _isPaired = false;
 
+  bool _tryStartAction() {
+    if (_isProcessingAction || !mounted) return false;
+    setState(() => _isProcessingAction = true);
+    return true;
+  }
+
   void _runInBackground(Future<void> future, String action) {
     unawaited(
       future.catchError((error, stackTrace) {
@@ -207,7 +213,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
       if (!mounted || !_isSpeakingLoopActive || _isLoopPaused) continue;
       await TTSService.instance.falar(_speakText, caller: this);
 
-      final waitSeconds = 12;
+      final waitSeconds = l.categoria == 'medicacao' ? 5 : 8;
       for (int i = 0; i < (waitSeconds * 10); i++) {
         if (!mounted || !_isSpeakingLoopActive || _isLoopPaused) break;
         await Future.delayed(const Duration(milliseconds: 100));
@@ -234,8 +240,11 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
         if (!completed.isCompleted) completed.complete();
       });
       await _familyAudioPlayer.play(audioSourceForPath(path), volume: 1.0);
+      final audioDuration = await _familyAudioPlayer.getDuration();
+      final safetySeconds = ((audioDuration?.inSeconds ?? 300) + 10)
+          .clamp(30, 600) as int;
       await completed.future.timeout(
-        const Duration(seconds: 20),
+        Duration(seconds: safetySeconds),
         onTimeout: () async {
           if (mounted) {
             await _familyAudioPlayer.stop();
@@ -484,10 +493,17 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
           's',
         ]);
 
+    if ((isDifficulty || isPostpone || isConfirmation) &&
+        !_tryStartAction()) {
+      return;
+    }
+
     if (isDifficulty) {
       _isSpeakingLoopActive = false;
       _isLoopPaused = false;
       _noResponseTimer?.cancel();
+      await _familyAudioPlayer.stop();
+      await TTSService.instance.parar(caller: this);
       if (lembrete != null) {
         await LembreteService.instance.registrarDificuldade(
           lembrete!.id,
@@ -508,6 +524,8 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
       _isSpeakingLoopActive = false;
       _isLoopPaused = false;
       _noResponseTimer?.cancel();
+      await _familyAudioPlayer.stop();
+      await TTSService.instance.parar(caller: this);
       if (lembrete != null) {
         await LembreteService.instance.adiar(lembrete!.id, 10);
       }
@@ -531,15 +549,21 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
         _isSpeakingLoopActive = false;
         _noResponseTimer?.cancel();
         await _familyAudioPlayer.stop();
+        await TTSService.instance.parar(caller: this);
         if (!mounted) return;
-        Navigator.pushNamed(
+        await Navigator.pushNamed(
           context,
           '/take-photo-confirmation',
           arguments: id,
         );
+        if (mounted) {
+          setState(() => _isProcessingAction = false);
+        }
       } else {
         _isSpeakingLoopActive = false;
         _noResponseTimer?.cancel();
+        await _familyAudioPlayer.stop();
+        await TTSService.instance.parar(caller: this);
         if (lembrete != null) {
           await LembreteService.instance.alternarConclusao(lembrete!.id);
         }
@@ -869,7 +893,8 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                               width: double.infinity,
                               height: 72,
                               child: OutlinedButton.icon(
-                                onPressed: _isListeningForCommand
+                                onPressed: _isListeningForCommand ||
+                                        _isProcessingAction
                                     ? null
                                     : _listenForVoiceConfirmation,
                                 icon: Icon(
@@ -910,9 +935,8 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                               width: double.infinity,
                               height: 80,
                               child: ElevatedButton.icon(
-                                onPressed: () async {
-                                  if (_isProcessingAction) return;
-                                  setState(() => _isProcessingAction = true);
+                                onPressed: _isProcessingAction ? null : () async {
+                                  if (!_tryStartAction()) return;
                                   try {
                                     final navigator = Navigator.of(context);
                                     _isLoopPaused = true;
@@ -1017,9 +1041,8 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                               width: double.infinity,
                               height: 80,
                               child: ElevatedButton.icon(
-                                onPressed: () async {
-                                  if (_isProcessingAction) return;
-                                  setState(() => _isProcessingAction = true);
+                                onPressed: _isProcessingAction ? null : () async {
+                                  if (!_tryStartAction()) return;
                                   try {
                                     _isSpeakingLoopActive = false;
                                     _isLoopPaused = false;
@@ -1030,12 +1053,6 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                     final navigator = Navigator.of(context);
                                     final categoria = lembrete?.categoria;
                                     if (lembrete != null) {
-                                      _runInBackground(
-                                        NotificationService.instance.cancelar(
-                                          lembrete!.id,
-                                        ),
-                                        'cancelar notificacao',
-                                      );
                                       try {
                                         final ok = await LembreteService.instance
                                             .adiar(
@@ -1095,14 +1112,14 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                               width: double.infinity,
                               height: 80,
                               child: ElevatedButton.icon(
-                                onPressed: _isPaired
+                                onPressed: _isPaired && !_isProcessingAction
                                     ? () async {
-                                        if (_isProcessingAction) return;
-                                        setState(() => _isProcessingAction = true);
+                                        if (!_tryStartAction()) return;
                                         try {
                                           _isSpeakingLoopActive = false;
                                           _isLoopPaused = false;
                                           VibrationService.stopVibration();
+                                          await _familyAudioPlayer.stop();
                                           TTSService.instance.parar();
                                           final navigator = Navigator.of(context);
                                           if (lembrete != null) {

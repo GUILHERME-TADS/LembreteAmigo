@@ -566,7 +566,9 @@ class _TakePhotoConfirmationScreenState
                               final idosoId =
                                   await SessionRoleService.getActiveIdosoId();
 
-                              if (_useFirebase) {
+                              if (_useFirebase &&
+                                  await SessionRoleService
+                                      .canSyncElderlyPrivateData()) {
                                 Future(() async {
                                   try {
                                     final file = File(_capturedFile!.path);

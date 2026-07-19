@@ -13,6 +13,7 @@ import '../main.dart';
 import '../models/video_call.dart';
 import '../utils/web_window_helper.dart';
 import 'app_status_service.dart';
+import 'notification_service.dart';
 import 'session_role_service.dart';
 
 // Removed VideoCallToken as it's no longer needed for Jitsi
@@ -291,6 +292,7 @@ class VideoCallService {
 
     final roomName = _generateRoomName(idosoId);
     final callId = 'vc_${DateTime.now().millisecondsSinceEpoch}';
+    final callerName = await getMyDisplayName();
 
     try {
       final supervisorId = await _getSupervisorId();
@@ -315,6 +317,7 @@ class VideoCallService {
         'initiatedBy': initiatedBy,
         'callType': callType,
         'startedAt': DateTime.now().toIso8601String(),
+        'callerName': callerName,
       };
 
       await FirebaseFirestore.instance
@@ -328,14 +331,17 @@ class VideoCallService {
         roomName: roomName,
         initiatedBy: initiatedBy,
         callType: callType,
+        callerName: callerName,
       );
+      unawaited(_markMissedAfterTimeout(callId));
     } catch (e) {
       debugPrint('Erro ao registrar chamada no Firestore: $e');
-      lastStartFailureMessage = 'Firestore recusou a chamada: $e';
+      lastStartFailureMessage =
+          'Não foi possível iniciar a chamada agora. Tente novamente.';
       AppStatusService.instance.report(
         id: 'video-call-create-error',
         title: 'Erro ao criar chamada',
-        message: 'O Firestore recusou ou nao conseguiu salvar a chamada. Verifique o vinculo e as regras publicadas.',
+        message: 'Não foi possível iniciar a chamada agora. Tente novamente.',
         severity: AppStatusSeverity.critical,
       );
       return null;
@@ -344,12 +350,30 @@ class VideoCallService {
     return VideoCallStart(callId: callId, roomName: roomName);
   }
 
+  Future<void> _markMissedAfterTimeout(String callId) async {
+    await Future<void>.delayed(const Duration(seconds: 45));
+    if (!_useFirebase) return;
+    try {
+      final reference =
+          FirebaseFirestore.instance.collection('video_calls').doc(callId);
+      final snapshot = await reference.get();
+      if (!snapshot.exists || snapshot.data()?['status'] != 'ringing') return;
+      await reference.update({
+        'status': 'missed',
+        'endedAt': DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      debugPrint('Erro ao encerrar chamada não atendida: $e');
+    }
+  }
+
   Future<void> _sendCallPushNotification({
     required String idosoId,
     required String callId,
     required String roomName,
     required String initiatedBy,
     required String callType,
+    required String callerName,
   }) async {
     if (!_useFirebase) return;
 
@@ -383,6 +407,7 @@ class VideoCallService {
           'roomName': roomName,
           'initiatedBy': initiatedBy,
           'callType': callType,
+          'callerName': callerName,
         },
       });
     } catch (e) {
@@ -412,7 +437,15 @@ class VideoCallService {
 
       // If call is ended or declined, terminate Jitsi on both Web and Mobile
       if (call.status == VideoCallStatus.ended ||
-          call.status == VideoCallStatus.declined) {
+          call.status == VideoCallStatus.declined ||
+          call.status == VideoCallStatus.missed) {
+        NotificationService.instance.cancelarChamada(callId);
+        if (call.status == VideoCallStatus.missed) {
+          NotificationService.instance.mostrarChamadaPerdida(
+            callId: callId,
+            callType: call.callType,
+          );
+        }
         if (kIsWeb) {
           closeJitsiWeb();
         } else {
@@ -426,6 +459,7 @@ class VideoCallService {
 
   /// Aceita uma chamada
   Future<void> acceptCall(String callId) async {
+    await NotificationService.instance.cancelarChamada(callId);
     if (!_useFirebase) return;
     await FirebaseFirestore.instance
         .collection('video_calls')
@@ -435,6 +469,7 @@ class VideoCallService {
 
   /// Recusa uma chamada
   Future<void> declineCall(String callId) async {
+    await NotificationService.instance.cancelarChamada(callId);
     if (!_useFirebase) return;
     await FirebaseFirestore.instance
         .collection('video_calls')
@@ -449,6 +484,7 @@ class VideoCallService {
 
   /// Encerra uma chamada
   Future<void> endCall(String callId, {int? durationSeconds}) async {
+    await NotificationService.instance.cancelarChamada(callId);
     final calculatedDuration = durationSeconds ??
         (_joinedAt != null ? DateTime.now().difference(_joinedAt!).inSeconds : 0);
     final displayName = await getMyDisplayName();

@@ -4,7 +4,9 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../models/lembrete.dart';
+import '../models/lembrete_evento.dart';
 import '../services/lembrete_service.dart';
+import '../services/effectiveness_service.dart';
 import '../services/supervisor_ai_service.dart';
 import '../utils/debounce.dart';
 import '../widgets/supervisor_bottom_nav.dart';
@@ -207,30 +209,35 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
           children: [
             _buildTopBar(context),
             Expanded(
-              child: ValueListenableBuilder<List<Lembrete>>(
-                valueListenable: _service.notifier,
-                builder: (context, lembretes, _) {
-                  var list = List<Lembrete>.from(lembretes);
+              child: ValueListenableBuilder<List<LembreteEvento>>(
+                valueListenable: _service.eventosNotifier,
+                builder: (context, eventos, _) {
+                  final occurrences = EffectivenessService.instance
+                      .collapseOccurrences(eventos);
+                  var list = List<LembreteEvento>.from(occurrences);
                   
                   if (_selectedCategory != 'Todos') {
-                    list = list.where((l) => l.categoria == _selectedCategory).toList();
+                    list = list.where((e) => e.categoria == _selectedCategory).toList();
                   }
 
                   if (_selectedStatus == 'Concluídos') {
-                    list = list.where((l) => l.concluido).toList();
-                  } else if (_selectedStatus == 'Pendentes') {
-                    list = list.where((l) => !l.concluido).toList();
+                    list = list.where((e) => e.status.isConcluido).toList();
+                  } else if (_selectedStatus == 'Não concluídos') {
+                    list = list.where((e) => !e.status.isConcluido).toList();
                   }
 
                   if (_searchQuery.isNotEmpty) {
                     final query = _searchQuery.toLowerCase();
-                    list = list.where((l) =>
-                      l.titulo.toLowerCase().contains(query) ||
-                      _categoriaLabel(l.categoria).toLowerCase().contains(query)
+                    list = list.where((e) =>
+                      e.titulo.toLowerCase().contains(query) ||
+                      _categoriaLabel(e.categoria).toLowerCase().contains(query)
                     ).toList();
                   }
 
-                  list.sort((a, b) => b.criadoEm.compareTo(a.criadoEm));
+                  list.sort((a, b) => b.registradoEm.compareTo(a.registradoEm));
+                  final occurrenceReminders = occurrences
+                      .map(_reminderForEvent)
+                      .toList();
 
                   return SingleChildScrollView(
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
@@ -246,8 +253,8 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        _buildStatsHeader(lembretes),
-                        _buildPatternAnalysisButton(lembretes),
+                        _buildStatsHeader(occurrenceReminders),
+                        _buildPatternAnalysisButton(occurrenceReminders),
                         if (_aiPatterns != null) ...[
                           _buildPatternAnalysisResults(),
                         ],
@@ -698,7 +705,7 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
   }
 
   Widget _buildStatusChips() {
-    final statuses = ['Todos', 'Concluídos', 'Pendentes'];
+    final statuses = ['Todos', 'Concluídos', 'Não concluídos'];
 
     return Row(
       children: statuses.map((status) {
@@ -729,12 +736,12 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
     );
   }
 
-  Widget _buildGroupedActivityList(List<Lembrete> todos) {
+  Widget _buildGroupedActivityList(List<LembreteEvento> todos) {
     List<Widget> listItems = [];
     DateTime? lastDate;
 
-    for (final lembrete in todos) {
-      final date = lembrete.criadoEm;
+    for (final evento in todos) {
+      final date = evento.registradoEm;
       final bool isNewDay = lastDate == null ||
           lastDate.day != date.day ||
           lastDate.month != date.month ||
@@ -758,7 +765,7 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
       }
 
       listItems.add(
-        _activityCard(lembrete),
+        _activityCard(evento),
       );
     }
 
@@ -798,7 +805,34 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
     );
   }
 
-  Widget _activityCard(Lembrete lembrete) {
+  Lembrete _reminderForEvent(LembreteEvento evento) {
+    Lembrete? source;
+    for (final reminder in _service.lembretes) {
+      if (reminder.id == evento.lembreteId) {
+        source = reminder;
+        break;
+      }
+    }
+    return (source ?? Lembrete(
+      id: evento.lembreteId,
+      titulo: evento.titulo,
+      horarioHour: evento.registradoEm.hour,
+      horarioMinute: evento.registradoEm.minute,
+      categoria: evento.categoria,
+      idosoId: evento.idosoId,
+    )).copyWith(
+      titulo: evento.titulo,
+      categoria: evento.categoria,
+      criadoEm: evento.registradoEm,
+      status: evento.status,
+    );
+  }
+
+  Widget _activityCard(LembreteEvento evento) {
+    final lembrete = _reminderForEvent(evento);
+    final eventTime =
+        '${evento.registradoEm.hour.toString().padLeft(2, '0')}:'
+        '${evento.registradoEm.minute.toString().padLeft(2, '0')}';
     final color = _categoriaColor(lembrete.categoria);
     final icon = _categoriaIcon(lembrete.categoria);
     final categoryLabel = _categoriaLabel(lembrete.categoria);
@@ -806,6 +840,15 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
     final concluidoComFoto = lembrete.concluidoComFoto;
 
     final cardAccentColor = concluido ? Colors.green : color;
+    final statusLabel = switch (evento.status) {
+      LembreteStatus.concluido => 'Concluído',
+      LembreteStatus.concluidoComFoto => 'Concluído com foto',
+      LembreteStatus.confirmadoPeloCuidador => 'Confirmado pelo cuidador',
+      LembreteStatus.adiado => 'Adiado',
+      LembreteStatus.precisaDeAjuda => 'Precisou de ajuda',
+      LembreteStatus.perdido => 'Não realizado',
+      LembreteStatus.pendente => 'Pendente',
+    };
 
     return GestureDetector(
       onTap: () {
@@ -814,7 +857,7 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
           '/supervisor-reminder-detail',
           arguments: {
             'title': lembrete.titulo,
-            'time': lembrete.horarioFormatado,
+            'time': eventTime,
             'iconData': icon,
             'accentColor': color,
             'category': categoryLabel,
@@ -895,13 +938,31 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
                                     ),
                                   ),
                                 ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: cardAccentColor.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    statusLabel,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: cardAccentColor,
+                                    ),
+                                  ),
+                                ),
                                 Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     const Icon(Icons.schedule, size: 14, color: AppColors.onSurfaceVariant),
                                     const SizedBox(width: 4),
                                     Text(
-                                      lembrete.horarioFormatado,
+                                      eventTime,
                                       style: const TextStyle(
                                         fontSize: 13,
                                         fontWeight: FontWeight.bold,

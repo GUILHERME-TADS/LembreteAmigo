@@ -5,6 +5,10 @@ import '../services/effectiveness_service.dart';
 import '../services/lembrete_service.dart';
 
 class EffectivenessController {
+  EffectivenessController() {
+    LembreteService.instance.eventosNotifier.addListener(_onEventsChanged);
+  }
+
   EffectivenessMetrics? _metrics;
   int _selectedDays = 14;
 
@@ -15,20 +19,35 @@ class EffectivenessController {
   EffectivenessMetrics? get metrics => _metrics;
   int get selectedDays => _selectedDays;
 
-  Future<void> load({int? days}) async {
-    if (days != null) {
-      _selectedDays = days;
-      selectedDaysNotifier.value = days;
-    }
-    isLoadingNotifier.value = true;
-    await LembreteService.instance.carregar();
+  void _onEventsChanged() {
     final eventos = LembreteService.instance.eventos;
     _metrics = EffectivenessService.instance.compute(
       eventos,
       days: _selectedDays,
     );
     metricsNotifier.value = _metrics;
-    isLoadingNotifier.value = false;
+  }
+
+  Future<void> load({int? days}) async {
+    if (days != null) {
+      _selectedDays = days;
+      selectedDaysNotifier.value = days;
+    }
+    isLoadingNotifier.value = true;
+    try {
+      await LembreteService.instance.carregar();
+      final eventos = LembreteService.instance.eventos;
+      _metrics = EffectivenessService.instance.compute(
+        eventos,
+        days: _selectedDays,
+      );
+      metricsNotifier.value = _metrics;
+    } catch (error) {
+      debugPrint('Erro ao calcular efetividade: $error');
+      metricsNotifier.value = null;
+    } finally {
+      isLoadingNotifier.value = false;
+    }
   }
 
   void setDays(int days) {
@@ -38,6 +57,7 @@ class EffectivenessController {
   }
 
   void dispose() {
+    LembreteService.instance.eventosNotifier.removeListener(_onEventsChanged);
     metricsNotifier.dispose();
     selectedDaysNotifier.dispose();
     isLoadingNotifier.dispose();

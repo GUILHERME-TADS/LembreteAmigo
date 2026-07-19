@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../theme/app_theme.dart';
 import '../services/session_role_service.dart';
+import '../services/push_notification_service.dart';
 import '../widgets/senior_button.dart';
 
 class SupervisorLoginScreen extends StatefulWidget {
@@ -70,6 +71,8 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
               }, SetOptions(merge: true));
         }
         await SessionRoleService.setSupervisor();
+        await SessionRoleService.restoreSupervisorIdosoLink();
+        await PushNotificationService.instance.saveCurrentToken();
         if (!mounted) return;
         Navigator.pushReplacementNamed(context, '/supervisor-dashboard');
       } else {

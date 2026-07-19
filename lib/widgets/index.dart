@@ -11,6 +11,7 @@ export 'elderly_bottom_nav.dart';
 export 'elderly_profile_avatar.dart';
 export 'audio_waveform_indicator.dart';
 export 'skeleton_loading.dart';
+export 'message_unread_badge.dart';
 
 export 'charts/adherence_trend_chart.dart';
 export 'charts/category_distribution_chart.dart';

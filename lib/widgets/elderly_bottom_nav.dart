@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/tts_service.dart';
+import 'message_unread_badge.dart';
 
 enum ElderlyNavDestination { none, home, reminders, help }
 
@@ -87,6 +88,7 @@ class _ElderlyBottomNavState extends State<ElderlyBottomNav> {
               _ElderlyNavItem(
                 icon: Icons.help_center,
                 label: 'Ajuda',
+                showMessageBadge: true,
                 selected: widget.selected == ElderlyNavDestination.help,
                 onTap: widget.selected == ElderlyNavDestination.help
                     ? null
@@ -105,12 +107,14 @@ class _ElderlyNavItem extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback? onTap;
+  final bool showMessageBadge;
 
   const _ElderlyNavItem({
     required this.icon,
     required this.label,
     required this.selected,
     required this.onTap,
+    this.showMessageBadge = false,
   });
 
   @override
@@ -130,7 +134,12 @@ class _ElderlyNavItem extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 28, color: itemColor),
+              if (showMessageBadge)
+                MessageUnreadBadge(
+                  child: Icon(icon, size: 28, color: itemColor),
+                )
+              else
+                Icon(icon, size: 28, color: itemColor),
               const SizedBox(height: 4),
               Text(
                 label,

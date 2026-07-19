@@ -19,10 +19,12 @@ import '../services/session_role_service.dart';
 import '../services/smart_alert_service.dart';
 import '../services/message_service.dart';
 import '../services/video_call_service.dart';
+import '../services/effectiveness_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/reminder_state_helper.dart';
 import '../widgets/skeleton_loading.dart';
 import '../widgets/audio_player_card.dart';
+import '../widgets/message_unread_badge.dart';
 import '../widgets/reminder_with_audio.dart';
 import '../widgets/supervisor_bottom_nav.dart';
 import '../widgets/supervisor_drawer.dart';
@@ -46,6 +48,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   String _enderecoIdoso = '';
   String _selectedCategoryFilter = 'Todos';
   bool _refortIsLoading = false;
+  bool _callIsLoading = false;
   SupervisorInsights? _aiInsights;
   bool _aiLoading = false;
   bool _aiLoaded = false;
@@ -61,6 +64,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   String? _batteryState;
   bool _isConnected = false;
   bool _checkingConnection = true;
+  bool _deviceDiagnosticsStale = false;
 
   bool get _useFirebase {
     try {
@@ -85,26 +89,38 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
         _checkingConnection = true;
       });
     }
-    await _checkSupervisorConnection();
-    if (_isConnected) {
-      await _loadLembretesAndProfile();
-      _startDeviceBarrierWatcher();
-      LembreteService.instance.notifier.removeListener(_onLembretesChanged);
-      LembreteService.instance.notifier.addListener(_onLembretesChanged);
-      SmartAlertService.instance.notifier.removeListener(_onSmartAlertsChanged);
-      SmartAlertService.instance.notifier.addListener(_onSmartAlertsChanged);
-      _smartAlertTimer?.cancel();
-      _smartAlertTimer = Timer.periodic(const Duration(minutes: 1), (_) {
-        SmartAlertService.instance.atualizar(
-          LembreteService.instance.lembretes,
-          eventos: LembreteService.instance.eventos,
-        );
-      });
-    }
-    if (mounted) {
-      setState(() {
-        _checkingConnection = false;
-      });
+    try {
+      await _checkSupervisorConnection();
+      if (_isConnected) {
+        await _loadLembretesAndProfile();
+        unawaited(_startDeviceBarrierWatcher());
+        LembreteService.instance.notifier.removeListener(_onLembretesChanged);
+        LembreteService.instance.notifier.addListener(_onLembretesChanged);
+        LembreteService.instance.eventosNotifier.removeListener(_onEventosChanged);
+        LembreteService.instance.eventosNotifier.addListener(_onEventosChanged);
+        SmartAlertService.instance.notifier.removeListener(_onSmartAlertsChanged);
+        SmartAlertService.instance.notifier.addListener(_onSmartAlertsChanged);
+        _smartAlertTimer?.cancel();
+        _smartAlertTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+          SmartAlertService.instance.atualizar(
+            LembreteService.instance.lembretes,
+            eventos: LembreteService.instance.eventos,
+          );
+        });
+      } else {
+        await _deviceBarrierSubscription?.cancel();
+        _deviceBarrierSubscription = null;
+        _smartAlertTimer?.cancel();
+        LembreteService.instance.notifier.removeListener(_onLembretesChanged);
+        LembreteService.instance.eventosNotifier.removeListener(_onEventosChanged);
+        SmartAlertService.instance.notifier.removeListener(_onSmartAlertsChanged);
+      }
+    } catch (error) {
+      debugPrint('Erro ao iniciar painel do cuidador: $error');
+    } finally {
+      if (mounted) {
+        setState(() => _checkingConnection = false);
+      }
     }
   }
 
@@ -119,11 +135,21 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     _deviceBarrierSubscription?.cancel();
     _smartAlertTimer?.cancel();
     LembreteService.instance.notifier.removeListener(_onLembretesChanged);
+    LembreteService.instance.eventosNotifier.removeListener(_onEventosChanged);
     SmartAlertService.instance.notifier.removeListener(_onSmartAlertsChanged);
     super.dispose();
   }
 
   void _onLembretesChanged() {
+    SmartAlertService.instance.atualizar(
+      LembreteService.instance.lembretes,
+      eventos: LembreteService.instance.eventos,
+    );
+    _computeChartData();
+    if (mounted) setState(() {});
+  }
+
+  void _onEventosChanged() {
     SmartAlertService.instance.atualizar(
       LembreteService.instance.lembretes,
       eventos: LembreteService.instance.eventos,
@@ -142,14 +168,17 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
 
   void _computeChartData() {
     final now = DateTime.now();
-    final eventos = LembreteService.instance.eventos;
+    final eventos = EffectivenessService.instance.collapseOccurrences(
+      LembreteService.instance.eventos,
+    );
 
     _dailyAdherence = {};
     for (int i = 13; i >= 0; i--) {
       final day = DateTime(now.year, now.month, now.day - i);
       final dayEnd = DateTime(day.year, day.month, day.day, 23, 59, 59);
       final dayEvents = eventos.where(
-        (e) => e.registradoEm.isAfter(day) && e.registradoEm.isBefore(dayEnd),
+        (e) => !e.registradoEm.isBefore(day) &&
+            !e.registradoEm.isAfter(dayEnd),
       );
       final total = dayEvents.length;
       if (total == 0) {
@@ -165,8 +194,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
 
     final currentWeekEvents = eventos.where(
       (e) =>
-          e.registradoEm.isAfter(weekStart) &&
-          e.registradoEm.isBefore(now) &&
+          !e.registradoEm.isBefore(weekStart) &&
+          !e.registradoEm.isAfter(now) &&
           e.categoria != 'bem_estar',
     );
     _currentWeekTotal = currentWeekEvents.length;
@@ -176,7 +205,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
 
     final previousWeekEvents = eventos.where(
       (e) =>
-          e.registradoEm.isAfter(twoWeeksAgo) &&
+          !e.registradoEm.isBefore(twoWeeksAgo) &&
           e.registradoEm.isBefore(weekStart) &&
           e.categoria != 'bem_estar',
     );
@@ -199,6 +228,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
         _deviceBarriers = diagnostics.barriers;
         _batteryLevel = diagnostics.batteryLevel;
         _batteryState = diagnostics.batteryState;
+        _deviceDiagnosticsStale = false;
       });
       return;
     }
@@ -212,15 +242,13 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
               _deviceBarriers = diagnostics.barriers;
               _batteryLevel = diagnostics.batteryLevel;
               _batteryState = diagnostics.batteryState;
+              _deviceDiagnosticsStale = false;
             });
           },
-          onError: (_) {
+          onError: (error) {
+            debugPrint('Diagnóstico remoto indisponível: $error');
             if (!mounted) return;
-            setState(() {
-              _deviceBarriers = const [];
-              _batteryLevel = null;
-              _batteryState = null;
-            });
+            setState(() => _deviceDiagnosticsStale = true);
           },
         );
   }
@@ -238,31 +266,47 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
 
       String nome = 'Idoso';
       String endereco = '';
-      if (_useFirebase) {
-        final docPerfil = await FirebaseFirestore.instance
-            .collection('idoso_perfil')
-            .doc(idosoId)
-            .get();
-        final docIdoso = await FirebaseFirestore.instance
-            .collection('idosos')
-            .doc(idosoId)
-            .get();
-        if (docIdoso.exists && docIdoso.data() != null) {
-          final data = docIdoso.data()!;
-          nome = data['nome'] as String? ?? nome;
-          endereco = data['endereco'] as String? ?? endereco;
-        }
-        if (docPerfil.exists && docPerfil.data() != null) {
-          final data = docPerfil.data()!;
-          nome = data['nome'] as String? ?? nome;
-          endereco = data['endereco'] as String? ?? endereco;
-        }
-      } else {
-        final jsonStr = prefs.getString('idoso_perfil');
-        if (jsonStr != null) {
+      var localProfile = <String, dynamic>{};
+      final jsonStr = prefs.getString('idoso_perfil');
+      if (jsonStr != null) {
+        try {
           final data = jsonDecode(jsonStr) as Map<String, dynamic>;
-          nome = data['nome'] as String? ?? 'Idoso';
-          endereco = data['endereco'] as String? ?? '';
+          localProfile = data;
+          nome = data['nome'] as String? ?? nome;
+          endereco = data['endereco'] as String? ?? endereco;
+        } catch (error) {
+          debugPrint('Perfil local inválido no painel: $error');
+        }
+      }
+      if (_useFirebase) {
+        try {
+          final docPerfil = await FirebaseFirestore.instance
+              .collection('idoso_perfil')
+              .doc(idosoId)
+              .get()
+              .timeout(const Duration(seconds: 6));
+          final docIdoso = await FirebaseFirestore.instance
+              .collection('idosos')
+              .doc(idosoId)
+              .get()
+              .timeout(const Duration(seconds: 6));
+          if (docIdoso.exists && docIdoso.data() != null) {
+            final data = docIdoso.data()!;
+            nome = data['nome'] as String? ?? nome;
+            endereco = data['endereco'] as String? ?? endereco;
+          }
+          if (docPerfil.exists && docPerfil.data() != null) {
+            final data = docPerfil.data()!;
+            nome = data['nome'] as String? ?? nome;
+            endereco = data['endereco'] as String? ?? endereco;
+          }
+          await prefs.setString('idoso_perfil', jsonEncode({
+            ...localProfile,
+            'nome': nome,
+            'endereco': endereco,
+          }));
+        } catch (error) {
+          debugPrint('Usando perfil local no painel: $error');
         }
       }
 
@@ -297,6 +341,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   }
 
   Future<void> _initiateCall(String callType) async {
+    if (_callIsLoading) return;
     if (!_isConnected) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -305,6 +350,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       }
       return;
     }
+    setState(() => _callIsLoading = true);
     try {
       final idosoId = await SessionRoleService.getActiveIdosoId();
       final callStart = await VideoCallService.instance.initiateCall(
@@ -336,10 +382,13 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
           SnackBar(content: Text('Erro ao iniciar chamada de $label: $e')),
         );
       }
+    } finally {
+      if (mounted) setState(() => _callIsLoading = false);
     }
   }
 
   Future<void> _enviarReforco(BuildContext context, Lembrete lembrete) async {
+    if (_refortIsLoading) return;
     setState(() => _refortIsLoading = true);
     try {
       final sent = await MessageService.instance.sendText(
@@ -538,7 +587,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   }
 
   Widget _buildTopBar(BuildContext context) {
-    final lembretes = LembreteService.instance.lembretes;
+    final lembretes = ReminderStateHelper.activeTodaySorted(
+      LembreteService.instance.lembretes,
+    );
     final alertasCriticos =
         lembretes.where((l) {
           final status = reminderVisualStatusFromLembrete(l);
@@ -877,6 +928,16 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
             ),
             const SizedBox(height: 12),
             ..._deviceBarriers.take(3).map(_buildDeviceBarrierRow),
+            if (_deviceDiagnosticsStale) ...[
+              const SizedBox(height: 10),
+              const Text(
+                'Exibindo o último diagnóstico recebido.',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.onSurfaceVariant,
+                ),
+              ),
+            ],
             if (_enderecoIdoso.isNotEmpty) ...[
               const Divider(color: AppColors.outlineVariant),
               const SizedBox(height: 8),
@@ -986,11 +1047,13 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
           children: [
             InkWell(
               onTap: () => Navigator.pushNamed(context, '/messages'),
-              child: const Row(
+              child: Row(
                 children: [
-                  Icon(Icons.forum, color: AppColors.primary, size: 34),
-                  SizedBox(width: 14),
-                  Expanded(
+                  const MessageUnreadBadge(
+                    child: Icon(Icons.forum, color: AppColors.primary, size: 34),
+                  ),
+                  const SizedBox(width: 14),
+                  const Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -1013,7 +1076,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                       ],
                     ),
                   ),
-                  Icon(
+                  const Icon(
                     Icons.arrow_forward_ios,
                     color: AppColors.onSurfaceVariant,
                     size: 18,
@@ -1150,7 +1213,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   }
 
   Widget _buildOverviewSection() {
-    final list = LembreteService.instance.lembretes;
+    final list = ReminderStateHelper.activeTodaySorted(
+      LembreteService.instance.lembretes,
+    );
     final totalMedicacoesHoje = list
         .where((l) => l.categoria == 'medicacao')
         .length;
@@ -1230,7 +1295,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                     ),
 
                     GestureDetector(
-                      onTap: () => _initiateCall('voice'),
+                      onTap: _callIsLoading
+                          ? null
+                          : () => _initiateCall('voice'),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 12,
@@ -1269,7 +1336,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                     ),
                     const SizedBox(width: 8),
                     GestureDetector(
-                      onTap: () => _initiateCall('video'),
+                      onTap: _callIsLoading
+                          ? null
+                          : () => _initiateCall('video'),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 12,
@@ -1725,7 +1794,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                                       )
                                     : const Icon(Icons.volume_up, size: 16),
                                 label: const Text(
-                                  'Enviar Reforço Sonoro',
+                                  'Enviar reforço',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -1754,6 +1823,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   Widget _buildRecentHistory(BuildContext context) {
     final agora = DateTime.now();
     final ontem = agora.subtract(const Duration(days: 1));
+    final allEvents = EffectivenessService.instance.collapseOccurrences(
+      LembreteService.instance.eventos,
+    );
     const meses = [
       'Janeiro',
       'Fevereiro',
@@ -1769,7 +1841,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       'Dezembro',
     ];
 
-    final eventosOntem = LembreteService.instance.eventos.where((e) {
+    final eventosOntem = allEvents.where((e) {
       return e.registradoEm.year == ontem.year &&
           e.registradoEm.month == ontem.month &&
           e.registradoEm.day == ontem.day;
@@ -1785,9 +1857,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     DateTime targetDate = ontem;
     List<LembreteEvento> targetEvents = eventosOntem;
 
-    if (targetEvents.isEmpty && LembreteService.instance.eventos.isNotEmpty) {
+    if (targetEvents.isEmpty && allEvents.isNotEmpty) {
       final sortedEvents = List<LembreteEvento>.from(
-        LembreteService.instance.eventos,
+        allEvents,
       )..sort((a, b) => b.registradoEm.compareTo(a.registradoEm));
 
       final nonTodayEvents = sortedEvents.where((e) {
@@ -1799,7 +1871,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       if (nonTodayEvents.isNotEmpty) {
         final lastEventDate = nonTodayEvents.first.registradoEm;
         targetDate = lastEventDate;
-        targetEvents = LembreteService.instance.eventos.where((e) {
+        targetEvents = allEvents.where((e) {
           return e.registradoEm.year == lastEventDate.year &&
               e.registradoEm.month == lastEventDate.month &&
               e.registradoEm.day == lastEventDate.day;
@@ -1841,9 +1913,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
         ? 'Ontem, ${targetDate.day.toString().padLeft(2, '0')} de ${meses[targetDate.month - 1]}'
         : 'Dia ${targetDate.day.toString().padLeft(2, '0')} de ${meses[targetDate.month - 1]}';
 
-    final int pctConcluido = totalOntem > 0
-        ? ((concluidosOntem / totalOntem) * 100).toInt()
-        : 100;
+    final String completionText = totalOntem > 0
+        ? '${((concluidosOntem / totalOntem) * 100).toInt()}% concluído'
+        : 'Sem dados';
 
     final String medValue = totalMedicacoes > 0
         ? '$concluidasMedicacoes/$totalMedicacoes ok'
@@ -1904,7 +1976,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
-                        '$pctConcluido% Concluído',
+                        completionText,
                         style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
@@ -2075,7 +2147,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   }
 
   Widget _buildCategoryChartSection() {
-    final lembretes = LembreteService.instance.lembretes;
+    final lembretes = ReminderStateHelper.activeTodaySorted(
+      LembreteService.instance.lembretes,
+    );
     final completedByCategory = <String, int>{};
     final totalByCategory = <String, int>{};
 

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_container"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
@@ -10,7 +11,7 @@
         android:id="@+id/widget_title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Próximos Lembretes"
+        android:text="Próximos lembretes"
         android:textColor="#FFFFFF"
         android:textSize="14sp"
         android:textStyle="bold"
@@ -148,5 +149,14 @@
         </LinearLayout>
 
     </FrameLayout>
+
+    <TextView
+        android:id="@+id/widget_updated"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="end"
+        android:text="Atualizado agora"
+        android:textColor="#B3FFFFFF"
+        android:textSize="10sp" />
 
 </LinearLayout>

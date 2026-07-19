@@ -41,6 +41,47 @@ class SessionRoleService {
 
   static Future<void> setSupervisor() => _setRole(supervisor);
 
+  static Future<bool> restoreSupervisorIdosoLink() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null || Firebase.apps.isEmpty) return false;
+
+    final prefs = await SharedPreferences.getInstance();
+    final cachedIdosoId = prefs.getString('selected_idoso_id');
+
+    try {
+      if (!isLocalOnlyIdosoId(cachedIdosoId)) {
+        final cachedDoc = await FirebaseFirestore.instance
+            .collection('idoso_perfil')
+            .doc(cachedIdosoId)
+            .get()
+            .timeout(const Duration(seconds: 4));
+        final cachedData = cachedDoc.data();
+        if (cachedDoc.exists &&
+            cachedData?['supervisorId'] == currentUser.uid &&
+            cachedData?['status'] == 'active') {
+          return true;
+        }
+        await prefs.remove('selected_idoso_id');
+      }
+
+      final snapshot = await FirebaseFirestore.instance
+          .collection('idoso_perfil')
+          .where('supervisorId', isEqualTo: currentUser.uid)
+          .where('status', isEqualTo: 'active')
+          .get()
+          .timeout(const Duration(seconds: 5));
+
+      if (snapshot.docs.isEmpty) return false;
+
+      final linkedIds = snapshot.docs.map((doc) => doc.id).toList()..sort();
+      await prefs.setString('selected_idoso_id', linkedIds.first);
+      return true;
+    } catch (e) {
+      debugPrint('Erro ao restaurar vinculo do cuidador: $e');
+      return false;
+    }
+  }
+
   static Future<String> getActiveIdosoId({
     String fallback = unpairedIdosoId,
   }) async {
@@ -75,6 +116,32 @@ class SessionRoleService {
       await prefs.setString('paired_idoso_id', user.uid);
     }
     return user;
+  }
+
+  static Future<String> ensureStableElderlyId() async {
+    final prefs = await SharedPreferences.getInstance();
+    final existingId = prefs.getString('paired_idoso_id');
+
+    if (Firebase.apps.isNotEmpty) {
+      try {
+        final currentUser = FirebaseAuth.instance.currentUser;
+        if (currentUser == null && !isLocalOnlyIdosoId(existingId)) {
+          return existingId!;
+        }
+        final user = currentUser ??
+            (await FirebaseAuth.instance.signInAnonymously()).user;
+        if (user != null) {
+          await prefs.setString('paired_idoso_id', user.uid);
+          return user.uid;
+        }
+      } catch (e) {
+        debugPrint('Erro ao garantir identidade estavel do idoso: $e');
+      }
+    }
+
+    if (!isLocalOnlyIdosoId(existingId)) return existingId!;
+    await prefs.setString('paired_idoso_id', autonomousIdosoId);
+    return autonomousIdosoId;
   }
 
   static Future<String?> getVerifiedActiveIdosoId() async {
@@ -158,8 +225,19 @@ class SessionRoleService {
     return !(prefs.getBool('elderly_autonomous_mode') ?? false);
   }
 
+  static Future<bool> canSyncElderlyPrivateData() async {
+    if (isElderly && !await isElderlyConnectedToSupervisor()) return false;
+    final verified = await getVerifiedActiveIdosoId();
+    return verified != null && !isLocalOnlyIdosoId(verified);
+  }
+
   static Future<void> watchElderlyConnection() async {
     if (!isElderly || Firebase.apps.isEmpty) return;
+    if (!await canSyncElderlyPrivateData()) {
+      await stopWatchingElderlyConnection();
+      elderlyConnectionNotifier.value = false;
+      return;
+    }
     final idosoId = await getActiveIdosoIdOrNull();
     if (isLocalOnlyIdosoId(idosoId)) {
       elderlyConnectionNotifier.value = false;
@@ -205,8 +283,16 @@ class SessionRoleService {
       await prefs.setString('idoso_perfil', jsonEncode(cachedProfile));
       await prefs.setBool('elderly_autonomous_mode', !connected);
       elderlyConnectionNotifier.value = connected;
+      if (!connected) {
+        await stopWatchingElderlyConnection();
+        elderlyConnectionNotifier.value = false;
+      }
     }, onError: (Object error) {
-      debugPrint('Erro ao acompanhar vinculo do idoso: $error');
+      if (error is! FirebaseException || error.code != 'permission-denied') {
+        debugPrint('Não foi possível atualizar o estado do vínculo.');
+      }
+      unawaited(stopWatchingElderlyConnection());
+      elderlyConnectionNotifier.value = false;
     });
   }
 

@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import '../models/smart_alert.dart';
 import 'lembrete_service.dart';
 import 'smart_alert_service.dart';
+import 'effectiveness_service.dart';
+import '../utils/reminder_state_helper.dart';
 
 class SupervisorInsights {
   final String summary;
@@ -30,8 +32,12 @@ class SupervisorAIService {
   static SupervisorAIService get instance => _instance;
 
   Map<String, dynamic> _buildElderlyData() {
-    final lembretes = LembreteService.instance.lembretes;
-    final eventos = LembreteService.instance.eventos;
+    final lembretes = ReminderStateHelper.activeTodaySorted(
+      LembreteService.instance.lembretes,
+    );
+    final eventos = EffectivenessService.instance.collapseOccurrences(
+      LembreteService.instance.eventos,
+    );
     final alerts = SmartAlertService.instance.alerts;
     final now = DateTime.now();
     final hoje = DateTime(now.year, now.month, now.day);
@@ -40,7 +46,6 @@ class SupervisorAIService {
     return {
       'data': now.toIso8601String().substring(0, 10),
       'lembretes': lembretes
-          .where((l) => l.criadoEm.isAfter(seteDiasAtras) || !l.concluido)
           .map((l) => {
                 'titulo': l.titulo,
                 'horario': '${l.horarioHour.toString().padLeft(2, '0')}:${l.horarioMinute.toString().padLeft(2, '0')}',
@@ -72,7 +77,9 @@ class SupervisorAIService {
   }
 
   SupervisorInsights _buildFallbackSummary() {
-    final lembretes = LembreteService.instance.lembretes;
+    final lembretes = ReminderStateHelper.activeTodaySorted(
+      LembreteService.instance.lembretes,
+    );
     final pendentes = lembretes.where((l) => !l.concluido).toList();
     final total = lembretes.length;
     final concluidos = lembretes.where((l) => l.concluido).toList();

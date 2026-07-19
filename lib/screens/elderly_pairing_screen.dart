@@ -7,6 +7,9 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../theme/app_theme.dart';
+import '../services/session_role_service.dart';
+import '../services/push_notification_service.dart';
+import '../services/offline_sync_service.dart';
 import '../services/tts_service.dart';
 import '../widgets/index.dart';
 
@@ -65,8 +68,9 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
     setState(() => _isLoading = true);
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('paired_idoso_id', 'idoso_autonomo');
+      await SessionRoleService.ensureStableElderlyId();
       await prefs.setBool('elderly_autonomous_mode', true);
+      await PushNotificationService.instance.saveCurrentToken();
 
       final jsonStr = prefs.getString('idoso_perfil');
       final Map<String, dynamic> localPerfil = jsonStr != null
@@ -149,6 +153,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
       await prefs.setString('paired_idoso_id', uid);
       await prefs.setBool('elderly_autonomous_mode', true);
       await prefs.setString('idoso_perfil', jsonEncode(pairingProfile));
+      await PushNotificationService.instance.saveCurrentToken();
 
       if (!mounted) return;
       setState(() {
@@ -244,6 +249,8 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
 
   void _handleSuccess() async {
     TTSService.instance.parar(caller: this);
+    await PushNotificationService.instance.saveCurrentToken();
+    await OfflineSyncService.instance.syncPendingWrites();
     if (!mounted) return;
     Navigator.pushNamedAndRemoveUntil(
       context,

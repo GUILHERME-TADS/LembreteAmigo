@@ -8,6 +8,7 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../theme/app_theme.dart';
 import '../services/session_role_service.dart';
 import '../services/tts_service.dart';
+import '../services/offline_sync_service.dart';
 import '../widgets/index.dart';
 
 class EditProfileScreen extends StatefulWidget {
@@ -304,6 +305,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
 
       final prefs = await SharedPreferences.getInstance();
+      final canUseRemoteProfile = !SessionRoleService.isElderly ||
+          await SessionRoleService.canSyncElderlyPrivateData();
       String nome = '';
       String dataNasc = '';
       String telefone = '';
@@ -323,7 +326,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
 
       // 2. Se o Firebase estiver ativo, tenta sincronizar e atualizar com o banco remoto
-      if (_useFirebase && !SessionRoleService.isLocalOnlyIdosoId(idosoId)) {
+      if (_useFirebase &&
+          canUseRemoteProfile &&
+          !SessionRoleService.isLocalOnlyIdosoId(idosoId)) {
         try {
           final docPerfil = await FirebaseFirestore.instance
               .collection('idoso_perfil')
@@ -525,6 +530,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (mounted) setState(() => _isSaving = false);
       return;
     }
+    final canUseRemoteProfile = !SessionRoleService.isElderly ||
+        await SessionRoleService.canSyncElderlyPrivateData();
 
     final Map<String, dynamic> perfil = {};
 
@@ -536,7 +543,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       } catch (_) {}
     }
 
-    if (_useFirebase && !SessionRoleService.isLocalOnlyIdosoId(idosoId)) {
+    if (_useFirebase &&
+        canUseRemoteProfile &&
+        !SessionRoleService.isLocalOnlyIdosoId(idosoId)) {
       try {
         final docPerfil = await FirebaseFirestore.instance
             .collection('idoso_perfil')
@@ -567,16 +576,30 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       await prefs.setString('idoso_perfil', jsonEncode(perfil));
 
       // Salva no Firebase de forma confiável
-      if (_useFirebase && !SessionRoleService.isLocalOnlyIdosoId(idosoId)) {
+      if (_useFirebase &&
+          canUseRemoteProfile &&
+          !SessionRoleService.isLocalOnlyIdosoId(idosoId)) {
         try {
-          await FirebaseFirestore.instance
-              .collection('idoso_perfil')
-              .doc(idosoId)
-              .set(perfil, SetOptions(merge: true));
-          await FirebaseFirestore.instance
-              .collection('idosos')
-              .doc(idosoId)
-              .set(perfil, SetOptions(merge: true));
+          final profileSynced = await OfflineSyncService.instance.setOrQueue(
+            'idoso_perfil',
+            idosoId,
+            perfil,
+          );
+          final elderlySynced = await OfflineSyncService.instance.setOrQueue(
+            'idosos',
+            idosoId,
+            perfil,
+          );
+          if ((!profileSynced || !elderlySynced) && mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Dados salvos neste celular. O envio será feito automaticamente quando a internet voltar.',
+                ),
+                duration: Duration(seconds: 4),
+              ),
+            );
+          }
         } catch (firebaseError) {
           debugPrint('Erro ao sincronizar perfil no Firebase: $firebaseError');
           if (mounted) {

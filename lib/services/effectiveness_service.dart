@@ -1,5 +1,6 @@
 import 'dart:math';
 import '../models/effectiveness_metrics.dart';
+import '../models/lembrete.dart';
 import '../models/lembrete_evento.dart';
 
 class EffectivenessService {
@@ -25,6 +26,32 @@ class EffectivenessService {
     'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo',
   ];
 
+  List<LembreteEvento> collapseOccurrences(Iterable<LembreteEvento> events) {
+    final occurrences = <String, LembreteEvento>{};
+    for (final event in events) {
+      if (event.categoria == 'bem_estar') continue;
+      final date = event.registradoEm;
+      final key = '${event.lembreteId}_${date.year}-${date.month}-${date.day}';
+      final current = occurrences[key];
+      if (current == null ||
+          _statusPriority(event.status) > _statusPriority(current.status) ||
+          (_statusPriority(event.status) == _statusPriority(current.status) &&
+              event.registradoEm.isAfter(current.registradoEm))) {
+        occurrences[key] = event;
+      }
+    }
+    return occurrences.values.toList()
+      ..sort((a, b) => b.registradoEm.compareTo(a.registradoEm));
+  }
+
+  int _statusPriority(LembreteStatus status) {
+    if (status.isConcluido) return 5;
+    if (status == LembreteStatus.precisaDeAjuda) return 4;
+    if (status == LembreteStatus.perdido) return 3;
+    if (status == LembreteStatus.adiado) return 2;
+    return 1;
+  }
+
   EffectivenessMetrics compute(
     List<LembreteEvento> eventos, {
     int days = 14,
@@ -33,10 +60,10 @@ class EffectivenessService {
     final startDate = DateTime(now.year, now.month, now.day - days + 1);
     final endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
 
-    final periodEvents = eventos.where((e) =>
+    final periodEvents = collapseOccurrences(eventos.where((e) =>
         e.registradoEm.isAfter(startDate.subtract(const Duration(seconds: 1))) &&
         e.registradoEm.isBefore(endDate) &&
-        e.categoria != 'bem_estar').toList();
+        e.categoria != 'bem_estar'));
 
     final dailyTrend = _computeDailyTrend(periodEvents, days, startDate);
 
@@ -52,8 +79,9 @@ class EffectivenessService {
     final completedEvents = periodEvents.where((e) => e.status.isConcluido).length;
     final totalEvents = periodEvents.length;
 
-    final currentStreak = _computeCurrentStreak(eventos, days);
-    final bestStreak = _computeBestStreak(eventos);
+    final collapsedEvents = collapseOccurrences(eventos);
+    final currentStreak = _computeCurrentStreak(collapsedEvents, days);
+    final bestStreak = _computeBestStreak(collapsedEvents);
 
     final dayOfWeekStats = _computeDayOfWeekStats(periodEvents);
     final bestDayOfWeek = dayOfWeekStats.entries.isNotEmpty
@@ -158,7 +186,10 @@ class EffectivenessService {
           e.registradoEm.isAfter(dayStart.subtract(const Duration(seconds: 1))) &&
           e.registradoEm.isBefore(dayEnd));
       final total = dayEvents.length;
-      if (total == 0) break;
+      if (total == 0) {
+        if (i == 0) continue;
+        break;
+      }
       final completed = dayEvents.where((e) => e.status.isConcluido).length;
       final rate = completed / total;
       if (rate >= 0.8) {
@@ -178,7 +209,12 @@ class EffectivenessService {
         .toSet()
         .toList()
       ..sort();
+    DateTime? previousDate;
     for (int i = 0; i < dates.length; i++) {
+      if (previousDate != null &&
+          dates[i].difference(previousDate).inDays != 1) {
+        currentStreak = 0;
+      }
       final dateEvents = eventos.where((e) =>
           e.registradoEm.year == dates[i].year &&
           e.registradoEm.month == dates[i].month &&
@@ -191,6 +227,7 @@ class EffectivenessService {
       } else {
         currentStreak = 0;
       }
+      previousDate = dates[i];
     }
     return bestStreak;
   }

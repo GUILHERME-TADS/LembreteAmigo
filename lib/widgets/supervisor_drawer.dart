@@ -6,6 +6,7 @@ import '../theme/app_theme.dart';
 import '../services/session_role_service.dart';
 import '../services/lembrete_service.dart';
 import '../services/message_service.dart';
+import 'message_unread_badge.dart';
 
 class SupervisorDrawer extends StatefulWidget {
   final String currentRoute;
@@ -177,7 +178,9 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
                 Opacity(
                   opacity: _isConnected ? 1.0 : 0.4,
                   child: ListTile(
-                    leading: const Icon(Icons.forum, color: AppColors.primary),
+                    leading: const MessageUnreadBadge(
+                      child: Icon(Icons.forum, color: AppColors.primary),
+                    ),
                     title: const Text('Recados', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     onTap: () => _navigateTo(context, '/messages'),
                   ),

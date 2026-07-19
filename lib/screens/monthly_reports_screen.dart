@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -13,6 +14,7 @@ import 'package:fl_chart/fl_chart.dart';
 
 import '../models/lembrete.dart';
 import '../services/lembrete_service.dart';
+import '../services/effectiveness_service.dart';
 import '../services/session_role_service.dart';
 import '../theme/app_theme.dart';
 
@@ -28,6 +30,7 @@ class MonthlyReportsScreen extends StatefulWidget {
 }
 
 class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
+  bool _loadingData = false;
   String _idosoName = 'Idoso';
   int _medicacaoPct = 0;
   int _refeicoesPct = 0;
@@ -45,10 +48,23 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
   @override
   void initState() {
     super.initState();
+    LembreteService.instance.eventosNotifier.addListener(_onEventsChanged);
     _loadData();
   }
 
+  @override
+  void dispose() {
+    LembreteService.instance.eventosNotifier.removeListener(_onEventsChanged);
+    super.dispose();
+  }
+
+  void _onEventsChanged() {
+    if (!_loadingData) _loadData();
+  }
+
   Future<void> _loadData() async {
+    if (_loadingData) return;
+    _loadingData = true;
     try {
       final prefs = await SharedPreferences.getInstance();
       final idosoId = await SessionRoleService.getActiveIdosoId();
@@ -61,20 +77,32 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
           _idosoName = doc.data()?['nome'] ?? 'Idoso';
         }
       } catch (_) {
-        final json = prefs.getString('idoso_perfil');
-        if (json != null && json.contains('nome')) {
-          _idosoName = 'Idoso';
+        final profileJson = prefs.getString('idoso_perfil');
+        if (profileJson != null) {
+          try {
+            final profile = jsonDecode(profileJson) as Map<String, dynamic>;
+            _idosoName = profile['nome'] as String? ?? 'Idoso';
+          } catch (_) {
+            _idosoName = 'Idoso';
+          }
         }
       }
 
       await LembreteService.instance.carregar();
-      final lembretes = LembreteService.instance.lembretes;
       final eventos = LembreteService.instance.eventos;
+      final now = DateTime.now();
+      final monthStart = DateTime(now.year, now.month, 1);
+      final monthlyOccurrences = EffectivenessService.instance
+          .collapseOccurrences(
+        eventos.where((evento) => !evento.registradoEm.isBefore(monthStart)),
+      );
 
       int getPctForCategory(String category) {
-        final items = lembretes.where((l) => l.categoria == category).toList();
+        final items = monthlyOccurrences
+            .where((evento) => evento.categoria == category)
+            .toList();
         if (items.isEmpty) return 0;
-        final completed = items.where((l) => l.concluido).length;
+        final completed = items.where((evento) => evento.status.isConcluido).length;
         return ((completed / items.length) * 100).round();
       }
 
@@ -84,17 +112,16 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
         weekStart.month,
         weekStart.day,
       );
-      final weeklyEvents = eventos
-          .where((evento) => !evento.registradoEm.isBefore(weekStartDate))
-          .toList();
-      final routineEvents = weeklyEvents
-          .where((evento) => evento.categoria != 'bem_estar')
-          .toList();
+      final routineEvents = EffectivenessService.instance.collapseOccurrences(
+        eventos.where(
+          (evento) => !evento.registradoEm.isBefore(weekStartDate),
+        ),
+      );
       final completedCount = routineEvents
           .where((evento) => evento.status.isConcluido)
           .length;
       final missedCount = routineEvents
-          .where((evento) => evento.status == LembreteStatus.perdido)
+          .where((evento) => !evento.status.isConcluido)
           .length;
       final weeklyPct = routineEvents.isEmpty
           ? 0
@@ -106,10 +133,13 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
         _refeicoesPct = getPctForCategory('refeicoes');
         _exercicioPct = getPctForCategory('exercicio');
         _hidratacaoPct = getPctForCategory('hidratacao');
-        _geralPct = lembretes.isEmpty
+        _geralPct = monthlyOccurrences.isEmpty
             ? 0
-            : ((lembretes.where((l) => l.concluido).length / lembretes.length) *
-                      100)
+            : ((monthlyOccurrences
+                            .where((evento) => evento.status.isConcluido)
+                            .length /
+                        monthlyOccurrences.length) *
+                    100)
                   .round();
         _weeklyTotal = routineEvents.length;
         _weeklyDone = completedCount;
@@ -127,6 +157,8 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
       });
     } catch (e) {
       debugPrint('Erro ao carregar dados de relatorios: $e');
+    } finally {
+      _loadingData = false;
     }
   }
 
@@ -560,9 +592,15 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
   }
 
   Widget _buildRadialChart() {
-    final lembretes = LembreteService.instance.lembretes;
-    final total = lembretes.length;
-    final completed = lembretes.where((l) => l.concluido).length;
+    final now = DateTime.now();
+    final monthStart = DateTime(now.year, now.month, 1);
+    final occurrences = EffectivenessService.instance.collapseOccurrences(
+      LembreteService.instance.eventos.where(
+        (evento) => !evento.registradoEm.isBefore(monthStart),
+      ),
+    );
+    final total = occurrences.length;
+    final completed = occurrences.where((e) => e.status.isConcluido).length;
     final pending = total - completed;
 
     final sections = <PieChartSectionData>[
@@ -615,14 +653,24 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
             child: Row(
               children: [
                 Expanded(
-                  child: PieChart(
-                    PieChartData(
-                      sections: sections,
-                      centerSpaceRadius: 40,
-                      sectionsSpace: 2,
-                      borderData: FlBorderData(show: false),
-                    ),
-                  ),
+                  child: total == 0
+                      ? const Center(
+                          child: Text(
+                            'Sem ocorrências neste mês',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: AppColors.onSurfaceVariant,
+                            ),
+                          ),
+                        )
+                      : PieChart(
+                          PieChartData(
+                            sections: sections,
+                            centerSpaceRadius: 40,
+                            sectionsSpace: 2,
+                            borderData: FlBorderData(show: false),
+                          ),
+                        ),
                 ),
                 Expanded(
                   child: Column(
@@ -637,7 +685,7 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
                       const SizedBox(height: 12),
                       _donutLegend(
                         AppColors.surfaceContainerHigh,
-                        'Pendentes',
+                        'Não concluídos',
                         '$pending',
                       ),
                       const SizedBox(height: 16),
@@ -694,14 +742,17 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
 
   Widget _buildReportCharts() {
     final now = DateTime.now();
-    final eventos = LembreteService.instance.eventos;
+    final eventos = EffectivenessService.instance.collapseOccurrences(
+      LembreteService.instance.eventos,
+    );
 
     final dailyAdherence = <DateTime, double>{};
     for (int i = 13; i >= 0; i--) {
       final day = DateTime(now.year, now.month, now.day - i);
       final dayEnd = DateTime(day.year, day.month, day.day, 23, 59, 59);
       final dayEvents = eventos.where((e) =>
-          e.registradoEm.isAfter(day) && e.registradoEm.isBefore(dayEnd));
+          !e.registradoEm.isBefore(day) &&
+          !e.registradoEm.isAfter(dayEnd));
       final total = dayEvents.length;
       if (total == 0) {
         dailyAdherence[day] = -1;
@@ -715,15 +766,15 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
     final twoWeeksAgo = DateTime(now.year, now.month, now.day - 13);
 
     final currentWeekEvents = eventos.where((e) =>
-        e.registradoEm.isAfter(weekStart) &&
-        e.registradoEm.isBefore(now) &&
+        !e.registradoEm.isBefore(weekStart) &&
+        !e.registradoEm.isAfter(now) &&
         e.categoria != 'bem_estar');
     final currentTotal = currentWeekEvents.length;
     final currentDone =
         currentWeekEvents.where((e) => e.status.isConcluido).length;
 
     final previousWeekEvents = eventos.where((e) =>
-        e.registradoEm.isAfter(twoWeeksAgo) &&
+        !e.registradoEm.isBefore(twoWeeksAgo) &&
         e.registradoEm.isBefore(weekStart) &&
         e.categoria != 'bem_estar');
     final previousTotal = previousWeekEvents.length;

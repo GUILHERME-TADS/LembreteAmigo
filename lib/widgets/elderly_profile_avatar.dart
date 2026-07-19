@@ -1,8 +1,9 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../services/remote_media_cache_service.dart';
 import '../theme/app_theme.dart';
 
-class ElderlyProfileAvatar extends StatelessWidget {
+class ElderlyProfileAvatar extends StatefulWidget {
   final String? fotoPath;
   final double size;
   final double borderWidth;
@@ -15,29 +16,63 @@ class ElderlyProfileAvatar extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final showLocalImage = fotoPath != null &&
-        !fotoPath!.startsWith('avatar_') &&
-        !fotoPath!.startsWith('http') &&
-        File(fotoPath!).existsSync();
+  State<ElderlyProfileAvatar> createState() => _ElderlyProfileAvatarState();
+}
 
-    final showNetworkImage = fotoPath != null && fotoPath!.startsWith('http');
+class _ElderlyProfileAvatarState extends State<ElderlyProfileAvatar> {
+  String? _resolvedPath;
+
+  @override
+  void initState() {
+    super.initState();
+    _resolvedPath = widget.fotoPath;
+    _resolvePhoto();
+  }
+
+  @override
+  void didUpdateWidget(covariant ElderlyProfileAvatar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.fotoPath != widget.fotoPath) {
+      _resolvedPath = widget.fotoPath;
+      _resolvePhoto();
+    }
+  }
+
+  Future<void> _resolvePhoto() async {
+    final original = widget.fotoPath;
+    final resolved = await RemoteMediaCacheService.instance.resolve(original);
+    if (!mounted || original != widget.fotoPath || resolved == original) return;
+    setState(() => _resolvedPath = resolved);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final fotoPath = _resolvedPath;
+    final showLocalImage = fotoPath != null &&
+        !fotoPath.startsWith('avatar_') &&
+        !fotoPath.startsWith('http') &&
+        File(fotoPath).existsSync();
+
+    final showNetworkImage = fotoPath != null && fotoPath.startsWith('http');
 
     return Container(
-      width: size,
-      height: size,
+      width: widget.size,
+      height: widget.size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: AppColors.primaryContainer,
-        border: Border.all(color: AppColors.primaryContainer, width: borderWidth),
+        border: Border.all(
+          color: AppColors.primaryContainer,
+          width: widget.borderWidth,
+        ),
         image: showLocalImage
             ? DecorationImage(
-                image: FileImage(File(fotoPath!)),
+                image: FileImage(File(fotoPath)),
                 fit: BoxFit.cover,
               )
             : showNetworkImage
                 ? DecorationImage(
-                    image: NetworkImage(fotoPath!),
+                    image: NetworkImage(fotoPath),
                     fit: BoxFit.cover,
                   )
                 : null,
@@ -46,7 +81,7 @@ class ElderlyProfileAvatar extends StatelessWidget {
           ? Icon(
               Icons.person,
               color: Colors.white,
-              size: size * 0.58,
+              size: widget.size * 0.58,
             )
           : null,
     );

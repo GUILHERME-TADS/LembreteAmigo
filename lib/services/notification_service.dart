@@ -6,6 +6,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:flutter_timezone/flutter_timezone.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/lembrete.dart';
 import '../models/smart_alert.dart';
 
@@ -14,13 +15,96 @@ class NotificationService {
   static final NotificationService instance = NotificationService._();
   static const int _maxGeneratedSlots = 40;
   static const String _callPayloadPrefix = 'incoming_call:';
+  static const String _messagePayloadPrefix = 'app_message:';
+  static const String _missedCallPayloadPrefix = 'missed_call:';
+  static const String _supervisorAlertPayloadPrefix = 'supervisor_alert:';
   static const String callAcceptAction = 'call_accept';
   static const String callDeclineAction = 'call_decline';
+  static const String reminderDoneAction = 'reminder_done';
+  static const String reminderPostponeAction = 'reminder_postpone';
+  static const String reminderHelpAction = 'reminder_help';
+  static const String messageOpenAction = 'message_open';
+  static const String messageReadAction = 'message_read';
+  static const String supervisorOpenAction = 'supervisor_open';
+  static const String supervisorCallAction = 'supervisor_call';
+  static const String _reminderCategory = 'reminder_actions';
+  static const String _messageCategory = 'message_actions';
+  static const String _callCategory = 'incoming_call_actions';
+  static const String _scheduledRegistryKey = 'scheduled_reminder_registry_v2';
 
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
   GlobalKey<NavigatorState>? _navigatorKey;
   bool _initialized = false;
+  final Set<String> _processingActions = <String>{};
+  final Map<String, Timer> _callExpiryTimers = <String, Timer>{};
+  final Map<String, Set<int>> _scheduledReminderIds = <String, Set<int>>{};
+  final Map<String, String> _scheduledReminderSignatures = <String, String>{};
+  Future<void>? _registryLoadFuture;
+  Future<void> _scheduleTail = Future<void>.value();
+  final Set<int> _pendingNotificationCancellations = <int>{};
+  Timer? _cancellationTimer;
+  bool _cancellingNotification = false;
+
+  void _queueCancellations(Iterable<int> ids) {
+    _pendingNotificationCancellations.addAll(ids);
+    if (_pendingNotificationCancellations.isEmpty ||
+        (_cancellationTimer?.isActive ?? false)) {
+      return;
+    }
+    _cancellationTimer = Timer.periodic(
+      const Duration(milliseconds: 220),
+      (timer) async {
+        if (_cancellingNotification) return;
+        if (_pendingNotificationCancellations.isEmpty) {
+          timer.cancel();
+          _cancellationTimer = null;
+          return;
+        }
+        _cancellingNotification = true;
+        final notificationId = _pendingNotificationCancellations.first;
+        _pendingNotificationCancellations.remove(notificationId);
+        try {
+          await _plugin.cancel(notificationId);
+        } finally {
+          _cancellingNotification = false;
+        }
+      },
+    );
+  }
+
+  Future<void> _loadScheduledRegistry() {
+    return _registryLoadFuture ??= () async {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_scheduledRegistryKey);
+      if (raw == null || raw.isEmpty) return;
+      try {
+        final decoded = jsonDecode(raw) as Map<String, dynamic>;
+        for (final entry in decoded.entries) {
+          final value = Map<String, dynamic>.from(entry.value as Map);
+          _scheduledReminderIds[entry.key] = (value['ids'] as List? ?? const [])
+              .map((item) => (item as num).toInt())
+              .toSet();
+          _scheduledReminderSignatures[entry.key] =
+              value['signature'] as String? ?? '';
+        }
+      } catch (_) {
+        await prefs.remove(_scheduledRegistryKey);
+      }
+    }();
+  }
+
+  Future<void> _saveScheduledRegistry() async {
+    final prefs = await SharedPreferences.getInstance();
+    final data = <String, dynamic>{};
+    for (final entry in _scheduledReminderIds.entries) {
+      data[entry.key] = {
+        'ids': entry.value.toList(),
+        'signature': _scheduledReminderSignatures[entry.key] ?? '',
+      };
+    }
+    await prefs.setString(_scheduledRegistryKey, jsonEncode(data));
+  }
 
   Future<void> requestAlarmPermissions() async {
     if (kIsWeb || !_initialized) return;
@@ -36,6 +120,9 @@ class NotificationService {
   /// Callback disparado quando o usuário toca em uma notificação de lembrete.
   /// O payload contém o ID do lembrete.
   FutureOr<void> Function(String lembreteId)? onNotificationTapped;
+  FutureOr<void> Function(String lembreteId, String actionId)?
+  onReminderAction;
+  FutureOr<void> Function(String messageId, String actionId)? onMessageAction;
 
   FutureOr<void> Function(
     String callId,
@@ -66,15 +153,46 @@ class NotificationService {
         AndroidInitializationSettings('@mipmap/ic_launcher');
 
     // 3. iOS settings
-    const DarwinInitializationSettings initializationSettingsDarwin =
+    final DarwinInitializationSettings initializationSettingsDarwin =
         DarwinInitializationSettings(
           requestAlertPermission: false,
           requestBadgePermission: false,
           requestSoundPermission: false,
+          notificationCategories: <DarwinNotificationCategory>[
+            DarwinNotificationCategory(
+              _callCategory,
+              actions: <DarwinNotificationAction>[
+                DarwinNotificationAction.plain(callAcceptAction, 'Atender',
+                    options: <DarwinNotificationActionOption>{DarwinNotificationActionOption.foreground}),
+                DarwinNotificationAction.plain(callDeclineAction, 'Recusar',
+                    options: <DarwinNotificationActionOption>{DarwinNotificationActionOption.foreground}),
+              ],
+            ),
+            DarwinNotificationCategory(
+              _reminderCategory,
+              actions: <DarwinNotificationAction>[
+                DarwinNotificationAction.plain(reminderDoneAction, 'Concluir',
+                    options: <DarwinNotificationActionOption>{DarwinNotificationActionOption.foreground}),
+                DarwinNotificationAction.plain(reminderPostponeAction, 'Adiar 10 min',
+                    options: <DarwinNotificationActionOption>{DarwinNotificationActionOption.foreground}),
+                DarwinNotificationAction.plain(reminderHelpAction, 'Preciso de ajuda',
+                    options: <DarwinNotificationActionOption>{DarwinNotificationActionOption.foreground}),
+              ],
+            ),
+            DarwinNotificationCategory(
+              _messageCategory,
+              actions: <DarwinNotificationAction>[
+                DarwinNotificationAction.plain(messageOpenAction, 'Abrir recado',
+                    options: <DarwinNotificationActionOption>{DarwinNotificationActionOption.foreground}),
+                DarwinNotificationAction.plain(messageReadAction, 'Marcar como lido',
+                    options: <DarwinNotificationActionOption>{DarwinNotificationActionOption.foreground}),
+              ],
+            ),
+          ],
         );
 
     // 4. Combined settings
-    const InitializationSettings initializationSettings =
+    final InitializationSettings initializationSettings =
         InitializationSettings(
           android: initializationSettingsAndroid,
           iOS: initializationSettingsDarwin,
@@ -99,11 +217,55 @@ class NotificationService {
     if (call != null) {
       await cancelarChamada(call['callId']!);
       final actionId = response.actionId;
-      await onIncomingCallAction?.call(
-        call['callId']!,
-        call['roomName']!,
-        call['callType']!,
-        actionId == null || actionId.isEmpty ? null : actionId,
+      await _runOnce(
+        '${actionId ?? 'open'}:${call['callId']}',
+        () => onIncomingCallAction?.call(
+          call['callId']!,
+          call['roomName']!,
+          call['callType']!,
+          actionId == null || actionId.isEmpty ? null : actionId,
+        ),
+      );
+      return;
+    }
+
+    if (payload.startsWith(_messagePayloadPrefix)) {
+      final messageId = payload.substring(_messagePayloadPrefix.length);
+      if (response.actionId == messageReadAction ||
+          response.actionId == messageOpenAction) {
+        await _runOnce(
+          '${response.actionId}:$messageId',
+          () => onMessageAction?.call(messageId, response.actionId!),
+        );
+        if (response.actionId == messageReadAction) {
+          await _plugin.cancel(_stableStringHash('message_$messageId'));
+          return;
+        }
+      }
+      _navigatorKey?.currentState?.pushNamed('/messages');
+      return;
+    }
+
+    if (payload.startsWith(_missedCallPayloadPrefix)) {
+      _navigatorKey?.currentState?.pushNamed('/video-call-history');
+      return;
+    }
+
+    if (payload.startsWith(_supervisorAlertPayloadPrefix)) {
+      _navigatorKey?.currentState?.pushNamed(
+        response.actionId == supervisorCallAction
+            ? '/video-call-history'
+            : '/supervisor-dashboard',
+      );
+      return;
+    }
+
+    if (response.actionId == reminderDoneAction ||
+        response.actionId == reminderPostponeAction ||
+        response.actionId == reminderHelpAction) {
+      await _runOnce(
+        '${response.actionId}:$payload',
+        () => onReminderAction?.call(payload, response.actionId!),
       );
       return;
     }
@@ -113,6 +275,20 @@ class NotificationService {
       '/active-reminder',
       arguments: payload,
     );
+  }
+
+  Future<void> _runOnce(
+    String key,
+    FutureOr<void> Function() operation,
+  ) async {
+    if (!_processingActions.add(key)) return;
+    try {
+      await operation();
+    } finally {
+      Future<void>.delayed(const Duration(seconds: 2), () {
+        _processingActions.remove(key);
+      });
+    }
   }
 
   static String incomingCallPayload({
@@ -138,17 +314,97 @@ class NotificationService {
     }
   }
 
+  static String appMessagePayload(String messageId) {
+    return '$_messagePayloadPrefix$messageId';
+  }
+
+  static bool isAppMessagePayload(String payload) {
+    return payload.startsWith(_messagePayloadPrefix);
+  }
+
+  static bool isMissedCallPayload(String payload) {
+    return payload.startsWith(_missedCallPayloadPrefix);
+  }
+
+  static bool isSupervisorAlertPayload(String payload) {
+    return payload.startsWith(_supervisorAlertPayloadPrefix);
+  }
+
   Future<void> mostrarChamadaRecebida({
     required String callId,
     required String roomName,
     required String callType,
+    String? callerName,
   }) async {
     if (kIsWeb || !_initialized) return;
+    await cancelarChamada(callId);
     await showIncomingCallNotification(
       plugin: _plugin,
       callId: callId,
       roomName: roomName,
       callType: callType,
+      callerName: callerName,
+    );
+    _callExpiryTimers[callId] = Timer(const Duration(seconds: 45), () {
+      _callExpiryTimers.remove(callId);
+      mostrarChamadaPerdida(
+        callId: callId,
+        callType: callType,
+        callerName: callerName,
+      );
+    });
+  }
+
+  Future<void> mostrarNovoRecado({
+    required String messageId,
+    required String title,
+    required String body,
+  }) async {
+    if (kIsWeb || !_initialized) return;
+    const androidDetails = AndroidNotificationDetails(
+      'app_messages_channel_v1',
+      'Recados recebidos',
+      channelDescription: 'Avisos de novos recados entre idoso e cuidador',
+      importance: Importance.high,
+      priority: Priority.high,
+      category: AndroidNotificationCategory.message,
+      playSound: true,
+      enableVibration: true,
+      groupKey: 'lembrete_amigo_recados',
+      visibility: NotificationVisibility.private,
+      number: 1,
+      actions: <AndroidNotificationAction>[
+        AndroidNotificationAction(
+          messageOpenAction,
+          'Abrir recado',
+          showsUserInterface: true,
+        ),
+        AndroidNotificationAction(
+          messageReadAction,
+          'Marcar como lido',
+          showsUserInterface: true,
+          cancelNotification: true,
+        ),
+      ],
+    );
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+      interruptionLevel: InterruptionLevel.active,
+      categoryIdentifier: _messageCategory,
+      threadIdentifier: 'lembrete_amigo_recados',
+      badgeNumber: 1,
+    );
+    await _plugin.show(
+      _stableStringHash('message_$messageId'),
+      title,
+      body,
+      const NotificationDetails(
+        android: androidDetails,
+        iOS: iosDetails,
+      ),
+      payload: appMessagePayload(messageId),
     );
   }
 
@@ -157,12 +413,15 @@ class NotificationService {
     required String callId,
     required String roomName,
     required String callType,
+    String? callerName,
   }) async {
     final isVoice = callType == 'voice';
     final androidDetails = AndroidNotificationDetails(
-      'incoming_calls_channel_v1',
-      'Chamadas recebidas',
-      channelDescription: 'Chamadas de voz e video recebidas',
+      isVoice ? 'voice_calls_channel_v2' : 'video_calls_channel_v2',
+      isVoice ? 'Chamadas de voz' : 'Chamadas de vídeo',
+      channelDescription: isVoice
+          ? 'Toques de chamadas de voz recebidas'
+          : 'Toques de chamadas de vídeo recebidas',
       importance: Importance.max,
       priority: Priority.max,
       category: AndroidNotificationCategory.call,
@@ -173,6 +432,9 @@ class NotificationService {
       enableVibration: true,
       visibility: NotificationVisibility.public,
       audioAttributesUsage: AudioAttributesUsage.notificationRingtone,
+      timeoutAfter: 45000,
+      groupKey: 'lembrete_amigo_chamadas',
+      onlyAlertOnce: true,
       actions: const <AndroidNotificationAction>[
         AndroidNotificationAction(
           callDeclineAction,
@@ -192,11 +454,15 @@ class NotificationService {
       presentBadge: true,
       presentSound: true,
       interruptionLevel: InterruptionLevel.timeSensitive,
+      categoryIdentifier: _callCategory,
+      threadIdentifier: 'lembrete_amigo_chamadas',
     );
     await plugin.show(
       _stableCallId(callId),
-      isVoice ? 'Chamada de voz recebida' : 'Chamada de video recebida',
-      'Toque para atender ou recusar',
+      isVoice ? 'Chamada de voz recebida' : 'Chamada de vídeo recebida',
+      callerName == null || callerName.trim().isEmpty
+          ? 'Toque para atender ou recusar'
+          : '${callerName.trim()} está ligando',
       NotificationDetails(android: androidDetails, iOS: iosDetails),
       payload: incomingCallPayload(
         callId: callId,
@@ -208,7 +474,45 @@ class NotificationService {
 
   Future<void> cancelarChamada(String callId) async {
     if (kIsWeb || !_initialized) return;
+    _callExpiryTimers.remove(callId)?.cancel();
     await _plugin.cancel(_stableCallId(callId));
+  }
+
+  Future<void> mostrarChamadaPerdida({
+    required String callId,
+    required String callType,
+    String? callerName,
+  }) async {
+    if (kIsWeb || !_initialized) return;
+    await cancelarChamada(callId);
+    final isVoice = callType == 'voice';
+    const androidDetails = AndroidNotificationDetails(
+      'missed_calls_channel_v1',
+      'Chamadas perdidas',
+      channelDescription: 'Avisos de chamadas não atendidas',
+      importance: Importance.high,
+      priority: Priority.high,
+      category: AndroidNotificationCategory.missedCall,
+      groupKey: 'lembrete_amigo_chamadas',
+      visibility: NotificationVisibility.private,
+      number: 1,
+      onlyAlertOnce: true,
+    );
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+      threadIdentifier: 'lembrete_amigo_chamadas',
+    );
+    await _plugin.show(
+      _stableStringHash('missed_$callId'),
+      isVoice ? 'Chamada de voz perdida' : 'Chamada de vídeo perdida',
+      callerName == null || callerName.trim().isEmpty
+          ? 'Você não atendeu esta chamada'
+          : 'Chamada não atendida de ${callerName.trim()}',
+      const NotificationDetails(android: androidDetails, iOS: iosDetails),
+      payload: '$_missedCallPayloadPrefix$callId',
+    );
   }
 
   static int _stableCallId(String value) {
@@ -227,15 +531,22 @@ class NotificationService {
 
   Future<void> cancelar(String id) async {
     if (kIsWeb || !_initialized) return;
-    await _plugin.cancel(_notificationIdFor(id));
-    for (int slot = 1; slot <= _maxGeneratedSlots; slot++) {
-      await _plugin.cancel(_notificationIdFor(id, slot));
-    }
+    await _loadScheduledRegistry();
+    final ids = _scheduledReminderIds.remove(id) ?? const <int>{};
+    _scheduledReminderSignatures.remove(id);
+    _queueCancellations(ids);
+    if (ids.isNotEmpty) await _saveScheduledRegistry();
   }
 
   Future<void> cancelarTodas() async {
     if (kIsWeb || !_initialized) return;
     await _plugin.cancelAll();
+    _cancellationTimer?.cancel();
+    _cancellationTimer = null;
+    _pendingNotificationCancellations.clear();
+    _scheduledReminderIds.clear();
+    _scheduledReminderSignatures.clear();
+    await _saveScheduledRegistry();
   }
 
   Future<void> mostrarAlertaCuidador(SmartAlert alert) async {
@@ -253,37 +564,126 @@ class NotificationService {
           : Priority.high,
       playSound: true,
       enableVibration: true,
+      category: AndroidNotificationCategory.reminder,
+      groupKey: 'lembrete_amigo_cuidador',
+      onlyAlertOnce: true,
+      visibility: NotificationVisibility.private,
+      actions: const <AndroidNotificationAction>[
+        AndroidNotificationAction(
+          supervisorOpenAction,
+          'Ver alerta',
+          showsUserInterface: true,
+        ),
+        AndroidNotificationAction(
+          supervisorCallAction,
+          'Ligar',
+          showsUserInterface: true,
+        ),
+      ],
     );
 
     const iosDetails = DarwinNotificationDetails(
       presentAlert: true,
       presentBadge: true,
       presentSound: true,
+      badgeNumber: 1,
     );
 
     await _plugin.show(
-      alert.key.hashCode & 0x7fffffff,
+      _stableStringHash('alert_${alert.key}'),
       alert.title,
       alert.message,
       NotificationDetails(android: androidDetails, iOS: iosDetails),
-      payload: alert.lembreteId,
+      payload: '$_supervisorAlertPayloadPrefix${alert.lembreteId}',
+    );
+  }
+
+  Future<void> mostrarConfirmacaoCuidador({
+    required Lembrete lembrete,
+    required LembreteStatus status,
+  }) async {
+    if (kIsWeb || !_initialized) return;
+    final urgent = status == LembreteStatus.precisaDeAjuda ||
+        status == LembreteStatus.perdido;
+    final action = switch (status) {
+      LembreteStatus.concluido ||
+      LembreteStatus.concluidoComFoto ||
+      LembreteStatus.confirmadoPeloCuidador => 'concluiu',
+      LembreteStatus.adiado => 'adiou',
+      LembreteStatus.precisaDeAjuda => 'pediu ajuda em',
+      LembreteStatus.perdido => 'não realizou',
+      _ => 'atualizou',
+    };
+    final androidDetails = AndroidNotificationDetails(
+      urgent ? 'cuidador_urgente_channel_v2' : 'cuidador_status_channel_v2',
+      urgent ? 'Alertas urgentes do idoso' : 'Confirmações do idoso',
+      channelDescription: 'Atualizações dos lembretes acompanhados',
+      importance: urgent ? Importance.max : Importance.defaultImportance,
+      priority: urgent ? Priority.max : Priority.defaultPriority,
+      playSound: urgent,
+      enableVibration: urgent,
+      category: AndroidNotificationCategory.status,
+      groupKey: 'lembrete_amigo_cuidador',
+      onlyAlertOnce: true,
+      visibility: NotificationVisibility.private,
+    );
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      threadIdentifier: 'lembrete_amigo_cuidador',
+    );
+    await _plugin.show(
+      _stableStringHash('status_${lembrete.id}_${status.storageValue}'),
+      urgent ? 'Atenção necessária' : 'Lembrete atualizado',
+      'O idoso $action “${lembrete.titulo}”.',
+      NotificationDetails(android: androidDetails, iOS: iosDetails),
+      payload: '$_supervisorAlertPayloadPrefix${lembrete.id}',
     );
   }
 
   Future<void> agendarTodos(List<Lembrete> lembretes) async {
     if (kIsWeb || !_initialized) return;
+    final snapshot = List<Lembrete>.from(lembretes);
+    final operation = _scheduleTail.then((_) => _agendarTodosInterno(snapshot));
+    _scheduleTail = operation.catchError((Object error, StackTrace stackTrace) {
+      debugPrint('Erro ao atualizar agenda de notificações: $error');
+    });
+    await operation;
+  }
+
+  Future<void> _agendarTodosInterno(List<Lembrete> lembretes) async {
+    await _loadScheduledRegistry();
     final now = tz.TZDateTime.now(tz.local);
+    final activeIds = lembretes.map((item) => item.id).toSet();
+
+    for (final removedId
+        in _scheduledReminderIds.keys.where((id) => !activeIds.contains(id)).toList()) {
+      final ids = _scheduledReminderIds.remove(removedId) ?? const <int>{};
+      _scheduledReminderSignatures.remove(removedId);
+      _queueCancellations(ids);
+    }
 
     for (final l in lembretes) {
       try {
-        await cancelar(l.id);
-        if (l.concluido) continue;
-
+        final signature = jsonEncode(l.toJson());
+        if (_scheduledReminderSignatures[l.id] == signature) continue;
+        final oldIds = _scheduledReminderIds[l.id] ?? const <int>{};
+        if (l.concluido) {
+          _queueCancellations(oldIds);
+          _scheduledReminderIds.remove(l.id);
+          _scheduledReminderSignatures.remove(l.id);
+          continue;
+        }
+        _scheduledReminderIds[l.id] = <int>{};
         await _agendarLembrete(l, now);
+        final newIds = _scheduledReminderIds[l.id] ?? const <int>{};
+        _queueCancellations(oldIds.difference(newIds));
+        _scheduledReminderSignatures[l.id] = signature;
       } catch (e) {
         debugPrint('Erro ao agendar lembrete ${l.id}: $e');
       }
     }
+    await _saveScheduledRegistry();
   }
 
   int _notificationIdFor(String id, [int slot = 0]) {
@@ -312,43 +712,80 @@ class NotificationService {
     int slot = 0,
     DateTimeComponents? matchDateTimeComponents,
   }) async {
+    final notificationId = _notificationIdFor(lembrete.id, slot);
+    _pendingNotificationCancellations.remove(notificationId);
     await _plugin.zonedSchedule(
-      _notificationIdFor(lembrete.id, slot),
-      'Hora do Lembrete Amigo!',
-      lembrete.titulo,
+      notificationId,
+      lembrete.categoria == LembreteCategoria.medicacao
+          ? 'Hora do medicamento'
+          : 'Lembrete de ${LembreteCategoria.nome(lembrete.categoria)}',
+      '${lembrete.horarioFormatado} • ${lembrete.titulo}',
       scheduledDate,
-      _reminderNotificationDetails(),
+      _reminderNotificationDetails(lembrete),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
       payload: lembrete.id,
       matchDateTimeComponents: matchDateTimeComponents,
     );
+    _scheduledReminderIds.putIfAbsent(lembrete.id, () => <int>{}).add(
+          notificationId,
+        );
   }
 
-  NotificationDetails _reminderNotificationDetails() {
-    const AndroidNotificationDetails androidDetails =
+  NotificationDetails _reminderNotificationDetails(Lembrete lembrete) {
+    final isMedication = lembrete.categoria == LembreteCategoria.medicacao;
+    final AndroidNotificationDetails androidDetails =
         AndroidNotificationDetails(
-          'lembretes_alarm_channel',
-          'Alarmes de Lembretes',
-          channelDescription: 'Canal de alarmes para lembretes importantes',
+          isMedication
+              ? 'medicamentos_alarm_channel_v2'
+              : 'lembretes_gerais_channel_v2',
+          isMedication ? 'Medicamentos' : 'Lembretes gerais',
+          channelDescription: isMedication
+              ? 'Alarmes e confirmações de medicamentos'
+              : 'Refeições, hidratação, exercícios e outros lembretes',
           importance: Importance.max,
           priority: Priority.max,
           category: AndroidNotificationCategory.alarm,
           playSound: true,
           enableVibration: true,
           fullScreenIntent: true,
-          visibility: NotificationVisibility.public,
+          visibility: NotificationVisibility.private,
           audioAttributesUsage: AudioAttributesUsage.alarm,
+          groupKey: 'lembrete_amigo_lembretes',
+          onlyAlertOnce: true,
+          actions: <AndroidNotificationAction>[
+            AndroidNotificationAction(
+              reminderDoneAction,
+              isMedication ? 'Tomei' : 'Concluir',
+              showsUserInterface: true,
+              cancelNotification: true,
+            ),
+            const AndroidNotificationAction(
+              reminderPostponeAction,
+              'Adiar 10 min',
+              showsUserInterface: true,
+              cancelNotification: true,
+            ),
+            const AndroidNotificationAction(
+              reminderHelpAction,
+              'Preciso de ajuda',
+              showsUserInterface: true,
+              cancelNotification: true,
+            ),
+          ],
         );
 
     const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
       presentAlert: true,
       presentBadge: true,
       presentSound: true,
+      interruptionLevel: InterruptionLevel.timeSensitive,
+      categoryIdentifier: _reminderCategory,
+      threadIdentifier: 'lembrete_amigo_lembretes',
     );
 
-    return const NotificationDetails(android: androidDetails, iOS: iosDetails);
+    return NotificationDetails(android: androidDetails, iOS: iosDetails);
   }
 
   List<tz.TZDateTime> _nextOccurrences(Lembrete lembrete, tz.TZDateTime now) {

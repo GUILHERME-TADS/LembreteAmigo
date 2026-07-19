@@ -20,6 +20,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   final callId = message.data['callId'];
   final roomName = message.data['roomName'];
   final callType = message.data['callType'] ?? 'video';
+  final callerName = message.data['callerName'];
   if (callId == null ||
       callId.isEmpty ||
       roomName == null ||
@@ -38,6 +39,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     callId: callId,
     roomName: roomName,
     callType: callType,
+    callerName: callerName,
   );
 }
 
@@ -61,6 +63,8 @@ class PushNotificationService {
   /// Callback disparado quando o app é aberto via notificação de vídeo/voz.
   void Function(String callId, String roomName, String callType)?
   onVideoCallOpenedApp;
+
+  void Function(String messageId)? onAppMessageOpened;
 
   bool get _useFirebase {
     try {
@@ -98,22 +102,29 @@ class PushNotificationService {
     FirebaseMessaging.onMessage.listen((message) {
       _messageController.add(message);
       _handleVideoCallMessage(message, fromBackground: false);
+      _handleAppMessage(message, opened: false);
     });
 
     FirebaseMessaging.onMessageOpenedApp.listen((message) {
       _messageController.add(message);
       _handleVideoCallMessage(message, fromBackground: true);
+      _handleAppMessage(message, opened: true);
     });
 
     final initialMessage = await _messaging!.getInitialMessage();
     if (initialMessage != null) {
       _handleVideoCallMessage(initialMessage, fromBackground: true);
+      _handleAppMessage(initialMessage, opened: true);
     }
   }
 
   Future<void> _saveToken() async {
     if (!_useFirebase || _currentToken == null) return;
     try {
+      if (SessionRoleService.isElderly &&
+          !await SessionRoleService.canSyncElderlyPrivateData()) {
+        return;
+      }
       final id = SessionRoleService.isSupervisor
           ? FirebaseAuth.instance.currentUser?.uid ?? ''
           : await SessionRoleService.getVerifiedActiveIdosoId() ?? '';
@@ -156,6 +167,7 @@ class PushNotificationService {
     final callId = message.data['callId'] as String?;
     final roomName = message.data['roomName'] as String?;
     final callType = message.data['callType'] as String? ?? 'video';
+    final callerName = message.data['callerName'] as String?;
     if (callId == null || roomName == null) return;
 
     if (fromBackground) {
@@ -165,8 +177,27 @@ class PushNotificationService {
         callId: callId,
         roomName: roomName,
         callType: callType,
+        callerName: callerName,
       );
       onVideoCallReceived?.call(callId, roomName, callType);
     }
+  }
+
+  void _handleAppMessage(RemoteMessage message, {required bool opened}) {
+    if (message.data['type'] != 'app_message') return;
+    final messageId = message.data['messageId'] as String? ?? message.messageId;
+    if (messageId == null || messageId.isEmpty) return;
+    if (opened) {
+      onAppMessageOpened?.call(messageId);
+      return;
+    }
+
+    final title = message.notification?.title ?? 'Novo recado';
+    final body = message.notification?.body ?? 'Você recebeu um novo recado.';
+    NotificationService.instance.mostrarNovoRecado(
+      messageId: messageId,
+      title: title,
+      body: body,
+    );
   }
 }

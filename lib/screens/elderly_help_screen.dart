@@ -31,6 +31,8 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
   String? _caregiverFoto;
   String? _ambulancePhone;
   bool _isPaired = false;
+  bool _isSendingLocation = false;
+  bool _isMessageDialogOpen = false;
 
   @override
   void initState() {
@@ -165,9 +167,13 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
   }
 
   Future<void> _enviarMensagemDialog() async {
+    if (_isMessageDialogOpen) return;
+    _isMessageDialogOpen = true;
     await TTSService.instance.parar(caller: this);
     bool isRecording = false;
     bool isPlaying = false;
+    bool isBusy = false;
+    bool isSending = false;
     String? recordedFilePath;
     String statusMsg = 'Toque no microfone para começar';
 
@@ -179,6 +185,9 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             Future<void> startRecording() async {
+              if (isBusy || isSending || isRecording) return;
+              isBusy = true;
+              setDialogState(() {});
               try {
                 final tempDir = await getTemporaryDirectory();
                 final path =
@@ -225,10 +234,16 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                   recordedFilePath = path;
                   statusMsg = 'Recado gravado!';
                 });
+              } finally {
+                isBusy = false;
+                if (context.mounted) setDialogState(() {});
               }
             }
 
             Future<void> stopRecording() async {
+              if (isBusy || isSending || !isRecording) return;
+              isBusy = true;
+              setDialogState(() {});
               try {
                 if (await _audioRecorder.isRecording()) {
                   final path = await _audioRecorder.stop();
@@ -247,29 +262,39 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                 setDialogState(() {
                   isRecording = false;
                 });
+              } finally {
+                isBusy = false;
+                if (context.mounted) setDialogState(() {});
               }
             }
 
             Future<void> togglePlayback() async {
-              if (recordedFilePath == null) return;
+              if (recordedFilePath == null || isBusy || isSending) return;
+              isBusy = true;
+              setDialogState(() {});
 
-              if (isPlaying) {
-                await _audioPlayer.stop();
-                setDialogState(() => isPlaying = false);
-              } else {
-                setDialogState(() => isPlaying = true);
-                _audioPlayer.onPlayerComplete.first.then((_) {
+              try {
+                if (isPlaying) {
+                  await _audioPlayer.stop();
                   setDialogState(() => isPlaying = false);
-                });
-                try {
+                } else {
+                  setDialogState(() => isPlaying = true);
+                  _audioPlayer.onPlayerComplete.first.then((_) {
+                    if (context.mounted) {
+                      setDialogState(() => isPlaying = false);
+                    }
+                  });
                   await _audioPlayer.play(
                     DeviceFileSource(recordedFilePath!),
                     volume: 1.0,
                   );
-                } catch (e) {
-                  debugPrint('Erro ao tocar gravacao: $e');
-                  setDialogState(() => isPlaying = false);
                 }
+              } catch (e) {
+                debugPrint('Erro ao tocar gravacao: $e');
+                if (context.mounted) setDialogState(() => isPlaying = false);
+              } finally {
+                isBusy = false;
+                if (context.mounted) setDialogState(() {});
               }
             }
 
@@ -293,7 +318,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                   const SizedBox(height: 12),
                   if (!isRecording && recordedFilePath == null) ...[
                     GestureDetector(
-                      onTap: startRecording,
+                      onTap: isBusy || isSending ? null : startRecording,
                       child: Container(
                         width: 140,
                         height: 140,
@@ -318,7 +343,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                     ),
                   ] else if (isRecording) ...[
                     GestureDetector(
-                      onTap: stopRecording,
+                      onTap: isBusy || isSending ? null : stopRecording,
                       child: Container(
                         width: 140,
                         height: 140,
@@ -345,7 +370,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         GestureDetector(
-                          onTap: togglePlayback,
+                          onTap: isBusy || isSending ? null : togglePlayback,
                           child: Container(
                             width: 100,
                             height: 100,
@@ -362,7 +387,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                         ),
                         const SizedBox(width: 24),
                         GestureDetector(
-                          onTap: startRecording,
+                          onTap: isBusy || isSending ? null : startRecording,
                           child: Container(
                             width: 70,
                             height: 70,
@@ -399,7 +424,8 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
               actionsAlignment: MainAxisAlignment.spaceEvenly,
               actions: [
                 ElevatedButton(
-                  onPressed: () async {
+                  onPressed: isSending || isBusy ? null : () async {
+                    if (isSending || isBusy) return;
                     if (isRecording) {
                       await _audioRecorder.stop();
                     }
@@ -427,7 +453,10 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                 ),
                 if (recordedFilePath != null)
                   ElevatedButton(
-                    onPressed: () async {
+                    onPressed: isSending ? null : () async {
+                      if (isSending) return;
+                      isSending = true;
+                      setDialogState(() {});
                       if (isPlaying) {
                         await _audioPlayer.stop();
                       }
@@ -469,7 +498,11 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                       } catch (e) {
                         debugPrint('Erro ao enviar mensagem de áudio: $e');
                       }
-                      if (context.mounted) Navigator.pop(context);
+                      if (context.mounted) {
+                        isSending = false;
+                        setDialogState(() {});
+                        Navigator.pop(context);
+                      }
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.secondaryContainer,
@@ -497,6 +530,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
     try {
       await _audioPlayer.stop();
     } catch (_) {}
+    _isMessageDialogOpen = false;
   }
 
   @override
@@ -625,19 +659,10 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                                 child:
                                     _caregiverFoto != null &&
                                         _caregiverFoto!.isNotEmpty
-                                    ? ClipRRect(
-                                        borderRadius: BorderRadius.circular(70),
-                                        child: Image.network(
-                                          _caregiverFoto!,
-                                          width: 128,
-                                          height: 128,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (_, __, ___) => const Icon(
-                                            Icons.person,
-                                            size: 80,
-                                            color: AppColors.onPrimaryContainer,
-                                          ),
-                                        ),
+                                    ? ElderlyProfileAvatar(
+                                        fotoPath: _caregiverFoto,
+                                        size: 128,
+                                        borderWidth: 0,
                                       )
                                     : const Icon(
                                         Icons.person,
@@ -742,7 +767,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                   borderRadius: BorderRadius.circular(AppRadius.lg),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(AppRadius.lg),
-                    onTap: () {
+                    onTap: _isSendingLocation ? null : () {
                       if (!_isPaired) {
                         _speakUnpairedWarning();
                         return;
@@ -876,10 +901,12 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                       ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
-                          Icon(Icons.chat_bubble, size: 36, color: Color(0xFF1565C0)),
-                          SizedBox(height: 6),
-                          Text(
+                        children: [
+                          const MessageUnreadBadge(
+                            child: Icon(Icons.chat_bubble, size: 36, color: Color(0xFF1565C0)),
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
                             'Ouvir\nRecados',
                             textAlign: TextAlign.center,
                             style: TextStyle(
@@ -1235,14 +1262,15 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
   }
 
   void _enviarLocalizacaoChat() async {
+    if (_isSendingLocation) return;
+    setState(() => _isSendingLocation = true);
     TTSService.instance.falar(
       'Estou vendo onde você está para avisar o seu cuidador.',
       caller: this,
     );
 
-    final location = await LocationService.instance.getCurrentSosLocation();
-
     try {
+      final location = await LocationService.instance.getCurrentSosLocation();
       bool sent;
       if (location.hasLocation && location.mapsUrl != null) {
         sent = await MessageService.instance.sendLocation(
@@ -1273,6 +1301,8 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
         );
       }
       TTSService.instance.falar('Não consegui mandar onde você está.', caller: this);
+    } finally {
+      if (mounted) setState(() => _isSendingLocation = false);
     }
   }
 }

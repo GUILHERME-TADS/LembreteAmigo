@@ -51,6 +51,7 @@ import 'screens/take_photo_confirmation_screen.dart';
 import 'screens/voice_settings_screen.dart';
 import 'screens/welcome_screen.dart';
 import 'services/lembrete_service.dart';
+import 'services/message_service.dart';
 import 'services/notification_service.dart';
 import 'services/offline_sync_service.dart';
 import 'services/session_role_service.dart';
@@ -73,6 +74,52 @@ import 'services/app_permission_service.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 final _RouteTracker _routeTracker = _RouteTracker();
+Uri? _pendingWidgetUri;
+const String _lastNotificationLaunchKey = 'last_notification_launch_key';
+const String _lastNotificationLaunchAtKey = 'last_notification_launch_at';
+
+Future<bool> _consumeNotificationLaunch(
+  String payload,
+  String? actionId,
+) async {
+  final prefs = await SharedPreferences.getInstance();
+  final fingerprint = '$payload|${actionId ?? ''}';
+  final previous = prefs.getString(_lastNotificationLaunchKey);
+  final previousAt = prefs.getInt(_lastNotificationLaunchAtKey) ?? 0;
+  final now = DateTime.now().millisecondsSinceEpoch;
+  if (previous == fingerprint && now - previousAt < 2 * 60 * 1000) {
+    return false;
+  }
+  await prefs.setString(_lastNotificationLaunchKey, fingerprint);
+  await prefs.setInt(_lastNotificationLaunchAtKey, now);
+  return true;
+}
+
+void _openWidgetUri(Uri? uri) {
+  final navigator = navigatorKey.currentState;
+  if (navigator == null) {
+    _pendingWidgetUri = uri;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final pending = _pendingWidgetUri;
+      _pendingWidgetUri = null;
+      _openWidgetUri(pending);
+    });
+    return;
+  }
+
+  final role = uri?.queryParameters['role'];
+  if (role == 'supervisor' || SessionRoleService.isSupervisor) {
+    navigator.pushNamed('/supervisor-dashboard');
+    return;
+  }
+
+  final reminderId = uri?.queryParameters['id'];
+  if (reminderId != null && reminderId.isNotEmpty) {
+    navigator.pushNamed('/active-reminder', arguments: reminderId);
+  } else {
+    navigator.pushNamed('/elderly-home');
+  }
+}
 
 bool isElderlyOnlyRoute(String routeName) {
   const elderlyRoutes = {
@@ -111,6 +158,9 @@ bool isSupervisorProtectedRoute(String routeName) {
     '/activity-history',
     '/new-reminder',
     '/new-reminder-audio',
+    '/identify-medication',
+    '/medication-bulk-confirmation',
+    '/barcode-scanner',
     '/supervisor-reminder-detail',
   };
 
@@ -161,6 +211,14 @@ class _RouteTracker extends NavigatorObserver {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  Uri? initialWidgetUri;
+  if (!kIsWeb) {
+    try {
+      initialWidgetUri = await HomeWidget.initiallyLaunchedFromHomeWidget();
+    } catch (e) {
+      debugPrint('Erro ao ler abertura inicial do widget: $e');
+    }
+  }
   configureDependencies();
   try {
     if (kIsWeb) {
@@ -229,6 +287,36 @@ void main() async {
           }
         } catch (_) {}
       };
+      NotificationService.instance.onReminderAction =
+          (lembreteId, actionId) async {
+        await LembreteService.instance.carregar();
+        if (actionId == NotificationService.reminderDoneAction) {
+          await LembreteService.instance.concluir(lembreteId);
+          await NotificationService.instance.cancelar(lembreteId);
+          return;
+        }
+        if (actionId == NotificationService.reminderPostponeAction) {
+          await LembreteService.instance.adiar(lembreteId, 10);
+          await NotificationService.instance.agendarTodos(
+            LembreteService.instance.lembretes,
+          );
+          return;
+        }
+        if (actionId == NotificationService.reminderHelpAction) {
+          await LembreteService.instance.registrarDificuldade(
+            lembreteId,
+            'Ajuda solicitada pela notificação',
+          );
+          await NotificationService.instance.cancelar(lembreteId);
+        }
+      };
+      NotificationService.instance.onMessageAction =
+          (messageId, actionId) async {
+        await MessageService.instance.load();
+        if (actionId == NotificationService.messageReadAction) {
+          await MessageService.instance.markRead(messageId);
+        }
+      };
       NotificationService.instance.onIncomingCallAction =
           (callId, roomName, callType, actionId) async {
             if (actionId == NotificationService.callDeclineAction) {
@@ -259,9 +347,12 @@ void main() async {
       if (launchDetails != null &&
           launchDetails.didNotificationLaunchApp &&
           launchDetails.notificationResponse?.payload != null) {
-        pendingPayload = launchDetails.notificationResponse!.payload;
-        pendingNotificationAction =
-            launchDetails.notificationResponse!.actionId;
+        final response = launchDetails.notificationResponse!;
+        final payload = response.payload!;
+        if (await _consumeNotificationLaunch(payload, response.actionId)) {
+          pendingPayload = payload;
+          pendingNotificationAction = response.actionId;
+        }
       }
     } catch (e) {
       debugPrint(
@@ -277,7 +368,6 @@ void main() async {
     }
     try {
       final push = PushNotificationService.instance;
-      await push.init();
 
       push.onVideoCallReceived = (callId, roomName, callType) {
         final currentRoute = _routeTracker.currentRouteName;
@@ -312,6 +402,17 @@ void main() async {
           },
         );
       };
+
+      push.onAppMessageOpened = (messageId) {
+        final navigator = navigatorKey.currentState;
+        if (navigator == null) {
+          pendingPayload = NotificationService.appMessagePayload(messageId);
+          return;
+        }
+        navigator.pushNamed('/messages');
+      };
+
+      await push.init();
     } catch (e) {
       debugPrint(
         'Erro ao inicializar push notifications. Continuando sem FCM: $e',
@@ -326,19 +427,7 @@ void main() async {
 
   if (!kIsWeb) {
     try {
-      HomeWidget.widgetClicked.listen((Uri? uri) {
-        if (uri != null && uri.toString().isNotEmpty) {
-          final reminderId = uri.queryParameters['id'];
-          if (reminderId != null && reminderId.isNotEmpty) {
-            navigatorKey.currentState?.pushNamed(
-              '/active-reminder',
-              arguments: reminderId,
-            );
-          }
-        } else {
-          navigatorKey.currentState?.pushNamed('/elderly-home');
-        }
-      });
+      HomeWidget.widgetClicked.listen(_openWidgetUri);
     } catch (e) {
       debugPrint('Erro ao escutar widget clicks: $e');
     }
@@ -350,6 +439,14 @@ void main() async {
       pendingNotificationAction: pendingNotificationAction,
     ),
   );
+  if (initialWidgetUri != null) {
+    _pendingWidgetUri = initialWidgetUri;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final pending = _pendingWidgetUri;
+      _pendingWidgetUri = null;
+      _openWidgetUri(pending);
+    });
+  }
 }
 
 class MeuApp extends StatefulWidget {
@@ -436,6 +533,15 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
 
   void _startIncomingCallFirestoreListener() async {
     if (Firebase.apps.isEmpty) return;
+
+    if (SessionRoleService.isElderly &&
+        !await SessionRoleService.canSyncElderlyPrivateData()) {
+      await _incomingCallFirestoreSubscription?.cancel();
+      _incomingCallFirestoreSubscription = null;
+      _lastListenedIdosoId = null;
+      _lastListenedSupervisorId = null;
+      return;
+    }
 
     final idosoId = await SessionRoleService.getActiveIdosoId();
     final supervisorId = SessionRoleService.isSupervisor
@@ -525,8 +631,14 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
               });
         }
       },
-      onError: (e) {
-        debugPrint('Erro ao escutar chamadas no Firestore: $e');
+      onError: (Object error) {
+        if (error is! FirebaseException || error.code != 'permission-denied') {
+          debugPrint('Não foi possível acompanhar chamadas recebidas.');
+        }
+        unawaited(_incomingCallFirestoreSubscription?.cancel());
+        _incomingCallFirestoreSubscription = null;
+        _lastListenedIdosoId = null;
+        _lastListenedSupervisorId = null;
       },
     );
   }
@@ -1020,8 +1132,53 @@ class _AppStartupState extends State<_AppStartup> {
       return true;
     }
 
+    if (NotificationService.isAppMessagePayload(pendingPayload)) {
+      if (widget.pendingNotificationAction ==
+          NotificationService.messageReadAction) {
+        final messageId = pendingPayload.substring('app_message:'.length);
+        await MessageService.instance.load();
+        await MessageService.instance.markRead(messageId);
+        return false;
+      }
+      navigatorKey.currentState?.pushNamed('/messages');
+      return true;
+    }
+
+    if (NotificationService.isMissedCallPayload(pendingPayload)) {
+      navigatorKey.currentState?.pushNamed('/video-call-history');
+      return true;
+    }
+
+    if (NotificationService.isSupervisorAlertPayload(pendingPayload)) {
+      navigatorKey.currentState?.pushNamed('/supervisor-dashboard');
+      return true;
+    }
+
     try {
       await LembreteService.instance.carregar();
+      if (widget.pendingNotificationAction ==
+          NotificationService.reminderDoneAction) {
+        await LembreteService.instance.concluir(pendingPayload);
+        await NotificationService.instance.cancelar(pendingPayload);
+        return false;
+      }
+      if (widget.pendingNotificationAction ==
+          NotificationService.reminderPostponeAction) {
+        await LembreteService.instance.adiar(pendingPayload, 10);
+        await NotificationService.instance.agendarTodos(
+          LembreteService.instance.lembretes,
+        );
+        return false;
+      }
+      if (widget.pendingNotificationAction ==
+          NotificationService.reminderHelpAction) {
+        await LembreteService.instance.registrarDificuldade(
+          pendingPayload,
+          'Ajuda solicitada pela notificação',
+        );
+        await NotificationService.instance.cancelar(pendingPayload);
+        return false;
+      }
       final lembrete = await LembreteService.instance.buscarPorId(
         pendingPayload,
       );

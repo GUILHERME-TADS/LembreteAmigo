@@ -373,6 +373,7 @@ class DeviceBarrierService {
   }) async {
     if (!_useFirebase) return;
     if (!SessionRoleService.isElderly) return;
+    if (!await SessionRoleService.canSyncElderlyPrivateData()) return;
     try {
       final user = await SessionRoleService.ensureElderlyAuthSession();
       final idosoId = await SessionRoleService.getActiveIdosoId();

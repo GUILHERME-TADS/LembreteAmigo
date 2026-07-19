@@ -13,13 +13,16 @@ import '../models/lembrete.dart';
 import '../models/lembrete_evento.dart';
 import '../models/offline_write.dart';
 import '../utils/audio_path_helper.dart';
+import '../utils/web_upload_helper.dart';
 import 'notification_service.dart';
 import 'offline_sync_service.dart';
+import 'remote_media_cache_service.dart';
 import 'secure_cache_service.dart';
 import 'session_role_service.dart';
 import 'smart_alert_service.dart';
 import 'widget_service.dart';
 import 'app_status_service.dart';
+import 'durable_media_service.dart';
 
 class LembreteService {
   LembreteService._();
@@ -36,6 +39,7 @@ class LembreteService {
   _lembretesSubscription;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _eventosSubscription;
   Future<void>? _carregarFuture;
+  bool _hasRemoteReminderSnapshot = false;
 
   List<Lembrete> get lembretes => List.unmodifiable(_lembretes);
   List<LembreteEvento> get eventos => List.unmodifiable(_eventos);
@@ -68,6 +72,10 @@ class LembreteService {
     final activeCacheId = _cacheIdosoId(activeIdosoId);
     if (activeCacheId == null) return true;
     if (itemIdosoId == null || itemIdosoId.isEmpty) return true;
+    if (SessionRoleService.isElderly &&
+        SessionRoleService.isLocalOnlyIdosoId(itemIdosoId)) {
+      return true;
+    }
     return _cacheIdosoId(itemIdosoId) == activeCacheId;
   }
 
@@ -87,6 +95,7 @@ class LembreteService {
         _carregarFuture = null;
         _loaded = false;
         _loadedIdosoId = null;
+        _hasRemoteReminderSnapshot = false;
         return;
       }
     }
@@ -96,6 +105,7 @@ class LembreteService {
       if (_carregarFuture != null) {
         await _carregarFuture;
       }
+      await _verificarEFiltrarViradaDoDia();
       return;
     }
 
@@ -111,6 +121,7 @@ class LembreteService {
       eventosNotifier.value = const [];
       _carregarFuture = null;
       _loaded = false;
+      _hasRemoteReminderSnapshot = false;
     }
 
     _loadedIdosoId = idosoId;
@@ -132,6 +143,7 @@ class LembreteService {
     _loaded = false;
     _loadedIdosoId = null;
     _carregarFuture = null;
+    _hasRemoteReminderSnapshot = false;
   }
 
   void pauseSubscriptions() {
@@ -150,6 +162,11 @@ class LembreteService {
     await OfflineSyncService.instance.loadQueue();
 
     if (!_canSyncIdosoId(idosoId)) return;
+    if (SessionRoleService.isElderly &&
+        !await SessionRoleService.isElderlyConnectedToSupervisor()) {
+      _loaded = false;
+      return;
+    }
 
     await OfflineSyncService.instance.syncPendingWrites();
 
@@ -159,14 +176,43 @@ class LembreteService {
         .where('idosoId', isEqualTo: idosoId)
         .snapshots()
         .listen((snapshot) async {
-          final pendingWrites = (await OfflineSyncService.instance.loadQueue())
-              .where((write) =>
-                  write.collection == 'lembretes' && !write.failed)
-              .toList();
-          final itemsById = <String, Lembrete>{
-            for (final doc in snapshot.docs)
-              doc.id: Lembrete.fromJson(doc.data()),
+          final previousStatuses = <String, LembreteStatus>{
+            for (final item in _lembretes) item.id: item.status,
           };
+          final shouldNotifyStatusChanges =
+              SessionRoleService.isSupervisor && _hasRemoteReminderSnapshot;
+          final localItemsById = <String, Lembrete>{
+            for (final item in _lembretes) item.id: item,
+          };
+          final pendingWrites = (await OfflineSyncService.instance.loadQueue())
+              .where((write) => write.collection == 'lembretes')
+              .toList();
+          final itemsById = <String, Lembrete>{};
+          await Future.wait(snapshot.docs.map((doc) async {
+            final data = Map<String, dynamic>.from(doc.data());
+            if (data['audioPath'] is String &&
+                data['audioPath'] != 'ia_generated') {
+              data['audioPath'] = await RemoteMediaCacheService.instance
+                  .resolve(data['audioPath'] as String?);
+            }
+            if (data['medicamentoFotoPath'] is String) {
+              data['medicamentoFotoPath'] =
+                  await RemoteMediaCacheService.instance.resolve(
+                data['medicamentoFotoPath'] as String?,
+              );
+            }
+            itemsById[doc.id] = Lembrete.fromJson(data);
+          }));
+
+          for (final entry in localItemsById.entries) {
+            final remote = itemsById[entry.key];
+            final local = entry.value;
+            if (remote == null) continue;
+            if (remote.status == LembreteStatus.pendente &&
+                local.status != LembreteStatus.pendente) {
+              itemsById[entry.key] = local;
+            }
+          }
 
           for (final write in pendingWrites) {
             if (write.action == OfflineWriteAction.delete) {
@@ -202,6 +248,18 @@ class LembreteService {
           await _verificarEFiltrarViradaDoDia();
           await _salvarLembretesLocais();
           await _publicarLembretes();
+          if (shouldNotifyStatusChanges) {
+            for (final item in items) {
+              final previous = previousStatuses[item.id];
+              if (previous == null || previous == item.status) continue;
+              if (item.status == LembreteStatus.pendente) continue;
+              await NotificationService.instance.mostrarConfirmacaoCuidador(
+                lembrete: item,
+                status: item.status,
+              );
+            }
+          }
+          _hasRemoteReminderSnapshot = true;
           await OfflineSyncService.instance.syncPendingWrites();
         }, onError: (Object error, StackTrace stackTrace) {
           debugPrint('Erro ao escutar lembretes no Firestore: $error');
@@ -230,6 +288,10 @@ class LembreteService {
     return cacheIdosoId == null ? 'lembretes' : 'lembretes_$cacheIdosoId';
   }
 
+  String _elderlyBackupCacheKey(String? idosoId) {
+    return 'elderly_backup_${_lembretesCacheKey(idosoId)}';
+  }
+
   String _eventosCacheKey(String? idosoId) {
     final cacheIdosoId = _cacheIdosoId(idosoId);
     return cacheIdosoId == null
@@ -245,9 +307,16 @@ class LembreteService {
   }
 
   List<String> _lembretesCacheKeysForRead(String? activeIdosoId) {
-    final keys = <String>[_lembretesCacheKey(activeIdosoId)];
-    if (SessionRoleService.isLocalOnlyIdosoId(activeIdosoId)) {
+    final keys = <String>[
+      if (SessionRoleService.isElderly)
+        _elderlyBackupCacheKey(activeIdosoId),
+      _lembretesCacheKey(activeIdosoId),
+    ];
+    if (SessionRoleService.isElderly ||
+        SessionRoleService.isLocalOnlyIdosoId(activeIdosoId)) {
       keys.addAll([
+        _elderlyBackupCacheKey(SessionRoleService.autonomousIdosoId),
+        _lembretesCacheKey(SessionRoleService.autonomousIdosoId),
         'lembretes_idoso_sem_vinculo',
         'lembretes_idoso_simulado',
         'lembretes',
@@ -258,8 +327,10 @@ class LembreteService {
 
   List<String> _eventosCacheKeysForRead(String? activeIdosoId) {
     final keys = <String>[_eventosCacheKey(activeIdosoId)];
-    if (SessionRoleService.isLocalOnlyIdosoId(activeIdosoId)) {
+    if (SessionRoleService.isElderly ||
+        SessionRoleService.isLocalOnlyIdosoId(activeIdosoId)) {
       keys.addAll([
+        _eventosCacheKey(SessionRoleService.autonomousIdosoId),
         'lembretes_eventos_idoso_sem_vinculo',
         'lembretes_eventos_idoso_simulado',
         'lembretes_eventos',
@@ -288,7 +359,8 @@ class LembreteService {
   }
 
   Future<void> _carregarCacheLocal({String? activeIdosoId}) async {
-    if (SessionRoleService.isSupervisor) return;
+    final activeCacheId = _cacheIdosoId(activeIdosoId);
+    final migratedReminders = <Lembrete>[];
     final lembretesCache = await _readListCache(
       _lembretesCacheKeysForRead(activeIdosoId),
       'lembretes',
@@ -299,12 +371,19 @@ class LembreteService {
         try {
           final lembrete = Lembrete.fromJson(item as Map<String, dynamic>);
           if (_matchesActiveIdosoId(lembrete.idosoId, activeIdosoId)) {
-            final normalizedIdosoId = _cacheIdosoId(lembrete.idosoId);
-            lembretes.add(
-              normalizedIdosoId != lembrete.idosoId
-                  ? lembrete.copyWith(idosoId: normalizedIdosoId)
-                  : lembrete,
-            );
+            final shouldMigrate = SessionRoleService.isElderly &&
+                activeCacheId != null &&
+                !SessionRoleService.isLocalOnlyIdosoId(activeIdosoId) &&
+                (lembrete.idosoId == null ||
+                    SessionRoleService.isLocalOnlyIdosoId(lembrete.idosoId));
+            final normalizedIdosoId = shouldMigrate
+                ? activeCacheId
+                : _cacheIdosoId(lembrete.idosoId);
+            final normalized = normalizedIdosoId != lembrete.idosoId
+                ? lembrete.copyWith(idosoId: normalizedIdosoId)
+                : lembrete;
+            lembretes.add(normalized);
+            if (shouldMigrate) migratedReminders.add(normalized);
           }
         } catch (e) {
           debugPrint('Lembrete local invalido ignorado: $e');
@@ -313,9 +392,22 @@ class LembreteService {
       _lembretes
         ..clear()
         ..addAll(lembretes);
+      if (SessionRoleService.isElderly) {
+        await SecureCacheService.instance.write(
+          _elderlyBackupCacheKey(activeIdosoId),
+          jsonEncode(_lembretes.map((item) => item.toJson()).toList()),
+        );
+      }
+      if (migratedReminders.isNotEmpty) {
+        for (final lembrete in migratedReminders) {
+          await OfflineSyncService.instance.setOrQueue(
+            'lembretes',
+            lembrete.id,
+            lembrete.toJson(),
+          );
+        }
+      }
     }
-
-    await _verificarEFiltrarViradaDoDia();
 
     final eventosCache = await _readListCache(
       _eventosCacheKeysForRead(activeIdosoId),
@@ -323,13 +415,32 @@ class LembreteService {
     );
     if (eventosCache != null) {
       final eventos = <LembreteEvento>[];
+      final migratedEvents = <LembreteEvento>[];
       for (final item in eventosCache) {
         try {
           final evento = LembreteEvento.fromJson(
             item as Map<String, dynamic>,
           );
           if (_matchesActiveIdosoId(evento.idosoId, activeIdosoId)) {
-            eventos.add(evento);
+            final shouldMigrate = SessionRoleService.isElderly &&
+                activeCacheId != null &&
+                !SessionRoleService.isLocalOnlyIdosoId(activeIdosoId) &&
+                (evento.idosoId == null ||
+                    SessionRoleService.isLocalOnlyIdosoId(evento.idosoId));
+            final normalized = shouldMigrate
+                ? LembreteEvento(
+                      id: evento.id,
+                      lembreteId: evento.lembreteId,
+                      titulo: evento.titulo,
+                      categoria: evento.categoria,
+                      status: evento.status,
+                      registradoEm: evento.registradoEm,
+                      idosoId: activeCacheId,
+                      observacao: evento.observacao,
+                    )
+                : evento;
+            eventos.add(normalized);
+            if (shouldMigrate) migratedEvents.add(normalized);
           }
         } catch (e) {
           debugPrint('Evento local invalido ignorado: $e');
@@ -338,8 +449,17 @@ class LembreteService {
       _eventos
         ..clear()
         ..addAll(eventos);
+      await _salvarEventosLocais();
+      for (final evento in migratedEvents) {
+        await OfflineSyncService.instance.setOrQueue(
+          'lembrete_eventos',
+          evento.id,
+          evento.toJson(),
+        );
+      }
     }
 
+    await _verificarEFiltrarViradaDoDia();
     eventosNotifier.value = List.from(_eventos);
     await _publicarLembretes();
   }
@@ -354,7 +474,72 @@ class LembreteService {
 
       if (ultimoDiaVerificado != hoje) {
         bool houveAlteracao = false;
+        bool houveNovoEvento = false;
         final List<OfflineWrite> pendingSyncWrites = [];
+
+        final lastChecked = DateTime.tryParse(ultimoDiaVerificado ?? '');
+        if (lastChecked != null) {
+          final today = DateTime.now();
+          final todayDate = DateTime(today.year, today.month, today.day);
+          var missedDate = DateTime(
+            lastChecked.year,
+            lastChecked.month,
+            lastChecked.day,
+          );
+          while (missedDate.isBefore(todayDate)) {
+            for (final lembrete in _lembretes) {
+              final createdDate = DateTime(
+                lembrete.criadoEm.year,
+                lembrete.criadoEm.month,
+                lembrete.criadoEm.day,
+              );
+              if (missedDate.isBefore(createdDate)) continue;
+              if (!Lembrete.isReminderActiveOn(lembrete, missedDate)) continue;
+              final alreadyRegistered = _eventos.any((evento) =>
+                  evento.lembreteId == lembrete.id &&
+                  evento.registradoEm.year == missedDate.year &&
+                  evento.registradoEm.month == missedDate.month &&
+                  evento.registradoEm.day == missedDate.day);
+              if (alreadyRegistered) continue;
+
+              final registeredAt = DateTime(
+                missedDate.year,
+                missedDate.month,
+                missedDate.day,
+                lembrete.originalHorarioHour ?? lembrete.horarioHour,
+                lembrete.originalHorarioMinute ?? lembrete.horarioMinute,
+              );
+              final eventId =
+                  '${lembrete.id}_missed_${missedDate.toIso8601String().substring(0, 10)}';
+              final evento = LembreteEvento(
+                id: eventId,
+                lembreteId: lembrete.id,
+                titulo: lembrete.titulo,
+                categoria: lembrete.categoria,
+                status: LembreteStatus.perdido,
+                registradoEm: registeredAt,
+                idosoId: lembrete.idosoId ?? _loadedIdosoId,
+                observacao: 'Lembrete sem confirmação até o fim do dia.',
+              );
+              _eventos.add(evento);
+              houveNovoEvento = true;
+              if (_canSyncIdosoId(evento.idosoId)) {
+                pendingSyncWrites.add(OfflineWrite(
+                  id: 'queue_$eventId',
+                  collection: 'lembrete_eventos',
+                  docId: eventId,
+                  action: OfflineWriteAction.set,
+                  data: evento.toJson(),
+                ));
+              }
+            }
+            missedDate = DateTime(
+              missedDate.year,
+              missedDate.month,
+              missedDate.day + 1,
+            );
+          }
+        }
 
         for (int i = 0; i < _lembretes.length; i++) {
           final lembrete = _lembretes[i];
@@ -410,6 +595,10 @@ class LembreteService {
           await _salvarLembretesLocais();
           await _publicarLembretes();
         }
+        if (houveNovoEvento) {
+          _eventos.sort((a, b) => b.registradoEm.compareTo(a.registradoEm));
+          await _salvarEventosLocais();
+        }
 
         await prefs.setString(dayCheckKey, hoje);
       }
@@ -424,16 +613,20 @@ class LembreteService {
   }
 
   Future<void> _salvarLembretesLocais() async {
-    if (SessionRoleService.isSupervisor) return;
     final data = jsonEncode(_lembretes.map((l) => l.toJson()).toList());
     await SecureCacheService.instance.write(
       _lembretesCacheKey(_loadedIdosoId),
       data,
     );
+    if (SessionRoleService.isElderly) {
+      await SecureCacheService.instance.write(
+        _elderlyBackupCacheKey(_loadedIdosoId),
+        data,
+      );
+    }
   }
 
   Future<void> _salvarEventosLocais() async {
-    if (SessionRoleService.isSupervisor) return;
     final data = jsonEncode(_eventos.map((e) => e.toJson()).toList());
     await SecureCacheService.instance.write(
       _eventosCacheKey(_loadedIdosoId),
@@ -452,9 +645,9 @@ class LembreteService {
       }
     } else {
       try {
-        await NotificationService.instance.cancelarTodas();
+        await _cancelarNotificacoesLocais();
       } catch (e) {
-        debugPrint('Erro ao cancelar todas notificacoes: $e');
+        debugPrint('Erro ao limpar notificacoes de lembretes: $e');
       }
     }
     await SmartAlertService.instance.atualizar(_lembretes, eventos: _eventos);
@@ -498,8 +691,13 @@ class LembreteService {
           .timeout(const Duration(seconds: 5));
       if (!doc.exists || doc.data() == null) return null;
       return Lembrete.fromJson(doc.data()!);
+    } on FirebaseException catch (e) {
+      if (e.code != 'permission-denied') {
+        debugPrint('Não foi possível buscar o lembrete remoto $id: ${e.code}');
+      }
+      return null;
     } catch (e) {
-      debugPrint('Nao foi possivel buscar lembrete remoto $id: $e');
+      debugPrint('Não foi possível buscar o lembrete remoto $id.');
       return null;
     }
   }
@@ -726,11 +924,9 @@ class LembreteService {
 
   Future<bool> _checkConnection() async {
     if (SessionRoleService.isElderly) {
-      final idosoId = await _getActiveIdosoId();
-      if (idosoId == SessionRoleService.autonomousIdosoId ||
-          idosoId == 'idoso_simulado') {
-        return true;
-      }
+      // O modo idoso sempre pode trabalhar localmente. A decisão de enviar
+      // ao Firestore é feita separadamente pelo serviço de sincronização.
+      return true;
     }
 
     final canUse = await SessionRoleService.canUseActiveIdoso(
@@ -748,44 +944,55 @@ class LembreteService {
   }
 
   Future<void> adicionar(Lembrete lembrete) async {
+    AppStatusService.instance.clear('offline-sync-permission');
+    AppStatusService.instance.clear('offline-sync-pending');
+    AppStatusService.instance.clear('offline-sync-failed');
     if (!await _checkConnection()) {
       throw StateError('Vinculo com o idoso nao confirmado.');
     }
     final idosoId = await _getActiveIdosoId();
+    final canUploadRemoteMedia = !SessionRoleService.isElderly ||
+        await SessionRoleService.isElderlyConnectedToSupervisor();
     final titulo = lembrete.titulo.isEmpty
         ? lembrete.titulo
         : lembrete.titulo[0].toUpperCase() + lembrete.titulo.substring(1);
 
     String? audioPath = lembrete.audioPath;
-    try {
-      audioPath = await _uploadAudioIfNeeded(
-        audioPath: lembrete.audioPath,
-        idosoId: idosoId,
-        lembreteId: lembrete.id,
+    if (audioPath != null) {
+      audioPath = await DurableMediaService.instance.preserve(
+        audioPath,
+        prefix: 'reminder_audio_${lembrete.id}',
       );
-    } catch (e) {
-      debugPrint('Erro ao subir audio no cadastro de lembrete (salvando local): $e');
-      AppStatusService.instance.report(
-        id: 'audio-upload-pending',
-        title: 'Audio pendente',
-        message: 'O audio do lembrete sera sincronizado quando a conexao voltar.',
-      );
+    }
+    if (canUploadRemoteMedia) {
+      try {
+        audioPath = await _uploadAudioIfNeeded(
+          audioPath: audioPath,
+          idosoId: idosoId,
+          lembreteId: lembrete.id,
+        );
+      } catch (e) {
+        debugPrint('Áudio mantido localmente para sincronização posterior.');
+      }
     }
 
     String? medicamentoFotoPath = lembrete.medicamentoFotoPath;
-    try {
-      medicamentoFotoPath = await _uploadMedicationPhotoIfNeeded(
-        photoPath: lembrete.medicamentoFotoPath,
-        idosoId: idosoId,
-        lembreteId: lembrete.id,
+    if (medicamentoFotoPath != null) {
+      medicamentoFotoPath = await DurableMediaService.instance.preserve(
+        medicamentoFotoPath,
+        prefix: 'reminder_photo_${lembrete.id}',
       );
-    } catch (e) {
-      debugPrint('Erro ao subir foto no cadastro de lembrete (salvando local): $e');
-      AppStatusService.instance.report(
-        id: 'photo-upload-pending',
-        title: 'Foto pendente',
-        message: 'A foto do medicamento sera sincronizada quando a conexao voltar.',
-      );
+    }
+    if (canUploadRemoteMedia) {
+      try {
+        medicamentoFotoPath = await _uploadMedicationPhotoIfNeeded(
+          photoPath: medicamentoFotoPath,
+          idosoId: idosoId,
+          lembreteId: lembrete.id,
+        );
+      } catch (e) {
+        debugPrint('Foto mantida localmente para sincronização posterior.');
+      }
     }
 
     final novo = lembrete.copyWith(
@@ -820,16 +1027,28 @@ class LembreteService {
       return audioPath;
     }
 
-    final file = File(audioPath);
-    if (!await file.exists()) {
-      throw StateError('Arquivo de audio nao encontrado.');
-    }
-
     final ref = FirebaseStorage.instance
         .ref()
         .child('reminder_audio')
         .child(idosoId)
         .child('$lembreteId.m4a');
+    if (kIsWeb) {
+      final bytes = await fetchBlobBytes(audioPath);
+      if (bytes == null) {
+        throw StateError('Nao foi possivel ler o audio selecionado no navegador.');
+      }
+      final snapshot = await ref.putData(
+        bytes,
+        SettableMetadata(contentType: 'audio/mp4'),
+      );
+      return snapshot.ref.getDownloadURL();
+    }
+
+    final file = File(audioPath);
+    if (!await file.exists()) {
+      throw StateError('Arquivo de audio nao encontrado.');
+    }
+
     final snapshot = await ref.putFile(
       file,
       SettableMetadata(contentType: 'audio/mp4'),
@@ -849,16 +1068,28 @@ class LembreteService {
       return photoPath;
     }
 
-    final file = File(photoPath);
-    if (!await file.exists()) {
-      throw StateError('Foto do medicamento nao encontrada.');
-    }
-
     final ref = FirebaseStorage.instance
         .ref()
         .child('reminder_photos')
         .child(idosoId)
         .child('$lembreteId.jpg');
+    if (kIsWeb) {
+      final bytes = await fetchBlobBytes(photoPath);
+      if (bytes == null) {
+        throw StateError('Nao foi possivel ler a foto selecionada no navegador.');
+      }
+      final snapshot = await ref.putData(
+        bytes,
+        SettableMetadata(contentType: 'image/jpeg'),
+      );
+      return snapshot.ref.getDownloadURL();
+    }
+
+    final file = File(photoPath);
+    if (!await file.exists()) {
+      throw StateError('Foto do medicamento nao encontrada.');
+    }
+
     final snapshot = await ref.putFile(
       file,
       SettableMetadata(contentType: 'image/jpeg'),
@@ -881,9 +1112,13 @@ class LembreteService {
     if (!await _checkConnection()) return;
 
     final idosoId = await _getActiveIdosoId();
-    String finalPath = localPhotoPath;
+    String finalPath = await DurableMediaService.instance.preserve(
+      localPhotoPath,
+      prefix: 'confirmation_$id',
+    );
 
-    if (_canSyncIdosoId(idosoId)) {
+    if (_canSyncIdosoId(idosoId) &&
+        await SessionRoleService.canSyncElderlyPrivateData()) {
       try {
         final ref = FirebaseStorage.instance
             .ref()
@@ -891,7 +1126,7 @@ class LembreteService {
             .child(idosoId)
             .child('$id.jpg');
         final uploadTask = await ref.putFile(
-          File(localPhotoPath),
+          File(finalPath),
           SettableMetadata(contentType: 'image/jpeg'),
         );
         finalPath = await uploadTask.ref.getDownloadURL();

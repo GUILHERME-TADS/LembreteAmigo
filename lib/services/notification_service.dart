@@ -9,6 +9,7 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/lembrete.dart';
 import '../models/smart_alert.dart';
+import '../theme/app_theme.dart';
 
 class NotificationService {
   NotificationService._();
@@ -361,7 +362,7 @@ class NotificationService {
     required String body,
   }) async {
     if (kIsWeb || !_initialized) return;
-    const androidDetails = AndroidNotificationDetails(
+    final androidDetails = AndroidNotificationDetails(
       'app_messages_channel_v1',
       'Recados recebidos',
       channelDescription: 'Avisos de novos recados entre idoso e cuidador',
@@ -370,10 +371,19 @@ class NotificationService {
       category: AndroidNotificationCategory.message,
       playSound: true,
       enableVibration: true,
+      color: AppColors.primary,
+      ledColor: AppColors.primary,
+      ledOnMs: 1000,
+      ledOffMs: 1000,
       groupKey: 'lembrete_amigo_recados',
       visibility: NotificationVisibility.private,
       number: 1,
-      actions: <AndroidNotificationAction>[
+      styleInformation: BigTextStyleInformation(
+        body,
+        contentTitle: title,
+        summaryText: 'Recado',
+      ),
+      actions: const <AndroidNotificationAction>[
         AndroidNotificationAction(
           messageOpenAction,
           'Abrir recado',
@@ -400,7 +410,7 @@ class NotificationService {
       _stableStringHash('message_$messageId'),
       title,
       body,
-      const NotificationDetails(
+      NotificationDetails(
         android: androidDetails,
         iOS: iosDetails,
       ),
@@ -430,6 +440,11 @@ class NotificationService {
       autoCancel: false,
       playSound: true,
       enableVibration: true,
+      vibrationPattern: Int64List.fromList([0, 1000, 1000, 1000, 1000, 1000, 1000, 1000]),
+      color: AppColors.primary,
+      ledColor: AppColors.secondaryFixedDim,
+      ledOnMs: 1000,
+      ledOffMs: 500,
       visibility: NotificationVisibility.public,
       audioAttributesUsage: AudioAttributesUsage.notificationRingtone,
       timeoutAfter: 45000,
@@ -486,17 +501,28 @@ class NotificationService {
     if (kIsWeb || !_initialized) return;
     await cancelarChamada(callId);
     final isVoice = callType == 'voice';
-    const androidDetails = AndroidNotificationDetails(
+    final title = isVoice ? 'Chamada de voz perdida' : 'Chamada de vídeo perdida';
+    final body = callerName == null || callerName.trim().isEmpty
+        ? 'Você não atendeu esta chamada'
+        : 'Chamada não atendida de ${callerName.trim()}';
+
+    final androidDetails = AndroidNotificationDetails(
       'missed_calls_channel_v1',
       'Chamadas perdidas',
       channelDescription: 'Avisos de chamadas não atendidas',
       importance: Importance.high,
       priority: Priority.high,
       category: AndroidNotificationCategory.missedCall,
+      color: AppColors.error,
       groupKey: 'lembrete_amigo_chamadas',
       visibility: NotificationVisibility.private,
       number: 1,
       onlyAlertOnce: true,
+      styleInformation: BigTextStyleInformation(
+        body,
+        contentTitle: title,
+        summaryText: 'Chamada Perdida',
+      ),
     );
     const iosDetails = DarwinNotificationDetails(
       presentAlert: true,
@@ -506,11 +532,9 @@ class NotificationService {
     );
     await _plugin.show(
       _stableStringHash('missed_$callId'),
-      isVoice ? 'Chamada de voz perdida' : 'Chamada de vídeo perdida',
-      callerName == null || callerName.trim().isEmpty
-          ? 'Você não atendeu esta chamada'
-          : 'Chamada não atendida de ${callerName.trim()}',
-      const NotificationDetails(android: androidDetails, iOS: iosDetails),
+      title,
+      body,
+      NotificationDetails(android: androidDetails, iOS: iosDetails),
       payload: '$_missedCallPayloadPrefix$callId',
     );
   }
@@ -551,23 +575,30 @@ class NotificationService {
 
   Future<void> mostrarAlertaCuidador(SmartAlert alert) async {
     if (kIsWeb || !_initialized) return;
+    final isUrgent = alert.severity != SmartAlertSeverity.info;
+    final alertColor = isUrgent ? AppColors.error : AppColors.primary;
     final androidDetails = AndroidNotificationDetails(
       'cuidador_alertas_channel',
       'Alertas do Cuidador',
       channelDescription:
           'Alertas inteligentes sobre atrasos e dificuldades nos lembretes',
-      importance: alert.severity == SmartAlertSeverity.info
-          ? Importance.defaultImportance
-          : Importance.max,
-      priority: alert.severity == SmartAlertSeverity.info
-          ? Priority.defaultPriority
-          : Priority.high,
+      importance: isUrgent ? Importance.max : Importance.defaultImportance,
+      priority: isUrgent ? Priority.high : Priority.defaultPriority,
       playSound: true,
       enableVibration: true,
+      color: alertColor,
+      ledColor: alertColor,
+      ledOnMs: 1000,
+      ledOffMs: 1000,
       category: AndroidNotificationCategory.reminder,
       groupKey: 'lembrete_amigo_cuidador',
       onlyAlertOnce: true,
       visibility: NotificationVisibility.private,
+      styleInformation: BigTextStyleInformation(
+        alert.message,
+        contentTitle: alert.title,
+        summaryText: 'Alerta Cuidador',
+      ),
       actions: const <AndroidNotificationAction>[
         AndroidNotificationAction(
           supervisorOpenAction,
@@ -614,6 +645,10 @@ class NotificationService {
       LembreteStatus.perdido => 'não realizou',
       _ => 'atualizou',
     };
+    final title = urgent ? 'Atenção necessária' : 'Lembrete atualizado';
+    final body = 'O idoso $action “${lembrete.titulo}”.';
+    final alertColor = urgent ? AppColors.error : AppColors.primary;
+
     final androidDetails = AndroidNotificationDetails(
       urgent ? 'cuidador_urgente_channel_v2' : 'cuidador_status_channel_v2',
       urgent ? 'Alertas urgentes do idoso' : 'Confirmações do idoso',
@@ -622,10 +657,19 @@ class NotificationService {
       priority: urgent ? Priority.max : Priority.defaultPriority,
       playSound: urgent,
       enableVibration: urgent,
+      color: alertColor,
+      ledColor: alertColor,
+      ledOnMs: 1000,
+      ledOffMs: 1000,
       category: AndroidNotificationCategory.status,
       groupKey: 'lembrete_amigo_cuidador',
       onlyAlertOnce: true,
       visibility: NotificationVisibility.private,
+      styleInformation: BigTextStyleInformation(
+        body,
+        contentTitle: title,
+        summaryText: 'Status Lembrete',
+      ),
     );
     const iosDetails = DarwinNotificationDetails(
       presentAlert: true,
@@ -634,8 +678,8 @@ class NotificationService {
     );
     await _plugin.show(
       _stableStringHash('status_${lembrete.id}_${status.storageValue}'),
-      urgent ? 'Atenção necessária' : 'Lembrete atualizado',
-      'O idoso $action “${lembrete.titulo}”.',
+      title,
+      body,
       NotificationDetails(android: androidDetails, iOS: iosDetails),
       payload: '$_supervisorAlertPayloadPrefix${lembrete.id}',
     );
@@ -735,6 +779,25 @@ class NotificationService {
 
   NotificationDetails _reminderNotificationDetails(Lembrete lembrete) {
     final isMedication = lembrete.categoria == LembreteCategoria.medicacao;
+    final category = LembreteCategoria.normalizar(lembrete.categoria);
+
+    // Mapeamento de cores premium para cada categoria
+    final Color categoryColor = switch (category) {
+      LembreteCategoria.medicacao => const Color(0xFF7B1FA2), // Roxo
+      LembreteCategoria.refeicoes => const Color(0xFFD4762C), // Laranja
+      LembreteCategoria.hidratacao => const Color(0xFF0061A4), // Azul
+      LembreteCategoria.exercicio => const Color(0xFF007A3E), // Verde
+      _ => const Color(0xFF546E7A), // Cinza Customizado
+    };
+
+    final contentTitle = isMedication
+        ? '💊 Hora do medicamento'
+        : '🔔 Lembrete de ${LembreteCategoria.nome(lembrete.categoria)}';
+
+    final bodyText = (isMedication && lembrete.medicamentoInstrucoes != null && lembrete.medicamentoInstrucoes!.isNotEmpty)
+        ? '${lembrete.horarioFormatado} • ${lembrete.titulo}\nInstruções: ${lembrete.medicamentoInstrucoes}'
+        : '${lembrete.horarioFormatado} • ${lembrete.titulo}';
+
     final AndroidNotificationDetails androidDetails =
         AndroidNotificationDetails(
           isMedication
@@ -749,11 +812,24 @@ class NotificationService {
           category: AndroidNotificationCategory.alarm,
           playSound: true,
           enableVibration: true,
+          // Vibração customizada rítmica para medicamentos
+          vibrationPattern: isMedication
+              ? Int64List.fromList([0, 1000, 500, 1000, 500, 1000, 500, 1000])
+              : null,
+          color: categoryColor,
+          ledColor: categoryColor,
+          ledOnMs: 1000,
+          ledOffMs: 500,
           fullScreenIntent: true,
           visibility: NotificationVisibility.private,
           audioAttributesUsage: AudioAttributesUsage.alarm,
           groupKey: 'lembrete_amigo_lembretes',
           onlyAlertOnce: true,
+          styleInformation: BigTextStyleInformation(
+            bodyText,
+            contentTitle: contentTitle,
+            summaryText: 'Lembrete',
+          ),
           actions: <AndroidNotificationAction>[
             AndroidNotificationAction(
               reminderDoneAction,

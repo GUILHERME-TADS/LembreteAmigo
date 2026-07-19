@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../theme/app_theme.dart';
 import '../services/session_role_service.dart';
 import '../services/push_notification_service.dart';
+import '../services/google_auth_service.dart';
 import '../widgets/senior_button.dart';
 
 class SupervisorLoginScreen extends StatefulWidget {
@@ -94,6 +95,46 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
       _showError(msg);
     } catch (e) {
       _showError('Erro de conexão: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _entrarComGoogle() async {
+    if (_isLoading) return;
+    setState(() => _isLoading = true);
+    try {
+      final credential = await GoogleAuthService.instance.signIn();
+      final user = credential.user;
+      if (user == null) {
+        throw StateError('O Google nao retornou uma conta valida.');
+      }
+      await FirebaseFirestore.instance
+          .collection('supervisores')
+          .doc(user.uid)
+          .set({
+            'nome': user.displayName ?? 'Cuidador',
+            'email': user.email ?? '',
+            'fotoUrl': user.photoURL,
+            'updatedAt': DateTime.now().toIso8601String(),
+          }, SetOptions(merge: true));
+      await SessionRoleService.setSupervisor();
+      await SessionRoleService.restoreSupervisorIdosoLink();
+      await PushNotificationService.instance.saveCurrentToken();
+      if (!mounted) return;
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        '/supervisor-dashboard',
+        (route) => false,
+      );
+    } on FirebaseAuthException catch (e) {
+      _showError(
+        e.code == 'popup-closed-by-user' || e.code == 'canceled'
+            ? 'Login Google cancelado.'
+            : 'Nao foi possivel entrar com Google: ${e.message ?? e.code}',
+      );
+    } catch (e) {
+      _showError('Nao foi possivel entrar com Google: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -214,10 +255,8 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
                       Align(
                         alignment: Alignment.centerRight,
                         child: TextButton(
-                          onPressed: () => Navigator.pushNamed(
-                            context,
-                            '/forgot-password',
-                          ),
+                          onPressed: () =>
+                              Navigator.pushNamed(context, '/forgot-password'),
                           child: const Text(
                             'Esqueci minha senha',
                             style: TextStyle(
@@ -255,6 +294,40 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.secondaryContainer,
                             foregroundColor: AppColors.onSecondaryFixed,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: const [
+                          Expanded(child: Divider()),
+                          Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 12),
+                            child: Text('ou'),
+                          ),
+                          Expanded(child: Divider()),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 64,
+                        child: OutlinedButton.icon(
+                          onPressed: _isLoading ? null : _entrarComGoogle,
+                          icon: const Icon(Icons.account_circle, size: 28),
+                          label: const Text(
+                            'Entrar com Google',
+                            style: TextStyle(
+                              fontSize: 21,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.primary,
+                            side: const BorderSide(color: AppColors.primary),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),

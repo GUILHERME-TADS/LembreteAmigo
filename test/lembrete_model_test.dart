@@ -313,7 +313,7 @@ void main() {
     expect(restored.nomeIdoso, 'Maria');
   });
 
-  test('seleciona idoso ativo de acordo com o papel da sessao', () async {
+  test('exige autenticacao para selecionar idoso no modo idoso', () async {
     SharedPreferences.setMockInitialValues({
       'selected_idoso_id': 'idoso_supervisor',
       'paired_idoso_id': 'idoso_pareado',
@@ -323,7 +323,10 @@ void main() {
     expect(await SessionRoleService.getActiveIdosoId(), 'idoso_supervisor');
 
     await SessionRoleService.setElderly();
-    expect(await SessionRoleService.getActiveIdosoId(), 'idoso_pareado');
+    expect(
+      await SessionRoleService.getActiveIdosoId(),
+      SessionRoleService.unpairedIdosoId,
+    );
   });
 
   test(

@@ -9,12 +9,14 @@ import '../theme/app_theme.dart';
 import '../services/session_role_service.dart';
 import '../services/lembrete_service.dart';
 import '../services/message_service.dart';
+import '../services/google_auth_service.dart';
 
 class SupervisorSettingsScreen extends StatefulWidget {
   const SupervisorSettingsScreen({super.key});
 
   @override
-  State<SupervisorSettingsScreen> createState() => _SupervisorSettingsScreenState();
+  State<SupervisorSettingsScreen> createState() =>
+      _SupervisorSettingsScreenState();
 }
 
 class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
@@ -73,11 +75,18 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
               const SizedBox(height: 12),
               const Text(
                 'Alterar Foto de Perfil',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.primary),
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                ),
               ),
               const SizedBox(height: 12),
               ListTile(
-                leading: const Icon(Icons.photo_camera, color: AppColors.primary),
+                leading: const Icon(
+                  Icons.photo_camera,
+                  color: AppColors.primary,
+                ),
                 title: const Text('Tirar Foto', style: TextStyle(fontSize: 18)),
                 onTap: () {
                   Navigator.pop(context);
@@ -85,8 +94,14 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.photo_library, color: AppColors.primary),
-                title: const Text('Escolher da Galeria', style: TextStyle(fontSize: 18)),
+                leading: const Icon(
+                  Icons.photo_library,
+                  color: AppColors.primary,
+                ),
+                title: const Text(
+                  'Escolher da Galeria',
+                  style: TextStyle(fontSize: 18),
+                ),
                 onTap: () {
                   Navigator.pop(context);
                   _pickAndUploadImage(ImageSource.gallery, user.uid);
@@ -95,7 +110,10 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
               if (_fotoPath != null && _fotoPath!.isNotEmpty)
                 ListTile(
                   leading: const Icon(Icons.delete, color: AppColors.error),
-                  title: const Text('Remover Foto', style: TextStyle(fontSize: 18, color: AppColors.error)),
+                  title: const Text(
+                    'Remover Foto',
+                    style: TextStyle(fontSize: 18, color: AppColors.error),
+                  ),
                   onTap: () {
                     Navigator.pop(context);
                     _removePhoto(user.uid);
@@ -112,18 +130,25 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
   Future<void> _pickAndUploadImage(ImageSource source, String uid) async {
     try {
       final picker = ImagePicker();
-      final image = await picker.pickImage(source: source, maxWidth: 512, maxHeight: 512, imageQuality: 85);
+      final image = await picker.pickImage(
+        source: source,
+        maxWidth: 512,
+        maxHeight: 512,
+        imageQuality: 85,
+      );
       if (image == null) return;
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Row(
-            children: [
-              CircularProgressIndicator(color: Colors.white),
-              SizedBox(width: 16),
-              Text('Enviando foto...'),
-            ],
-          )),
+          const SnackBar(
+            content: Row(
+              children: [
+                CircularProgressIndicator(color: Colors.white),
+                SizedBox(width: 16),
+                Text('Enviando foto...'),
+              ],
+            ),
+          ),
         );
       }
 
@@ -151,16 +176,18 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Foto de perfil atualizada com sucesso!')),
+          const SnackBar(
+            content: Text('Foto de perfil atualizada com sucesso!'),
+          ),
         );
       }
     } catch (e) {
       debugPrint('Erro ao atualizar foto do supervisor: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao atualizar foto: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erro ao atualizar foto: $e')));
       }
     }
   }
@@ -172,7 +199,7 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
             .collection('supervisores')
             .doc(uid)
             .set({'fotoPath': null}, SetOptions(merge: true));
-        
+
         try {
           final ref = FirebaseStorage.instance
               .ref()
@@ -211,100 +238,123 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceContainerLowest,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.outlineVariant),
-                ),
-                child: Column(
-                  children: [
-                    GestureDetector(
-                      onTap: _changePhoto,
-                      child: Stack(
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceContainerLowest,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.outlineVariant),
+                      ),
+                      child: Column(
                         children: [
-                          Container(
-                            width: 80, height: 80,
-                            decoration: BoxDecoration(
-                              color: AppColors.primaryContainer,
-                              shape: BoxShape.circle,
-                              image: _fotoPath != null && _fotoPath!.isNotEmpty
-                                  ? DecorationImage(
-                                      image: NetworkImage(_fotoPath!),
-                                      fit: BoxFit.cover,
-                                    )
-                                  : null,
+                          GestureDetector(
+                            onTap: _changePhoto,
+                            child: Stack(
+                              children: [
+                                Container(
+                                  width: 80,
+                                  height: 80,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primaryContainer,
+                                    shape: BoxShape.circle,
+                                    image:
+                                        _fotoPath != null &&
+                                            _fotoPath!.isNotEmpty
+                                        ? DecorationImage(
+                                            image: NetworkImage(_fotoPath!),
+                                            fit: BoxFit.cover,
+                                          )
+                                        : null,
+                                  ),
+                                  child: _fotoPath == null || _fotoPath!.isEmpty
+                                      ? const Icon(
+                                          Icons.person,
+                                          size: 40,
+                                          color: AppColors.onPrimaryContainer,
+                                        )
+                                      : null,
+                                ),
+                                Positioned(
+                                  bottom: 0,
+                                  right: 0,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: const BoxDecoration(
+                                      color: AppColors.primary,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.camera_alt,
+                                      size: 16,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                            child: _fotoPath == null || _fotoPath!.isEmpty
-                                ? const Icon(Icons.person, size: 40, color: AppColors.onPrimaryContainer)
-                                : null,
                           ),
-                          Positioned(
-                            bottom: 0,
-                            right: 0,
-                            child: Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: const BoxDecoration(
-                                color: AppColors.primary,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(Icons.camera_alt, size: 16, color: Colors.white),
+                          const SizedBox(height: 12),
+                          Text(
+                            _userName,
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.onSurface,
+                            ),
+                          ),
+                          Text(
+                            _userEmail,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: AppColors.onSurfaceVariant,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    Text(
-                      _userName,
-                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.onSurface),
-                    ),
-                    Text(
-                      _userEmail,
-                      style: const TextStyle(fontSize: 16, color: AppColors.onSurfaceVariant),
-                    ),
+                    const SizedBox(height: 24),
+                    _settingsGroup('Ações e Preferências', [
+                      _settingsTile(
+                        Icons.lock_outline,
+                        'Alterar Senha',
+                        'Redefinir sua senha de acesso',
+                        onTap: () =>
+                            Navigator.pushNamed(context, '/forgot-password'),
+                      ),
+                      _settingsTile(
+                        Icons.logout,
+                        'Sair da Conta',
+                        'Desconectar do aplicativo',
+                        onTap: () async {
+                          try {
+                            if (Firebase.apps.isNotEmpty) {
+                              await GoogleAuthService.instance.signOut();
+                            }
+                          } catch (_) {}
+                          await SessionRoleService.logout();
+                          await LembreteService.instance.reset();
+                          await MessageService.instance.reset();
+                          if (context.mounted) {
+                            Navigator.pushNamedAndRemoveUntil(
+                              context,
+                              '/',
+                              (route) => false,
+                            );
+                          }
+                        },
+                      ),
+                    ]),
+                    const SizedBox(height: 32),
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
-              _settingsGroup('Ações e Preferências', [
-                _settingsTile(
-                  Icons.lock_outline,
-                  'Alterar Senha',
-                  'Redefinir sua senha de acesso',
-                  onTap: () => Navigator.pushNamed(context, '/forgot-password'),
-                ),
-                _settingsTile(
-                  Icons.logout,
-                  'Sair da Conta',
-                  'Desconectar do aplicativo',
-                  onTap: () async {
-                    try {
-                      if (Firebase.apps.isNotEmpty) {
-                        await FirebaseAuth.instance.signOut();
-                      }
-                    } catch (_) {}
-                    await SessionRoleService.logout();
-                    await LembreteService.instance.reset();
-                    await MessageService.instance.reset();
-                    if (context.mounted) {
-                      Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
-                    }
-                  },
-                ),
-              ]),
-              const SizedBox(height: 32),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
-    ],
-  ),
-),
-);
-}
+    );
+  }
 
   Widget _settingsGroup(String title, List<Widget> items) {
     return Column(
@@ -312,7 +362,15 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 4, bottom: 12),
-          child: Text(title.toUpperCase(), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: AppColors.onSurfaceVariant)),
+          child: Text(
+            title.toUpperCase(),
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.05,
+              color: AppColors.onSurfaceVariant,
+            ),
+          ),
         ),
         Container(
           decoration: BoxDecoration(
@@ -326,7 +384,12 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
     );
   }
 
-  Widget _settingsTile(IconData icon, String title, String subtitle, {VoidCallback? onTap}) {
+  Widget _settingsTile(
+    IconData icon,
+    String title,
+    String subtitle, {
+    VoidCallback? onTap,
+  }) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -334,7 +397,9 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           decoration: const BoxDecoration(
-            border: Border(bottom: BorderSide(color: AppColors.outlineVariant, width: 0.5)),
+            border: Border(
+              bottom: BorderSide(color: AppColors.outlineVariant, width: 0.5),
+            ),
           ),
           child: Row(
             children: [
@@ -344,9 +409,21 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: const TextStyle(fontSize: 18, color: AppColors.onSurface)),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        color: AppColors.onSurface,
+                      ),
+                    ),
                     if (subtitle.isNotEmpty)
-                      Text(subtitle, style: const TextStyle(fontSize: 14, color: AppColors.onSurfaceVariant)),
+                      Text(
+                        subtitle,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: AppColors.onSurfaceVariant,
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -362,14 +439,16 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
     return Container(
       height: 64,
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-      ),
+      decoration: const BoxDecoration(color: AppColors.surface),
       child: Row(
         children: [
           IconButton(
             onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.arrow_back, color: AppColors.primary, size: 32),
+            icon: const Icon(
+              Icons.arrow_back,
+              color: AppColors.primary,
+              size: 32,
+            ),
           ),
           const Expanded(
             child: Text(

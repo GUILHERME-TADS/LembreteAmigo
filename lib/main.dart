@@ -309,41 +309,41 @@ void main() async {
       };
       NotificationService.instance.onReminderAction =
           (lembreteId, actionId) async {
-        _reminderNotificationActionInProgress = true;
-        try {
-        await LembreteService.instance.carregar();
-        if (actionId == NotificationService.reminderDoneAction) {
-          await LembreteService.instance.concluir(lembreteId);
-          await NotificationService.instance.cancelar(lembreteId);
-          return;
-        }
-        if (actionId == NotificationService.reminderPostponeAction) {
-          await LembreteService.instance.adiar(lembreteId, 10);
-          await NotificationService.instance.agendarTodos(
-            LembreteService.instance.lembretes,
-          );
-          await _confirmReminderPostponed();
-          _reminderNotificationActionInProgress = false;
-          return;
-        }
-        if (actionId == NotificationService.reminderHelpAction) {
-          await LembreteService.instance.registrarDificuldade(
-            lembreteId,
-            'Ajuda solicitada pela notificação',
-          );
-          await NotificationService.instance.cancelar(lembreteId);
-        }
-        } finally {
-        _reminderNotificationActionInProgress = false;
-        }
-      };
+            _reminderNotificationActionInProgress = true;
+            try {
+              await LembreteService.instance.carregar();
+              if (actionId == NotificationService.reminderDoneAction) {
+                await LembreteService.instance.concluir(lembreteId);
+                await NotificationService.instance.cancelar(lembreteId);
+                return;
+              }
+              if (actionId == NotificationService.reminderPostponeAction) {
+                await LembreteService.instance.adiar(lembreteId, 10);
+                await NotificationService.instance.agendarTodos(
+                  LembreteService.instance.lembretes,
+                );
+                await _confirmReminderPostponed();
+                _reminderNotificationActionInProgress = false;
+                return;
+              }
+              if (actionId == NotificationService.reminderHelpAction) {
+                await LembreteService.instance.registrarDificuldade(
+                  lembreteId,
+                  'Ajuda solicitada pela notificação',
+                );
+                await NotificationService.instance.cancelar(lembreteId);
+              }
+            } finally {
+              _reminderNotificationActionInProgress = false;
+            }
+          };
       NotificationService.instance.onMessageAction =
           (messageId, actionId) async {
-        await MessageService.instance.load();
-        if (actionId == NotificationService.messageReadAction) {
-          await MessageService.instance.markRead(messageId);
-        }
-      };
+            await MessageService.instance.load();
+            if (actionId == NotificationService.messageReadAction) {
+              await MessageService.instance.markRead(messageId);
+            }
+          };
       NotificationService.instance.onIncomingCallAction =
           (callId, roomName, callType, actionId) async {
             if (actionId == NotificationService.callDeclineAction) {
@@ -532,21 +532,13 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
             .listen(
               (user) async {
                 if (user == null) {
-                  if (SessionRoleService.isSupervisor) {
+                  if (SessionRoleService.isSupervisor ||
+                      SessionRoleService.isElderly) {
                     await SessionRoleService.logout();
                     navigatorKey.currentState?.pushNamedAndRemoveUntil(
-                      '/supervisor-login',
+                      '/welcome',
                       (route) => false,
                     );
-                  } else if (SessionRoleService.isElderly) {
-                    try {
-                      debugPrint(
-                        'FCM/Auth: Efetuando login anônimo do Idoso...',
-                      );
-                      await SessionRoleService.ensureElderlyAuthSession();
-                    } catch (e) {
-                      debugPrint('Erro ao efetuar login anônimo do Idoso: $e');
-                    }
                   }
                 }
                 _startIncomingCallFirestoreListener();
@@ -714,7 +706,7 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
         WidgetService.instance.atualizar();
         _openDueReminderIfNeeded();
         _startIncomingCallFirestoreListener();
-        _checkElderlyAnonymousAuth();
+        _enforceElderlyAuth();
       });
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive) {
@@ -723,16 +715,15 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
     }
   }
 
-  void _checkElderlyAnonymousAuth() async {
+  void _enforceElderlyAuth() async {
     if (Firebase.apps.isEmpty) return;
     if (FirebaseAuth.instance.currentUser == null &&
         SessionRoleService.isElderly) {
-      try {
-        debugPrint('Lifecycle: Efetuando login anônimo do Idoso...');
-        await SessionRoleService.ensureElderlyAuthSession();
-      } catch (e) {
-        debugPrint('Erro ao efetuar login anônimo do Idoso no lifecycle: $e');
-      }
+      await SessionRoleService.logout();
+      navigatorKey.currentState?.pushNamedAndRemoveUntil(
+        '/welcome',
+        (route) => false,
+      );
     }
   }
 
@@ -1249,7 +1240,17 @@ class _AppStartupState extends State<_AppStartup> {
     WidgetService.instance.atualizar();
 
     if (SessionRoleService.isElderly) {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        await SessionRoleService.logout();
+        navigatorKey.currentState?.pushNamedAndRemoveUntil(
+          '/welcome',
+          (route) => false,
+        );
+        return;
+      }
       final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('paired_idoso_id', user.uid);
       final pairedIdosoId = prefs.getString('paired_idoso_id');
       if (pairedIdosoId != null) {
         final isPaired =

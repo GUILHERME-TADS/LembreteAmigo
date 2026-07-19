@@ -68,7 +68,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
     setState(() => _isLoading = true);
     try {
       final prefs = await SharedPreferences.getInstance();
-      await SessionRoleService.ensureStableElderlyId();
+      final idosoId = await SessionRoleService.ensureStableElderlyId();
       await prefs.setBool('elderly_autonomous_mode', true);
       await PushNotificationService.instance.saveCurrentToken();
 
@@ -82,8 +82,19 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
       localPerfil.putIfAbsent('telefone', () => '');
       localPerfil.putIfAbsent('endereco', () => '');
       localPerfil.putIfAbsent('fotoPath', () => null);
+      final remotePerfil = _sanitizePairingProfile(localPerfil);
+      remotePerfil['supervisorId'] = null;
+      remotePerfil['status'] = 'pending';
+      remotePerfil['updatedAt'] = DateTime.now().toIso8601String();
+
+      localPerfil.addAll(remotePerfil);
 
       await prefs.setString('idoso_perfil', jsonEncode(localPerfil));
+      await OfflineSyncService.instance.setOrQueue(
+        'idoso_perfil',
+        idosoId,
+        remotePerfil,
+      );
 
       if (mounted) {
         Navigator.pushNamedAndRemoveUntil(
@@ -113,7 +124,8 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
 
     if (!_useFirebase) {
       setState(() {
-        _errorMessage = 'Não consegui conectar. Veja se a internet está ligada e tente de novo.';
+        _errorMessage =
+            'Não consegui conectar. Veja se a internet está ligada e tente de novo.';
         _isLoading = false;
       });
       return;
@@ -122,7 +134,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
     try {
       final code = await _generateUniquePairingCode();
       final prefs = await SharedPreferences.getInstance();
-      
+
       final jsonStr = prefs.getString('idoso_perfil');
       final Map<String, dynamic> localPerfil = jsonStr != null
           ? jsonDecode(jsonStr) as Map<String, dynamic>
@@ -136,20 +148,21 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
       pairingProfile.putIfAbsent('fotoPath', () => null);
       pairingProfile['status'] = 'pending';
       pairingProfile['pairingCode'] = code;
-      pairingProfile['pairingCodeExpires'] = DateTime.now().add(const Duration(hours: 2)).toIso8601String();
+      pairingProfile['pairingCodeExpires'] = DateTime.now()
+          .add(const Duration(hours: 2))
+          .toIso8601String();
 
-      User? user = FirebaseAuth.instance.currentUser;
+      final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
-        final userCredential = await FirebaseAuth.instance.signInAnonymously();
-        user = userCredential.user;
+        throw StateError('Entre com Google para gerar o codigo de conexao.');
       }
-      final uid = user!.uid;
+      final uid = user.uid;
 
       await FirebaseFirestore.instance
           .collection('idoso_perfil')
           .doc(uid)
           .set(pairingProfile);
-      
+
       await prefs.setString('paired_idoso_id', uid);
       await prefs.setBool('elderly_autonomous_mode', true);
       await prefs.setString('idoso_perfil', jsonEncode(pairingProfile));
@@ -167,54 +180,66 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
           .collection('idoso_perfil')
           .doc(uid)
           .snapshots()
-          .listen((snapshot) async {
-        if (snapshot.exists && snapshot.data() != null) {
-          final data = snapshot.data()!;
-          if (data['status'] == 'active') {
-            // Conectado com sucesso pelo supervisor!
-            _profileSubscription?.cancel();
-            final prefsInstance = await SharedPreferences.getInstance();
+          .listen(
+            (snapshot) async {
+              if (snapshot.exists && snapshot.data() != null) {
+                final data = snapshot.data()!;
+                if (data['status'] == 'active') {
+                  // Conectado com sucesso pelo supervisor!
+                  _profileSubscription?.cancel();
+                  final prefsInstance = await SharedPreferences.getInstance();
 
-            // Preserva dados locais existentes, só atualiza conexão do Firestore
-            final jsonStr = prefsInstance.getString('idoso_perfil');
-            final Map<String, dynamic> merged = jsonStr != null
-                ? jsonDecode(jsonStr) as Map<String, dynamic>
-                : <String, dynamic>{};
+                  // Preserva dados locais existentes, só atualiza conexão do Firestore
+                  final jsonStr = prefsInstance.getString('idoso_perfil');
+                  final Map<String, dynamic> merged = jsonStr != null
+                      ? jsonDecode(jsonStr) as Map<String, dynamic>
+                      : <String, dynamic>{};
 
-            merged['status'] = data['status'];
-            if (data['supervisorId'] != null) {
-              merged['supervisorId'] = data['supervisorId'];
-            }
+                  merged['status'] = data['status'];
+                  if (data['supervisorId'] != null) {
+                    merged['supervisorId'] = data['supervisorId'];
+                  }
 
-            for (final key in ['nome', 'dataNascimento', 'telefone', 'endereco', 'fotoPath']) {
-              merged.putIfAbsent(key, () => data[key]);
-            }
+                  for (final key in [
+                    'nome',
+                    'dataNascimento',
+                    'telefone',
+                    'endereco',
+                    'fotoPath',
+                  ]) {
+                    merged.putIfAbsent(key, () => data[key]);
+                  }
 
-            await prefsInstance.setString('idoso_perfil', jsonEncode(merged));
-            await prefsInstance.setString('paired_idoso_id', uid);
-            await prefsInstance.setBool('elderly_autonomous_mode', false);
+                  await prefsInstance.setString(
+                    'idoso_perfil',
+                    jsonEncode(merged),
+                  );
+                  await prefsInstance.setString('paired_idoso_id', uid);
+                  await prefsInstance.setBool('elderly_autonomous_mode', false);
 
-            final fotoPath = data['fotoPath'] as String?;
-            if (fotoPath != null && fotoPath.isNotEmpty) {
-              await prefsInstance.setString('idoso_foto_path', fotoPath);
-            }
+                  final fotoPath = data['fotoPath'] as String?;
+                  if (fotoPath != null && fotoPath.isNotEmpty) {
+                    await prefsInstance.setString('idoso_foto_path', fotoPath);
+                  }
 
-            _handleSuccess();
-          }
-        }
-      }, onError: (Object error) {
-        debugPrint('Erro ao escutar atualizações de pareamento: $error');
-      });
-      
+                  _handleSuccess();
+                }
+              }
+            },
+            onError: (Object error) {
+              debugPrint('Erro ao escutar atualizações de pareamento: $error');
+            },
+          );
+
       TTSService.instance.falar(
         'Seu código para conectar é: ${code.split('').join(' ')}. Mostre este número para o seu cuidador. O seu cuidador vai digitar esse número no celular dele para conectar os dois aparelhos.',
         caller: this,
       );
-
     } catch (e) {
       debugPrint('Erro ao gerar código de pareamento: $e');
       setState(() {
-        _errorMessage = 'Não consegui criar o código. Veja se a internet está ligada e tente de novo.';
+        _errorMessage =
+            'Não consegui criar o código. Veja se a internet está ligada e tente de novo.';
         _isLoading = false;
       });
     }
@@ -297,8 +322,15 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
                             },
                             borderRadius: BorderRadius.circular(12),
                             child: const Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              child: Icon(Icons.arrow_back, color: AppColors.primary, size: 36),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              child: Icon(
+                                Icons.arrow_back,
+                                color: AppColors.primary,
+                                size: 36,
+                              ),
                             ),
                           ),
                           const Expanded(
@@ -385,7 +417,9 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
                         const SizedBox(height: 32),
                         if (_isLoading)
                           const Center(
-                            child: CircularProgressIndicator(color: AppColors.primary),
+                            child: CircularProgressIndicator(
+                              color: AppColors.primary,
+                            ),
                           )
                         else if (_pairingCode != null) ...[
                           const SizedBox(height: 12),
@@ -393,10 +427,16 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                  vertical: 12,
+                                ),
                                 decoration: BoxDecoration(
                                   color: const Color(0xFFE3F2FD),
-                                  border: Border.all(color: Color(0xFF1976D2), width: 3),
+                                  border: Border.all(
+                                    color: Color(0xFF1976D2),
+                                    width: 3,
+                                  ),
                                   borderRadius: BorderRadius.circular(16),
                                 ),
                                 child: Text(
@@ -411,10 +451,16 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
                               ),
                               const SizedBox(width: 16),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                  vertical: 12,
+                                ),
                                 decoration: BoxDecoration(
                                   color: const Color(0xFFFFF3E0),
-                                  border: Border.all(color: Color(0xFFF57C00), width: 3),
+                                  border: Border.all(
+                                    color: Color(0xFFF57C00),
+                                    width: 3,
+                                  ),
                                   borderRadius: BorderRadius.circular(16),
                                 ),
                                 child: Text(
@@ -473,10 +519,16 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
                             icon: const Icon(Icons.refresh, size: 28),
                             label: const Text(
                               'Gerar novo código',
-                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                             style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: AppColors.primary, width: 2),
+                              side: const BorderSide(
+                                color: AppColors.primary,
+                                width: 2,
+                              ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),

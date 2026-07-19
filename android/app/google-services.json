@@ -12,7 +12,20 @@
           "package_name": "com.example.lembretes_app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "591702637162-as5evesvr15uklhk8vn0oluptpv1m4hj.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.lembretes_app",
+            "certificate_hash": "cf9585145c126d2a3fff075264db9802692c31a5"
+          }
+        },
+        {
+          "client_id": "591702637162-921l6deivske0jptvnh4v0921prto8ur.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyA-1rLWYLr-S9bODWepxtctvVCOZV94iHQ"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "591702637162-135t2mk4eo6k4kuephgd3vcmfoadvu1v.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

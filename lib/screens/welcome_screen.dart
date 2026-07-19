@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
 import '../services/session_role_service.dart';
@@ -6,6 +7,7 @@ import '../services/push_notification_service.dart';
 import '../services/tts_service.dart';
 import '../services/lembrete_service.dart';
 import '../services/message_service.dart';
+import '../services/google_auth_service.dart';
 import '../widgets/index.dart';
 
 class WelcomeScreen extends StatefulWidget {
@@ -118,17 +120,31 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                 TTSService.instance.parar(caller: this);
                                 await LembreteService.instance.reset();
                                 await MessageService.instance.reset();
+                                final credential = await GoogleAuthService
+                                    .instance
+                                    .signIn();
+                                final user = credential.user;
+                                if (user == null) {
+                                  throw StateError(
+                                    'O Google nao retornou uma conta valida.',
+                                  );
+                                }
                                 await SessionRoleService.setElderly();
                                 final prefs =
                                     await SharedPreferences.getInstance();
-                                final pairedIdosoId =
-                                    prefs.getString('paired_idoso_id');
+                                final previousId = prefs.getString(
+                                  'paired_idoso_id',
+                                );
+                                await prefs.setString(
+                                  'paired_idoso_id',
+                                  user.uid,
+                                );
                                 await PushNotificationService.instance
                                     .saveCurrentToken();
                                 if (!mounted) return;
-                                if (pairedIdosoId != null) {
-                                  final isPaired = await SessionRoleService
-                                      .isElderlyConnectedToSupervisor();
+                                if (previousId == user.uid) {
+                                  final isPaired =
+                                      await SessionRoleService.isElderlyConnectedToSupervisor();
                                   Navigator.pushNamedAndRemoveUntil(
                                     context,
                                     '/elderly-home',
@@ -141,6 +157,27 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                     '/elderly-onboarding',
                                   );
                                 }
+                              } on FirebaseAuthException catch (e) {
+                                if (!mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      e.code == 'popup-closed-by-user' ||
+                                              e.code == 'canceled'
+                                          ? 'Login Google cancelado.'
+                                          : 'Nao foi possivel entrar com Google: ${e.message ?? e.code}',
+                                    ),
+                                  ),
+                                );
+                              } catch (e) {
+                                if (!mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Nao foi possivel entrar com Google: $e',
+                                    ),
+                                  ),
+                                );
                               } finally {
                                 if (mounted) {
                                   setState(() => _isProcessingTap = false);
@@ -166,7 +203,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                 await MessageService.instance.reset();
                                 await SessionRoleService.setSupervisor();
                                 if (!mounted) return;
-                                Navigator.pushNamed(context, '/supervisor-login');
+                                Navigator.pushNamed(
+                                  context,
+                                  '/supervisor-login',
+                                );
                               } finally {
                                 if (mounted) {
                                   setState(() => _isProcessingTap = false);

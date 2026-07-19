@@ -25,8 +25,9 @@ class OfflineSyncService {
   static const _syncSoonDelay = Duration(seconds: 5);
 
   final ValueNotifier<int> pendingCount = ValueNotifier(0);
-  final ValueNotifier<Set<String>> pendingMessageIds =
-      ValueNotifier(<String>{});
+  final ValueNotifier<Set<String>> pendingMessageIds = ValueNotifier(
+    <String>{},
+  );
   bool _syncing = false;
   bool _autoSyncStarted = false;
   Timer? _autoSyncTimer;
@@ -45,7 +46,7 @@ class OfflineSyncService {
   Future<bool> _canAttemptRemoteSync() async {
     if (!_useFirebase) return false;
     if (!SessionRoleService.isElderly) return true;
-    return SessionRoleService.isElderlyConnectedToSupervisor();
+    return SessionRoleService.canSyncElderlyPrivateData();
   }
 
   Future<String> _queueKey() async {
@@ -120,15 +121,15 @@ class OfflineSyncService {
     _autoSyncStarted = true;
     await loadQueue();
     unawaited(syncPendingWrites());
-    _connectivitySubscription = Connectivity().onConnectivityChanged.listen(
-      (results) {
-        if (results.any((result) => result != ConnectivityResult.none)) {
-          _backoffTimer?.cancel();
-          _backoffTimer = null;
-          unawaited(_retryTransientWritesAndSync());
-        }
-      },
-    );
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((
+      results,
+    ) {
+      if (results.any((result) => result != ConnectivityResult.none)) {
+        _backoffTimer?.cancel();
+        _backoffTimer = null;
+        unawaited(_retryTransientWritesAndSync());
+      }
+    });
     _autoSyncTimer = Timer.periodic(
       _autoSyncInterval,
       (_) => syncPendingWrites(),
@@ -274,11 +275,13 @@ class OfflineSyncService {
           hasFailure = true;
         }
       }
-      
+
       final freshQueue = await loadQueue();
-      final newlyAdded = freshQueue.where((w) => !queue.any((q) => q.id == w.id)).toList();
+      final newlyAdded = freshQueue
+          .where((w) => !queue.any((q) => q.id == w.id))
+          .toList();
       remaining.addAll(newlyAdded);
-      
+
       await _saveQueue(_compact(remaining));
     } finally {
       _syncing = false;
@@ -313,7 +316,8 @@ class OfflineSyncService {
   Future<void> _retryTransientWritesAndSync() async {
     final queue = await loadQueue();
     final reset = queue.map((write) {
-      final permissionError = write.lastError?.contains('permission-denied') ?? false;
+      final permissionError =
+          write.lastError?.contains('permission-denied') ?? false;
       if (write.failed && !permissionError) {
         return write.copyWith(failed: false, attempts: 0, lastError: '');
       }
@@ -362,9 +366,11 @@ class OfflineSyncService {
   Future<void> retryFailedWrites() async {
     final queue = await loadQueue();
     final retriable = queue
-        .map((write) => write.failed
-            ? write.copyWith(failed: false, attempts: 0, lastError: '')
-            : write)
+        .map(
+          (write) => write.failed
+              ? write.copyWith(failed: false, attempts: 0, lastError: '')
+              : write,
+        )
         .toList();
     await _saveQueue(_compact(retriable));
     AppStatusService.instance.clear('offline-sync-failed');
@@ -389,10 +395,12 @@ class OfflineSyncService {
         final existing = compactedMap[key];
         if (existing != null) {
           if (existing.action == OfflineWriteAction.update) {
-            final mergedData = Map<String, dynamic>.from(write.data)..addAll(existing.data);
+            final mergedData = Map<String, dynamic>.from(write.data)
+              ..addAll(existing.data);
             compactedMap[key] = existing.copyWith(data: mergedData);
           } else if (existing.action == OfflineWriteAction.set) {
-            final mergedData = Map<String, dynamic>.from(write.data)..addAll(existing.data);
+            final mergedData = Map<String, dynamic>.from(write.data)
+              ..addAll(existing.data);
             compactedMap[key] = existing.copyWith(data: mergedData);
           }
           continue;
@@ -403,8 +411,12 @@ class OfflineSyncService {
         final existing = compactedMap[key];
         if (existing != null) {
           if (existing.action == OfflineWriteAction.update) {
-            final mergedData = Map<String, dynamic>.from(write.data)..addAll(existing.data);
-            compactedMap[key] = write.copyWith(action: OfflineWriteAction.set, data: mergedData);
+            final mergedData = Map<String, dynamic>.from(write.data)
+              ..addAll(existing.data);
+            compactedMap[key] = write.copyWith(
+              action: OfflineWriteAction.set,
+              data: mergedData,
+            );
           }
           continue;
         }
@@ -439,7 +451,9 @@ class OfflineSyncService {
   Future<OfflineWrite> _uploadPendingFilesIfNeeded(OfflineWrite write) async {
     if (write.collection == 'lembretes') {
       final data = Map<String, dynamic>.from(write.data);
-      final idosoId = data['idosoId'] as String? ?? await SessionRoleService.getActiveIdosoId();
+      final idosoId =
+          data['idosoId'] as String? ??
+          await SessionRoleService.getActiveIdosoId();
       final lembreteId = write.docId;
 
       final audioPath = data['audioPath'] as String?;
@@ -456,9 +470,13 @@ class OfflineSyncService {
 
       final fotoPath = data['medicamentoFotoPath'] as String?;
       if (fotoPath != null && _isUploadableLocalPath(fotoPath)) {
-        final isConfirmation = data['status'] == 'concluido_com_foto' || 
-            (write.action == OfflineWriteAction.update && data['concluidoComFoto'] == true);
-        final folder = isConfirmation ? 'confirmation_photos' : 'reminder_photos';
+        final isConfirmation =
+            data['status'] == 'concluido_com_foto' ||
+            (write.action == OfflineWriteAction.update &&
+                data['concluidoComFoto'] == true);
+        final folder = isConfirmation
+            ? 'confirmation_photos'
+            : 'reminder_photos';
         final remoteUrl = await _uploadToStorage(
           localPath: fotoPath,
           destinationPath: '$folder/$idosoId/$lembreteId.jpg',
@@ -474,7 +492,9 @@ class OfflineSyncService {
 
     if (write.collection == 'mensagens') {
       final data = Map<String, dynamic>.from(write.data);
-      final idosoId = data['idosoId'] as String? ?? await SessionRoleService.getActiveIdosoId();
+      final idosoId =
+          data['idosoId'] as String? ??
+          await SessionRoleService.getActiveIdosoId();
       final messageId = write.docId;
 
       final audioPath = data['audioPath'] as String?;
@@ -492,8 +512,7 @@ class OfflineSyncService {
       return write.copyWith(data: data);
     }
 
-    if (write.collection == 'idosos' ||
-        write.collection == 'idoso_perfil') {
+    if (write.collection == 'idosos' || write.collection == 'idoso_perfil') {
       final data = Map<String, dynamic>.from(write.data);
       final photoPath = data['fotoPath'] as String?;
       if (photoPath != null && _isUploadableLocalPath(photoPath)) {
@@ -544,7 +563,9 @@ class OfflineSyncService {
       );
       return await snapshot.ref.getDownloadURL();
     } catch (e) {
-      debugPrint('Erro ao fazer upload de $localPath para $destinationPath: $e');
+      debugPrint(
+        'Erro ao fazer upload de $localPath para $destinationPath: $e',
+      );
       rethrow;
     }
   }
@@ -552,10 +573,12 @@ class OfflineSyncService {
   Future<Set<String>> getPendingDeletes(String collection) async {
     final queue = await loadQueue();
     return queue
-        .where((w) =>
-            !w.failed &&
-            w.collection == collection &&
-            w.action == OfflineWriteAction.delete)
+        .where(
+          (w) =>
+              !w.failed &&
+              w.collection == collection &&
+              w.action == OfflineWriteAction.delete,
+        )
         .map((w) => w.docId)
         .toSet();
   }

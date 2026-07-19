@@ -17,7 +17,7 @@ class SessionRoleService {
   static String? _activeRole;
   static bool _lastVerificationFailedByError = false;
   static StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
-      _elderlyProfileSubscription;
+  _elderlyProfileSubscription;
   static String? _watchedElderlyId;
   static final ValueNotifier<bool?> elderlyConnectionNotifier =
       ValueNotifier<bool?>(null);
@@ -94,7 +94,16 @@ class SessionRoleService {
     final elderlyActive = prefs.getString('paired_idoso_id');
 
     if (isElderly) {
-      return elderlyActive ?? fallback;
+      final authenticatedId = Firebase.apps.isNotEmpty
+          ? FirebaseAuth.instance.currentUser?.uid
+          : null;
+      if (authenticatedId != null) {
+        if (elderlyActive != authenticatedId) {
+          await prefs.setString('paired_idoso_id', authenticatedId);
+        }
+        return authenticatedId;
+      }
+      return fallback;
     }
     if (isSupervisor) {
       return supervisorActive ?? fallback;
@@ -105,43 +114,19 @@ class SessionRoleService {
   static Future<User?> ensureElderlyAuthSession() async {
     if (!isElderly) return FirebaseAuth.instance.currentUser;
     if (Firebase.apps.isEmpty) return FirebaseAuth.instance.currentUser;
-
-    final current = FirebaseAuth.instance.currentUser;
-    if (current != null) return current;
-
-    final credential = await FirebaseAuth.instance.signInAnonymously();
-    final user = credential.user;
-    if (user != null) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('paired_idoso_id', user.uid);
-    }
-    return user;
+    return FirebaseAuth.instance.currentUser;
   }
 
   static Future<String> ensureStableElderlyId() async {
     final prefs = await SharedPreferences.getInstance();
-    final existingId = prefs.getString('paired_idoso_id');
-
-    if (Firebase.apps.isNotEmpty) {
-      try {
-        final currentUser = FirebaseAuth.instance.currentUser;
-        if (currentUser == null && !isLocalOnlyIdosoId(existingId)) {
-          return existingId!;
-        }
-        final user = currentUser ??
-            (await FirebaseAuth.instance.signInAnonymously()).user;
-        if (user != null) {
-          await prefs.setString('paired_idoso_id', user.uid);
-          return user.uid;
-        }
-      } catch (e) {
-        debugPrint('Erro ao garantir identidade estavel do idoso: $e');
-      }
+    final user = Firebase.apps.isNotEmpty
+        ? FirebaseAuth.instance.currentUser
+        : null;
+    if (user == null) {
+      throw StateError('Entre com Google para acessar o modo idoso.');
     }
-
-    if (!isLocalOnlyIdosoId(existingId)) return existingId!;
-    await prefs.setString('paired_idoso_id', autonomousIdosoId);
-    return autonomousIdosoId;
+    await prefs.setString('paired_idoso_id', user.uid);
+    return user.uid;
   }
 
   static Future<String?> getVerifiedActiveIdosoId() async {
@@ -169,7 +154,8 @@ class SessionRoleService {
             .timeout(const Duration(seconds: 4));
         final data = doc.data();
         if (!doc.exists || data == null) return null;
-        final linked = data['supervisorId'] == currentUser.uid &&
+        final linked =
+            data['supervisorId'] == currentUser.uid &&
             data['status'] == 'active';
         return linked ? idosoId : null;
       } catch (e) {
@@ -182,10 +168,11 @@ class SessionRoleService {
     return null;
   }
 
-  static Future<bool> canUseActiveIdoso({bool allowOfflineCache = false}) async {
+  static Future<bool> canUseActiveIdoso({
+    bool allowOfflineCache = false,
+  }) async {
     final verified = await getVerifiedActiveIdosoId();
-    if (verified != null &&
-        !isLocalOnlyIdosoId(verified)) {
+    if (verified != null && !isLocalOnlyIdosoId(verified)) {
       return true;
     }
     if (!allowOfflineCache) return false;
@@ -226,7 +213,6 @@ class SessionRoleService {
   }
 
   static Future<bool> canSyncElderlyPrivateData() async {
-    if (isElderly && !await isElderlyConnectedToSupervisor()) return false;
     final verified = await getVerifiedActiveIdosoId();
     return verified != null && !isLocalOnlyIdosoId(verified);
   }
@@ -243,8 +229,7 @@ class SessionRoleService {
       elderlyConnectionNotifier.value = false;
       return;
     }
-    if (_watchedElderlyId == idosoId &&
-        _elderlyProfileSubscription != null) {
+    if (_watchedElderlyId == idosoId && _elderlyProfileSubscription != null) {
       return;
     }
 
@@ -254,46 +239,51 @@ class SessionRoleService {
         .collection('idoso_perfil')
         .doc(idosoId)
         .snapshots()
-        .listen((snapshot) async {
-      final data = snapshot.data();
-      final connected = snapshot.exists &&
-          data?['status'] == 'active' &&
-          data?['supervisorId'] != null;
-      final prefs = await SharedPreferences.getInstance();
-      final cachedJson = prefs.getString('idoso_perfil');
-      final cachedProfile = <String, dynamic>{};
-      if (cachedJson != null) {
-        try {
-          cachedProfile.addAll(
-            Map<String, dynamic>.from(
-              jsonDecode(cachedJson) as Map<String, dynamic>,
-            ),
-          );
-        } catch (error) {
-          debugPrint('Perfil local invalido substituido: $error');
-        }
-      }
-      if (data != null) {
-        cachedProfile.addAll(data);
-      }
-      if (!connected) {
-        cachedProfile['supervisorId'] = null;
-      }
-      cachedProfile['status'] = connected ? 'active' : 'pending';
-      await prefs.setString('idoso_perfil', jsonEncode(cachedProfile));
-      await prefs.setBool('elderly_autonomous_mode', !connected);
-      elderlyConnectionNotifier.value = connected;
-      if (!connected) {
-        await stopWatchingElderlyConnection();
-        elderlyConnectionNotifier.value = false;
-      }
-    }, onError: (Object error) {
-      if (error is! FirebaseException || error.code != 'permission-denied') {
-        debugPrint('Não foi possível atualizar o estado do vínculo.');
-      }
-      unawaited(stopWatchingElderlyConnection());
-      elderlyConnectionNotifier.value = false;
-    });
+        .listen(
+          (snapshot) async {
+            final data = snapshot.data();
+            final connected =
+                snapshot.exists &&
+                data?['status'] == 'active' &&
+                data?['supervisorId'] != null;
+            final prefs = await SharedPreferences.getInstance();
+            final cachedJson = prefs.getString('idoso_perfil');
+            final cachedProfile = <String, dynamic>{};
+            if (cachedJson != null) {
+              try {
+                cachedProfile.addAll(
+                  Map<String, dynamic>.from(
+                    jsonDecode(cachedJson) as Map<String, dynamic>,
+                  ),
+                );
+              } catch (error) {
+                debugPrint('Perfil local invalido substituido: $error');
+              }
+            }
+            if (data != null) {
+              cachedProfile.addAll(data);
+            }
+            if (!connected) {
+              cachedProfile['supervisorId'] = null;
+            }
+            cachedProfile['status'] = connected ? 'active' : 'pending';
+            await prefs.setString('idoso_perfil', jsonEncode(cachedProfile));
+            await prefs.setBool('elderly_autonomous_mode', !connected);
+            elderlyConnectionNotifier.value = connected;
+            if (!connected) {
+              await stopWatchingElderlyConnection();
+              elderlyConnectionNotifier.value = false;
+            }
+          },
+          onError: (Object error) {
+            if (error is! FirebaseException ||
+                error.code != 'permission-denied') {
+              debugPrint('Não foi possível atualizar o estado do vínculo.');
+            }
+            unawaited(stopWatchingElderlyConnection());
+            elderlyConnectionNotifier.value = false;
+          },
+        );
   }
 
   static Future<void> stopWatchingElderlyConnection() async {
@@ -347,7 +337,9 @@ class SessionRoleService {
       // Wait up to 1500ms for Firebase Auth to finish initialization (prevent startup race condition)
       try {
         await Future.any([
-          FirebaseAuth.instance.authStateChanges().firstWhere((user) => user != null),
+          FirebaseAuth.instance.authStateChanges().firstWhere(
+            (user) => user != null,
+          ),
           Future.delayed(const Duration(milliseconds: 1500)),
         ]);
         currentUser = FirebaseAuth.instance.currentUser;
@@ -367,8 +359,8 @@ class SessionRoleService {
       final data = doc.data();
       if (data == null) return false;
 
-      final isConnected = data['supervisorId'] == currentUser.uid &&
-          data['status'] == 'active';
+      final isConnected =
+          data['supervisorId'] == currentUser.uid && data['status'] == 'active';
       return isConnected;
     } catch (e) {
       debugPrint('Erro ao verificar conexao do supervisor no Firestore: $e');
@@ -376,4 +368,3 @@ class SessionRoleService {
     }
   }
 }
-

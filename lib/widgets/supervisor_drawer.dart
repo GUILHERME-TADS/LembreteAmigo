@@ -6,6 +6,7 @@ import '../theme/app_theme.dart';
 import '../services/session_role_service.dart';
 import '../services/lembrete_service.dart';
 import '../services/message_service.dart';
+import '../services/google_auth_service.dart';
 import 'message_unread_badge.dart';
 
 class SupervisorDrawer extends StatefulWidget {
@@ -83,7 +84,9 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
       Navigator.pop(context); // Close drawer to display snackbar clearly
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Conecte um dispositivo de idoso para acessar esta tela.'),
+          content: Text(
+            'Conecte um dispositivo de idoso para acessar esta tela.',
+          ),
           backgroundColor: AppColors.error,
         ),
       );
@@ -111,9 +114,7 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
       child: Column(
         children: [
           UserAccountsDrawerHeader(
-            decoration: const BoxDecoration(
-              color: AppColors.primary,
-            ),
+            decoration: const BoxDecoration(color: AppColors.primary),
             accountName: Text(
               _supervisorName,
               style: const TextStyle(
@@ -124,10 +125,7 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
             ),
             accountEmail: Text(
               _supervisorEmail,
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 14,
-              ),
+              style: const TextStyle(color: Colors.white70, fontSize: 14),
             ),
             currentAccountPicture: Container(
               decoration: BoxDecoration(
@@ -151,27 +149,54 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
               children: [
                 ListTile(
                   leading: const Icon(Icons.home, color: AppColors.primary),
-                  title: const Text('Painel Inicial', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  title: const Text(
+                    'Painel Inicial',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
                   onTap: () => _navigateTo(context, '/supervisor-dashboard'),
                 ),
                 ListTile(
-                  leading: const Icon(Icons.person_add, color: AppColors.primary),
-                  title: const Text('Cadastrar/Emparelhar Idoso', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  leading: const Icon(
+                    Icons.person_add,
+                    color: AppColors.primary,
+                  ),
+                  title: const Text(
+                    'Cadastrar/Emparelhar Idoso',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
                   onTap: () => _navigateTo(context, '/register-elderly'),
                 ),
                 Opacity(
                   opacity: _isConnected ? 1.0 : 0.4,
                   child: ListTile(
                     leading: const Icon(Icons.person, color: AppColors.primary),
-                    title: const Text('Editar Dados do Idoso', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                    onTap: () => _navigateTo(context, '/supervisor-edit-elderly-profile'),
+                    title: const Text(
+                      'Editar Dados do Idoso',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    onTap: () => _navigateTo(
+                      context,
+                      '/supervisor-edit-elderly-profile',
+                    ),
                   ),
                 ),
                 Opacity(
                   opacity: _isConnected ? 1.0 : 0.4,
                   child: ListTile(
-                    leading: const Icon(Icons.edit_calendar, color: AppColors.primary),
-                    title: const Text('Editar Lembretes do Idoso', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    leading: const Icon(
+                      Icons.edit_calendar,
+                      color: AppColors.primary,
+                    ),
+                    title: const Text(
+                      'Editar Lembretes do Idoso',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     onTap: () => _navigateTo(context, '/activity-history'),
                   ),
                 ),
@@ -181,50 +206,99 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
                     leading: const MessageUnreadBadge(
                       child: Icon(Icons.forum, color: AppColors.primary),
                     ),
-                    title: const Text('Recados', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    title: const Text(
+                      'Recados',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     onTap: () => _navigateTo(context, '/messages'),
                   ),
                 ),
                 Opacity(
                   opacity: _isConnected ? 1.0 : 0.4,
                   child: ListTile(
-                    leading: const Icon(Icons.videocam, color: AppColors.primary),
-                    title: const Text('Chamadas de Vídeo', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    leading: const Icon(
+                      Icons.videocam,
+                      color: AppColors.primary,
+                    ),
+                    title: const Text(
+                      'Chamadas de Vídeo',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     onTap: () => _navigateTo(context, '/video-call-history'),
                   ),
                 ),
                 Opacity(
                   opacity: _isConnected ? 1.0 : 0.4,
                   child: ListTile(
-                    leading: const Icon(Icons.analytics, color: AppColors.primary),
-                    title: const Text('Relatórios Mensais', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    leading: const Icon(
+                      Icons.analytics,
+                      color: AppColors.primary,
+                    ),
+                    title: const Text(
+                      'Relatórios Mensais',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     onTap: () => _navigateTo(context, '/monthly-reports'),
                   ),
                 ),
                 Opacity(
                   opacity: _isConnected ? 1.0 : 0.4,
                   child: ListTile(
-                    leading: const Icon(Icons.favorite, color: AppColors.primary),
-                    title: const Text('Efetividade do Tratamento', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                    onTap: () => _navigateTo(context, '/effectiveness-feedback'),
+                    leading: const Icon(
+                      Icons.favorite,
+                      color: AppColors.primary,
+                    ),
+                    title: const Text(
+                      'Efetividade do Tratamento',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    onTap: () =>
+                        _navigateTo(context, '/effectiveness-feedback'),
                   ),
                 ),
                 Opacity(
                   opacity: _isConnected ? 1.0 : 0.4,
                   child: ListTile(
-                    leading: const Icon(Icons.history, color: AppColors.primary),
-                    title: const Text('Histórico Detalhado', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    leading: const Icon(
+                      Icons.history,
+                      color: AppColors.primary,
+                    ),
+                    title: const Text(
+                      'Histórico Detalhado',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     onTap: () => _navigateTo(context, '/activity-history'),
                   ),
                 ),
                 ListTile(
                   leading: const Icon(Icons.settings, color: AppColors.primary),
-                  title: const Text('Configurações', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  title: const Text(
+                    'Configurações',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
                   onTap: () => _navigateTo(context, '/supervisor-settings'),
                 ),
                 ListTile(
                   leading: const Icon(Icons.help, color: AppColors.primary),
-                  title: const Text('Ajuda', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  title: const Text(
+                    'Ajuda',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
                   onTap: () => _navigateTo(context, '/supervisor-help'),
                 ),
               ],
@@ -235,19 +309,30 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
             top: false,
             child: ListTile(
               leading: const Icon(Icons.logout, color: AppColors.error),
-              title: const Text('Sair da Conta', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.error)),
+              title: const Text(
+                'Sair da Conta',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.error,
+                ),
+              ),
               onTap: () async {
                 Navigator.pop(context);
                 try {
                   if (Firebase.apps.isNotEmpty) {
-                    await FirebaseAuth.instance.signOut();
+                    await GoogleAuthService.instance.signOut();
                   }
                 } catch (_) {}
                 await SessionRoleService.logout();
                 await LembreteService.instance.reset();
                 await MessageService.instance.reset();
                 if (context.mounted) {
-                  Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+                  Navigator.pushNamedAndRemoveUntil(
+                    context,
+                    '/',
+                    (route) => false,
+                  );
                 }
               },
             ),

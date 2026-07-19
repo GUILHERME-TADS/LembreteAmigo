@@ -156,18 +156,11 @@ class LembreteService {
     _eventosSubscription?.resume();
   }
 
-
   Future<void> _executarCarregar(String idosoId) async {
     await _carregarCacheLocal(activeIdosoId: idosoId);
     await OfflineSyncService.instance.loadQueue();
 
     if (!_canSyncIdosoId(idosoId)) return;
-    if (SessionRoleService.isElderly &&
-        !await SessionRoleService.isElderlyConnectedToSupervisor()) {
-      _loaded = false;
-      return;
-    }
-
     await OfflineSyncService.instance.syncPendingWrites();
 
     await _lembretesSubscription?.cancel();
@@ -175,112 +168,121 @@ class LembreteService {
         .collection('lembretes')
         .where('idosoId', isEqualTo: idosoId)
         .snapshots()
-        .listen((snapshot) async {
-          final previousStatuses = <String, LembreteStatus>{
-            for (final item in _lembretes) item.id: item.status,
-          };
-          final shouldNotifyStatusChanges =
-              SessionRoleService.isSupervisor && _hasRemoteReminderSnapshot;
-          final localItemsById = <String, Lembrete>{
-            for (final item in _lembretes) item.id: item,
-          };
-          final pendingWrites = (await OfflineSyncService.instance.loadQueue())
-              .where((write) => write.collection == 'lembretes')
-              .toList();
-          final itemsById = <String, Lembrete>{};
-          await Future.wait(snapshot.docs.map((doc) async {
-            final data = Map<String, dynamic>.from(doc.data());
-            if (data['audioPath'] is String &&
-                data['audioPath'] != 'ia_generated') {
-              data['audioPath'] = await RemoteMediaCacheService.instance
-                  .resolve(data['audioPath'] as String?);
-            }
-            if (data['medicamentoFotoPath'] is String) {
-              data['medicamentoFotoPath'] =
-                  await RemoteMediaCacheService.instance.resolve(
-                data['medicamentoFotoPath'] as String?,
-              );
-            }
-            itemsById[doc.id] = Lembrete.fromJson(data);
-          }));
+        .listen(
+          (snapshot) async {
+            final previousStatuses = <String, LembreteStatus>{
+              for (final item in _lembretes) item.id: item.status,
+            };
+            final shouldNotifyStatusChanges =
+                SessionRoleService.isSupervisor && _hasRemoteReminderSnapshot;
+            final localItemsById = <String, Lembrete>{
+              for (final item in _lembretes) item.id: item,
+            };
+            final pendingWrites =
+                (await OfflineSyncService.instance.loadQueue())
+                    .where((write) => write.collection == 'lembretes')
+                    .toList();
+            final itemsById = <String, Lembrete>{};
+            await Future.wait(
+              snapshot.docs.map((doc) async {
+                final data = Map<String, dynamic>.from(doc.data());
+                if (data['audioPath'] is String &&
+                    data['audioPath'] != 'ia_generated') {
+                  data['audioPath'] = await RemoteMediaCacheService.instance
+                      .resolve(data['audioPath'] as String?);
+                }
+                if (data['medicamentoFotoPath'] is String) {
+                  data['medicamentoFotoPath'] = await RemoteMediaCacheService
+                      .instance
+                      .resolve(data['medicamentoFotoPath'] as String?);
+                }
+                itemsById[doc.id] = Lembrete.fromJson(data);
+              }),
+            );
 
-          for (final entry in localItemsById.entries) {
-            final remote = itemsById[entry.key];
-            final local = entry.value;
-            if (remote == null) continue;
-            if (remote.status == LembreteStatus.pendente &&
-                local.status != LembreteStatus.pendente) {
-              itemsById[entry.key] = local;
-            }
-          }
-
-          for (final write in pendingWrites) {
-            if (write.action == OfflineWriteAction.delete) {
-              itemsById.remove(write.docId);
-              continue;
+            for (final entry in localItemsById.entries) {
+              final remote = itemsById[entry.key];
+              final local = entry.value;
+              if (remote == null) continue;
+              if (remote.status == LembreteStatus.pendente &&
+                  local.status != LembreteStatus.pendente) {
+                itemsById[entry.key] = local;
+              }
             }
 
-            final data = Map<String, dynamic>.from(write.data);
-            final pendingIdosoId = data['idosoId'] as String? ??
-                itemsById[write.docId]?.idosoId ??
-                idosoId;
-            if (pendingIdosoId != idosoId) continue;
+            for (final write in pendingWrites) {
+              if (write.action == OfflineWriteAction.delete) {
+                itemsById.remove(write.docId);
+                continue;
+              }
 
-            if (write.action == OfflineWriteAction.set) {
-              itemsById[write.docId] = Lembrete.fromJson(data);
-              continue;
+              final data = Map<String, dynamic>.from(write.data);
+              final pendingIdosoId =
+                  data['idosoId'] as String? ??
+                  itemsById[write.docId]?.idosoId ??
+                  idosoId;
+              if (pendingIdosoId != idosoId) continue;
+
+              if (write.action == OfflineWriteAction.set) {
+                itemsById[write.docId] = Lembrete.fromJson(data);
+                continue;
+              }
+
+              final current = itemsById[write.docId];
+              if (current != null) {
+                itemsById[write.docId] = Lembrete.fromJson(
+                  Map<String, dynamic>.from(current.toJson())..addAll(data),
+                );
+              }
             }
 
-            final current = itemsById[write.docId];
-            if (current != null) {
-              itemsById[write.docId] = Lembrete.fromJson(
-                Map<String, dynamic>.from(current.toJson())..addAll(data),
-              );
-            }
-          }
+            final items = itemsById.values.toList();
 
-          final items = itemsById.values.toList();
-
-          _lembretes
-            ..clear()
-            ..addAll(items)
-            ..sort((a, b) => b.criadoEm.compareTo(a.criadoEm));
-          await _verificarEFiltrarViradaDoDia();
-          await _salvarLembretesLocais();
-          await _publicarLembretes();
-          if (shouldNotifyStatusChanges) {
-            for (final item in items) {
-              final previous = previousStatuses[item.id];
-              if (previous == null || previous == item.status) continue;
-              if (item.status == LembreteStatus.pendente) continue;
-              await NotificationService.instance.mostrarConfirmacaoCuidador(
-                lembrete: item,
-                status: item.status,
-              );
+            _lembretes
+              ..clear()
+              ..addAll(items)
+              ..sort((a, b) => b.criadoEm.compareTo(a.criadoEm));
+            await _verificarEFiltrarViradaDoDia();
+            await _salvarLembretesLocais();
+            await _publicarLembretes();
+            if (shouldNotifyStatusChanges) {
+              for (final item in items) {
+                final previous = previousStatuses[item.id];
+                if (previous == null || previous == item.status) continue;
+                if (item.status == LembreteStatus.pendente) continue;
+                await NotificationService.instance.mostrarConfirmacaoCuidador(
+                  lembrete: item,
+                  status: item.status,
+                );
+              }
             }
-          }
-          _hasRemoteReminderSnapshot = true;
-          await OfflineSyncService.instance.syncPendingWrites();
-        }, onError: (Object error, StackTrace stackTrace) {
-          debugPrint('Erro ao escutar lembretes no Firestore: $error');
-        });
+            _hasRemoteReminderSnapshot = true;
+            await OfflineSyncService.instance.syncPendingWrites();
+          },
+          onError: (Object error, StackTrace stackTrace) {
+            debugPrint('Erro ao escutar lembretes no Firestore: $error');
+          },
+        );
 
     await _eventosSubscription?.cancel();
     _eventosSubscription = FirebaseFirestore.instance
         .collection('lembrete_eventos')
         .where('idosoId', isEqualTo: idosoId)
         .snapshots()
-        .listen((snapshot) async {
-          _eventos
-            ..clear()
-            ..addAll(
-              snapshot.docs.map((doc) => LembreteEvento.fromJson(doc.data())),
-            )
-            ..sort((a, b) => b.registradoEm.compareTo(a.registradoEm));
-          await _salvarEventosLocais();
-        }, onError: (Object error, StackTrace stackTrace) {
-          debugPrint('Erro ao escutar eventos no Firestore: $error');
-        });
+        .listen(
+          (snapshot) async {
+            _eventos
+              ..clear()
+              ..addAll(
+                snapshot.docs.map((doc) => LembreteEvento.fromJson(doc.data())),
+              )
+              ..sort((a, b) => b.registradoEm.compareTo(a.registradoEm));
+            await _salvarEventosLocais();
+          },
+          onError: (Object error, StackTrace stackTrace) {
+            debugPrint('Erro ao escutar eventos no Firestore: $error');
+          },
+        );
   }
 
   String _lembretesCacheKey(String? idosoId) {
@@ -308,8 +310,7 @@ class LembreteService {
 
   List<String> _lembretesCacheKeysForRead(String? activeIdosoId) {
     final keys = <String>[
-      if (SessionRoleService.isElderly)
-        _elderlyBackupCacheKey(activeIdosoId),
+      if (SessionRoleService.isElderly) _elderlyBackupCacheKey(activeIdosoId),
       _lembretesCacheKey(activeIdosoId),
     ];
     if (SessionRoleService.isElderly ||
@@ -339,10 +340,7 @@ class LembreteService {
     return keys.toSet().toList();
   }
 
-  Future<List<dynamic>?> _readListCache(
-    List<String> keys,
-    String label,
-  ) async {
+  Future<List<dynamic>?> _readListCache(List<String> keys, String label) async {
     for (final key in keys) {
       final raw = await SecureCacheService.instance.read(key);
       if (raw == null || raw.isEmpty) continue;
@@ -371,7 +369,8 @@ class LembreteService {
         try {
           final lembrete = Lembrete.fromJson(item as Map<String, dynamic>);
           if (_matchesActiveIdosoId(lembrete.idosoId, activeIdosoId)) {
-            final shouldMigrate = SessionRoleService.isElderly &&
+            final shouldMigrate =
+                SessionRoleService.isElderly &&
                 activeCacheId != null &&
                 !SessionRoleService.isLocalOnlyIdosoId(activeIdosoId) &&
                 (lembrete.idosoId == null ||
@@ -418,26 +417,25 @@ class LembreteService {
       final migratedEvents = <LembreteEvento>[];
       for (final item in eventosCache) {
         try {
-          final evento = LembreteEvento.fromJson(
-            item as Map<String, dynamic>,
-          );
+          final evento = LembreteEvento.fromJson(item as Map<String, dynamic>);
           if (_matchesActiveIdosoId(evento.idosoId, activeIdosoId)) {
-            final shouldMigrate = SessionRoleService.isElderly &&
+            final shouldMigrate =
+                SessionRoleService.isElderly &&
                 activeCacheId != null &&
                 !SessionRoleService.isLocalOnlyIdosoId(activeIdosoId) &&
                 (evento.idosoId == null ||
                     SessionRoleService.isLocalOnlyIdosoId(evento.idosoId));
             final normalized = shouldMigrate
                 ? LembreteEvento(
-                      id: evento.id,
-                      lembreteId: evento.lembreteId,
-                      titulo: evento.titulo,
-                      categoria: evento.categoria,
-                      status: evento.status,
-                      registradoEm: evento.registradoEm,
-                      idosoId: activeCacheId,
-                      observacao: evento.observacao,
-                    )
+                    id: evento.id,
+                    lembreteId: evento.lembreteId,
+                    titulo: evento.titulo,
+                    categoria: evento.categoria,
+                    status: evento.status,
+                    registradoEm: evento.registradoEm,
+                    idosoId: activeCacheId,
+                    observacao: evento.observacao,
+                  )
                 : evento;
             eventos.add(normalized);
             if (shouldMigrate) migratedEvents.add(normalized);
@@ -495,11 +493,13 @@ class LembreteService {
               );
               if (missedDate.isBefore(createdDate)) continue;
               if (!Lembrete.isReminderActiveOn(lembrete, missedDate)) continue;
-              final alreadyRegistered = _eventos.any((evento) =>
-                  evento.lembreteId == lembrete.id &&
-                  evento.registradoEm.year == missedDate.year &&
-                  evento.registradoEm.month == missedDate.month &&
-                  evento.registradoEm.day == missedDate.day);
+              final alreadyRegistered = _eventos.any(
+                (evento) =>
+                    evento.lembreteId == lembrete.id &&
+                    evento.registradoEm.year == missedDate.year &&
+                    evento.registradoEm.month == missedDate.month &&
+                    evento.registradoEm.day == missedDate.day,
+              );
               if (alreadyRegistered) continue;
 
               final registeredAt = DateTime(
@@ -524,13 +524,15 @@ class LembreteService {
               _eventos.add(evento);
               houveNovoEvento = true;
               if (_canSyncIdosoId(evento.idosoId)) {
-                pendingSyncWrites.add(OfflineWrite(
-                  id: 'queue_$eventId',
-                  collection: 'lembrete_eventos',
-                  docId: eventId,
-                  action: OfflineWriteAction.set,
-                  data: evento.toJson(),
-                ));
+                pendingSyncWrites.add(
+                  OfflineWrite(
+                    id: 'queue_$eventId',
+                    collection: 'lembrete_eventos',
+                    docId: eventId,
+                    action: OfflineWriteAction.set,
+                    data: evento.toJson(),
+                  ),
+                );
               }
             }
             missedDate = DateTime(
@@ -554,12 +556,19 @@ class LembreteService {
               lembrete.recorrencia == 'mensal' ||
               lembrete.recorrencia == 'quinzenal';
 
-          final originalHour = lembrete.originalHorarioHour ?? lembrete.horarioHour;
-          final originalMinute = lembrete.originalHorarioMinute ?? lembrete.horarioMinute;
-          final horarioMudou = lembrete.horarioHour != originalHour || lembrete.horarioMinute != originalMinute;
+          final originalHour =
+              lembrete.originalHorarioHour ?? lembrete.horarioHour;
+          final originalMinute =
+              lembrete.originalHorarioMinute ?? lembrete.horarioMinute;
+          final horarioMudou =
+              lembrete.horarioHour != originalHour ||
+              lembrete.horarioMinute != originalMinute;
 
           if (isRecorrente &&
-              (lembrete.concluido || lembrete.concluidoComFoto || lembrete.status == LembreteStatus.adiado || horarioMudou)) {
+              (lembrete.concluido ||
+                  lembrete.concluidoComFoto ||
+                  lembrete.status == LembreteStatus.adiado ||
+                  horarioMudou)) {
             _lembretes[i] = lembrete.copyWith(
               horarioHour: originalHour,
               horarioMinute: originalMinute,
@@ -570,19 +579,21 @@ class LembreteService {
             houveAlteracao = true;
 
             if (_canSyncIdosoId(_loadedIdosoId)) {
-              pendingSyncWrites.add(OfflineWrite(
-                id: '${DateTime.now().microsecondsSinceEpoch}_${pendingSyncWrites.length}',
-                collection: 'lembretes',
-                docId: lembrete.id,
-                action: OfflineWriteAction.update,
-                data: {
-                  'horarioHour': originalHour,
-                  'horarioMinute': originalMinute,
-                  'concluido': false,
-                  'concluidoComFoto': false,
-                  'status': 'pendente',
-                },
-              ));
+              pendingSyncWrites.add(
+                OfflineWrite(
+                  id: '${DateTime.now().microsecondsSinceEpoch}_${pendingSyncWrites.length}',
+                  collection: 'lembretes',
+                  docId: lembrete.id,
+                  action: OfflineWriteAction.update,
+                  data: {
+                    'horarioHour': originalHour,
+                    'horarioMinute': originalMinute,
+                    'concluido': false,
+                    'concluidoComFoto': false,
+                    'status': 'pendente',
+                  },
+                ),
+              );
             }
           }
         }
@@ -766,11 +777,7 @@ class LembreteService {
     final atualizado = lembrete.copyWith(status: status);
     _upsertLocal(atualizado);
     await _salvar();
-    await _registrarEventoLocal(
-      atualizado,
-      status,
-      observacao: observacao,
-    );
+    await _registrarEventoLocal(atualizado, status, observacao: observacao);
     return atualizado;
   }
 
@@ -827,17 +834,14 @@ class LembreteService {
     String? observacao,
   }) async {
     if (_canSyncIdosoId(lembrete.idosoId)) {
-      await OfflineSyncService.instance.updateOrQueue('lembretes', lembrete.id, {
-        'status': status.storageValue,
-        'concluido': status.isConcluido,
-        'concluidoComFoto': status == LembreteStatus.concluidoComFoto,
-      });
+      await OfflineSyncService.instance
+          .updateOrQueue('lembretes', lembrete.id, {
+            'status': status.storageValue,
+            'concluido': status.isConcluido,
+            'concluidoComFoto': status == LembreteStatus.concluidoComFoto,
+          });
     }
-    await _sincronizarEvento(
-      lembrete,
-      status,
-      observacao: observacao,
-    );
+    await _sincronizarEvento(lembrete, status, observacao: observacao);
   }
 
   Future<Lembrete?> _adiarLocal(String id, int minutos) async {
@@ -862,13 +866,14 @@ class LembreteService {
 
   Future<void> _sincronizarAdiamento(Lembrete lembrete, int minutos) async {
     if (_canSyncIdosoId(lembrete.idosoId)) {
-      await OfflineSyncService.instance.updateOrQueue('lembretes', lembrete.id, {
-        'horarioHour': lembrete.horarioHour,
-        'horarioMinute': lembrete.horarioMinute,
-        'status': LembreteStatus.adiado.storageValue,
-        'concluido': false,
-        'concluidoComFoto': false,
-      });
+      await OfflineSyncService.instance
+          .updateOrQueue('lembretes', lembrete.id, {
+            'horarioHour': lembrete.horarioHour,
+            'horarioMinute': lembrete.horarioMinute,
+            'status': LembreteStatus.adiado.storageValue,
+            'concluido': false,
+            'concluidoComFoto': false,
+          });
     }
     await _sincronizarEvento(
       lembrete,
@@ -951,8 +956,9 @@ class LembreteService {
       throw StateError('Vinculo com o idoso nao confirmado.');
     }
     final idosoId = await _getActiveIdosoId();
-    final canUploadRemoteMedia = !SessionRoleService.isElderly ||
-        await SessionRoleService.isElderlyConnectedToSupervisor();
+    final canUploadRemoteMedia =
+        !SessionRoleService.isElderly ||
+        await SessionRoleService.canSyncElderlyPrivateData();
     final titulo = lembrete.titulo.isEmpty
         ? lembrete.titulo
         : lembrete.titulo[0].toUpperCase() + lembrete.titulo.substring(1);
@@ -1035,7 +1041,9 @@ class LembreteService {
     if (kIsWeb) {
       final bytes = await fetchBlobBytes(audioPath);
       if (bytes == null) {
-        throw StateError('Nao foi possivel ler o audio selecionado no navegador.');
+        throw StateError(
+          'Nao foi possivel ler o audio selecionado no navegador.',
+        );
       }
       final snapshot = await ref.putData(
         bytes,
@@ -1076,7 +1084,9 @@ class LembreteService {
     if (kIsWeb) {
       final bytes = await fetchBlobBytes(photoPath);
       if (bytes == null) {
-        throw StateError('Nao foi possivel ler a foto selecionada no navegador.');
+        throw StateError(
+          'Nao foi possivel ler a foto selecionada no navegador.',
+        );
       }
       final snapshot = await ref.putData(
         bytes,
@@ -1099,7 +1109,10 @@ class LembreteService {
 
   Future<bool> concluir(String id) async {
     if (!await _checkConnection()) return false;
-    final atualizado = await _atualizarStatusLocal(id, LembreteStatus.concluido);
+    final atualizado = await _atualizarStatusLocal(
+      id,
+      LembreteStatus.concluido,
+    );
     if (atualizado == null) return false;
     _syncInBackground(
       _sincronizarStatus(atualizado, LembreteStatus.concluido),
@@ -1157,8 +1170,11 @@ class LembreteService {
 
     final updated = _findLocal(id);
     if (updated != null) {
-      await _registrarEvento(updated, LembreteStatus.concluidoComFoto,
-          observacao: 'Medicação confirmada com foto.');
+      await _registrarEvento(
+        updated,
+        LembreteStatus.concluidoComFoto,
+        observacao: 'Medicação confirmada com foto.',
+      );
     }
   }
 
@@ -1190,7 +1206,6 @@ class LembreteService {
       await OfflineSyncService.instance.deleteOrQueue('lembretes', id);
     }
   }
-
 
   Future<void> atualizarHorario(String id, int hour, int minute) async {
     if (!await _checkConnection()) return;
@@ -1256,10 +1271,7 @@ class LembreteService {
   List<Map<String, String>> getActiveMedicationsWithSchedule() {
     return _lembretes
         .where((l) => l.categoria == 'medicacao')
-        .map((l) => {
-              'titulo': l.titulo,
-              'horario': l.horarioFormatado,
-            })
+        .map((l) => {'titulo': l.titulo, 'horario': l.horarioFormatado})
         .toList();
   }
 
@@ -1271,7 +1283,9 @@ class LembreteService {
     try {
       final existing = getActiveMedicationsWithSchedule();
 
-      final callable = FirebaseFunctions.instance.httpsCallable('analyzeMedication');
+      final callable = FirebaseFunctions.instance.httpsCallable(
+        'analyzeMedication',
+      );
       final result = await callable.call({
         'newMedication': newMedication,
         'newMedicationTime': newMedicationTime,
@@ -1293,7 +1307,9 @@ class LembreteService {
   }) async {
     if (!_useFirebase) return 'Serviço de IA indisponível offline.';
     try {
-      final callable = FirebaseFunctions.instance.httpsCallable('queryMedicationFAQ');
+      final callable = FirebaseFunctions.instance.httpsCallable(
+        'queryMedicationFAQ',
+      );
       final result = await callable.call({
         'medicationName': medicationName,
         'question': question,
@@ -1308,5 +1324,4 @@ class LembreteService {
     }
     return 'Não foi possível consultar a bula no momento.';
   }
-
 }

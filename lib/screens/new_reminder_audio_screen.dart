@@ -401,7 +401,6 @@ class _NewReminderAudioScreenState extends State<NewReminderAudioScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: const BoxDecoration(
         color: AppColors.surface,
-        border: Border(bottom: BorderSide(color: AppColors.outlineVariant)),
       ),
       child: Row(
         children: [
@@ -418,7 +417,7 @@ class _NewReminderAudioScreenState extends State<NewReminderAudioScreen> {
               'Gravar Voz do Familiar',
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 28,
+                fontSize: 26,
                 fontWeight: FontWeight.w700,
                 color: AppColors.primary,
               ),

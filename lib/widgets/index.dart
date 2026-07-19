@@ -7,6 +7,7 @@ export 'audio_manager.dart';
 export 'reminder_with_audio.dart';
 export 'alex_floating_help_button.dart';
 export 'supervisor_bottom_nav.dart';
+export 'elderly_bottom_nav.dart';
 export 'elderly_profile_avatar.dart';
 export 'audio_waveform_indicator.dart';
 export 'skeleton_loading.dart';

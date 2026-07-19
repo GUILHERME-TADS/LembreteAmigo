@@ -334,7 +334,9 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
             'Olá! Esta tela mostra todos os seus lembretes de hoje, em ordem de horário.',
         onTapped: _stopAllAudioAndTts,
       ),
-      bottomNavigationBar: _buildBottomNav(context),
+      bottomNavigationBar: const ElderlyBottomNav(
+        selected: ElderlyNavDestination.reminders,
+      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -856,7 +858,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
               Text(
                 'Meus Lembretes',
                 style: TextStyle(
-                  fontSize: 28,
+                  fontSize: 26,
                   fontWeight: FontWeight.w700,
                   color: AppColors.primary,
                 ),
@@ -882,87 +884,5 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
     );
   }
 
-  Widget _buildBottomNav(BuildContext context) {
-    return SafeArea(
-      top: false,
-      child: Container(
-        margin: const EdgeInsets.only(left: 16, right: 16, bottom: 12),
-        height: 88,
-        decoration: BoxDecoration(
-          color: AppColors.surfaceContainerLowest,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: AppColors.primary.withValues(alpha: 0.08),
-            width: 2,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withValues(alpha: 0.06),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _bottomNavItem(Icons.home, 'Início', false, () {
-                _stopAllAudioAndTts();
-                Navigator.pushNamedAndRemoveUntil(
-                  context,
-                  '/elderly-home',
-                  (route) => false,
-                );
-              }),
-              _bottomNavItem(Icons.list_alt, 'Lembretes', true, null),
-              _bottomNavItem(Icons.help_center, 'Ajuda', false, () {
-                _stopAllAudioAndTts();
-                Navigator.pushNamed(context, '/elderly-help');
-              }),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
-  Widget _bottomNavItem(
-    IconData icon,
-    String label,
-    bool selected,
-    VoidCallback? onTap,
-  ) {
-    final itemColor = selected ? AppColors.primary : AppColors.onSurfaceVariant;
-
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-          decoration: BoxDecoration(
-            color: selected ? AppColors.secondaryContainer : null,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 28, color: itemColor),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                  color: itemColor,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }

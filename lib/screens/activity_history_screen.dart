@@ -776,7 +776,6 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 20),
           decoration: const BoxDecoration(
             color: AppColors.surface,
-            border: Border(bottom: BorderSide(color: AppColors.outlineVariant)),
           ),
           child: Row(
             children: [
@@ -788,7 +787,7 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
                 child: Text(
                   'Lembrete Amigo',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.primary),
+                  style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700, color: AppColors.primary),
                 ),
               ),
               const SizedBox(width: 48),

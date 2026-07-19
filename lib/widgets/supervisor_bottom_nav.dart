@@ -93,27 +93,23 @@ class _SupervisorBottomNavState extends State<SupervisorBottomNav> {
                     ? null
                     : () => _handleTap('/supervisor-dashboard', context),
               ),
-              Opacity(
+              _SupervisorNavItem(
+                icon: Icons.add_circle,
+                label: 'Novo',
+                selected: widget.selected == SupervisorNavDestination.newReminder,
                 opacity: _isConnected ? 1.0 : 0.4,
-                child: _SupervisorNavItem(
-                  icon: Icons.add_circle,
-                  label: 'Novo',
-                  selected: widget.selected == SupervisorNavDestination.newReminder,
-                  onTap: widget.selected == SupervisorNavDestination.newReminder
-                      ? null
-                      : () => _handleTap('/new-reminder', context),
-                ),
+                onTap: widget.selected == SupervisorNavDestination.newReminder
+                    ? null
+                    : () => _handleTap('/new-reminder', context),
               ),
-              Opacity(
+              _SupervisorNavItem(
+                icon: Icons.history,
+                label: 'Histórico',
+                selected: widget.selected == SupervisorNavDestination.history,
                 opacity: _isConnected ? 1.0 : 0.4,
-                child: _SupervisorNavItem(
-                  icon: Icons.history,
-                  label: 'Histórico',
-                  selected: widget.selected == SupervisorNavDestination.history,
-                  onTap: widget.selected == SupervisorNavDestination.history
-                      ? null
-                      : () => _handleTap('/activity-history', context),
-                ),
+                onTap: widget.selected == SupervisorNavDestination.history
+                    ? null
+                    : () => _handleTap('/activity-history', context),
               ),
               _SupervisorNavItem(
                 icon: Icons.help_center,
@@ -136,12 +132,14 @@ class _SupervisorNavItem extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback? onTap;
+  final double opacity;
 
   const _SupervisorNavItem({
     required this.icon,
     required this.label,
     required this.selected,
     required this.onTap,
+    this.opacity = 1.0,
   });
 
   @override
@@ -149,31 +147,34 @@ class _SupervisorNavItem extends StatelessWidget {
     final itemColor = selected ? AppColors.primary : AppColors.onSurfaceVariant;
 
     return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-          decoration: BoxDecoration(
-            color: selected ? AppColors.secondaryContainer : Colors.transparent,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 28, color: itemColor),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w900,
-                  color: itemColor,
+      child: Opacity(
+        opacity: opacity,
+        child: GestureDetector(
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+            decoration: BoxDecoration(
+              color: selected ? AppColors.secondaryContainer : Colors.transparent,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 28, color: itemColor),
+                const SizedBox(height: 4),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w900,
+                    color: itemColor,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

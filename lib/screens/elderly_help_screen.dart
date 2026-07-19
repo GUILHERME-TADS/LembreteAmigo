@@ -528,7 +528,9 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
           ],
         ),
       ),
-      bottomNavigationBar: _buildBottomNav(context),
+      bottomNavigationBar: const ElderlyBottomNav(
+        selected: ElderlyNavDestination.help,
+      ),
     );
   }
 
@@ -548,7 +550,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
               Text(
                 'Pedir ajuda',
                 style: TextStyle(
-                  fontSize: 28,
+                  fontSize: 26,
                   fontWeight: FontWeight.w700,
                   color: AppColors.primary,
                 ),
@@ -989,89 +991,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
     );
   }
 
-  Widget _buildBottomNav(BuildContext context) {
-    return SafeArea(
-      top: false,
-      child: Container(
-        margin: const EdgeInsets.only(left: 16, right: 16, bottom: 12),
-        height: 88,
-        decoration: BoxDecoration(
-          color: AppColors.surfaceContainerLowest,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: AppColors.primary.withValues(alpha: 0.08),
-            width: 2,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withValues(alpha: 0.06),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _bottomNavItem(Icons.home, 'Início', false, () {
-                TTSService.instance.parar(caller: this);
-                Navigator.pushNamedAndRemoveUntil(
-                  context,
-                  '/elderly-home',
-                  (route) => false,
-                );
-              }),
-              _bottomNavItem(Icons.list_alt, 'Lembretes', false, () {
-                TTSService.instance.parar(caller: this);
-                Navigator.pushNamed(context, '/all-reminders');
-              }),
-              _bottomNavItem(Icons.help_center, 'Ajuda', true, null),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
-  Widget _bottomNavItem(
-    IconData icon,
-    String label,
-    bool selected,
-    VoidCallback? onTap,
-  ) {
-    final itemColor = selected ? AppColors.primary : AppColors.onSurfaceVariant;
-
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-          decoration: BoxDecoration(
-            color: selected ? AppColors.secondaryContainer : null,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 28, color: itemColor),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                  color: itemColor,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
 
 

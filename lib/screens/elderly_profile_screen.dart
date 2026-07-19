@@ -602,7 +602,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
               Text(
                 'Meus Dados',
                 style: TextStyle(
-                  fontSize: 28,
+                  fontSize: 26,
                   fontWeight: FontWeight.w700,
                   color: AppColors.primary,
                 ),

@@ -643,7 +643,6 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 20),
       decoration: const BoxDecoration(
         color: AppColors.surface,
-        border: Border(bottom: BorderSide(color: AppColors.outlineVariant)),
       ),
       child: Row(
         children: [
@@ -660,21 +659,13 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
               'Lembrete Amigo',
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 28,
+                fontSize: 26,
                 fontWeight: FontWeight.w700,
                 color: AppColors.primary,
               ),
             ),
           ),
-          Container(
-            width: 40,
-            height: 40,
-            decoration: const BoxDecoration(
-              color: AppColors.primaryContainer,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.person, size: 20, color: AppColors.primary),
-          ),
+          const SizedBox(width: 48),
         ],
       ),
     );

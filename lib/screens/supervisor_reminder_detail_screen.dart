@@ -257,7 +257,6 @@ class SupervisorReminderDetailScreen extends StatelessWidget {
       height: 64,
       decoration: const BoxDecoration(
         color: AppColors.surface,
-        border: Border(bottom: BorderSide(color: AppColors.outlineVariant)),
       ),
       child: Row(
         children: [
@@ -269,7 +268,7 @@ class SupervisorReminderDetailScreen extends StatelessWidget {
             child: Text(
               'Detalhes',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: accentColor),
+              style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700, color: accentColor),
             ),
           ),
           const SizedBox(width: 48),

@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -568,7 +568,6 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 20),
           decoration: const BoxDecoration(
             color: AppColors.surface,
-            border: Border(bottom: BorderSide(color: AppColors.outlineVariant)),
           ),
           child: Row(
             children: [
@@ -581,7 +580,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                   'Lembrete Amigo',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 24,
+                    fontSize: 26,
                     fontWeight: FontWeight.w700,
                     color: AppColors.primary,
                   ),

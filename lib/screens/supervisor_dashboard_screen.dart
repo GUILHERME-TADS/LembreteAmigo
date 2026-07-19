@@ -568,7 +568,6 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 20),
       decoration: const BoxDecoration(
         color: AppColors.surface,
-        border: Border(bottom: BorderSide(color: AppColors.outlineVariant)),
       ),
       child: Row(
         children: [

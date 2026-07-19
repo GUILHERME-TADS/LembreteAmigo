@@ -66,7 +66,6 @@ class PhotoGalleryScreen extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: const BoxDecoration(
         color: AppColors.surface,
-        border: Border(bottom: BorderSide(color: AppColors.outlineVariant)),
       ),
       child: Row(
         children: [
@@ -81,7 +80,7 @@ class PhotoGalleryScreen extends StatelessWidget {
             child: Text(
               'Galeria de Fotos',
               style: TextStyle(
-                fontSize: 22,
+                fontSize: 26,
                 fontWeight: FontWeight.w700,
                 color: AppColors.primary,
               ),

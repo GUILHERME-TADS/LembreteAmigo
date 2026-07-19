@@ -497,7 +497,6 @@ class _SupervisorHelpScreenState extends State<SupervisorHelpScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 20),
           decoration: const BoxDecoration(
             color: AppColors.surface,
-            border: Border(bottom: BorderSide(color: AppColors.outlineVariant)),
           ),
           child: Row(
             children: [
@@ -512,7 +511,7 @@ class _SupervisorHelpScreenState extends State<SupervisorHelpScreen> {
                   children: [
                     Icon(Icons.health_and_safety, size: 32, color: AppColors.primary),
                     SizedBox(width: 8),
-                    Text('Cuidador', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.primary)),
+                    Text('Cuidador', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: AppColors.primary)),
                   ],
                 ),
               ),

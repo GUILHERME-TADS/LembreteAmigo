@@ -72,18 +72,19 @@ class RemoteMediaCacheService {
   }
 
   String _fileName(String url) {
-    var hash = 0xcbf29ce484222325;
+    int hash = 0x811c9dc5;
     for (final unit in url.codeUnits) {
       hash ^= unit;
-      hash = (hash * 0x100000001b3) & 0x7fffffffffffffff;
+      hash = (hash * 0x01000193) & 0xFFFFFFFF;
     }
+    final hashString = hash.toUnsigned(32).toRadixString(16).padLeft(8, '0');
     final decoded = Uri.decodeFull(url).toLowerCase();
     const extensions = ['.m4a', '.mp3', '.wav', '.aac', '.ogg', '.jpg', '.jpeg', '.png', '.webp'];
     final extension = extensions.firstWhere(
       decoded.contains,
       orElse: () => '.bin',
     );
-    return '${hash.toRadixString(16)}$extension';
+    return '$hashString$extension';
   }
 
   Future<void> _trimCache(Directory directory) async {

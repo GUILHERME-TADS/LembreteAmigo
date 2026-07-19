@@ -403,55 +403,32 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
                           const SizedBox(height: 12),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 20,
-                                  vertical: 12,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFE3F2FD),
-                                  border: Border.all(
-                                    color: Color(0xFF1976D2),
-                                    width: 3,
+                            children: List.generate(6, (index) {
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                                child: Container(
+                                  width: 48,
+                                  height: 64,
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.surfaceContainerLowest,
+                                    border: Border.all(
+                                      color: AppColors.primary,
+                                      width: 2.5,
+                                    ),
+                                    borderRadius: BorderRadius.circular(12),
                                   ),
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: Text(
-                                  _pairingCode!.substring(0, 3),
-                                  style: const TextStyle(
-                                    fontSize: 36,
-                                    fontWeight: FontWeight.w900,
-                                    color: Color(0xFF0D47A1),
-                                    letterSpacing: 2,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 20,
-                                  vertical: 12,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFFFF3E0),
-                                  border: Border.all(
-                                    color: Color(0xFFF57C00),
-                                    width: 3,
-                                  ),
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: Text(
-                                  _pairingCode!.substring(3, 6),
-                                  style: const TextStyle(
-                                    fontSize: 36,
-                                    fontWeight: FontWeight.w900,
-                                    color: Color(0xFFE65100),
-                                    letterSpacing: 2,
+                                  child: Text(
+                                    _pairingCode![index],
+                                    style: const TextStyle(
+                                      fontSize: 40,
+                                      fontWeight: FontWeight.w900,
+                                      color: AppColors.primary,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
+                              );
+                            }),
                           ),
                         ],
                         if (_errorMessage != null) ...[

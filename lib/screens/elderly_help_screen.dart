@@ -36,6 +36,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
   bool _isPaired = false;
   bool _isSendingLocation = false;
   bool _isMessageDialogOpen = false;
+  bool _isProcessingAction = false;
 
   @override
   void initState() {
@@ -584,9 +585,15 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
           const Spacer(),
           GestureDetector(
             onTap: () async {
-              TTSService.instance.parar(caller: this);
-              await Navigator.pushNamed(context, '/elderly-profile');
-              _loadProfilePhoto();
+              if (_isProcessingAction) return;
+              setState(() => _isProcessingAction = true);
+              try {
+                TTSService.instance.parar(caller: this);
+                await Navigator.pushNamed(context, '/elderly-profile');
+                _loadProfilePhoto();
+              } finally {
+                if (mounted) setState(() => _isProcessingAction = false);
+              }
             },
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -882,16 +889,24 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                   borderRadius: BorderRadius.circular(AppRadius.lg),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(AppRadius.lg),
-                    onTap: () {
+                    onTap: () async {
+                      if (_isProcessingAction) return;
                       if (!_isPaired) {
                         _speakUnpairedWarning();
                         return;
                       }
-                      TTSService.instance.falar(
-                        'Abrindo os recados do seu cuidador.',
-                        caller: this,
-                      );
-                      Navigator.pushNamed(context, '/messages');
+                      setState(() => _isProcessingAction = true);
+                      try {
+                        await TTSService.instance.falar(
+                          'Abrindo os recados do seu cuidador.',
+                          caller: this,
+                        );
+                        if (mounted) {
+                          await Navigator.pushNamed(context, '/messages');
+                        }
+                      } finally {
+                        if (mounted) setState(() => _isProcessingAction = false);
+                      }
                     },
                     child: Container(
                       height: 110,
@@ -1210,21 +1225,29 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
   }
 
   void _ligar(String numero) async {
-    final Uri launchUri = Uri(scheme: 'tel', path: numero);
-    if (await canLaunchUrl(launchUri)) {
-      await launchUrl(launchUri);
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Não consegui abrir a ligação no celular.'),
-          ),
-        );
+    if (_isProcessingAction) return;
+    setState(() => _isProcessingAction = true);
+    try {
+      final Uri launchUri = Uri(scheme: 'tel', path: numero);
+      if (await canLaunchUrl(launchUri)) {
+        await launchUrl(launchUri);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Não consegui abrir a ligação no celular.'),
+            ),
+          );
+        }
       }
+    } finally {
+      if (mounted) setState(() => _isProcessingAction = false);
     }
   }
 
   Future<void> _initiateCall(String callType) async {
+    if (_isProcessingAction) return;
+    setState(() => _isProcessingAction = true);
     try {
       final prefs = await SharedPreferences.getInstance();
       final idosoId = prefs.getString('paired_idoso_id');
@@ -1253,11 +1276,6 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Não consegui começar a ligação de $label.')),
         );
-      } else if (mounted) {
-        final label = callType == 'voice' ? 'voz' : 'vídeo';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Não consegui começar a ligação de $label.')),
-        );
       }
     } catch (e) {
       if (mounted) {
@@ -1266,6 +1284,8 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
           SnackBar(content: Text('Não consegui começar a ligação de $label.')),
         );
       }
+    } finally {
+      if (mounted) setState(() => _isProcessingAction = false);
     }
   }
 

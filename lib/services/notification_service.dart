@@ -23,14 +23,10 @@ class NotificationService {
   static const String _supervisorAlertPayloadPrefix = 'supervisor_alert:';
   static const String callAcceptAction = 'call_accept';
   static const String callDeclineAction = 'call_decline';
-  static const String reminderDoneAction = 'reminder_done';
-  static const String reminderPostponeAction = 'reminder_postpone';
-  static const String reminderHelpAction = 'reminder_help';
   static const String messageOpenAction = 'message_open';
   static const String messageReadAction = 'message_read';
   static const String supervisorOpenAction = 'supervisor_open';
   static const String supervisorCallAction = 'supervisor_call';
-  static const String _reminderCategory = 'reminder_actions';
   static const String _messageCategory = 'message_actions';
   static const String _callCategory = 'incoming_call_actions';
   static const String _scheduledRegistryKey = 'scheduled_reminder_registry_v2';
@@ -124,8 +120,6 @@ class NotificationService {
   /// Callback disparado quando o usuário toca em uma notificação de lembrete.
   /// O payload contém o ID do lembrete.
   FutureOr<void> Function(String lembreteId)? onNotificationTapped;
-  FutureOr<void> Function(String lembreteId, String actionId)?
-  onReminderAction;
   FutureOr<void> Function(String messageId, String actionId)? onMessageAction;
 
   FutureOr<void> Function(
@@ -169,17 +163,6 @@ class NotificationService {
                 DarwinNotificationAction.plain(callAcceptAction, 'Atender',
                     options: <DarwinNotificationActionOption>{DarwinNotificationActionOption.foreground}),
                 DarwinNotificationAction.plain(callDeclineAction, 'Recusar',
-                    options: <DarwinNotificationActionOption>{DarwinNotificationActionOption.foreground}),
-              ],
-            ),
-            DarwinNotificationCategory(
-              _reminderCategory,
-              actions: <DarwinNotificationAction>[
-                DarwinNotificationAction.plain(reminderDoneAction, 'Concluir',
-                    options: <DarwinNotificationActionOption>{DarwinNotificationActionOption.foreground}),
-                DarwinNotificationAction.plain(reminderPostponeAction, 'Adiar 10 min',
-                    options: <DarwinNotificationActionOption>{DarwinNotificationActionOption.foreground}),
-                DarwinNotificationAction.plain(reminderHelpAction, 'Preciso de ajuda',
                     options: <DarwinNotificationActionOption>{DarwinNotificationActionOption.foreground}),
               ],
             ),
@@ -264,13 +247,8 @@ class NotificationService {
       return;
     }
 
-    if (response.actionId == reminderDoneAction ||
-        response.actionId == reminderPostponeAction ||
-        response.actionId == reminderHelpAction) {
-      await _runOnce(
-        '${response.actionId}:$payload',
-        () => onReminderAction?.call(payload, response.actionId!),
-      );
+    if (isMissedCallPayload(payload)) {
+      _navigatorKey?.currentState?.pushNamed('/video-call-history');
       return;
     }
 
@@ -780,113 +758,12 @@ class NotificationService {
       // Usa o AlarmService (Pacote alarm) com o áudio gerado
       await AlarmService.instance.agendarAlarmeLembrete(lembrete, scheduledDate, audioPath, notificationId);
     } else {
-      // Fallback para notificações locais antigas se o TTS falhar
-      await _plugin.zonedSchedule(
-        notificationId,
-        lembrete.categoria == LembreteCategoria.medicacao
-            ? 'Hora do medicamento'
-            : 'Lembrete de ${LembreteCategoria.nome(lembrete.categoria)}',
-        '${lembrete.horarioFormatado} • ${lembrete.titulo}',
-        scheduledDate,
-        _reminderNotificationDetails(lembrete),
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
-        payload: lembrete.id,
-        matchDateTimeComponents: matchDateTimeComponents,
-      );
+      debugPrint('Falha ao gerar TTS para lembrete ${lembrete.id}, alarme não agendado localmente.');
     }
     
     _scheduledReminderIds.putIfAbsent(lembrete.id, () => <int>{}).add(
           notificationId,
         );
-  }
-
-  NotificationDetails _reminderNotificationDetails(Lembrete lembrete) {
-    final isMedication = lembrete.categoria == LembreteCategoria.medicacao;
-    final category = LembreteCategoria.normalizar(lembrete.categoria);
-
-    // Mapeamento de cores premium para cada categoria
-    final Color categoryColor = switch (category) {
-      LembreteCategoria.medicacao => const Color(0xFF7B1FA2), // Roxo
-      LembreteCategoria.refeicoes => const Color(0xFFD4762C), // Laranja
-      LembreteCategoria.hidratacao => const Color(0xFF0061A4), // Azul
-      LembreteCategoria.exercicio => const Color(0xFF007A3E), // Verde
-      _ => const Color(0xFF546E7A), // Cinza Customizado
-    };
-
-    final contentTitle = isMedication
-        ? '💊 Hora do medicamento'
-        : '🔔 Lembrete de ${LembreteCategoria.nome(lembrete.categoria)}';
-
-    final bodyText = (isMedication && lembrete.medicamentoInstrucoes != null && lembrete.medicamentoInstrucoes!.isNotEmpty)
-        ? '${lembrete.horarioFormatado} • ${lembrete.titulo}\nInstruções: ${lembrete.medicamentoInstrucoes}'
-        : '${lembrete.horarioFormatado} • ${lembrete.titulo}';
-
-    final AndroidNotificationDetails androidDetails =
-        AndroidNotificationDetails(
-          isMedication
-              ? 'medicamentos_alarm_channel_v2'
-              : 'lembretes_gerais_channel_v2',
-          isMedication ? 'Medicamentos' : 'Lembretes gerais',
-          channelDescription: isMedication
-              ? 'Alarmes e confirmações de medicamentos'
-              : 'Refeições, hidratação, exercícios e outros lembretes',
-          importance: Importance.max,
-          priority: Priority.max,
-          category: AndroidNotificationCategory.alarm,
-          playSound: true,
-          enableVibration: true,
-          // Vibração customizada rítmica para medicamentos
-          vibrationPattern: isMedication
-              ? Int64List.fromList([0, 1000, 500, 1000, 500, 1000, 500, 1000])
-              : null,
-          color: categoryColor,
-          ledColor: categoryColor,
-          ledOnMs: 1000,
-          ledOffMs: 500,
-          fullScreenIntent: true,
-          visibility: NotificationVisibility.private,
-          audioAttributesUsage: AudioAttributesUsage.alarm,
-          groupKey: 'lembrete_amigo_lembretes',
-          onlyAlertOnce: true,
-          styleInformation: BigTextStyleInformation(
-            bodyText,
-            contentTitle: contentTitle,
-            summaryText: 'Lembrete',
-          ),
-          actions: <AndroidNotificationAction>[
-            AndroidNotificationAction(
-              reminderDoneAction,
-              isMedication ? 'Tomei' : 'Concluir',
-              showsUserInterface: true,
-              cancelNotification: true,
-            ),
-            const AndroidNotificationAction(
-              reminderPostponeAction,
-              'Adiar 10 min',
-              showsUserInterface: true,
-              cancelNotification: true,
-            ),
-            const AndroidNotificationAction(
-              reminderHelpAction,
-              'Preciso de ajuda',
-              showsUserInterface: true,
-              cancelNotification: true,
-            ),
-          ],
-        );
-
-    const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: true,
-      interruptionLevel: InterruptionLevel.timeSensitive,
-      categoryIdentifier: _reminderCategory,
-      threadIdentifier: 'lembrete_amigo_lembretes',
-    );
-
-    return NotificationDetails(android: androidDetails, iOS: iosDetails);
   }
 
   List<tz.TZDateTime> _nextOccurrences(Lembrete lembrete, tz.TZDateTime now) {

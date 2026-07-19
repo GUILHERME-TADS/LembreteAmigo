@@ -635,9 +635,15 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () {
-          _stopAllAudioAndTts();
-          Navigator.pushNamed(context, '/reminder-detail', arguments: lembrete);
+        onTap: () async {
+          if (_isProcessingAction) return;
+          setState(() => _isProcessingAction = true);
+          try {
+            _stopAllAudioAndTts();
+            await Navigator.pushNamed(context, '/reminder-detail', arguments: lembrete);
+          } finally {
+            if (mounted) setState(() => _isProcessingAction = false);
+          }
         },
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,

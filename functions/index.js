@@ -1085,21 +1085,35 @@ exports.sendPush = onCall({cors: true, secrets: []}, async (request) => {
                 ]),
         ) : {};
 
+    const isIncomingCall = validatedData.type === "video_call";
     const message = {
       token,
-      notification: {title: validatedTitle, body: validatedBody},
       data: validatedData,
-      android: {priority: "high"},
+      android: {
+        priority: "high",
+        ttl: 60000,
+      },
       apns: {
+        headers: {"apns-priority": "10"},
         payload: {
           aps: {
             "sound": "default",
             "badge": 1,
             "content-available": 1,
+            "alert": isIncomingCall ? {
+              title: validatedTitle,
+              body: validatedBody,
+            } : undefined,
           },
         },
       },
     };
+
+    // No Android, chamadas precisam ser data-only para que o app construa
+    // uma notificacao de categoria CALL com full-screen intent.
+    if (!isIncomingCall) {
+      message.notification = {title: validatedTitle, body: validatedBody};
+    }
 
     const response = await admin.messaging().send(message);
     return {success: true, messageId: response};

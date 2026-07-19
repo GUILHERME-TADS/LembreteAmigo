@@ -6,10 +6,15 @@ import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_theme.dart';
 import 'package:firebase_core/firebase_core.dart';
 import '../services/session_role_service.dart';
+import '../models/lembrete.dart';
+import '../utils/reminder_state_helper.dart';
 import '../widgets/index.dart';
 
 class EmergencyAlertScreen extends StatefulWidget {
-  const EmergencyAlertScreen({super.key});
+  final Lembrete? lembrete;
+  final int totalAlertas;
+
+  const EmergencyAlertScreen({super.key, this.lembrete, this.totalAlertas = 0});
 
   @override
   State<EmergencyAlertScreen> createState() => _EmergencyAlertScreenState();
@@ -74,7 +79,9 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
     if (_idosoPhone.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Telefone do idoso não cadastrado. Adicione um telefone nas configurações.'),
+          content: Text(
+            'Telefone do idoso não cadastrado. Adicione um telefone nas configurações.',
+          ),
           backgroundColor: AppColors.error,
         ),
       );
@@ -94,6 +101,57 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
     } catch (e) {
       debugPrint('Erro ao abrir discador: $e');
     }
+  }
+
+  String get _motivoAlerta {
+    final lembrete = widget.lembrete;
+    if (lembrete == null)
+      return 'Existe uma atividade recente que precisa de verificacao.';
+    switch (reminderVisualStatusFromLembrete(lembrete)) {
+      case ReminderStatus.needsHelp:
+        return 'pediu ajuda no lembrete "${lembrete.titulo}".';
+      case ReminderStatus.missed:
+        return 'nao confirmou o lembrete "${lembrete.titulo}".';
+      case ReminderStatus.late:
+        return 'esta atrasado para confirmar o lembrete "${lembrete.titulo}".';
+      default:
+        return 'tem uma atividade que precisa de verificacao.';
+    }
+  }
+
+  IconData get _categoryIcon {
+    switch (LembreteCategoria.normalizar(widget.lembrete?.categoria)) {
+      case LembreteCategoria.medicacao:
+        return Icons.medical_services;
+      case LembreteCategoria.refeicoes:
+        return Icons.restaurant;
+      case LembreteCategoria.exercicio:
+        return Icons.directions_walk;
+      case LembreteCategoria.hidratacao:
+        return Icons.water_drop;
+      default:
+        return Icons.notifications;
+    }
+  }
+
+  void _verDetalhes() {
+    final lembrete = widget.lembrete;
+    if (lembrete == null) {
+      Navigator.pop(context);
+      return;
+    }
+    Navigator.pushNamed(
+      context,
+      '/supervisor-reminder-detail',
+      arguments: {
+        'title': lembrete.titulo,
+        'time': lembrete.horarioFormatado,
+        'iconData': _categoryIcon,
+        'accentColor': AppColors.error,
+        'category': LembreteCategoria.nome(lembrete.categoria),
+        'lembrete': lembrete,
+      },
+    );
   }
 
   @override
@@ -132,7 +190,7 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
                             children: [
                               Icon(Icons.error, color: Colors.white, size: 28),
                               SizedBox(width: 12),
-                               Expanded(
+                              Expanded(
                                 child: Text(
                                   'ALERTA CRÍTICO',
                                   maxLines: 1,
@@ -185,7 +243,7 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          'ALERTA: $_idosoName não confirmou a atividade recente agendada.',
+                          'ALERTA: $_idosoName $_motivoAlerta',
                           textAlign: TextAlign.center,
                           style: const TextStyle(
                             fontSize: 18,
@@ -194,7 +252,31 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
                             color: AppColors.onSurfaceVariant,
                           ),
                         ),
-                        const SizedBox(height: 32),
+                        if (widget.lembrete != null) ...[
+                          Text(
+                            '${LembreteCategoria.nome(widget.lembrete!.categoria)} - ${widget.lembrete!.horarioFormatado}',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.onSurface,
+                            ),
+                          ),
+                          if (widget.totalAlertas > 1) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              '+ ${widget.totalAlertas - 1} outro${widget.totalAlertas == 2 ? '' : 's'} alerta${widget.totalAlertas == 2 ? '' : 's'} ativo${widget.totalAlertas == 2 ? '' : 's'}',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.error,
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 24),
+                        ],
+                        const SizedBox(height: 8),
                         SizedBox(
                           width: double.infinity,
                           height: 64,
@@ -224,7 +306,7 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
                           width: double.infinity,
                           height: 56,
                           child: ElevatedButton.icon(
-                            onPressed: () => Navigator.pop(context),
+                            onPressed: _verDetalhes,
                             icon: const Icon(Icons.visibility, size: 24),
                             label: const Text(
                               'Ver Detalhes',

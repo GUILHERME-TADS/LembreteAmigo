@@ -4,13 +4,41 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../services/session_role_service.dart';
 import '../services/app_status_service.dart';
+import '../services/notification_service.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
-  debugPrint('FCM background: ${message.messageId} ${message.notification?.title}');
+  debugPrint(
+    'FCM background: ${message.messageId} ${message.notification?.title}',
+  );
+  if (message.data['type'] != 'video_call') return;
+
+  final callId = message.data['callId'];
+  final roomName = message.data['roomName'];
+  final callType = message.data['callType'] ?? 'video';
+  if (callId == null ||
+      callId.isEmpty ||
+      roomName == null ||
+      roomName.isEmpty) {
+    return;
+  }
+
+  final plugin = FlutterLocalNotificationsPlugin();
+  const settings = InitializationSettings(
+    android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+    iOS: DarwinInitializationSettings(),
+  );
+  await plugin.initialize(settings);
+  await NotificationService.showIncomingCallNotification(
+    plugin: plugin,
+    callId: callId,
+    roomName: roomName,
+    callType: callType,
+  );
 }
 
 class PushNotificationService {
@@ -27,10 +55,12 @@ class PushNotificationService {
 
   /// Callback disparado quando chega uma notificação de chamada de vídeo/voz.
   /// Recebe (callId, roomName, callType).
-  void Function(String callId, String roomName, String callType)? onVideoCallReceived;
+  void Function(String callId, String roomName, String callType)?
+  onVideoCallReceived;
 
   /// Callback disparado quando o app é aberto via notificação de vídeo/voz.
-  void Function(String callId, String roomName, String callType)? onVideoCallOpenedApp;
+  void Function(String callId, String roomName, String callType)?
+  onVideoCallOpenedApp;
 
   bool get _useFirebase {
     try {
@@ -74,6 +104,11 @@ class PushNotificationService {
       _messageController.add(message);
       _handleVideoCallMessage(message, fromBackground: true);
     });
+
+    final initialMessage = await _messaging!.getInitialMessage();
+    if (initialMessage != null) {
+      _handleVideoCallMessage(initialMessage, fromBackground: true);
+    }
   }
 
   Future<void> _saveToken() async {
@@ -93,11 +128,11 @@ class PushNotificationService {
           .collection('fcm_tokens')
           .doc('${role}_$id')
           .set({
-        'token': _currentToken,
-        'role': role,
-        'userId': id,
-        'updatedAt': DateTime.now().toIso8601String(),
-      });
+            'token': _currentToken,
+            'role': role,
+            'userId': id,
+            'updatedAt': DateTime.now().toIso8601String(),
+          });
     } catch (e) {
       debugPrint('Erro ao salvar FCM token: $e');
       AppStatusService.instance.report(
@@ -112,7 +147,10 @@ class PushNotificationService {
 
   String? get currentToken => _currentToken;
 
-  void _handleVideoCallMessage(RemoteMessage message, {required bool fromBackground}) {
+  void _handleVideoCallMessage(
+    RemoteMessage message, {
+    required bool fromBackground,
+  }) {
     if (message.data['type'] != 'video_call') return;
 
     final callId = message.data['callId'] as String?;
@@ -123,6 +161,11 @@ class PushNotificationService {
     if (fromBackground) {
       onVideoCallOpenedApp?.call(callId, roomName, callType);
     } else {
+      NotificationService.instance.mostrarChamadaRecebida(
+        callId: callId,
+        roomName: roomName,
+        callType: callType,
+      );
       onVideoCallReceived?.call(callId, roomName, callType);
     }
   }

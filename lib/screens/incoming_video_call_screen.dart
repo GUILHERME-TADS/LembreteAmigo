@@ -7,6 +7,7 @@ import 'package:firebase_core/firebase_core.dart';
 import '../theme/app_theme.dart';
 import '../services/session_role_service.dart';
 import '../services/video_call_service.dart';
+import '../services/notification_service.dart';
 import '../services/tts_service.dart';
 import '../models/video_call.dart';
 
@@ -51,7 +52,9 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen>
 
     _loadCallerName();
     VideoCallService.instance.watchCall(widget.callId);
-    VideoCallService.instance.activeCallNotifier.addListener(_onActiveCallChanged);
+    VideoCallService.instance.activeCallNotifier.addListener(
+      _onActiveCallChanged,
+    );
     _startVibration();
     _startTtsLoop();
   }
@@ -90,8 +93,8 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen>
       final isVoice = widget.callType == 'voice';
       final msg = SessionRoleService.isElderly
           ? (isVoice
-              ? '$_callerName quer falar com você. Toque no botão verde grande para atender.'
-              : '$_callerName quer fazer uma ligação com imagem com você. Toque no botão verde grande para atender.')
+                ? '$_callerName quer falar com você. Toque no botão verde grande para atender.'
+                : '$_callerName quer fazer uma ligação com imagem com você. Toque no botão verde grande para atender.')
           : 'Ligação de ${isVoice ? 'voz' : 'vídeo'} de $_callerName.';
       TTSService.instance.falar(msg, caller: this);
     } catch (_) {}
@@ -135,7 +138,9 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen>
 
   @override
   void dispose() {
-    VideoCallService.instance.activeCallNotifier.removeListener(_onActiveCallChanged);
+    VideoCallService.instance.activeCallNotifier.removeListener(
+      _onActiveCallChanged,
+    );
     TTSService.instance.parar(caller: this);
     _cleanupTimers();
     _pulseController.dispose();
@@ -159,8 +164,7 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen>
               .collection('idoso_perfil')
               .doc(idosoId)
               .get();
-          String? supervisorId =
-              perfilDoc.data()?['supervisorId'] as String?;
+          String? supervisorId = perfilDoc.data()?['supervisorId'] as String?;
           if (supervisorId == null || supervisorId.isEmpty) {
             final idosoDoc = await FirebaseFirestore.instance
                 .collection('idosos')
@@ -222,6 +226,7 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen>
 
   Future<void> _accept() async {
     _cleanupTimers();
+    await NotificationService.instance.cancelarChamada(widget.callId);
     setState(() => _accepted = true);
     await VideoCallService.instance.acceptCall(widget.callId);
     if (!mounted) return;
@@ -236,6 +241,7 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen>
 
   Future<void> _decline() async {
     _cleanupTimers();
+    await NotificationService.instance.cancelarChamada(widget.callId);
     await VideoCallService.instance.declineCall(widget.callId);
     _leaveIncomingScreen();
   }
@@ -243,7 +249,8 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen>
   @override
   Widget build(BuildContext context) {
     final isElderly = SessionRoleService.isElderly;
-    final isHighContrast = Theme.of(context).brightness == Brightness.light &&
+    final isHighContrast =
+        Theme.of(context).brightness == Brightness.light &&
         Theme.of(context).colorScheme.primary == Colors.black;
 
     final isVoice = widget.callType == 'voice';
@@ -271,7 +278,11 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen>
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.warning, color: Colors.white, size: 28),
+                        const Icon(
+                          Icons.warning,
+                          color: Colors.white,
+                          size: 28,
+                        ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
@@ -299,14 +310,26 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen>
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: (_isSosCall ? AppColors.error : AppColors.primary)
-                                .withValues(alpha: 0.2 * (1.0 - _pulseController.value)),
+                            color:
+                                (_isSosCall
+                                        ? AppColors.error
+                                        : AppColors.primary)
+                                    .withValues(
+                                      alpha:
+                                          0.2 * (1.0 - _pulseController.value),
+                                    ),
                             blurRadius: 30 * _pulseController.value,
                             spreadRadius: 25 * _pulseController.value,
                           ),
                           BoxShadow(
-                            color: (_isSosCall ? AppColors.error : AppColors.primary)
-                                .withValues(alpha: 0.3 * (1.0 - _pulseController.value)),
+                            color:
+                                (_isSosCall
+                                        ? AppColors.error
+                                        : AppColors.primary)
+                                    .withValues(
+                                      alpha:
+                                          0.3 * (1.0 - _pulseController.value),
+                                    ),
                             blurRadius: 15 * _pulseController.value,
                             spreadRadius: 10 * _pulseController.value,
                           ),
@@ -354,9 +377,14 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen>
 
                 // Badge Call Type Description
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
-                    color: isVoice ? const Color(0xFF1A237E) : const Color(0xFF006064),
+                    color: isVoice
+                        ? const Color(0xFF1A237E)
+                        : const Color(0xFF006064),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
@@ -459,9 +487,7 @@ class _CallActionButton extends StatelessWidget {
           child: IconButton(
             onPressed: onPressed,
             icon: Icon(icon, color: Colors.white, size: large ? 40 : 32),
-            style: IconButton.styleFrom(
-              backgroundColor: Colors.transparent,
-            ),
+            style: IconButton.styleFrom(backgroundColor: Colors.transparent),
           ),
         ),
         const SizedBox(height: 12),

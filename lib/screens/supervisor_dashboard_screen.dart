@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -108,8 +108,6 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     }
   }
 
-
-
   @override
   void initState() {
     super.initState();
@@ -150,8 +148,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     for (int i = 13; i >= 0; i--) {
       final day = DateTime(now.year, now.month, now.day - i);
       final dayEnd = DateTime(day.year, day.month, day.day, 23, 59, 59);
-      final dayEvents = eventos.where((e) =>
-          e.registradoEm.isAfter(day) && e.registradoEm.isBefore(dayEnd));
+      final dayEvents = eventos.where(
+        (e) => e.registradoEm.isAfter(day) && e.registradoEm.isBefore(dayEnd),
+      );
       final total = dayEvents.length;
       if (total == 0) {
         _dailyAdherence[day] = -1;
@@ -161,26 +160,30 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       }
     }
 
-
-
     final weekStart = DateTime(now.year, now.month, now.day - 6);
     final twoWeeksAgo = DateTime(now.year, now.month, now.day - 13);
 
-    final currentWeekEvents = eventos.where((e) =>
-        e.registradoEm.isAfter(weekStart) &&
-        e.registradoEm.isBefore(now) &&
-        e.categoria != 'bem_estar');
+    final currentWeekEvents = eventos.where(
+      (e) =>
+          e.registradoEm.isAfter(weekStart) &&
+          e.registradoEm.isBefore(now) &&
+          e.categoria != 'bem_estar',
+    );
     _currentWeekTotal = currentWeekEvents.length;
-    _currentWeekCompleted =
-        currentWeekEvents.where((e) => e.status.isConcluido).length;
+    _currentWeekCompleted = currentWeekEvents
+        .where((e) => e.status.isConcluido)
+        .length;
 
-    final previousWeekEvents = eventos.where((e) =>
-        e.registradoEm.isAfter(twoWeeksAgo) &&
-        e.registradoEm.isBefore(weekStart) &&
-        e.categoria != 'bem_estar');
+    final previousWeekEvents = eventos.where(
+      (e) =>
+          e.registradoEm.isAfter(twoWeeksAgo) &&
+          e.registradoEm.isBefore(weekStart) &&
+          e.categoria != 'bem_estar',
+    );
     _previousWeekTotal = previousWeekEvents.length;
-    _previousWeekCompleted =
-        previousWeekEvents.where((e) => e.status.isConcluido).length;
+    _previousWeekCompleted = previousWeekEvents
+        .where((e) => e.status.isConcluido)
+        .length;
   }
 
   Future<void> _startDeviceBarrierWatcher() async {
@@ -189,7 +192,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     await _deviceBarrierSubscription?.cancel();
 
     if (!_useFirebase) {
-      final diagnostics = await DeviceBarrierService.instance.loadLocalDiagnostics();
+      final diagnostics = await DeviceBarrierService.instance
+          .loadLocalDiagnostics();
       if (!mounted) return;
       setState(() {
         _deviceBarriers = diagnostics.barriers;
@@ -365,8 +369,6 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     }
   }
 
-
-
   @override
   Widget build(BuildContext context) {
     if (_checkingConnection) {
@@ -412,9 +414,11 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                           _buildAISummarySection(),
                           const SizedBox(height: 24),
                           _buildSmartAlertsSection(),
-                          if (_smartAlerts.isNotEmpty) const SizedBox(height: 24),
+                          if (_smartAlerts.isNotEmpty)
+                            const SizedBox(height: 24),
                           _buildDeviceBarrierSection(),
-                          if (_deviceBarriers.isNotEmpty) const SizedBox(height: 24),
+                          if (_deviceBarriers.isNotEmpty)
+                            const SizedBox(height: 24),
                           _buildMessagesShortcut(),
                           const SizedBox(height: 24),
                           _buildOverviewSection(),
@@ -533,15 +537,31 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     );
   }
 
-
   Widget _buildTopBar(BuildContext context) {
     final lembretes = LembreteService.instance.lembretes;
-    final temAlerta = _isConnected && lembretes.any((l) {
-      final status = reminderVisualStatusFromLembrete(l);
-      return status == ReminderStatus.late ||
-          status == ReminderStatus.missed ||
-          status == ReminderStatus.needsHelp;
-    });
+    final alertasCriticos =
+        lembretes.where((l) {
+          final status = reminderVisualStatusFromLembrete(l);
+          return status == ReminderStatus.late ||
+              status == ReminderStatus.missed ||
+              status == ReminderStatus.needsHelp;
+        }).toList()..sort((a, b) {
+          int prioridade(Lembrete lembrete) {
+            switch (reminderVisualStatusFromLembrete(lembrete)) {
+              case ReminderStatus.needsHelp:
+                return 0;
+              case ReminderStatus.missed:
+                return 1;
+              case ReminderStatus.late:
+                return 2;
+              default:
+                return 3;
+            }
+          }
+
+          return prioridade(a).compareTo(prioridade(b));
+        });
+    final temAlerta = _isConnected && alertasCriticos.isNotEmpty;
 
     return Container(
       height: 64,
@@ -571,7 +591,14 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
           GestureDetector(
             onTap: () {
               if (temAlerta) {
-                Navigator.pushNamed(context, '/emergency-alert');
+                Navigator.pushNamed(
+                  context,
+                  '/emergency-alert',
+                  arguments: {
+                    'lembrete': alertasCriticos.first,
+                    'totalAlertas': alertasCriticos.length,
+                  },
+                );
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
@@ -641,8 +668,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
           children: [
             Row(
               children: [
-                Icon(Icons.auto_awesome,
-                    size: 18, color: AppColors.primary),
+                Icon(Icons.auto_awesome, size: 18, color: AppColors.primary),
                 const SizedBox(width: 8),
                 Text(
                   'RESUMO INTELIGENTE',
@@ -658,10 +684,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
             const SizedBox(height: 12),
             Text(
               insights.summary,
-              style: const TextStyle(
-                fontSize: 15,
-                height: 1.4,
-              ),
+              style: const TextStyle(fontSize: 15, height: 1.4),
             ),
             if (insights.insights.isNotEmpty) ...[
               const SizedBox(height: 12),
@@ -671,10 +694,13 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('• ', style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.onPrimaryFixedVariant,
-                      )),
+                      Text(
+                        '• ',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.onPrimaryFixedVariant,
+                        ),
+                      ),
                       Expanded(
                         child: Text(i, style: const TextStyle(fontSize: 14)),
                       ),
@@ -701,8 +727,11 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.warning_amber_rounded,
-                          size: 16, color: AppColors.error),
+                      Icon(
+                        Icons.warning_amber_rounded,
+                        size: 16,
+                        color: AppColors.error,
+                      ),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
@@ -735,8 +764,11 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.lightbulb_outline,
-                          size: 16, color: AppColors.secondary),
+                      Icon(
+                        Icons.lightbulb_outline,
+                        size: 16,
+                        color: AppColors.secondary,
+                      ),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(s, style: const TextStyle(fontSize: 14)),
@@ -818,7 +850,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
               blurRadius: isCritical ? 12 : 6,
               spreadRadius: 1,
               offset: const Offset(0, 3),
-            )
+            ),
           ],
         ),
         child: Column(
@@ -851,7 +883,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
               const SizedBox(height: 8),
               InkWell(
                 onTap: () async {
-                  final url = 'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(_enderecoIdoso)}';
+                  final url =
+                      'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(_enderecoIdoso)}';
                   final uri = Uri.parse(url);
                   if (await canLaunchUrl(uri)) {
                     await launchUrl(uri);
@@ -874,7 +907,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   ],
                 ),
               ),
-            ]
+            ],
           ],
         ),
       ),
@@ -1000,7 +1033,10 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
                 ),
                 style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 14,
+                    horizontal: 16,
+                  ),
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
@@ -1059,7 +1095,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   blurRadius: isCritical ? 10 : 5,
                   spreadRadius: 1,
                   offset: const Offset(0, 2),
-                )
+                ),
               ],
             ),
             child: Row(
@@ -1197,16 +1233,28 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                     GestureDetector(
                       onTap: () => _initiateCall('voice'),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
-                          color: AppColors.primaryContainer.withValues(alpha: 0.1),
+                          color: AppColors.primaryContainer.withValues(
+                            alpha: 0.1,
+                          ),
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: AppColors.primary, width: 1.5),
+                          border: Border.all(
+                            color: AppColors.primary,
+                            width: 1.5,
+                          ),
                         ),
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.phone_in_talk, color: AppColors.primary, size: 16),
+                            Icon(
+                              Icons.phone_in_talk,
+                              color: AppColors.primary,
+                              size: 16,
+                            ),
                             SizedBox(width: 4),
                             Text(
                               'Áudio',
@@ -1224,16 +1272,28 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                     GestureDetector(
                       onTap: () => _initiateCall('video'),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
-                          color: AppColors.primaryContainer.withValues(alpha: 0.1),
+                          color: AppColors.primaryContainer.withValues(
+                            alpha: 0.1,
+                          ),
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: AppColors.primary, width: 1.5),
+                          border: Border.all(
+                            color: AppColors.primary,
+                            width: 1.5,
+                          ),
                         ),
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.videocam, color: AppColors.primary, size: 16),
+                            Icon(
+                              Icons.videocam,
+                              color: AppColors.primary,
+                              size: 16,
+                            ),
                             SizedBox(width: 4),
                             Text(
                               'Vídeo',
@@ -1265,8 +1325,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                             color: totalMedicacoesHoje == 0
                                 ? AppColors.outline
                                 : (todosTomados
-                                    ? Colors.green
-                                    : AppColors.secondaryContainer),
+                                      ? Colors.green
+                                      : AppColors.secondaryContainer),
                           ),
                         ),
                         Text(
@@ -1287,11 +1347,15 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            todosTomados ? 'Tudo em dia!' : 'Pendências de hoje',
+                            todosTomados
+                                ? 'Tudo em dia!'
+                                : 'Pendências de hoje',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w800,
-                              color: todosTomados ? Colors.green : AppColors.secondary,
+                              color: todosTomados
+                                  ? Colors.green
+                                  : AppColors.secondary,
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -1323,9 +1387,10 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                             const Text(
                               'PRÓXIMO',
                               style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.onSurfaceVariant),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.onSurfaceVariant,
+                              ),
                             ),
                             const SizedBox(height: 4),
                             Text(
@@ -1363,30 +1428,34 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                             const Text(
                               'BATERIA',
                               style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.onSurfaceVariant),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.onSurfaceVariant,
+                              ),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               _batteryLevel != null ? '$_batteryLevel%' : '--',
                               style: TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w700,
-                                  color: _batteryLevel != null && _batteryLevel! <= 15
-                                      ? AppColors.error
-                                      : (_batteryState == 'charging'
+                                fontSize: 22,
+                                fontWeight: FontWeight.w700,
+                                color:
+                                    _batteryLevel != null &&
+                                        _batteryLevel! <= 15
+                                    ? AppColors.error
+                                    : (_batteryState == 'charging'
                                           ? Colors.green
-                                          : AppColors.secondary)),
+                                          : AppColors.secondary),
+                              ),
                             ),
                             Text(
                               _batteryLevel == null
                                   ? 'Sem dados'
                                   : (_batteryState == 'charging'
-                                      ? 'Carregando'
-                                      : _batteryState == 'full'
-                                          ? 'Carregada'
-                                          : 'Descarregando'),
+                                        ? 'Carregando'
+                                        : _batteryState == 'full'
+                                        ? 'Carregada'
+                                        : 'Descarregando'),
                               style: const TextStyle(
                                 fontSize: 12,
                                 color: AppColors.onSurfaceVariant,
@@ -1405,8 +1474,6 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       ],
     );
   }
-
-
 
   Widget _buildCategoryFilters() {
     final Map<String, String> categories = {
@@ -1478,7 +1545,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
               ? ['Nenhum lembrete cadastrado para hoje nesta categoria.']
               : [
                   'Lembretes de hoje para $_nomeIdoso:',
-                  ...filteredList.map((l) => '${l.titulo} às ${l.horarioFormatado}.'),
+                  ...filteredList.map(
+                    (l) => '${l.titulo} às ${l.horarioFormatado}.',
+                  ),
                 ],
         ),
         const SizedBox(height: 16),
@@ -1559,8 +1628,11 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                 break;
             }
             final status = reminderVisualStatusFromLembrete(lembrete);
-            final bool isPending = status == ReminderStatus.scheduled || status == ReminderStatus.late;
-            final bool needsAttention = status == ReminderStatus.late ||
+            final bool isPending =
+                status == ReminderStatus.scheduled ||
+                status == ReminderStatus.late;
+            final bool needsAttention =
+                status == ReminderStatus.late ||
                 status == ReminderStatus.missed ||
                 status == ReminderStatus.needsHelp;
 
@@ -1571,7 +1643,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   color: AppColors.surfaceContainerLowest,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: needsAttention ? AppColors.error : AppColors.outlineVariant,
+                    color: needsAttention
+                        ? AppColors.error
+                        : AppColors.outlineVariant,
                     width: needsAttention ? 2 : 1,
                   ),
                 ),
@@ -1585,8 +1659,12 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                       time: lembrete.horarioFormatado,
                       status: status,
                       accentColor: accentColor,
-                      audioPath: lembrete.audioPath == 'ia_generated' ? null : lembrete.audioPath,
-                      ttsText: lembrete.audioPath == 'ia_generated' ? lembrete.medicamentoAudioTexto : null,
+                      audioPath: lembrete.audioPath == 'ia_generated'
+                          ? null
+                          : lembrete.audioPath,
+                      ttsText: lembrete.audioPath == 'ia_generated'
+                          ? lembrete.medicamentoAudioTexto
+                          : null,
                       onTap: () {
                         Navigator.pushNamed(
                           context,
@@ -1605,7 +1683,10 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                     if (isPending) ...[
                       const Divider(height: 1, color: AppColors.outlineVariant),
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -1637,9 +1718,10 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                                         height: 14,
                                         child: CircularProgressIndicator(
                                           strokeWidth: 2,
-                                          valueColor: AlwaysStoppedAnimation<Color>(
-                                            AppColors.primary,
-                                          ),
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                                AppColors.primary,
+                                              ),
                                         ),
                                       )
                                     : const Icon(Icons.volume_up, size: 16),
@@ -1857,8 +1939,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                         builder: (_) => const PhotoGalleryScreen(),
                       ),
                     ),
-                    icon: const Icon(Icons.photo_library_outlined,
-                        size: 20),
+                    icon: const Icon(Icons.photo_library_outlined, size: 20),
                     label: const Text(
                       'Ver Galeria de Fotos',
                       style: TextStyle(fontWeight: FontWeight.w700),
@@ -1866,7 +1947,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.primary,
                       side: const BorderSide(
-                          color: AppColors.primary, width: 1.5),
+                        color: AppColors.primary,
+                        width: 1.5,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -1945,10 +2028,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
           const SizedBox(height: 4),
           const Text(
             'Últimos 14 dias',
-            style: TextStyle(
-              fontSize: 12,
-              color: AppColors.onSurfaceVariant,
-            ),
+            style: TextStyle(fontSize: 12, color: AppColors.onSurfaceVariant),
           ),
           const SizedBox(height: 12),
           AdherenceTrendChart(dailyAdherence: _dailyAdherence),
@@ -2044,6 +2124,4 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       ),
     );
   }
-
-
 }

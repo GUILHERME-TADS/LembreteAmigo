@@ -187,7 +187,8 @@ void main() async {
     AppStatusService.instance.report(
       id: 'firebase-init',
       title: 'Modo offline',
-      message: 'Nao foi possivel conectar aos servicos online. Algumas funcoes podem ficar pendentes.',
+      message:
+          'Nao foi possivel conectar aos servicos online. Algumas funcoes podem ficar pendentes.',
       severity: AppStatusSeverity.critical,
     );
   }
@@ -211,6 +212,7 @@ void main() async {
   }
 
   String? pendingPayload;
+  String? pendingNotificationAction;
   if (!kIsWeb) {
     try {
       await NotificationService.instance.init(navigatorKey);
@@ -227,19 +229,49 @@ void main() async {
           }
         } catch (_) {}
       };
+      NotificationService.instance.onIncomingCallAction =
+          (callId, roomName, callType, actionId) async {
+            if (actionId == NotificationService.callDeclineAction) {
+              await VideoCallService.instance.declineCall(callId);
+              return;
+            }
+            if (actionId == NotificationService.callAcceptAction) {
+              await VideoCallService.instance.acceptCall(callId);
+              await VideoCallService.instance.joinCall(
+                roomName,
+                callType: callType,
+                callId: callId,
+                alreadyVerified: true,
+              );
+              return;
+            }
+            navigatorKey.currentState?.pushNamed(
+              '/incoming-video-call',
+              arguments: {
+                'callId': callId,
+                'roomName': roomName,
+                'callType': callType,
+              },
+            );
+          };
       final launchDetails = await NotificationService.instance
           .getLaunchDetails();
       if (launchDetails != null &&
           launchDetails.didNotificationLaunchApp &&
           launchDetails.notificationResponse?.payload != null) {
         pendingPayload = launchDetails.notificationResponse!.payload;
+        pendingNotificationAction =
+            launchDetails.notificationResponse!.actionId;
       }
     } catch (e) {
-      debugPrint('Erro ao inicializar notificacoes. Continuando sem alarmes locais: $e');
+      debugPrint(
+        'Erro ao inicializar notificacoes. Continuando sem alarmes locais: $e',
+      );
       AppStatusService.instance.report(
         id: 'local-notifications',
         title: 'Alarmes locais indisponiveis',
-        message: 'Verifique as permissoes de notificacao para nao perder lembretes.',
+        message:
+            'Verifique as permissoes de notificacao para nao perder lembretes.',
         severity: AppStatusSeverity.critical,
       );
     }
@@ -255,23 +287,35 @@ void main() async {
           return;
         }
         MeuApp.isIncomingCallScreenPushing = true;
-        navigatorKey.currentState?.pushNamed(
-          '/incoming-video-call',
-          arguments: {'callId': callId, 'roomName': roomName, 'callType': callType},
-        ).then((_) {
-          MeuApp.isIncomingCallScreenPushing = false;
-        });
+        navigatorKey.currentState
+            ?.pushNamed(
+              '/incoming-video-call',
+              arguments: {
+                'callId': callId,
+                'roomName': roomName,
+                'callType': callType,
+              },
+            )
+            .then((_) {
+              MeuApp.isIncomingCallScreenPushing = false;
+            });
       };
 
       push.onVideoCallOpenedApp = (callId, roomName, callType) {
         navigatorKey.currentState?.pushNamedAndRemoveUntil(
           '/incoming-video-call',
           (route) => false,
-          arguments: {'callId': callId, 'roomName': roomName, 'callType': callType},
+          arguments: {
+            'callId': callId,
+            'roomName': roomName,
+            'callType': callType,
+          },
         );
       };
     } catch (e) {
-      debugPrint('Erro ao inicializar push notifications. Continuando sem FCM: $e');
+      debugPrint(
+        'Erro ao inicializar push notifications. Continuando sem FCM: $e',
+      );
       AppStatusService.instance.report(
         id: 'push-notifications',
         title: 'Avisos entre aparelhos indisponiveis',
@@ -300,12 +344,22 @@ void main() async {
     }
   }
 
-  runApp(MeuApp(pendingPayload: pendingPayload));
+  runApp(
+    MeuApp(
+      pendingPayload: pendingPayload,
+      pendingNotificationAction: pendingNotificationAction,
+    ),
+  );
 }
 
 class MeuApp extends StatefulWidget {
   final String? pendingPayload;
-  const MeuApp({super.key, this.pendingPayload});
+  final String? pendingNotificationAction;
+  const MeuApp({
+    super.key,
+    this.pendingPayload,
+    this.pendingNotificationAction,
+  });
 
   static bool isIncomingCallScreenPushing = false;
 
@@ -314,7 +368,6 @@ class MeuApp extends StatefulWidget {
 }
 
 class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
-
   final Set<String> _openedReminderKeys = {};
   AppLifecycleState _lifecycleState = AppLifecycleState.resumed;
   StreamSubscription<User?>? _authStateSubscription;
@@ -324,7 +377,8 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
   bool _largeButtons = false;
   bool _reduceAnimations = false;
 
-  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _incomingCallFirestoreSubscription;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
+  _incomingCallFirestoreSubscription;
   String? _lastListenedIdosoId;
   String? _lastListenedSupervisorId;
   Timer? _listenerRefreshTimer;
@@ -342,28 +396,34 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
     LembreteService.instance.notifier.addListener(_openDueReminderIfNeeded);
     try {
       if (Firebase.apps.isNotEmpty) {
-        _authStateSubscription =
-            FirebaseAuth.instance.authStateChanges().listen((user) async {
-          if (user == null) {
-            if (SessionRoleService.isSupervisor) {
-              await SessionRoleService.logout();
-              navigatorKey.currentState?.pushNamedAndRemoveUntil(
-                '/supervisor-login',
-                (route) => false,
-              );
-            } else if (SessionRoleService.isElderly) {
-              try {
-                debugPrint('FCM/Auth: Efetuando login anônimo do Idoso...');
-                await SessionRoleService.ensureElderlyAuthSession();
-              } catch (e) {
-                debugPrint('Erro ao efetuar login anônimo do Idoso: $e');
-              }
-            }
-          }
-          _startIncomingCallFirestoreListener();
-        }, onError: (e) {
-          debugPrint('Erro no auth state listener: $e');
-        });
+        _authStateSubscription = FirebaseAuth.instance
+            .authStateChanges()
+            .listen(
+              (user) async {
+                if (user == null) {
+                  if (SessionRoleService.isSupervisor) {
+                    await SessionRoleService.logout();
+                    navigatorKey.currentState?.pushNamedAndRemoveUntil(
+                      '/supervisor-login',
+                      (route) => false,
+                    );
+                  } else if (SessionRoleService.isElderly) {
+                    try {
+                      debugPrint(
+                        'FCM/Auth: Efetuando login anônimo do Idoso...',
+                      );
+                      await SessionRoleService.ensureElderlyAuthSession();
+                    } catch (e) {
+                      debugPrint('Erro ao efetuar login anônimo do Idoso: $e');
+                    }
+                  }
+                }
+                _startIncomingCallFirestoreListener();
+              },
+              onError: (e) {
+                debugPrint('Erro no auth state listener: $e');
+              },
+            );
       }
     } catch (e) {
       debugPrint('Erro ao configurar auth listener: $e');
@@ -394,7 +454,9 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
     await _incomingCallFirestoreSubscription?.cancel();
     _incomingCallFirestoreSubscription = null;
 
-    Query<Map<String, dynamic>> query = FirebaseFirestore.instance.collection('video_calls');
+    Query<Map<String, dynamic>> query = FirebaseFirestore.instance.collection(
+      'video_calls',
+    );
 
     if (SessionRoleService.isSupervisor && supervisorId.isNotEmpty) {
       query = query.where('supervisorId', isEqualTo: supervisorId);
@@ -407,60 +469,66 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
 
     query = query.where('status', isEqualTo: 'ringing');
 
-    _incomingCallFirestoreSubscription = query.snapshots().listen((snapshot) {
-      final docs = snapshot.docs.where((doc) {
-        final initiatedBy = doc.data()['initiatedBy'] as String? ?? 'supervisor';
-        if (SessionRoleService.isSupervisor) {
-          return initiatedBy != 'supervisor';
-        }
-        return initiatedBy == 'supervisor';
-      }).toList();
+    _incomingCallFirestoreSubscription = query.snapshots().listen(
+      (snapshot) {
+        final docs = snapshot.docs.where((doc) {
+          final initiatedBy =
+              doc.data()['initiatedBy'] as String? ?? 'supervisor';
+          if (SessionRoleService.isSupervisor) {
+            return initiatedBy != 'supervisor';
+          }
+          return initiatedBy == 'supervisor';
+        }).toList();
 
-      if (docs.isNotEmpty) {
-        final doc = docs.first;
-        final data = doc.data();
+        if (docs.isNotEmpty) {
+          final doc = docs.first;
+          final data = doc.data();
 
-        // Ignore old ringing calls (created more than 2 minutes ago)
-        final startedAtObj = data['startedAt'];
-        DateTime? startedAt;
-        if (startedAtObj is Timestamp) {
-          startedAt = startedAtObj.toDate();
-        } else if (startedAtObj is String) {
-          startedAt = DateTime.tryParse(startedAtObj);
-        }
-        if (startedAt != null) {
-          final age = DateTime.now().difference(startedAt);
-          if (age.inMinutes > 2) {
+          // Ignore old ringing calls (created more than 2 minutes ago)
+          final startedAtObj = data['startedAt'];
+          DateTime? startedAt;
+          if (startedAtObj is Timestamp) {
+            startedAt = startedAtObj.toDate();
+          } else if (startedAtObj is String) {
+            startedAt = DateTime.tryParse(startedAtObj);
+          }
+          if (startedAt != null) {
+            final age = DateTime.now().difference(startedAt);
+            if (age.inMinutes > 2) {
+              return;
+            }
+          }
+
+          final callId = doc.id;
+          final roomName = data['roomName'] as String? ?? '';
+          final callType = data['callType'] as String? ?? 'video';
+
+          final currentRoute = _routeTracker.currentRouteName;
+          if (currentRoute == '/incoming-video-call' ||
+              MeuApp.isIncomingCallScreenPushing ||
+              VideoCallService.instance.activeCallNotifier.value != null) {
             return;
           }
+
+          MeuApp.isIncomingCallScreenPushing = true;
+          navigatorKey.currentState
+              ?.pushNamed(
+                '/incoming-video-call',
+                arguments: {
+                  'callId': callId,
+                  'roomName': roomName,
+                  'callType': callType,
+                },
+              )
+              .then((_) {
+                MeuApp.isIncomingCallScreenPushing = false;
+              });
         }
-
-        final callId = doc.id;
-        final roomName = data['roomName'] as String? ?? '';
-        final callType = data['callType'] as String? ?? 'video';
-
-        final currentRoute = _routeTracker.currentRouteName;
-        if (currentRoute == '/incoming-video-call' ||
-            MeuApp.isIncomingCallScreenPushing ||
-            VideoCallService.instance.activeCallNotifier.value != null) {
-          return;
-        }
-
-        MeuApp.isIncomingCallScreenPushing = true;
-        navigatorKey.currentState?.pushNamed(
-          '/incoming-video-call',
-          arguments: {
-            'callId': callId,
-            'roomName': roomName,
-            'callType': callType,
-          },
-        ).then((_) {
-          MeuApp.isIncomingCallScreenPushing = false;
-        });
-      }
-    }, onError: (e) {
-      debugPrint('Erro ao escutar chamadas no Firestore: $e');
-    });
+      },
+      onError: (e) {
+        debugPrint('Erro ao escutar chamadas no Firestore: $e');
+      },
+    );
   }
 
   Future<void> _loadAccessibilityPreferences() async {
@@ -511,7 +579,8 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
 
   void _checkElderlyAnonymousAuth() async {
     if (Firebase.apps.isEmpty) return;
-    if (FirebaseAuth.instance.currentUser == null && SessionRoleService.isElderly) {
+    if (FirebaseAuth.instance.currentUser == null &&
+        SessionRoleService.isElderly) {
       try {
         debugPrint('Lifecycle: Efetuando login anônimo do Idoso...');
         await SessionRoleService.ensureElderlyAuthSession();
@@ -631,39 +700,38 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
       navigatorKey: navigatorKey,
       navigatorObservers: [_routeTracker],
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.theme
-          .copyWith(
-            elevatedButtonTheme: ElevatedButtonThemeData(
-              style: ElevatedButton.styleFrom(
-                padding: _largeButtons
-                    ? const EdgeInsets.symmetric(horizontal: 32, vertical: 24)
-                    : const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                minimumSize: _largeButtons
-                    ? const Size(64, 64)
-                    : const Size(48, 48),
-              ),
-            ),
-            outlinedButtonTheme: OutlinedButtonThemeData(
-              style: OutlinedButton.styleFrom(
-                padding: _largeButtons
-                    ? const EdgeInsets.symmetric(horizontal: 32, vertical: 24)
-                    : const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                minimumSize: _largeButtons
-                    ? const Size(64, 64)
-                    : const Size(48, 48),
-              ),
-            ),
-            textButtonTheme: TextButtonThemeData(
-              style: TextButton.styleFrom(
-                padding: _largeButtons
-                    ? const EdgeInsets.symmetric(horizontal: 24, vertical: 18)
-                    : const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                minimumSize: _largeButtons
-                    ? const Size(64, 48)
-                    : const Size(48, 36),
-              ),
-            ),
+      theme: AppTheme.theme.copyWith(
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            padding: _largeButtons
+                ? const EdgeInsets.symmetric(horizontal: 32, vertical: 24)
+                : const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            minimumSize: _largeButtons
+                ? const Size(64, 64)
+                : const Size(48, 48),
           ),
+        ),
+        outlinedButtonTheme: OutlinedButtonThemeData(
+          style: OutlinedButton.styleFrom(
+            padding: _largeButtons
+                ? const EdgeInsets.symmetric(horizontal: 32, vertical: 24)
+                : const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            minimumSize: _largeButtons
+                ? const Size(64, 64)
+                : const Size(48, 48),
+          ),
+        ),
+        textButtonTheme: TextButtonThemeData(
+          style: TextButton.styleFrom(
+            padding: _largeButtons
+                ? const EdgeInsets.symmetric(horizontal: 24, vertical: 18)
+                : const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            minimumSize: _largeButtons
+                ? const Size(64, 48)
+                : const Size(48, 36),
+          ),
+        ),
+      ),
       builder: (context, child) {
         final mediaQuery = MediaQuery.of(context);
         final systemScale = mediaQuery.textScaler.scale(1.0);
@@ -680,8 +748,7 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
         Widget page;
         final routeName = settings.name ?? '/';
         if (isSupervisorProtectedRoute(routeName) &&
-            (!hasSupervisorAuthSession() ||
-                !SessionRoleService.isSupervisor)) {
+            (!hasSupervisorAuthSession() || !SessionRoleService.isSupervisor)) {
           return MaterialPageRoute(
             builder: (_) => const SupervisorLoginScreen(),
             settings: const RouteSettings(name: '/supervisor-login'),
@@ -695,7 +762,10 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
         }
         switch (settings.name) {
           case '/':
-            page = _AppStartup(pendingPayload: widget.pendingPayload);
+            page = _AppStartup(
+              pendingPayload: widget.pendingPayload,
+              pendingNotificationAction: widget.pendingNotificationAction,
+            );
             break;
           case '/required-permissions':
             page = const RequiredPermissionsScreen();
@@ -819,7 +889,14 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
             page = const ForgotPasswordScreen();
             break;
           case '/emergency-alert':
-            page = const EmergencyAlertScreen();
+            final emergencyArgs = settings.arguments;
+            final emergencyMap = emergencyArgs is Map<String, dynamic>
+                ? emergencyArgs
+                : null;
+            page = EmergencyAlertScreen(
+              lembrete: emergencyMap?['lembrete'] as Lembrete?,
+              totalAlertas: emergencyMap?['totalAlertas'] as int? ?? 0,
+            );
             break;
           case '/incoming-video-call':
             final incomingCallArgs = settings.arguments;
@@ -840,8 +917,11 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
             page = PostCallSummaryScreen(
               callerName: postCallMap?['callerName'] as String? ?? '',
               callType: postCallMap?['callType'] as String? ?? 'video',
-              durationSeconds: (postCallMap?['durationSeconds'] as num?)?.toInt() ?? 0,
-              status: postCallMap?['status'] as VideoCallStatus? ?? VideoCallStatus.ended,
+              durationSeconds:
+                  (postCallMap?['durationSeconds'] as num?)?.toInt() ?? 0,
+              status:
+                  postCallMap?['status'] as VideoCallStatus? ??
+                  VideoCallStatus.ended,
             );
             break;
           case '/video-call-history':
@@ -881,7 +961,8 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
 
 class _AppStartup extends StatefulWidget {
   final String? pendingPayload;
-  const _AppStartup({this.pendingPayload});
+  final String? pendingNotificationAction;
+  const _AppStartup({this.pendingPayload, this.pendingNotificationAction});
 
   @override
   State<_AppStartup> createState() => _AppStartupState();
@@ -907,9 +988,43 @@ class _AppStartupState extends State<_AppStartup> {
     final pendingPayload = widget.pendingPayload;
     if (pendingPayload == null || pendingPayload.isEmpty) return false;
 
+    final call = NotificationService.decodeIncomingCallPayload(pendingPayload);
+    if (call != null) {
+      final callId = call['callId']!;
+      final roomName = call['roomName']!;
+      final callType = call['callType']!;
+      if (widget.pendingNotificationAction ==
+          NotificationService.callDeclineAction) {
+        await VideoCallService.instance.declineCall(callId);
+        return false;
+      }
+      if (widget.pendingNotificationAction ==
+          NotificationService.callAcceptAction) {
+        await VideoCallService.instance.acceptCall(callId);
+        await VideoCallService.instance.joinCall(
+          roomName,
+          callType: callType,
+          callId: callId,
+          alreadyVerified: true,
+        );
+        return true;
+      }
+      navigatorKey.currentState?.pushNamed(
+        '/incoming-video-call',
+        arguments: {
+          'callId': callId,
+          'roomName': roomName,
+          'callType': callType,
+        },
+      );
+      return true;
+    }
+
     try {
       await LembreteService.instance.carregar();
-      final lembrete = await LembreteService.instance.buscarPorId(pendingPayload);
+      final lembrete = await LembreteService.instance.buscarPorId(
+        pendingPayload,
+      );
       if (!mounted || lembrete == null || lembrete.concluido) {
         return false;
       }
@@ -985,9 +1100,7 @@ class _AppStartupState extends State<_AppStartup> {
           children: [
             AlexAvatar(size: 120),
             SizedBox(height: 32),
-            CircularProgressIndicator(
-              color: AppColors.primary,
-            ),
+            CircularProgressIndicator(color: AppColors.primary),
           ],
         ),
       ),

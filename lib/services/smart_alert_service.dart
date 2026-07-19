@@ -6,6 +6,7 @@ import '../models/lembrete_evento.dart';
 import '../models/smart_alert.dart';
 import 'crashlytics_service.dart';
 import 'notification_service.dart';
+import 'session_role_service.dart';
 
 class SmartAlertService {
   SmartAlertService._();
@@ -242,6 +243,7 @@ class SmartAlertService {
 
   Future<void> _notifyNewAlerts(List<SmartAlert> alerts) async {
     if (alerts.isEmpty) return;
+    if (!SessionRoleService.isSupervisor) return;
 
     try {
       final prefs = await SharedPreferences.getInstance();

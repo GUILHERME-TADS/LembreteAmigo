@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -12,6 +13,9 @@ class NotificationService {
   NotificationService._();
   static final NotificationService instance = NotificationService._();
   static const int _maxGeneratedSlots = 40;
+  static const String _callPayloadPrefix = 'incoming_call:';
+  static const String callAcceptAction = 'call_accept';
+  static const String callDeclineAction = 'call_decline';
 
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
@@ -33,6 +37,14 @@ class NotificationService {
   /// O payload contém o ID do lembrete.
   FutureOr<void> Function(String lembreteId)? onNotificationTapped;
 
+  FutureOr<void> Function(
+    String callId,
+    String roomName,
+    String callType,
+    String? actionId,
+  )?
+  onIncomingCallAction;
+
   Future<void> init(GlobalKey<NavigatorState> navigatorKey) async {
     _navigatorKey = navigatorKey;
     if (kIsWeb) return;
@@ -43,7 +55,9 @@ class NotificationService {
     try {
       tz.setLocalLocation(tz.getLocation(timeZoneName));
     } catch (e) {
-      debugPrint('Timezone local $timeZoneName nao encontrado: $e. Usando America/Sao_Paulo.');
+      debugPrint(
+        'Timezone local $timeZoneName nao encontrado: $e. Usando America/Sao_Paulo.',
+      );
       tz.setLocalLocation(tz.getLocation('America/Sao_Paulo'));
     }
 
@@ -69,22 +83,141 @@ class NotificationService {
     // 5. Initialize plugin with click handler
     await _plugin.initialize(
       initializationSettings,
-      onDidReceiveNotificationResponse: (NotificationResponse response) {
-        final payload = response.payload;
-        if (payload != null && payload.isNotEmpty) {
-          final callback = onNotificationTapped;
-          if (callback != null) {
-            callback(payload);
-          }
-          _navigatorKey?.currentState?.pushNamed(
-            '/active-reminder',
-            arguments: payload,
-          );
-        }
-      },
+      onDidReceiveNotificationResponse: _handleNotificationResponse,
     );
 
     _initialized = true;
+  }
+
+  Future<void> _handleNotificationResponse(
+    NotificationResponse response,
+  ) async {
+    final payload = response.payload;
+    if (payload == null || payload.isEmpty) return;
+
+    final call = decodeIncomingCallPayload(payload);
+    if (call != null) {
+      await cancelarChamada(call['callId']!);
+      final actionId = response.actionId;
+      await onIncomingCallAction?.call(
+        call['callId']!,
+        call['roomName']!,
+        call['callType']!,
+        actionId == null || actionId.isEmpty ? null : actionId,
+      );
+      return;
+    }
+
+    await onNotificationTapped?.call(payload);
+    _navigatorKey?.currentState?.pushNamed(
+      '/active-reminder',
+      arguments: payload,
+    );
+  }
+
+  static String incomingCallPayload({
+    required String callId,
+    required String roomName,
+    required String callType,
+  }) {
+    return '$_callPayloadPrefix${jsonEncode({'callId': callId, 'roomName': roomName, 'callType': callType})}';
+  }
+
+  static Map<String, String>? decodeIncomingCallPayload(String payload) {
+    if (!payload.startsWith(_callPayloadPrefix)) return null;
+    try {
+      final value = jsonDecode(payload.substring(_callPayloadPrefix.length));
+      if (value is! Map) return null;
+      final callId = value['callId']?.toString() ?? '';
+      final roomName = value['roomName']?.toString() ?? '';
+      final callType = value['callType']?.toString() ?? 'video';
+      if (callId.isEmpty || roomName.isEmpty) return null;
+      return {'callId': callId, 'roomName': roomName, 'callType': callType};
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> mostrarChamadaRecebida({
+    required String callId,
+    required String roomName,
+    required String callType,
+  }) async {
+    if (kIsWeb || !_initialized) return;
+    await showIncomingCallNotification(
+      plugin: _plugin,
+      callId: callId,
+      roomName: roomName,
+      callType: callType,
+    );
+  }
+
+  static Future<void> showIncomingCallNotification({
+    required FlutterLocalNotificationsPlugin plugin,
+    required String callId,
+    required String roomName,
+    required String callType,
+  }) async {
+    final isVoice = callType == 'voice';
+    final androidDetails = AndroidNotificationDetails(
+      'incoming_calls_channel_v1',
+      'Chamadas recebidas',
+      channelDescription: 'Chamadas de voz e video recebidas',
+      importance: Importance.max,
+      priority: Priority.max,
+      category: AndroidNotificationCategory.call,
+      fullScreenIntent: true,
+      ongoing: true,
+      autoCancel: false,
+      playSound: true,
+      enableVibration: true,
+      visibility: NotificationVisibility.public,
+      audioAttributesUsage: AudioAttributesUsage.notificationRingtone,
+      actions: const <AndroidNotificationAction>[
+        AndroidNotificationAction(
+          callDeclineAction,
+          'Recusar',
+          cancelNotification: true,
+          showsUserInterface: true,
+        ),
+        AndroidNotificationAction(
+          callAcceptAction,
+          'Atender',
+          showsUserInterface: true,
+        ),
+      ],
+    );
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+      interruptionLevel: InterruptionLevel.timeSensitive,
+    );
+    await plugin.show(
+      _stableCallId(callId),
+      isVoice ? 'Chamada de voz recebida' : 'Chamada de video recebida',
+      'Toque para atender ou recusar',
+      NotificationDetails(android: androidDetails, iOS: iosDetails),
+      payload: incomingCallPayload(
+        callId: callId,
+        roomName: roomName,
+        callType: callType,
+      ),
+    );
+  }
+
+  Future<void> cancelarChamada(String callId) async {
+    if (kIsWeb || !_initialized) return;
+    await _plugin.cancel(_stableCallId(callId));
+  }
+
+  static int _stableCallId(String value) {
+    var hash = 0x811c9dc5;
+    for (final codeUnit in 'call_$value'.codeUnits) {
+      hash ^= codeUnit;
+      hash = (hash * 0x01000193) & 0x7fffffff;
+    }
+    return hash;
   }
 
   Future<NotificationAppLaunchDetails?> getLaunchDetails() async {
@@ -169,11 +302,7 @@ class NotificationService {
   Future<void> _agendarLembrete(Lembrete lembrete, tz.TZDateTime now) async {
     final occurrences = _nextOccurrences(lembrete, now);
     for (var i = 0; i < occurrences.length; i++) {
-      await _scheduleReminder(
-        lembrete,
-        occurrences[i],
-        slot: i + 1,
-      );
+      await _scheduleReminder(lembrete, occurrences[i], slot: i + 1);
     }
   }
 
@@ -222,10 +351,7 @@ class NotificationService {
     return const NotificationDetails(android: androidDetails, iOS: iosDetails);
   }
 
-  List<tz.TZDateTime> _nextOccurrences(
-    Lembrete lembrete,
-    tz.TZDateTime now,
-  ) {
+  List<tz.TZDateTime> _nextOccurrences(Lembrete lembrete, tz.TZDateTime now) {
     if (lembrete.recorrencia == 'unico' || lembrete.lembreteUnico) {
       final scheduledDate = _nextOneTimeOccurrence(lembrete, now);
       return scheduledDate == null ? const [] : [scheduledDate];
@@ -278,10 +404,7 @@ class NotificationService {
     return startDay.isAfter(today) ? startDay : today;
   }
 
-  tz.TZDateTime _scheduledTimeOnDay(
-    Lembrete lembrete,
-    tz.TZDateTime day,
-  ) {
+  tz.TZDateTime _scheduledTimeOnDay(Lembrete lembrete, tz.TZDateTime day) {
     return tz.TZDateTime(
       tz.local,
       day.year,
@@ -355,10 +478,7 @@ class NotificationService {
     return tz.TZDateTime(tz.local, year, month, day, hour, minute);
   }
 
-  tz.TZDateTime? _nextOneTimeOccurrence(
-    Lembrete lembrete,
-    tz.TZDateTime now,
-  ) {
+  tz.TZDateTime? _nextOneTimeOccurrence(Lembrete lembrete, tz.TZDateTime now) {
     final targetDate = lembrete.dataInicio ?? lembrete.criadoEm;
     final scheduledDate = tz.TZDateTime(
       tz.local,

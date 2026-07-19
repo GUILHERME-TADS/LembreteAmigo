@@ -344,12 +344,13 @@ class NotificationService {
   }) async {
     if (kIsWeb || !_initialized) return;
     final androidDetails = AndroidNotificationDetails(
-      'app_messages_channel_v1',
+      'app_messages_channel_v3',
       'Recados recebidos',
       channelDescription: 'Avisos de novos recados entre idoso e cuidador',
       importance: Importance.high,
       priority: Priority.high,
       category: AndroidNotificationCategory.message,
+      sound: const RawResourceAndroidNotificationSound('recado'),
       playSound: true,
       enableVibration: true,
       color: AppColors.primary,
@@ -408,7 +409,7 @@ class NotificationService {
   }) async {
     final isVoice = callType == 'voice';
     final androidDetails = AndroidNotificationDetails(
-      isVoice ? 'voice_calls_channel_v2' : 'video_calls_channel_v2',
+      isVoice ? 'voice_calls_channel_v4' : 'video_calls_channel_v4',
       isVoice ? 'Chamadas de voz' : 'Chamadas de vídeo',
       channelDescription: isVoice
           ? 'Toques de chamadas de voz recebidas'
@@ -419,7 +420,9 @@ class NotificationService {
       fullScreenIntent: false,
       ongoing: true,
       autoCancel: false,
+      sound: const RawResourceAndroidNotificationSound('chamada'),
       playSound: true,
+      additionalFlags: Int32List.fromList(<int>[4]), // FLAG_INSISTENT
       enableVibration: true,
       vibrationPattern: Int64List.fromList([0, 1000, 1000, 1000, 1000, 1000, 1000, 1000]),
       color: AppColors.primary,
@@ -488,12 +491,13 @@ class NotificationService {
         : 'Chamada não atendida de ${callerName.trim()}';
 
     final androidDetails = AndroidNotificationDetails(
-      'missed_calls_channel_v1',
+      'missed_calls_channel_v3',
       'Chamadas perdidas',
       channelDescription: 'Avisos de chamadas não atendidas',
       importance: Importance.high,
       priority: Priority.high,
       category: AndroidNotificationCategory.missedCall,
+      sound: const RawResourceAndroidNotificationSound('chamada_perdida'),
       color: AppColors.error,
       groupKey: 'lembrete_amigo_chamadas',
       visibility: NotificationVisibility.private,
@@ -747,8 +751,19 @@ class NotificationService {
     final notificationId = _notificationIdFor(lembrete.id, slot);
     _pendingNotificationCancellations.remove(notificationId);
     
-    // Usa o AlarmService (Pacote alarm) com o áudio do despertador fixo
-    final audioPath = 'assets/alarm.mp3';
+    // Escolhe o áudio baseado na categoria do lembrete
+    final category = LembreteCategoria.normalizar(lembrete.categoria);
+    String audioFile = 'geral.mp3';
+    if (category == LembreteCategoria.medicacao) {
+      audioFile = 'remedio.mp3';
+    } else if (category == LembreteCategoria.hidratacao) {
+      audioFile = 'hidratacao.mp3';
+    } else if (category == LembreteCategoria.refeicoes) {
+      audioFile = 'refeicao.mp3';
+    } else if (category == LembreteCategoria.exercicio) {
+      audioFile = 'exercicio.mp3';
+    }
+    final audioPath = 'assets/$audioFile';
     
     await AlarmService.instance.agendarAlarmeLembrete(lembrete, scheduledDate, audioPath, notificationId);
     

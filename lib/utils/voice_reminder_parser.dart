@@ -1,3 +1,5 @@
+import 'time_dictionary.dart';
+
 class VoiceReminderParseResult {
   final int hour;
   final int minute;
@@ -66,7 +68,24 @@ class VoiceReminderParser {
   };
 
   static VoiceReminderParseResult? parse(String text) {
-    final normalized = _wordsToNumbers(_normalize(text));
+    // 1. Opcional: Tentativa com o Dicionário Direto (O(N) super otimizado para as 4709 variações)
+    final textNormalizedLower = _normalize(text).toLowerCase();
+    
+    // Procura pela maior string que dê match dentro da frase falada (ex: "duas da tarde e trinta")
+    for (final entry in TimeDictionary.map.entries) {
+      if (textNormalizedLower.contains(entry.key)) {
+        final parts = entry.value.split(':');
+        final h = int.parse(parts[0]);
+        final m = int.parse(parts[1]);
+        
+        // Remove a parte do horário do título para ficar mais limpo
+        final title = _cleanTitle(text, textNormalizedLower, entry.key);
+        return VoiceReminderParseResult(hour: h, minute: m, title: title);
+      }
+    }
+
+    // 2. Se o dicionário não achar, continua para o Parser Algorítmico tradicional (Regex e Regras relativas)
+    final normalized = _wordsToNumbers(textNormalizedLower);
 
     final special = _parseSpecialTime(normalized);
     if (special != null) {

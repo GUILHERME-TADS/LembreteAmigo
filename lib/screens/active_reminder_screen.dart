@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:alarm/alarm.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
@@ -59,6 +60,8 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
     _loadPairedStatus();
   }
 
+
+
   Future<void> _loadPairedStatus() async {
     final connected = await SessionRoleService.isElderlyConnectedToSupervisor();
     if (mounted) {
@@ -101,7 +104,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
         _urgencyReinforcementTimer?.cancel();
         VibrationService.stopVibration();
         _familyAudioPlayer.stop();
-        TTSService.instance.parar();
+        TTSService.instance.parar(caller: this);
         if (mounted && (ModalRoute.of(context)?.isCurrent ?? false)) {
           Navigator.pop(context);
         }
@@ -144,7 +147,14 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
   Future<void> _startReminderLoop(Lembrete l) async {
     if (_isSpeakingLoopActive) return;
     _isSpeakingLoopActive = true;
-    _isLoopPaused = false;
+    
+    final isResumed = WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
+    _isLoopPaused = !isResumed;
+
+    if (isResumed) {
+      // Para o som do pacote alarm, pois a nossa tela já assumiu o controle e o TTS vai falar
+      await Alarm.stopAll();
+    }
 
     // Start parallel vibration loop
     _startVibrationLoop();
@@ -230,7 +240,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
     StreamSubscription? sub;
     try {
       AudioManager.stopAll();
-      await TTSService.instance.parar();
+      await TTSService.instance.parar(caller: this);
       await _familyAudioPlayer.stop();
       final completed = Completer<void>();
       sub = _familyAudioPlayer.onPlayerComplete.listen((_) {
@@ -306,6 +316,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
         setState(() {
           _isLoopPaused = false;
         });
+        Alarm.stopAll();
         VibrationService.startVibration();
       }
     } else if (state == AppLifecycleState.paused ||
@@ -314,7 +325,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
       setState(() {
         _isLoopPaused = true;
       });
-      TTSService.instance.parar();
+      TTSService.instance.parar(caller: this);
       VibrationService.stopVibration();
     }
   }
@@ -331,7 +342,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
     VibrationService.stopVibration();
     _familyAudioPlayer.dispose();
     LembreteService.instance.notifier.removeListener(_onLembretesChanged);
-    TTSService.instance.parar();
+    TTSService.instance.parar(caller: this);
     super.dispose();
   }
 
@@ -648,7 +659,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                           AudioManager.stopAll();
                                           _noResponseTimer?.cancel();
                                           await _familyAudioPlayer.stop();
-                                          await TTSService.instance.parar();
+                                          await TTSService.instance.parar(caller: this);
                                           if (lembrete != null) {
                                             _runInBackground(
                                               NotificationService.instance
@@ -667,7 +678,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                               return;
                                             }
                                             AudioManager.stopAll();
-                                            await TTSService.instance.parar();
+                                            await TTSService.instance.parar(caller: this);
                                             await navigator.pushNamed(
                                               '/take-photo-confirmation',
                                               arguments: id,
@@ -777,7 +788,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                           VibrationService.stopVibration();
                                           _noResponseTimer?.cancel();
                                           _familyAudioPlayer.stop();
-                                          TTSService.instance.parar();
+                                          TTSService.instance.parar(caller: this);
                                           final navigator = Navigator.of(
                                             context,
                                           );
@@ -871,7 +882,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                           _isLoopPaused = false;
                                           VibrationService.stopVibration();
                                           await _familyAudioPlayer.stop();
-                                          TTSService.instance.parar();
+                                          TTSService.instance.parar(caller: this);
                                           if (lembrete != null) {
                                             _runInBackground(
                                               NotificationService.instance

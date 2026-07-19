@@ -18,7 +18,6 @@ class AlarmService {
       debugPrint('Alarme tocou! ID: ${settings.id}');
       final lembreteId = NotificationService.instance.getLembreteIdByNotificationId(settings.id);
       if (lembreteId != null) {
-        await Alarm.stop(settings.id); // Parar o som nativo para não sobrepor o TTS da tela
         navigatorKey.currentState?.pushNamed('/active-reminder', arguments: lembreteId);
       }
     });
@@ -35,8 +34,8 @@ class AlarmService {
     final bodyText = (isMedication &&
             lembrete.medicamentoInstrucoes != null &&
             lembrete.medicamentoInstrucoes!.isNotEmpty)
-        ? '${lembrete.horarioFormatado} • ${lembrete.titulo}\nInstruções: ${lembrete.medicamentoInstrucoes}'
-        : '${lembrete.horarioFormatado} • ${lembrete.titulo}';
+        ? '${lembrete.horarioFormatado} • ${lembrete.titulo}\nInstruções: ${lembrete.medicamentoInstrucoes}\n[Toque para abrir]'
+        : '${lembrete.horarioFormatado} • ${lembrete.titulo}\n[Toque para abrir]';
 
     final alarmSettings = AlarmSettings(
       id: id,
@@ -52,8 +51,8 @@ class AlarmService {
       notificationSettings: NotificationSettings(
         title: contentTitle,
         body: bodyText,
-        stopButton: 'Abrir',
       ),
+      androidFullScreenIntent: false,
     );
     await Alarm.set(alarmSettings: alarmSettings);
   }

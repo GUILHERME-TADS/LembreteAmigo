@@ -3,7 +3,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:firebase_core/firebase_core.dart';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../theme/app_theme.dart';
@@ -13,6 +13,7 @@ import '../services/offline_sync_service.dart';
 import '../services/elderly_profile_repository.dart';
 import '../services/tts_service.dart';
 import '../widgets/index.dart';
+import '../utils/firebase_helper.dart';
 
 class ElderlyPairingScreen extends StatefulWidget {
   const ElderlyPairingScreen({super.key});
@@ -28,13 +29,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
   bool _isLoading = false;
   String? _errorMessage;
 
-  bool get _useFirebase {
-    try {
-      return Firebase.apps.isNotEmpty;
-    } catch (_) {
-      return false;
-    }
-  }
+  bool get _useFirebase => FirebaseHelper.isInitialized;
 
   @override
   void initState() {

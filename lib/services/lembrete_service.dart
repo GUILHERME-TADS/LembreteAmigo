@@ -1,11 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
+
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -13,7 +11,8 @@ import '../models/lembrete.dart';
 import '../models/lembrete_evento.dart';
 import '../models/offline_write.dart';
 import '../utils/audio_path_helper.dart';
-import '../utils/web_upload_helper.dart';
+import '../utils/firebase_helper.dart';
+import 'media_upload_service.dart';
 import 'notification_service.dart';
 import 'offline_sync_service.dart';
 import 'remote_media_cache_service.dart';
@@ -44,13 +43,7 @@ class LembreteService {
   List<Lembrete> get lembretes => List.unmodifiable(_lembretes);
   List<LembreteEvento> get eventos => List.unmodifiable(_eventos);
 
-  bool get _useFirebase {
-    try {
-      return Firebase.apps.isNotEmpty;
-    } catch (_) {
-      return false;
-    }
-  }
+  bool get _useFirebase => FirebaseHelper.isInitialized;
 
   bool _canSyncIdosoId(String? idosoId) {
     return _useFirebase && !SessionRoleService.isLocalOnlyIdosoId(idosoId);
@@ -1009,35 +1002,18 @@ class LembreteService {
       return audioPath;
     }
 
-    final ref = FirebaseStorage.instance
-        .ref()
-        .child('reminder_audio')
-        .child(idosoId)
-        .child('$lembreteId.m4a');
-    if (kIsWeb) {
-      final bytes = await fetchBlobBytes(audioPath);
-      if (bytes == null) {
-        throw StateError(
-          'Nao foi possivel ler o audio selecionado no navegador.',
-        );
-      }
-      final snapshot = await ref.putData(
-        bytes,
-        SettableMetadata(contentType: 'audio/mp4'),
+    try {
+      return await MediaUploadService.upload(
+        localPath: audioPath,
+        destinationPath: 'reminder_audio/$idosoId/$lembreteId.m4a',
+        contentType: 'audio/mp4',
       );
-      return snapshot.ref.getDownloadURL();
+    } catch (e) {
+      if (e is StateError) {
+        throw StateError('Arquivo de audio nao encontrado.');
+      }
+      rethrow;
     }
-
-    final file = File(audioPath);
-    if (!await file.exists()) {
-      throw StateError('Arquivo de audio nao encontrado.');
-    }
-
-    final snapshot = await ref.putFile(
-      file,
-      SettableMetadata(contentType: 'audio/mp4'),
-    );
-    return snapshot.ref.getDownloadURL();
   }
 
   Future<String?> _uploadMedicationPhotoIfNeeded({
@@ -1052,35 +1028,18 @@ class LembreteService {
       return photoPath;
     }
 
-    final ref = FirebaseStorage.instance
-        .ref()
-        .child('reminder_photos')
-        .child(idosoId)
-        .child('$lembreteId.jpg');
-    if (kIsWeb) {
-      final bytes = await fetchBlobBytes(photoPath);
-      if (bytes == null) {
-        throw StateError(
-          'Nao foi possivel ler a foto selecionada no navegador.',
-        );
-      }
-      final snapshot = await ref.putData(
-        bytes,
-        SettableMetadata(contentType: 'image/jpeg'),
+    try {
+      return await MediaUploadService.upload(
+        localPath: photoPath,
+        destinationPath: 'reminder_photos/$idosoId/$lembreteId.jpg',
+        contentType: 'image/jpeg',
       );
-      return snapshot.ref.getDownloadURL();
+    } catch (e) {
+      if (e is StateError) {
+        throw StateError('Foto do medicamento nao encontrada.');
+      }
+      rethrow;
     }
-
-    final file = File(photoPath);
-    if (!await file.exists()) {
-      throw StateError('Foto do medicamento nao encontrada.');
-    }
-
-    final snapshot = await ref.putFile(
-      file,
-      SettableMetadata(contentType: 'image/jpeg'),
-    );
-    return snapshot.ref.getDownloadURL();
   }
 
   Future<bool> concluir(String id) async {
@@ -1109,16 +1068,11 @@ class LembreteService {
     if (_canSyncIdosoId(idosoId) &&
         await SessionRoleService.canSyncElderlyPrivateData()) {
       try {
-        final ref = FirebaseStorage.instance
-            .ref()
-            .child('confirmation_photos')
-            .child(idosoId)
-            .child('$id.jpg');
-        final uploadTask = await ref.putFile(
-          File(finalPath),
-          SettableMetadata(contentType: 'image/jpeg'),
+        finalPath = await MediaUploadService.upload(
+          localPath: finalPath,
+          destinationPath: 'confirmation_photos/$idosoId/$id.jpg',
+          contentType: 'image/jpeg',
         );
-        finalPath = await uploadTask.ref.getDownloadURL();
       } catch (e) {
         debugPrint('Erro ao fazer upload da foto de confirmacao: $e');
         AppStatusService.instance.report(

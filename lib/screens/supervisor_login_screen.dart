@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../theme/app_theme.dart';
 import '../services/session_role_service.dart';
 import '../services/push_notification_service.dart';
 import '../services/google_auth_service.dart';
-import '../widgets/senior_button.dart';
+import '../widgets/index.dart';
+import '../utils/firebase_helper.dart';
 
 class SupervisorLoginScreen extends StatefulWidget {
   const SupervisorLoginScreen({super.key});
@@ -25,13 +26,7 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
     super.initState();
   }
 
-  bool get _useFirebase {
-    try {
-      return Firebase.apps.isNotEmpty;
-    } catch (_) {
-      return false;
-    }
-  }
+  bool get _useFirebase => FirebaseHelper.isInitialized;
 
   @override
   void dispose() {
@@ -174,41 +169,7 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
                   child: Column(
                     children: [
                       const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          IconButton(
-                            icon: const Icon(
-                              Icons.arrow_back,
-                              color: AppColors.primary,
-                              size: 32,
-                            ),
-                            onPressed: () => Navigator.pop(context),
-                          ),
-                          const Spacer(),
-                          const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.health_and_safety,
-                                size: 40,
-                                color: AppColors.primary,
-                              ),
-                              SizedBox(width: 8),
-                              Text(
-                                'Cuidador',
-                                style: TextStyle(
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.w800,
-                                  height: 1.2,
-                                  color: AppColors.primary,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const Spacer(),
-                          const SizedBox(width: 48),
-                        ],
-                      ),
+                      const SupervisorHeader(),
                       const SizedBox(height: 48),
                       const Align(
                         alignment: Alignment.centerLeft,
@@ -374,7 +335,7 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
                         children: [
                           TextButton(
                             onPressed: () {
-                              _showInfoBottomSheet(
+                              showInfoBottomSheet(
                                 context: context,
                                 title: 'Termos de Uso',
                                 content:
@@ -392,7 +353,7 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
                           ),
                           TextButton(
                             onPressed: () {
-                              _showInfoBottomSheet(
+                              showInfoBottomSheet(
                                 context: context,
                                 title: 'Política de Privacidade',
                                 content:
@@ -410,7 +371,7 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
                           ),
                           TextButton(
                             onPressed: () {
-                              _showInfoBottomSheet(
+                              showInfoBottomSheet(
                                 context: context,
                                 title: 'Suporte Técnico',
                                 content:
@@ -440,90 +401,5 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
     );
   }
 
-  void _showInfoBottomSheet({
-    required BuildContext context,
-    required String title,
-    required String content,
-    required IconData icon,
-  }) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) {
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          decoration: const BoxDecoration(
-            color: AppColors.background,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: SafeArea(
-            top: false,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 48,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.outlineVariant,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  children: [
-                    Icon(icon, color: AppColors.primary, size: 32),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  content,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    height: 1.5,
-                    color: AppColors.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text(
-                      'FECHAR',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
+
 }

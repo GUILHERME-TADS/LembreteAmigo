@@ -16,3 +16,5 @@ export 'message_unread_badge.dart';
 export 'charts/adherence_trend_chart.dart';
 export 'charts/category_distribution_chart.dart';
 export 'charts/weekly_comparison_chart.dart';
+export 'supervisor_header.dart';
+export 'info_bottom_sheet.dart';

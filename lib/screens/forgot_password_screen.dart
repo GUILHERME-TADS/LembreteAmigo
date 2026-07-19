@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import '../theme/app_theme.dart';
-import '../widgets/senior_button.dart';
+import '../widgets/index.dart';
+import '../utils/firebase_helper.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -16,13 +17,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   bool _isLoading = false;
   final TextEditingController _emailController = TextEditingController();
 
-  bool get _useFirebase {
-    try {
-      return Firebase.apps.isNotEmpty;
-    } catch (_) {
-      return false;
-    }
-  }
+  bool get _useFirebase => FirebaseHelper.isInitialized;
 
   @override
   void dispose() {
@@ -43,41 +38,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(
-                            Icons.arrow_back,
-                            color: AppColors.primary,
-                            size: 32,
-                          ),
-                          onPressed: () => Navigator.pop(context),
-                        ),
-                        const Spacer(),
-                        const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.health_and_safety,
-                              size: 40,
-                              color: AppColors.primary,
-                            ),
-                            SizedBox(width: 8),
-                            Text(
-                              'Cuidador',
-                              style: TextStyle(
-                                fontSize: 32,
-                                fontWeight: FontWeight.w800,
-                                height: 1.2,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const Spacer(),
-                        const SizedBox(width: 48),
-                      ],
-                    ),
+                    const SupervisorHeader(),
                     const SizedBox(height: 24),
                     const Text(
                       'Recuperar Senha',

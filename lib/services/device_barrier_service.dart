@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_core/firebase_core.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -13,6 +13,7 @@ import '../models/device_barrier.dart';
 import '../models/device_diagnostics.dart';
 import 'offline_sync_service.dart';
 import 'session_role_service.dart';
+import '../utils/firebase_helper.dart';
 import 'volume_service.dart';
 
 class DeviceBarrierService {
@@ -30,13 +31,7 @@ class DeviceBarrierService {
 
   List<DeviceBarrier> get barriers => List.unmodifiable(notifier.value);
 
-  bool get _useFirebase {
-    try {
-      return Firebase.apps.isNotEmpty;
-    } catch (_) {
-      return false;
-    }
-  }
+  bool get _useFirebase => FirebaseHelper.isInitialized;
 
   Future<void> markElderlyActive() async {
     final prefs = await SharedPreferences.getInstance();

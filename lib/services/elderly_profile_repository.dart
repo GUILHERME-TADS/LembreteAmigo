@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_core/firebase_core.dart';
+
+import '../utils/firebase_helper.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ElderlyProfileRepository {
@@ -28,13 +29,7 @@ class ElderlyProfileRepository {
     'updatedAt',
   };
 
-  bool get isFirebaseAvailable {
-    try {
-      return Firebase.apps.isNotEmpty;
-    } catch (_) {
-      return false;
-    }
-  }
+  bool get isFirebaseAvailable => FirebaseHelper.isInitialized;
 
   DocumentReference<Map<String, dynamic>> primaryRef(String idosoId) =>
       FirebaseFirestore.instance.collection(primaryCollection).doc(idosoId);

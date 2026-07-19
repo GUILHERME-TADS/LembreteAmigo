@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:firebase_core/firebase_core.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../theme/app_theme.dart';
@@ -10,6 +10,7 @@ import '../services/session_role_service.dart';
 import '../services/elderly_profile_repository.dart';
 import '../services/tts_service.dart';
 import '../services/offline_sync_service.dart';
+import '../utils/firebase_helper.dart';
 import '../widgets/index.dart';
 
 class EditProfileScreen extends StatefulWidget {
@@ -36,13 +37,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   String? _activeIdosoId;
   int _currentStep = 0;
 
-  bool get _useFirebase {
-    try {
-      return Firebase.apps.isNotEmpty;
-    } catch (_) {
-      return false;
-    }
-  }
+  bool get _useFirebase => FirebaseHelper.isInitialized;
 
   @override
   void initState() {

@@ -8,6 +8,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../services/session_role_service.dart';
 import '../services/app_status_service.dart';
 import '../services/notification_service.dart';
+import '../utils/firebase_helper.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -66,13 +67,7 @@ class PushNotificationService {
 
   void Function(String messageId)? onAppMessageOpened;
 
-  bool get _useFirebase {
-    try {
-      return Firebase.apps.isNotEmpty;
-    } catch (_) {
-      return false;
-    }
-  }
+  bool get _useFirebase => FirebaseHelper.isInitialized;
 
   Future<void> init() async {
     if (!_useFirebase || kIsWeb) return;

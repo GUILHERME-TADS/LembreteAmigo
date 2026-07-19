@@ -3,12 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:camera/camera.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:firebase_core/firebase_core.dart';
+
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../theme/app_theme.dart';
 import '../services/tts_service.dart';
 import '../services/lembrete_service.dart';
+import '../utils/firebase_helper.dart';
 import '../services/session_role_service.dart';
 import '../models/lembrete.dart';
 import '../widgets/index.dart';
@@ -36,13 +37,7 @@ class _TakePhotoConfirmationScreenState
   String? _cameraErrorMessage;
   bool _isTakingPhoto = false;
 
-  bool get _useFirebase {
-    try {
-      return Firebase.apps.isNotEmpty;
-    } catch (_) {
-      return false;
-    }
-  }
+  bool get _useFirebase => FirebaseHelper.isInitialized;
 
   @override
   void initState() {

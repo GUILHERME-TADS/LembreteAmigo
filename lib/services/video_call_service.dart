@@ -4,13 +4,14 @@ import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:jitsi_meet_flutter_sdk/jitsi_meet_flutter_sdk.dart';
 
 import '../main.dart';
 import '../models/video_call.dart';
 import '../utils/web_window_helper.dart';
+import '../utils/firebase_helper.dart';
 import 'app_status_service.dart';
 import 'notification_service.dart';
 import 'session_role_service.dart';
@@ -35,13 +36,7 @@ class VideoCallService {
   DateTime? _joinedAt;
   String _joinedCallType = 'video';
 
-  bool get _useFirebase {
-    try {
-      return Firebase.apps.isNotEmpty;
-    } catch (_) {
-      return false;
-    }
-  }
+  bool get _useFirebase => FirebaseHelper.isInitialized;
 
   Future<void> joinCall(
     String roomName, {

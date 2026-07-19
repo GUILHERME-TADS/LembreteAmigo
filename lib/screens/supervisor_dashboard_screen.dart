@@ -2,7 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 
 
-import 'package:firebase_core/firebase_core.dart';
+
+import '../utils/firebase_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -66,13 +67,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   bool _checkingConnection = true;
   bool _deviceDiagnosticsStale = false;
 
-  bool get _useFirebase {
-    try {
-      return Firebase.apps.isNotEmpty;
-    } catch (_) {
-      return false;
-    }
-  }
+  bool get _useFirebase => FirebaseHelper.isInitialized;
 
   Future<void> _checkSupervisorConnection() async {
     final connected = await SessionRoleService.isSupervisorConnected();

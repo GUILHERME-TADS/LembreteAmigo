@@ -1,18 +1,15 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_functions/cloud_functions.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/app_message.dart';
 import '../models/offline_write.dart';
 import '../utils/audio_path_helper.dart';
-import '../utils/web_upload_helper.dart';
+import '../utils/firebase_helper.dart';
+import 'media_upload_service.dart';
 import 'offline_sync_service.dart';
 import 'secure_cache_service.dart';
 import 'session_role_service.dart';
@@ -45,13 +42,7 @@ class MessageService {
         .length;
   }
 
-  bool get _useFirebase {
-    try {
-      return Firebase.apps.isNotEmpty;
-    } catch (_) {
-      return false;
-    }
-  }
+  bool get _useFirebase => FirebaseHelper.isInitialized;
 
   bool _canSyncIdosoId(String? idosoId) {
     return _useFirebase && !SessionRoleService.isLocalOnlyIdosoId(idosoId);
@@ -277,23 +268,14 @@ class MessageService {
       return audioPath;
     }
 
-    if (kIsWeb) {
-      try {
-        final bytes = await fetchBlobBytes(audioPath);
-        if (bytes == null) {
-          throw StateError('Não foi possível ler os bytes do blob no Web.');
-        }
-        final ref = FirebaseStorage.instance
-            .ref()
-            .child('message_audio')
-            .child(idosoId)
-            .child('$messageId.m4a');
-        final snapshot = await ref.putData(
-          bytes,
-          SettableMetadata(contentType: 'audio/mp4'),
-        );
-        return await snapshot.ref.getDownloadURL();
-      } catch (e) {
+    try {
+      return await MediaUploadService.upload(
+        localPath: audioPath,
+        destinationPath: 'message_audio/$idosoId/$messageId.m4a',
+        contentType: 'audio/mp4',
+      );
+    } catch (e) {
+      if (kIsWeb) {
         debugPrint('Erro ao fazer upload do audio no Web: $e');
         AppStatusService.instance.report(
           id: 'message-audio-pending',
@@ -302,23 +284,8 @@ class MessageService {
         );
         return audioPath;
       }
+      rethrow;
     }
-
-    final file = File(audioPath);
-    if (!await file.exists()) {
-      throw StateError('Arquivo de audio nao encontrado.');
-    }
-
-    final ref = FirebaseStorage.instance
-        .ref()
-        .child('message_audio')
-        .child(idosoId)
-        .child('$messageId.m4a');
-    final snapshot = await ref.putFile(
-      file,
-      SettableMetadata(contentType: 'audio/mp4'),
-    );
-    return snapshot.ref.getDownloadURL();
   }
 
   Future<void> deleteMessage(String id) async {

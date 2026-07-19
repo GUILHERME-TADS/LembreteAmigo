@@ -2,10 +2,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:firebase_core/firebase_core.dart';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../theme/app_theme.dart';
+import '../utils/firebase_helper.dart';
 
 class RegisterElderlyScreen extends StatefulWidget {
   const RegisterElderlyScreen({super.key});
@@ -21,13 +22,7 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
   String? _pairedIdosoId;
   String? _pairedIdosoName;
 
-  bool get _useFirebase {
-    try {
-      return Firebase.apps.isNotEmpty;
-    } catch (_) {
-      return false;
-    }
-  }
+  bool get _useFirebase => FirebaseHelper.isInitialized;
 
   String get _fullCode => _controllers.map((c) => c.text).join();
 

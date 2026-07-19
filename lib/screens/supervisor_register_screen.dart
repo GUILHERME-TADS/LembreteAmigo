@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../theme/app_theme.dart';
-import '../widgets/senior_button.dart';
+import '../widgets/index.dart';
+import '../utils/firebase_helper.dart';
 
 class SupervisorRegisterScreen extends StatefulWidget {
   const SupervisorRegisterScreen({super.key});
@@ -21,13 +22,7 @@ class _SupervisorRegisterScreenState extends State<SupervisorRegisterScreen> {
       TextEditingController();
   bool _isLoading = false;
 
-  bool get _useFirebase {
-    try {
-      return Firebase.apps.isNotEmpty;
-    } catch (_) {
-      return false;
-    }
-  }
+  bool get _useFirebase => FirebaseHelper.isInitialized;
 
   @override
   void dispose() {
@@ -138,41 +133,7 @@ class _SupervisorRegisterScreenState extends State<SupervisorRegisterScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(
-                      Icons.arrow_back,
-                      color: AppColors.primary,
-                      size: 32,
-                    ),
-                  ),
-                  const Spacer(),
-                  const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.health_and_safety,
-                        size: 40,
-                        color: AppColors.primary,
-                      ),
-                      SizedBox(width: 8),
-                      Text(
-                        'Cuidador',
-                        style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.w800,
-                          height: 1.2,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const Spacer(),
-                  const SizedBox(width: 48),
-                ],
-              ),
+              const SupervisorHeader(),
               const SizedBox(height: 24),
               const Text(
                 'Criar Conta de Cuidador',

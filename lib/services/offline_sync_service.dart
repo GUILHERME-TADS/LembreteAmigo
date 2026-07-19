@@ -1,14 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import '../utils/web_upload_helper.dart';
+import '../utils/firebase_helper.dart';
+import 'media_upload_service.dart';
 
 import '../models/offline_write.dart';
 import 'app_status_service.dart';
@@ -35,13 +32,7 @@ class OfflineSyncService {
   Timer? _backoffTimer;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
 
-  bool get _useFirebase {
-    try {
-      return Firebase.apps.isNotEmpty;
-    } catch (_) {
-      return false;
-    }
-  }
+  bool get _useFirebase => FirebaseHelper.isInitialized;
 
   Future<bool> _canAttemptRemoteSync() async {
     if (!_useFirebase) return false;
@@ -534,40 +525,11 @@ class OfflineSyncService {
     required String destinationPath,
     required String contentType,
   }) async {
-    if (kIsWeb) {
-      try {
-        final bytes = await fetchBlobBytes(localPath);
-        if (bytes == null) {
-          throw StateError('Não foi possível ler os bytes do blob no Web.');
-        }
-        final ref = FirebaseStorage.instance.ref().child(destinationPath);
-        final snapshot = await ref.putData(
-          bytes,
-          SettableMetadata(contentType: contentType),
-        );
-        return await snapshot.ref.getDownloadURL();
-      } catch (e) {
-        debugPrint('Erro ao fazer upload de $localPath no Web: $e');
-        rethrow;
-      }
-    }
-    final file = File(localPath);
-    if (!await file.exists()) {
-      throw StateError('Arquivo local para upload nao encontrado: $localPath');
-    }
-    try {
-      final ref = FirebaseStorage.instance.ref().child(destinationPath);
-      final snapshot = await ref.putFile(
-        file,
-        SettableMetadata(contentType: contentType),
-      );
-      return await snapshot.ref.getDownloadURL();
-    } catch (e) {
-      debugPrint(
-        'Erro ao fazer upload de $localPath para $destinationPath: $e',
-      );
-      rethrow;
-    }
+    return MediaUploadService.upload(
+      localPath: localPath,
+      destinationPath: destinationPath,
+      contentType: contentType,
+    );
   }
 
   Future<Set<String>> getPendingDeletes(String collection) async {

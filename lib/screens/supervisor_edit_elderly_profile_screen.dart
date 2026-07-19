@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_core/firebase_core.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/session_role_service.dart';
 import '../services/elderly_profile_repository.dart';
 import '../theme/app_theme.dart';
+import '../utils/firebase_helper.dart';
 
 class SupervisorEditElderlyProfileScreen extends StatefulWidget {
   const SupervisorEditElderlyProfileScreen({super.key});
@@ -30,13 +31,7 @@ class _SupervisorEditElderlyProfileScreenState
   bool _isSaving = false;
   String? _idosoId;
 
-  bool get _useFirebase {
-    try {
-      return Firebase.apps.isNotEmpty;
-    } catch (_) {
-      return false;
-    }
-  }
+  bool get _useFirebase => FirebaseHelper.isInitialized;
 
   @override
   void initState() {

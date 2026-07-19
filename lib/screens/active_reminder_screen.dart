@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../theme/app_theme.dart';
 import '../models/lembrete.dart';
 import '../services/lembrete_service.dart';
@@ -31,10 +30,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
   bool _isSpeakingLoopActive = false;
   bool _isLoopPaused = false;
   bool _isFetchingReminder = false;
-  final stt.SpeechToText _speech = stt.SpeechToText();
   final AudioPlayer _familyAudioPlayer = AudioPlayer();
-  bool _isListeningForCommand = false;
-  bool _voiceCommandHandled = false;
   Timer? _urgencyReinforcementTimer;
   Timer? _noResponseTimer;
   bool _isProcessingAction = false;
@@ -323,271 +319,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
     }
   }
 
-  Future<void> _listenForVoiceConfirmation() async {
-    try {
-      _isLoopPaused = true;
-      VibrationService.stopVibration();
-      await TTSService.instance.parar(caller: this);
 
-      final available = await _speech.initialize(
-        onError: (error) {
-          debugPrint('Erro no reconhecimento de voz: ${error.errorMsg}');
-          _finishVoiceListeningWithoutResult(
-            'Nao consegui ouvir sua resposta. Tente de novo ou use os botoes da tela.',
-          );
-        },
-        onStatus: (status) {
-          final finished =
-              status == stt.SpeechToText.doneStatus ||
-              status == stt.SpeechToText.notListeningStatus;
-          if (finished && _isListeningForCommand && !_voiceCommandHandled) {
-            _finishVoiceListeningWithoutResult(
-              'Não ouvi sua resposta. Você pode dizer: já fiz, adiar, ou não consegui.',
-            );
-          }
-        },
-      );
-      if (!available) {
-        await TTSService.instance.falar(
-          'Não consegui ouvir sua voz. Use os botões da tela.',
-          caller: this,
-        );
-        if (mounted) setState(() => _isLoopPaused = false);
-        return;
-      }
-
-      if (!mounted) return;
-      _voiceCommandHandled = false;
-      setState(() => _isListeningForCommand = true);
-      SystemSound.play(SystemSoundType.click);
-      _speech.listen(
-        listenOptions: stt.SpeechListenOptions(
-          listenFor: const Duration(seconds: 8),
-          pauseFor: const Duration(seconds: 3),
-          localeId: 'pt_BR',
-          cancelOnError: true,
-          partialResults: false,
-        ),
-        onResult: (result) {
-          if (result.finalResult) {
-            _voiceCommandHandled = true;
-            _handleVoiceCommand(result.recognizedWords);
-          }
-        },
-      );
-    } catch (e) {
-      debugPrint('Erro ao ouvir comando de voz: $e');
-      if (mounted) {
-        setState(() {
-          _isListeningForCommand = false;
-          _isLoopPaused = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _finishVoiceListeningWithoutResult(String message) async {
-    if (!mounted || !_isListeningForCommand || _voiceCommandHandled) return;
-    _voiceCommandHandled = true;
-    await _speech.stop();
-    SystemSound.play(SystemSoundType.click);
-    if (!mounted) return;
-    setState(() {
-      _isListeningForCommand = false;
-      _isLoopPaused = false;
-    });
-    await TTSService.instance.falar(message, caller: this);
-  }
-
-  String _normalizeVoiceText(String text) {
-    return text
-        .toLowerCase()
-        .replaceAll(RegExp('[\u00e1\u00e0\u00e2\u00e3\u00e4]'), 'a')
-        .replaceAll(RegExp('[\u00e9\u00e8\u00ea\u00eb]'), 'e')
-        .replaceAll(RegExp('[\u00ed\u00ec\u00ee\u00ef]'), 'i')
-        .replaceAll(RegExp('[\u00f3\u00f2\u00f4\u00f5\u00f6]'), 'o')
-        .replaceAll(RegExp('[\u00fa\u00f9\u00fb\u00fc]'), 'u')
-        .replaceAll('\u00e7', 'c')
-        .replaceAll(RegExp('[^a-z0-9 ]'), ' ')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
-  }
-
-  bool _hasAnyPhrase(String text, List<String> phrases) {
-    return phrases.any(text.contains);
-  }
-
-  bool _hasAnyWord(String text, List<String> words) {
-    return words.any((word) {
-      return RegExp('(^| )${RegExp.escape(word)}( |\\z)').hasMatch(text);
-    });
-  }
-
-  Future<void> _handleVoiceCommand(String text) async {
-    final lower = _normalizeVoiceText(text);
-    if (!mounted) return;
-    setState(() => _isListeningForCommand = false);
-    await _speech.stop();
-    SystemSound.play(SystemSoundType.click);
-
-    final isDifficulty =
-        _hasAnyPhrase(lower, const [
-          'nao consegui',
-          'nao consigo',
-          'nao fiz',
-          'nao tomei',
-          'nao bebi',
-          'nao comi',
-          'nao posso',
-          'nao da',
-          'preciso de ajuda',
-          'me ajuda',
-          'me ajude',
-          'tenho dificuldade',
-          'esta dificil',
-          'ta dificil',
-        ]) ||
-        _hasAnyWord(lower, const ['ajuda', 'dificuldade', 'dificil']);
-
-    final isPostpone =
-        _hasAnyPhrase(lower, const [
-          'adiar',
-          'adie',
-          'depois',
-          'mais tarde',
-          'daqui a pouco',
-          'me lembra',
-          'me lembre',
-          'avisa depois',
-          'avise depois',
-          'em dez minutos',
-          'em 10 minutos',
-        ]) ||
-        _hasAnyWord(lower, const ['adiar', 'depois']);
-
-    final isConfirmation =
-        _hasAnyPhrase(lower, const [
-          'ja fiz',
-          'eu fiz',
-          'ja tomei',
-          'eu tomei',
-          'ja bebi',
-          'eu bebi',
-          'ja comi',
-          'eu comi',
-          'consegui fazer',
-          'esta feito',
-          'ta feito',
-        ]) ||
-        _hasAnyWord(lower, const [
-          'tomei',
-          'fiz',
-          'bebi',
-          'comi',
-          'conclui',
-          'concluido',
-          'confirmo',
-          'ok',
-          'sim',
-          'pronto',
-          'feito',
-          'terminei',
-          'consegui',
-          's',
-        ]);
-
-    if ((isDifficulty || isPostpone || isConfirmation) && !_tryStartAction()) {
-      return;
-    }
-
-    if (isDifficulty) {
-      _isSpeakingLoopActive = false;
-      _isLoopPaused = false;
-      _noResponseTimer?.cancel();
-      await _familyAudioPlayer.stop();
-      await TTSService.instance.parar(caller: this);
-      if (lembrete != null) {
-        await LembreteService.instance.registrarDificuldade(
-          lembrete!.id,
-          'O idoso informou por voz que nao conseguiu realizar a atividade.',
-        );
-      }
-      if (!mounted) return;
-      Navigator.pushNamedAndRemoveUntil(
-        context,
-        '/reinforcement-alert',
-        (route) => false,
-        arguments: {'categoria': lembrete?.categoria, 'tipo': 'dificuldade'},
-      );
-      return;
-    }
-
-    if (isPostpone) {
-      _isSpeakingLoopActive = false;
-      _isLoopPaused = false;
-      _noResponseTimer?.cancel();
-      await _familyAudioPlayer.stop();
-      await TTSService.instance.parar(caller: this);
-      if (lembrete != null) {
-        await LembreteService.instance.adiar(lembrete!.id, 10);
-      }
-      if (!mounted) return;
-      Navigator.pushNamedAndRemoveUntil(
-        context,
-        '/reinforcement-alert',
-        (route) => false,
-        arguments: {'categoria': lembrete?.categoria},
-      );
-      return;
-    }
-
-    if (isConfirmation) {
-      if (lembrete?.categoria == 'medicacao') {
-        final id = lembrete?.id;
-        if (id == null || id.isEmpty) {
-          if (mounted) setState(() => _notFound = true);
-          return;
-        }
-        _isSpeakingLoopActive = false;
-        _noResponseTimer?.cancel();
-        await _familyAudioPlayer.stop();
-        await TTSService.instance.parar(caller: this);
-        if (!mounted) return;
-        await Navigator.pushNamed(
-          context,
-          '/take-photo-confirmation',
-          arguments: id,
-        );
-        if (mounted) {
-          setState(() => _isProcessingAction = false);
-        }
-      } else {
-        _isSpeakingLoopActive = false;
-        _noResponseTimer?.cancel();
-        await _familyAudioPlayer.stop();
-        await TTSService.instance.parar(caller: this);
-        if (lembrete != null) {
-          await LembreteService.instance.alternarConclusao(lembrete!.id);
-        }
-        if (!mounted) return;
-        Navigator.pushNamedAndRemoveUntil(
-          context,
-          '/medication-confirmation',
-          (route) => false,
-          arguments: 'Atividade confirmada por voz.',
-        );
-      }
-      return;
-    }
-
-    await TTSService.instance.falar(
-      'Não entendi. Você pode dizer: já fiz, adiar, ou não consegui.',
-      caller: this,
-    );
-    if (mounted) {
-      setState(() => _isLoopPaused = false);
-    }
-  }
 
   @override
   void dispose() {
@@ -598,7 +330,6 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
     WidgetsBinding.instance.removeObserver(this);
     VibrationService.stopVibration();
     _familyAudioPlayer.dispose();
-    _speech.stop();
     LembreteService.instance.notifier.removeListener(_onLembretesChanged);
     TTSService.instance.parar(caller: this);
     super.dispose();
@@ -899,58 +630,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                               const SizedBox(height: 24),
                             ],
 
-                            if (_isListeningForCommand) ...[
-                              AudioWaveformIndicator(
-                                isListening: _isListeningForCommand,
-                              ),
-                              const SizedBox(height: 16),
-                            ],
 
-                            SizedBox(
-                              width: double.infinity,
-                              height: 72,
-                              child: OutlinedButton.icon(
-                                onPressed:
-                                    _isListeningForCommand ||
-                                        _isProcessingAction
-                                    ? null
-                                    : _listenForVoiceConfirmation,
-                                icon: Icon(
-                                  _isListeningForCommand
-                                      ? Icons.hearing
-                                      : Icons.mic,
-                                  size: 30,
-                                ),
-                                label: FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  child: Text(
-                                    _isListeningForCommand
-                                        ? 'OUVINDO...'
-                                        : 'RESPONDER POR VOZ',
-                                    maxLines: 1,
-                                    style: const TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.w900,
-                                    ),
-                                  ),
-                                ),
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: isHighContrast
-                                      ? Colors.black
-                                      : AppColors.primary,
-                                  side: BorderSide(
-                                    color: isHighContrast
-                                        ? Colors.black
-                                        : AppColors.primary,
-                                    width: isHighContrast ? 4 : 2,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
 
                             // BOTAO CONFIRMAR (ENTENDI)
                             SizedBox(

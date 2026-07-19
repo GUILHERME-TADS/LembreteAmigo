@@ -302,35 +302,25 @@ class LembreteService {
   }
 
   List<String> _lembretesCacheKeysForRead(String? activeIdosoId) {
-    final keys = <String>[
+    if (SessionRoleService.isLocalOnlyIdosoId(activeIdosoId)) {
+      return [
+        _elderlyBackupCacheKey(SessionRoleService.autonomousIdosoId),
+        _lembretesCacheKey(SessionRoleService.autonomousIdosoId),
+      ];
+    }
+    return [
       if (SessionRoleService.isElderly) _elderlyBackupCacheKey(activeIdosoId),
       _lembretesCacheKey(activeIdosoId),
     ];
-    if (SessionRoleService.isElderly ||
-        SessionRoleService.isLocalOnlyIdosoId(activeIdosoId)) {
-      keys.addAll([
-        _elderlyBackupCacheKey(SessionRoleService.autonomousIdosoId),
-        _lembretesCacheKey(SessionRoleService.autonomousIdosoId),
-        'lembretes_idoso_sem_vinculo',
-        'lembretes_idoso_simulado',
-        'lembretes',
-      ]);
-    }
-    return keys.toSet().toList();
   }
 
   List<String> _eventosCacheKeysForRead(String? activeIdosoId) {
-    final keys = <String>[_eventosCacheKey(activeIdosoId)];
-    if (SessionRoleService.isElderly ||
-        SessionRoleService.isLocalOnlyIdosoId(activeIdosoId)) {
-      keys.addAll([
+    if (SessionRoleService.isLocalOnlyIdosoId(activeIdosoId)) {
+      return [
         _eventosCacheKey(SessionRoleService.autonomousIdosoId),
-        'lembretes_eventos_idoso_sem_vinculo',
-        'lembretes_eventos_idoso_simulado',
-        'lembretes_eventos',
-      ]);
+      ];
     }
-    return keys.toSet().toList();
+    return [_eventosCacheKey(activeIdosoId)];
   }
 
   Future<List<dynamic>?> _readListCache(List<String> keys, String label) async {
@@ -349,7 +339,101 @@ class LembreteService {
     return null;
   }
 
+  Future<void> _runOneTimeCacheMigration() async {
+    final secureCache = SecureCacheService.instance;
+    final targetRemindersKey = 'lembretes_idoso_local';
+    final targetBackupRemindersKey = 'elderly_backup_lembretes_idoso_local';
+
+    // Check if new unified local key has data
+    final existingLocal = await secureCache.read(targetRemindersKey);
+    final existingBackup = await secureCache.read(targetBackupRemindersKey);
+
+    final bool hasExistingLocalData = (existingLocal != null && existingLocal.isNotEmpty) ||
+                                       (existingBackup != null && existingBackup.isNotEmpty);
+
+    // If it doesn't have data, attempt to find data in the old keys
+    if (!hasExistingLocalData) {
+      final oldRemindersKeys = [
+        'lembretes_idoso_autonomo',
+        'elderly_backup_lembretes_idoso_autonomo',
+        'lembretes_idoso_sem_vinculo',
+        'lembretes_idoso_simulado',
+        'lembretes',
+      ];
+
+      String? foundData;
+      for (final key in oldRemindersKeys) {
+        final data = await secureCache.read(key);
+        if (data != null && data.isNotEmpty) {
+          try {
+            final decoded = jsonDecode(data);
+            if (decoded is List && decoded.isNotEmpty) {
+              foundData = data;
+              break;
+            }
+          } catch (_) {}
+        }
+      }
+
+      if (foundData != null) {
+        await secureCache.write(targetRemindersKey, foundData);
+        await secureCache.write(targetBackupRemindersKey, foundData);
+        debugPrint('Cache de lembretes locais antigos migrado com sucesso para idoso_local.');
+      }
+    }
+
+    // Repeat the check for events
+    final targetEventsKey = 'lembretes_eventos_idoso_local';
+    final existingEvents = await secureCache.read(targetEventsKey);
+    final bool hasExistingEventsData = existingEvents != null && existingEvents.isNotEmpty;
+
+    if (!hasExistingEventsData) {
+      final oldEventsKeys = [
+        'lembretes_eventos_idoso_autonomo',
+        'lembretes_eventos_idoso_sem_vinculo',
+        'lembretes_eventos_idoso_simulado',
+        'lembretes_eventos',
+      ];
+
+      String? foundData;
+      for (final key in oldEventsKeys) {
+        final data = await secureCache.read(key);
+        if (data != null && data.isNotEmpty) {
+          try {
+            final decoded = jsonDecode(data);
+            if (decoded is List && decoded.isNotEmpty) {
+              foundData = data;
+              break;
+            }
+          } catch (_) {}
+        }
+      }
+
+      if (foundData != null) {
+        await secureCache.write(targetEventsKey, foundData);
+        debugPrint('Cache de eventos de lembretes antigos migrado com sucesso para idoso_local.');
+      }
+    }
+
+    // Clean up all old cache keys so they don't linger on the device
+    final keysToDelete = [
+      'lembretes_idoso_autonomo',
+      'elderly_backup_lembretes_idoso_autonomo',
+      'lembretes_idoso_sem_vinculo',
+      'lembretes_idoso_simulado',
+      'lembretes',
+      'lembretes_eventos_idoso_autonomo',
+      'lembretes_eventos_idoso_sem_vinculo',
+      'lembretes_eventos_idoso_simulado',
+      'lembretes_eventos',
+    ];
+    for (final key in keysToDelete) {
+      await secureCache.delete(key);
+    }
+  }
+
   Future<void> _carregarCacheLocal({String? activeIdosoId}) async {
+    await _runOneTimeCacheMigration();
     final activeCacheId = _cacheIdosoId(activeIdosoId);
     final migratedReminders = <Lembrete>[];
     final lembretesCache = await _readListCache(

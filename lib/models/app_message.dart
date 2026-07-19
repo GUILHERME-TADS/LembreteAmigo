@@ -56,7 +56,7 @@ class AppMessage {
       id:
           json['id'] as String? ??
           'msg_${DateTime.now().microsecondsSinceEpoch}',
-      idosoId: json['idosoId'] as String? ?? 'idoso_sem_vinculo',
+      idosoId: json['idosoId'] as String? ?? 'idoso_local',
       nomeIdoso: json['nomeIdoso'] as String? ?? 'Idoso',
       senderRole: json['senderRole'] as String? ?? 'elderly',
       tipo: json['tipo'] as String? ?? 'texto',

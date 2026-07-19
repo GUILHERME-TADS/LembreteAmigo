@@ -20,7 +20,7 @@ class _ElderlyOnboardingScreenState extends State<ElderlyOnboardingScreen> {
       icon: Icons.waving_hand,
       title: 'Bem-vindo ao\nLembrete Amigo!',
       subtitle: 'Eu sou o Alex. Um assistente por voz que vai te acompanhar em cada momento do dia.',
-      ttsMessage: 'Olá! Seja muito bem-vindo ao Lembrete Amigo. Eu sou o Alex e vou te ajudar a lembrar dos seus compromissos, remédios e bem-estar no dia a dia.',
+      ttsMessage: 'Olá! Seja muito bem-vindo ao Lembrete Amigo. Eu sou o Alex e vou te ajudar a lembrar das suas atividades do dia a dia.',
     ),
     _OnboardingStep(
       icon: Icons.volume_up,
@@ -30,15 +30,15 @@ class _ElderlyOnboardingScreenState extends State<ElderlyOnboardingScreen> {
     ),
     _OnboardingStep(
       icon: Icons.mic,
-      title: 'Sua Voz tem\nComando',
-      subtitle: 'Você não precisa digitar. Pode falar comigo dizendo "já tomei", "adiar" ou perguntar o que precisa fazer.',
-      ttsMessage: 'Você pode falar diretamente comigo. Quando um lembrete tocar, diga em voz alta: "já tomei" para confirmar, ou "adiar" para eu te avisar mais tarde.',
+      title: 'Falar com o Alex',
+      subtitle: 'Para tirar dúvidas ou pesquisar algo, basta tocar no grande botão amarelo de microfone no meio da tela.',
+      ttsMessage: 'No meio da tela inicial, você pode tocar no grande círculo amarelo de microfone para conversar comigo, tirar dúvidas ou pedir para eu explicar algo.',
     ),
     _OnboardingStep(
-      icon: Icons.contact_emergency,
-      title: 'SOS e Recados\npor Voz',
-      subtitle: 'Se precisar de ajuda, use o botão vermelho de SOS para chamar seu cuidador. Você também pode enviar recados falando.',
-      ttsMessage: 'Se você não se sentir bem, toque no botão vermelho de SOS para alertar seu cuidador imediatamente. E na tela de Recados, você pode ouvir mensagens do seu cuidador e responder gravando sua voz.',
+      icon: Icons.local_hospital,
+      title: 'Ligar para a\nAmbulância',
+      subtitle: 'Se não estiver se sentindo bem ou em caso de emergência, você pode tocar no botão da Ambulância para pedir socorro rápido.',
+      ttsMessage: 'Se você não estiver se sentindo bem ou tiver uma emergência, pode ir até a tela de ajuda e tocar no botão vermelho para ligar para a Ambulância imediatamente.',
     ),
   ];
 

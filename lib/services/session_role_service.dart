@@ -14,8 +14,8 @@ class SessionRoleService {
   static const String _roleKey = 'active_user_role';
   static const String elderly = 'elderly';
   static const String supervisor = 'supervisor';
-  static const String unpairedIdosoId = 'idoso_sem_vinculo';
-  static const String autonomousIdosoId = 'idoso_autonomo';
+  static const String unpairedIdosoId = 'idoso_local';
+  static const String autonomousIdosoId = 'idoso_local';
 
   static String? _activeRole;
   static bool _lastVerificationFailedByError = false;
@@ -31,8 +31,7 @@ class SessionRoleService {
   static bool isLocalOnlyIdosoId(String? idosoId) =>
       idosoId == null ||
       idosoId.isEmpty ||
-      idosoId == unpairedIdosoId ||
-      idosoId == autonomousIdosoId ||
+      idosoId == 'idoso_local' ||
       idosoId == 'idoso_simulado';
 
   static Future<void> load() async {

@@ -90,15 +90,14 @@ Future<bool> _consumeNotificationLaunch(
   final prefs = await SharedPreferences.getInstance();
   final fingerprint = '$payload|${actionId ?? ''}';
   final previous = prefs.getString(_lastNotificationLaunchKey);
-  final previousAt = prefs.getInt(_lastNotificationLaunchAtKey) ?? 0;
-  final now = DateTime.now().millisecondsSinceEpoch;
-  if (previous == fingerprint && now - previousAt < 2 * 60 * 1000) {
+  if (previous == fingerprint) {
     return false;
   }
   await prefs.setString(_lastNotificationLaunchKey, fingerprint);
-  await prefs.setInt(_lastNotificationLaunchAtKey, now);
+  await prefs.setInt(_lastNotificationLaunchAtKey, DateTime.now().millisecondsSinceEpoch);
   return true;
 }
+
 
 void _openWidgetUri(Uri? uri) {
   final navigator = navigatorKey.currentState;

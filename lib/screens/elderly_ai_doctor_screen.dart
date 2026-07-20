@@ -47,14 +47,19 @@ class _ElderlyAiDoctorScreenState extends State<ElderlyAiDoctorScreen>
 
   Future<void> _toggleListening() async {
     if (_isThinking) return;
-    TTSService.instance.parar(caller: this);
+    await TTSService.instance.parar(caller: this);
 
     if (_isListening) {
       await _speech.stop();
       if (mounted) {
         setState(() => _isListening = false);
-        if (_pergunta.isNotEmpty) {
-          _consultarIA(_pergunta);
+        if (_pergunta.trim().isNotEmpty) {
+          _consultarIA(_pergunta.trim());
+        } else {
+          TTSService.instance.falar(
+            'Não ouvi nenhuma palavra. Toque no botão azul e tente falar de novo.',
+            caller: this,
+          );
         }
       }
     } else {
@@ -65,14 +70,25 @@ class _ElderlyAiDoctorScreenState extends State<ElderlyAiDoctorScreen>
       final available = await _speech.initialize(
         onError: (e) {
           debugPrint('STT Error na tela Doutor IA: $e');
-          if (mounted) setState(() => _isListening = false);
+          if (mounted) {
+            setState(() => _isListening = false);
+            TTSService.instance.falar(
+              'Tive dificuldade com o microfone. Toque de novo para tentar.',
+              caller: this,
+            );
+          }
         },
         onStatus: (status) {
           if ((status == 'done' || status == 'notListening') && _isListening) {
             if (mounted) {
               setState(() => _isListening = false);
-              if (_pergunta.isNotEmpty && !_isThinking) {
-                _consultarIA(_pergunta);
+              if (_pergunta.trim().isNotEmpty && !_isThinking) {
+                _consultarIA(_pergunta.trim());
+              } else if (_pergunta.trim().isEmpty && !_isThinking) {
+                TTSService.instance.falar(
+                  'Não ouvi sua dúvida. Toque no círculo azul e fale novamente.',
+                  caller: this,
+                );
               }
             }
           }
@@ -89,7 +105,12 @@ class _ElderlyAiDoctorScreenState extends State<ElderlyAiDoctorScreen>
               });
             }
           },
-          listenOptions: stt.SpeechListenOptions(localeId: 'pt_BR'),
+          listenOptions: stt.SpeechListenOptions(
+            localeId: 'pt_BR',
+            listenFor: const Duration(seconds: 40),
+            pauseFor: const Duration(seconds: 5),
+            cancelOnError: false,
+          ),
         );
       } else if (mounted) {
         TTSService.instance.falar('Microfone indisponível no momento.', caller: this);
@@ -99,11 +120,16 @@ class _ElderlyAiDoctorScreenState extends State<ElderlyAiDoctorScreen>
 
   Future<void> _consultarIA(String perguntaTexto) async {
     if (_isThinking || perguntaTexto.trim().isEmpty) return;
+    await TTSService.instance.parar(caller: this);
     setState(() => _isThinking = true);
-    await TTSService.instance.falar('Consultando o Doutor Amigo na nuvem. Só um instante...', caller: this);
+    await TTSService.instance.falar(
+      'Consultando o Doutor Amigo na nuvem. Só um instante...',
+      caller: this,
+    );
 
     final resposta = await LembreteService.instance.alexChat(perguntaTexto);
     if (mounted) {
+      await TTSService.instance.parar(caller: this);
       setState(() {
         _isThinking = false;
         _resposta = resposta;
@@ -111,6 +137,7 @@ class _ElderlyAiDoctorScreenState extends State<ElderlyAiDoctorScreen>
       TTSService.instance.falar(resposta, caller: this);
     }
   }
+
 
   @override
   Widget build(BuildContext context) {

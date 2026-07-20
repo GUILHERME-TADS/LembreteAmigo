@@ -1543,7 +1543,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text(
-                              'RADAR APARLEHO',
+                              'RADAR APARELHO',
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w700,
@@ -2009,9 +2009,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   color: AppColors.surfaceContainerLowest,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: needsAttention
-                        ? AppColors.error
-                        : AppColors.outlineVariant,
+                    color: Colors.transparent, // Borda oculta para não duplicar com a borda vermelha interna do ReminderWithAudio
                     width: needsAttention ? 2 : 1,
                   ),
                 ),

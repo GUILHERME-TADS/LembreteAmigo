@@ -228,7 +228,10 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
               decoration: BoxDecoration(
                 color: AppColors.surfaceContainerLowest,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.outlineVariant, width: 2),
+                border: Border.all(
+                  color: Colors.transparent, // Borda cinza clara oculta
+                  width: 2,
+                ),
               ),
               child: Column(
                 children: [

@@ -90,8 +90,15 @@ Future<bool> _consumeNotificationLaunch(
   final previous = prefs.getString(_lastNotificationLaunchKey);
   final previousAt = prefs.getInt(_lastNotificationLaunchAtKey) ?? 0;
   final now = DateTime.now().millisecondsSinceEpoch;
-  if (previous == fingerprint && now - previousAt < 2 * 60 * 1000) {
-    return false;
+  if (previous == fingerprint) {
+    if (payload.startsWith('app_message:') ||
+        payload.startsWith('call:') ||
+        payload.startsWith('supervisor_alert:')) {
+      return false;
+    }
+    if (now - previousAt < 6 * 60 * 60 * 1000) {
+      return false;
+    }
   }
   await prefs.setString(_lastNotificationLaunchKey, fingerprint);
   await prefs.setInt(_lastNotificationLaunchAtKey, now);

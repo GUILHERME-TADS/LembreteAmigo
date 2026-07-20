@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/session_role_service.dart';
 import '../services/notification_service.dart';
 import '../utils/firebase_helper.dart';
@@ -106,9 +107,31 @@ class PushNotificationService {
     });
 
     final initialMessage = await _messaging!.getInitialMessage();
-    if (initialMessage != null) {
+    if (initialMessage != null &&
+        await _consumeInitialMessage(initialMessage)) {
       _handleVideoCallMessage(initialMessage, fromBackground: true);
       _handleAppMessage(initialMessage, opened: true);
+    }
+  }
+
+  Future<bool> _consumeInitialMessage(RemoteMessage message) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final fingerprint = message.messageId ?? message.data.toString();
+      if (fingerprint.isEmpty) return false;
+
+      final previous = prefs.getString('last_fcm_initial_message_key');
+      if (previous == fingerprint) {
+        return false;
+      }
+      await prefs.setString('last_fcm_initial_message_key', fingerprint);
+      await prefs.setInt(
+        'last_fcm_initial_message_at',
+        DateTime.now().millisecondsSinceEpoch,
+      );
+      return true;
+    } catch (e) {
+      return true;
     }
   }
 

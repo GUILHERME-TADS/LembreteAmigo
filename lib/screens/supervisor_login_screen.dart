@@ -110,7 +110,7 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
           .set({
             'nome': user.displayName ?? 'Cuidador',
             'email': user.email ?? '',
-            'fotoUrl': user.photoURL,
+            'fotoPath': user.photoURL,
             'updatedAt': DateTime.now().toIso8601String(),
           }, SetOptions(merge: true));
       await SessionRoleService.setSupervisor();

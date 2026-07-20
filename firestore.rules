@@ -376,8 +376,9 @@ service cloud.firestore {
     }
 
     match /idoso_perfil/{idosoId} {
-      allow read: if canAccessIdosoData(idosoId) ||
-        (isSupervisor() && resource.data.status == 'pending');
+      allow read: if isOwner(idosoId) || 
+                  (isAuth() && resource.data.supervisorId == request.auth.uid) ||
+                  (isSupervisor() && resource.data.status == 'pending');
       allow create: if isOwner(idosoId) && validProfile(request.resource.data);
       allow update: if (
         canAccessIdosoData(idosoId) && validProfile(request.resource.data)

@@ -314,7 +314,7 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
                             );
                             if (result == null || result.isEmpty || result == _lembrete!.titulo) return;
                             await LembreteService.instance.atualizarTitulo(_lembrete!.id, result);
-                            if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pronto. O nome foi trocado.')));
+                            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pronto. O nome foi trocado.')));
                           },
                           icon: const Icon(Icons.edit, size: 28),
                           label: const Text('MUDAR NOME', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
@@ -345,7 +345,7 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
                               picked.hour,
                               picked.minute,
                             );
-                            if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pronto. O horário foi trocado.')));
+                            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pronto. O horário foi trocado.')));
                           },
                           icon: const Icon(Icons.access_time, size: 28),
                           label: const Text('MUDAR HORÁRIO', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
@@ -369,7 +369,7 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
                             );
                             if (confirm != true) return;
                             await LembreteService.instance.remover(_lembrete!.id);
-                            if (mounted) {
+                            if (context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lembrete apagado.')));
                               Navigator.pop(context);
                             }

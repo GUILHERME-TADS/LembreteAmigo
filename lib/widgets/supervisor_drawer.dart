@@ -318,7 +318,8 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
                 ),
               ),
               onTap: () async {
-                Navigator.pop(context);
+                final navigator = Navigator.of(context);
+                navigator.pop();
                 try {
                   if (Firebase.apps.isNotEmpty) {
                     await GoogleAuthService.instance.signOut();
@@ -327,12 +328,9 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
                 await SessionRoleService.logout();
                 await LembreteService.instance.reset();
                 await MessageService.instance.reset();
-                if (context.mounted) {
-                  Navigator.pushNamedAndRemoveUntil(
-                    context,
-                    '/',
-                    (route) => false,
-                  );
+                
+                if (navigator.mounted) {
+                  navigator.pushNamedAndRemoveUntil('/', (route) => false);
                 }
               },
             ),

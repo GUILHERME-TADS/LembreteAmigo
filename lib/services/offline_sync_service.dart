@@ -227,9 +227,11 @@ class OfflineSyncService {
       bool hasFailure = false;
 
       for (final write in queue) {
-        if (write.failed) {
-          remaining.add(write);
-          continue;
+        if (write.failed || write.attempts >= 10) {
+          debugPrint(
+            'Descartando escrita offline permanentemente falha: ${write.collection}/${write.docId}',
+          );
+          continue; // Do NOT add to remaining
         }
 
         if (hasFailure) {
@@ -246,24 +248,28 @@ class OfflineSyncService {
           await _apply(updatedWrite).timeout(_writeTimeout);
         } catch (e) {
           final permissionDenied = _isPermissionDenied(e);
-          if (!permissionDenied) {
+          final newAttempts = write.attempts + 1;
+
+          if (permissionDenied || newAttempts >= 10) {
             debugPrint(
-              'Falha temporária ao sincronizar ${write.collection}/${write.docId}.',
+              'Escrita bloqueada permanentemente (permissao negada ou limite de tentativas): ${write.collection}/${write.docId}',
             );
-          }
-          remaining.add(
-            write.copyWith(
-              attempts: permissionDenied ? 5 : write.attempts + 1,
-              failed: permissionDenied,
-              lastError: e.toString(),
-            ),
-          );
-          if (permissionDenied) {
             AppStatusService.instance.clear('offline-sync-pending');
+            // Do not add to remaining, discard it.
           } else {
-            _scheduleBackoff(write.attempts + 1);
+            debugPrint(
+              'Falha temporária ao sincronizar ${write.collection}/${write.docId}: $e',
+            );
+            remaining.add(
+              write.copyWith(
+                attempts: newAttempts,
+                failed: false,
+                lastError: e.toString(),
+              ),
+            );
+            _scheduleBackoff(newAttempts);
+            hasFailure = true;
           }
-          hasFailure = true;
         }
       }
 

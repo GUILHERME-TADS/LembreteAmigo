@@ -7,6 +7,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../theme/app_theme.dart';
 import '../utils/firebase_helper.dart';
+import '../services/lembrete_service.dart';
+import '../services/message_service.dart';
+import '../services/session_role_service.dart';
 
 class RegisterElderlyScreen extends StatefulWidget {
   const RegisterElderlyScreen({super.key});
@@ -151,11 +154,25 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
     setState(() => _isLoading = true);
 
     try {
+      await LembreteService.instance.reset();
+      await MessageService.instance.reset();
+      await SessionRoleService.stopWatchingElderlyConnection();
+
       if (_pairedIdosoId != null) {
         if (_useFirebase) {
           final batch = FirebaseFirestore.instance.batch();
           batch.set(
             FirebaseFirestore.instance.collection('idoso_perfil').doc(_pairedIdosoId!),
+            {
+              'supervisorId': null,
+              'status': 'pending',
+              'pairingCode': null,
+              'pairingCodeExpires': null,
+            },
+            SetOptions(merge: true),
+          );
+          batch.set(
+            FirebaseFirestore.instance.collection('idosos').doc(_pairedIdosoId!),
             {
               'supervisorId': null,
               'status': 'pending',

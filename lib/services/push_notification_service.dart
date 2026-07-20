@@ -196,6 +196,13 @@ class PushNotificationService {
       return;
     }
 
+    final senderRole = message.data['senderRole'] as String?;
+    final currentRole =
+        SessionRoleService.isSupervisor ? 'supervisor' : 'elderly';
+    if (senderRole != null && senderRole == currentRole) {
+      return;
+    }
+
     final title = message.notification?.title ?? 'Novo recado';
     final body = message.notification?.body ?? 'Você recebeu um novo recado.';
     NotificationService.instance.mostrarNovoRecado(

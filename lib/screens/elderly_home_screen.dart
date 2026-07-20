@@ -517,7 +517,6 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
   Widget _buildReminderCard(Lembrete lembrete) {
     final isHighContrast =
         Theme.of(context).colorScheme.primary == Colors.black;
-    final isMed = lembrete.categoria == 'medicacao';
     final statusText = _statusText(lembrete);
     final isAtrasado =
         !lembrete.concluido &&

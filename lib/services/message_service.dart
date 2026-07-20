@@ -145,6 +145,10 @@ class MessageService {
           await OfflineSyncService.instance.syncPendingWrites();
         }, onError: (Object error, StackTrace stackTrace) {
           debugPrint('Erro ao escutar mensagens no Firestore: $error');
+          if (error is FirebaseException && error.code == 'permission-denied') {
+            _messagesSubscription?.cancel();
+            _messagesSubscription = null;
+          }
         });
   }
 

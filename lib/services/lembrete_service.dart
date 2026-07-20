@@ -254,6 +254,10 @@ class LembreteService {
           },
           onError: (Object error, StackTrace stackTrace) {
             debugPrint('Erro ao escutar lembretes no Firestore: $error');
+            if (error is FirebaseException && error.code == 'permission-denied') {
+              _lembretesSubscription?.cancel();
+              _lembretesSubscription = null;
+            }
           },
         );
 
@@ -274,6 +278,10 @@ class LembreteService {
           },
           onError: (Object error, StackTrace stackTrace) {
             debugPrint('Erro ao escutar eventos no Firestore: $error');
+            if (error is FirebaseException && error.code == 'permission-denied') {
+              _eventosSubscription?.cancel();
+              _eventosSubscription = null;
+            }
           },
         );
   }

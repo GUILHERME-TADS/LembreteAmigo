@@ -10,17 +10,6 @@ service firebase.storage {
       return isAuth() && firestore.exists(/databases/(default)/documents/supervisores/$(request.auth.uid));
     }
 
-    function isSupervisorOf(userId) {
-      return isAuth() && (
-        isSupervisor() ||
-        (firestore.exists(/databases/(default)/documents/idoso_perfil/$(userId)) &&
-         firestore.get(/databases/(default)/documents/idoso_perfil/$(userId)).data.supervisorId == request.auth.uid) ||
-        (firestore.exists(/databases/(default)/documents/idosos/$(userId)) &&
-         firestore.get(/databases/(default)/documents/idosos/$(userId)).data.supervisorId == request.auth.uid) ||
-        firestore.exists(/databases/(default)/documents/supervisores/$(request.auth.uid)/idosos/$(userId))
-      );
-    }
-
     function canAccessElderlyData(idosoId) {
       return isAuth();
     }

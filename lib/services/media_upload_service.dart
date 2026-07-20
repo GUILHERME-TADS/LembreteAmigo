@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import '../utils/web_upload_helper.dart';
-import 'session_role_service.dart';
 
 class MediaUploadService {
   /// Faz upload de um arquivo ou blob de mídia para o Firebase Storage.
@@ -14,7 +13,7 @@ class MediaUploadService {
     required String contentType,
   }) async {
     final ref = FirebaseStorage.instance.ref().child(destinationPath);
-    await _ensurePreflightAuthAndSupervisor(destinationPath);
+    await _ensureAuthBeforeUpload();
 
     if (kIsWeb) {
       try {
@@ -50,23 +49,13 @@ class MediaUploadService {
     }
   }
 
-  static Future<void> _ensurePreflightAuthAndSupervisor(String destinationPath) async {
+  static Future<void> _ensureAuthBeforeUpload() async {
     try {
-      var user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
-        user = await SessionRoleService.ensureElderlyAuthSession();
-        user ??= (await FirebaseAuth.instance.signInAnonymously()).user;
-      }
-      if (user != null) {
-        final parts = destinationPath.split('/');
-        final targetId = parts.length >= 2 ? parts[1] : '';
-        debugPrint('=== [UPLOAD PREFLIGHT] Target: $destinationPath | Auth UID: ${user.uid} | targetId: $targetId | Role Elder: ${SessionRoleService.isElderly} | Role Sup: ${SessionRoleService.isSupervisor} ===');
-        if (targetId.isNotEmpty && !SessionRoleService.isLocalOnlyIdosoId(targetId) && targetId != user.uid) {
-          await SessionRoleService.ensureSupervisorDocAndSubcollection(user.uid, targetId);
-        }
+      if (FirebaseAuth.instance.currentUser == null) {
+        await FirebaseAuth.instance.signInAnonymously();
       }
     } catch (e) {
-      debugPrint('Erro na verificação preflight antes do upload: $e');
+      debugPrint('Erro ao verificar autenticação antes do upload: $e');
     }
   }
 }

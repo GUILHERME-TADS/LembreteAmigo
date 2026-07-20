@@ -536,221 +536,176 @@ class _MessagesScreenState extends State<MessagesScreen> {
     // Custom font size for elderly readability
     final double textFontSize = _isSupervisor ? 16.0 : 20.0;
 
-    final avatarUrl = sentByMe
-        ? null
-        : (_isSupervisor ? _fotoIdoso : _fotoSupervisor);
-    final senderName = sentByMe
-        ? null
-        : (_isSupervisor ? message.nomeIdoso : _nomeSupervisor);
-
-    Widget bubbleWidget = GestureDetector(
-        onLongPress: () => _confirmDeleteMessage(message),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
-          decoration: BoxDecoration(
-            color: bubbleColor,
-            borderRadius: BorderRadius.only(
-              topLeft: const Radius.circular(12),
-              topRight: const Radius.circular(12),
-              bottomLeft: sentByMe
-                  ? const Radius.circular(12)
-                  : const Radius.circular(0),
-              bottomRight: sentByMe
-                  ? const Radius.circular(0)
-                  : const Radius.circular(12),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.06),
-                blurRadius: 1,
-                offset: const Offset(0, 1),
-              ),
-            ],
+    final Widget bubbleWidget = GestureDetector(
+      onLongPress: () => _confirmDeleteMessage(message),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
+        decoration: BoxDecoration(
+          color: bubbleColor,
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(12),
+            topRight: const Radius.circular(12),
+            bottomLeft: sentByMe
+                ? const Radius.circular(12)
+                : const Radius.circular(0),
+            bottomRight: sentByMe
+                ? const Radius.circular(0)
+                : const Radius.circular(12),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (message.tipo == 'audio' && message.audioPath != null)
-                AudioPlayerCard(
-                  key: ValueKey(message.id),
-                  audioPath: message.audioPath,
-                  subtitle: '',
-                  isChatDesign: true,
-                  accentColor: const Color(0xFF008069),
-                  defaultDuration: Duration(
-                    seconds: message.duracaoSegundos ?? 0,
-                  ),
-                )
-              else if (message.tipo == 'localizacao' &&
-                  message.audioPath != null)
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Flexible(
-                          child: Text(
-                            message.texto,
-                            style: TextStyle(
-                              fontSize: textFontSize,
-                              height: 1.3,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.black87,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          icon: const Icon(
-                            Icons.volume_up,
-                            color: Color(0xFF008069),
-                            size: 24,
-                          ),
-                          onPressed: () => TTSService.instance.falar(
-                            message.texto,
-                            caller: this,
-                          ),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    ElevatedButton.icon(
-                      onPressed: () async {
-                        try {
-                          final Uri uri = Uri.parse(message.audioPath!);
-                          await launchUrl(
-                            uri,
-                            mode: LaunchMode.externalApplication,
-                          );
-                        } catch (e) {
-                          debugPrint('Erro ao abrir maps: $e');
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF008069),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
-                        ),
-                      ),
-                      icon: const Icon(Icons.map, size: 20),
-                      label: const Text(
-                        'ABRIR MAPA',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ),
-                  ],
-                )
-              else
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        message.texto,
-                        style: TextStyle(
-                          fontSize: textFontSize,
-                          height: 1.3,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.black87,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      icon: const Icon(
-                        Icons.volume_up,
-                        color: Color(0xFF008069),
-                        size: 24,
-                      ),
-                      onPressed: () => TTSService.instance.falar(
-                        message.texto,
-                        caller: this,
-                      ),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
-                  ],
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 1,
+              offset: const Offset(0, 1),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (message.tipo == 'audio' && message.audioPath != null)
+              AudioPlayerCard(
+                key: ValueKey(message.id),
+                audioPath: message.audioPath,
+                subtitle: '',
+                isChatDesign: true,
+                accentColor: const Color(0xFF008069),
+                defaultDuration: Duration(
+                  seconds: message.duracaoSegundos ?? 0,
                 ),
-              const SizedBox(height: 4),
+              )
+            else if (message.tipo == 'localizacao' && message.audioPath != null)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          message.texto,
+                          style: TextStyle(
+                            fontSize: textFontSize,
+                            height: 1.3,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.volume_up,
+                          color: Color(0xFF008069),
+                          size: 24,
+                        ),
+                        onPressed: () => TTSService.instance.falar(
+                          message.texto,
+                          caller: this,
+                        ),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      try {
+                        final Uri uri = Uri.parse(message.audioPath!);
+                        await launchUrl(
+                          uri,
+                          mode: LaunchMode.externalApplication,
+                        );
+                      } catch (e) {
+                        debugPrint('Erro ao abrir maps: $e');
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF008069),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                    ),
+                    icon: const Icon(Icons.map, size: 20),
+                    label: const Text(
+                      'ABRIR MAPA',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                ],
+              )
+            else
               Row(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Text(
-                    time,
-                    style: TextStyle(fontSize: 10, color: Colors.grey[600]),
-                  ),
-                  if (sentByMe) ...[
-                    const SizedBox(width: 4),
-                    ValueListenableBuilder<Set<String>>(
-                      valueListenable:
-                          OfflineSyncService.instance.pendingMessageIds,
-                      builder: (context, pendingIds, child) {
-                        final pending = pendingIds.contains(message.id);
-                        return Icon(
-                          pending ? Icons.schedule : Icons.done_all,
-                          size: 16,
-                          color: pending ? Colors.orange[700] : Colors.blue,
-                        );
-                      },
-                    ),
-                  ],
-                ],
-              ),
-            ],
-          ),
-        ),
-      );
-
-    if (!sentByMe) {
-      bubbleWidget = Row(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          CircleAvatar(
-            radius: 18,
-            backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
-            backgroundColor: AppColors.surfaceContainerHigh,
-            child: avatarUrl == null ? const Icon(Icons.person, size: 24, color: AppColors.onSurfaceVariant) : null,
-          ),
-          const SizedBox(width: 8),
-          Flexible(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (senderName != null)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 4, bottom: 2),
+                  Flexible(
                     child: Text(
-                      senderName,
+                      message.texto,
                       style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey[700],
+                        fontSize: textFontSize,
+                        height: 1.3,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black87,
                       ),
                     ),
                   ),
-                bubbleWidget,
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.volume_up,
+                      color: Color(0xFF008069),
+                      size: 24,
+                    ),
+                    onPressed: () => TTSService.instance.falar(
+                      message.texto,
+                      caller: this,
+                    ),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+            const SizedBox(height: 4),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  time,
+                  style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                ),
+                if (sentByMe) ...[
+                  const SizedBox(width: 4),
+                  ValueListenableBuilder<Set<String>>(
+                    valueListenable: OfflineSyncService.instance.pendingMessageIds,
+                    builder: (context, pendingIds, child) {
+                      final pending = pendingIds.contains(message.id);
+                      return Icon(
+                        pending ? Icons.schedule : Icons.done_all,
+                        size: 16,
+                        color: pending ? Colors.orange[700] : Colors.blue,
+                      );
+                    },
+                  ),
+                ],
               ],
             ),
-          ),
-        ],
-      );
-    }
+          ],
+        ),
+      ),
+    );
 
     return Align(
       alignment: alignment,

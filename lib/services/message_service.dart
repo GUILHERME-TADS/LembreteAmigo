@@ -280,11 +280,6 @@ class MessageService {
     } catch (e) {
       if (kIsWeb) {
         debugPrint('Erro ao fazer upload do audio no Web: $e');
-        AppStatusService.instance.report(
-          id: 'message-audio-pending',
-          title: 'Audio pendente',
-          message: 'A mensagem de audio sera enviada completamente quando sincronizar.',
-        );
         return audioPath;
       }
       rethrow;
@@ -299,12 +294,13 @@ class MessageService {
     await _saveLocal(message.idosoId);
     notifier.value = List.from(_messages);
 
-    AppStatusService.instance.report(
-      id: 'message-local-delete',
-      title: 'Mensagem ocultada neste aparelho',
-      message: 'O historico remoto de mensagens e preservado por seguranca.',
-      severity: AppStatusSeverity.info,
-    );
+    try {
+      if (_useFirebase && _canSyncIdosoId(message.idosoId)) {
+        await FirebaseFirestore.instance.collection('mensagens').doc(id).delete();
+      }
+    } catch (e) {
+      debugPrint('Erro ao apagar mensagem no Firestore: $e');
+    }
   }
 
   Future<void> _saveOutgoingLocal(AppMessage message) async {
@@ -328,17 +324,22 @@ class MessageService {
       );
     } catch (e) {
       debugPrint('Erro ao subir audio da mensagem (salvando local): $e');
-      AppStatusService.instance.report(
-        id: 'message-audio-pending',
-        title: 'Audio pendente',
-        message:
-            'A mensagem de audio sera enviada automaticamente quando a internet voltar.',
-      );
     }
 
     final updatedMessage = message.copyWith(audioPath: finalAudioPath);
     await _saveOutgoingLocal(updatedMessage);
-    await _sendOutgoingRemote(updatedMessage);
+
+    if (isRemoteAudioPath(finalAudioPath)) {
+      await _sendOutgoingRemote(updatedMessage);
+    } else {
+      if (_canSyncIdosoId(message.idosoId)) {
+        await OfflineSyncService.instance.updateOrQueue(
+          'mensagens',
+          updatedMessage.id,
+          updatedMessage.toJson(),
+        );
+      }
+    }
   }
 
   Future<void> _sendOutgoingRemote(AppMessage message) async {

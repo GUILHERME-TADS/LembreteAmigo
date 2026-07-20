@@ -359,6 +359,12 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('selected_idoso_id', docId);
+      unawaited(
+        SessionRoleService.ensureSupervisorDocAndSubcollection(
+          currentUser.uid,
+          docId,
+        ),
+      );
 
       await _loadPairedIdoso();
 

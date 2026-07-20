@@ -515,6 +515,9 @@ class OfflineSyncService {
         );
         if (remoteUrl != null) {
           data['audioPath'] = remoteUrl;
+        } else if (kIsWeb && audioPath.startsWith('blob:')) {
+          debugPrint('Descartando audioPath blob: inacessível para permitir sincronização da fila: $audioPath');
+          data['audioPath'] = null;
         }
       }
 
@@ -543,11 +546,19 @@ class OfflineSyncService {
     required String destinationPath,
     required String contentType,
   }) async {
-    return MediaUploadService.upload(
-      localPath: localPath,
-      destinationPath: destinationPath,
-      contentType: contentType,
-    );
+    try {
+      return await MediaUploadService.upload(
+        localPath: localPath,
+        destinationPath: destinationPath,
+        contentType: contentType,
+      );
+    } catch (e) {
+      if (kIsWeb && localPath.startsWith('blob:')) {
+        debugPrint('Blob URL inacessível/expirado na Web ($localPath): $e');
+        return null;
+      }
+      rethrow;
+    }
   }
 
   Future<Set<String>> getPendingDeletes(String collection) async {

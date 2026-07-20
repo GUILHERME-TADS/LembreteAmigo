@@ -9,9 +9,13 @@ Future<Uint8List?> fetchBlobBytes(String blobUrl) async {
   xhr.open('GET', blobUrl);
   xhr.responseType = 'arraybuffer';
   xhr.onLoad.listen((e) {
-    if (xhr.status == 200) {
-      final buffer = xhr.response as ByteBuffer;
-      completer.complete(buffer.asUint8List());
+    if ((xhr.status == 200 || xhr.status == 0) && xhr.response != null) {
+      try {
+        final buffer = xhr.response as ByteBuffer;
+        completer.complete(buffer.asUint8List());
+      } catch (_) {
+        completer.complete(null);
+      }
     } else {
       completer.complete(null);
     }

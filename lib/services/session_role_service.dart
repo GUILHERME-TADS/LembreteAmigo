@@ -61,6 +61,7 @@ class SessionRoleService {
         if (cachedDoc.exists &&
             cachedData?['supervisorId'] == currentUser.uid &&
             cachedData?['status'] == 'active') {
+          unawaited(ensureSupervisorDocAndSubcollection(currentUser.uid, cachedIdosoId!));
           return true;
         }
         await prefs.remove('selected_idoso_id');
@@ -77,10 +78,38 @@ class SessionRoleService {
 
       final linkedIds = snapshot.docs.map((doc) => doc.id).toList()..sort();
       await prefs.setString('selected_idoso_id', linkedIds.first);
+      unawaited(ensureSupervisorDocAndSubcollection(currentUser.uid, linkedIds.first));
       return true;
     } catch (e) {
       debugPrint('Erro ao restaurar vinculo do cuidador: $e');
       return false;
+    }
+  }
+
+  static Future<void> ensureSupervisorDocAndSubcollection(
+    String supervisorId,
+    String idosoId,
+  ) async {
+    try {
+      if (Firebase.apps.isEmpty || isLocalOnlyIdosoId(idosoId)) return;
+      await FirebaseFirestore.instance
+          .collection('supervisores')
+          .doc(supervisorId)
+          .set({
+            'updatedAt': DateTime.now().toIso8601String(),
+          }, SetOptions(merge: true));
+      await FirebaseFirestore.instance
+          .collection('supervisores')
+          .doc(supervisorId)
+          .collection('idosos')
+          .doc(idosoId)
+          .set({
+            'linkedAt': DateTime.now().toIso8601String(),
+          }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint(
+        'Erro ao garantir subcolecao supervisor/idoso ($supervisorId -> $idosoId): $e',
+      );
     }
   }
 
@@ -108,7 +137,12 @@ class SessionRoleService {
       return fallback;
     }
     if (isSupervisor) {
-      return supervisorActive ?? fallback;
+      final activeId = supervisorActive ?? fallback;
+      final currentUser = Firebase.apps.isNotEmpty ? FirebaseAuth.instance.currentUser : null;
+      if (currentUser != null && !isLocalOnlyIdosoId(activeId)) {
+        unawaited(ensureSupervisorDocAndSubcollection(currentUser.uid, activeId));
+      }
+      return activeId;
     }
     return fallback;
   }

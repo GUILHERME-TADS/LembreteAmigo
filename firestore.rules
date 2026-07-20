@@ -26,17 +26,21 @@ service cloud.firestore {
     function isLinkedSupervisor(idosoId) {
       return isAuth() &&
         (
+          isSupervisor() ||
           (
             exists(/databases/$(database)/documents/idoso_perfil/$(idosoId)) &&
-            get(/databases/$(database)/documents/idoso_perfil/$(idosoId)).data.supervisorId == request.auth.uid &&
-            get(/databases/$(database)/documents/idoso_perfil/$(idosoId)).data.status == 'active'
+            get(/databases/$(database)/documents/idoso_perfil/$(idosoId)).data.supervisorId == request.auth.uid
+          ) ||
+          (
+            exists(/databases/$(database)/documents/idosos/$(idosoId)) &&
+            get(/databases/$(database)/documents/idosos/$(idosoId)).data.supervisorId == request.auth.uid
           ) ||
           exists(/databases/$(database)/documents/supervisores/$(request.auth.uid)/idosos/$(idosoId))
         );
     }
 
     function canAccessIdosoData(idosoId) {
-      return isOwner(idosoId) || isLinkedSupervisor(idosoId);
+      return isAuth();
     }
 
     function docHasIdosoId() {
@@ -366,7 +370,7 @@ service cloud.firestore {
     }
 
     match /idosos/{idosoId} {
-      allow read: if canAccessIdosoData(idosoId);
+      allow read: if isAuth();
       allow create: if (isOwner(idosoId) || isLinkedSupervisor(idosoId)) &&
         validProfile(request.resource.data);
       allow update: if canAccessIdosoData(idosoId) && validProfile(request.resource.data);
@@ -374,9 +378,7 @@ service cloud.firestore {
     }
 
     match /idoso_perfil/{idosoId} {
-      allow read: if isOwner(idosoId) || 
-                  (isAuth() && resource.data.supervisorId == request.auth.uid) ||
-                  (isSupervisor() && resource.data.status == 'pending');
+      allow read: if isAuth();
       allow create: if isOwner(idosoId) && validProfile(request.resource.data);
       allow update: if (
         canAccessIdosoData(idosoId) && validProfile(request.resource.data)
@@ -385,10 +387,15 @@ service cloud.firestore {
     }
 
     match /supervisores/{supervisorId} {
-      allow read: if isOwner(supervisorId);
+      allow read: if isAuth();
       allow create: if isOwner(supervisorId) && validSupervisorProfile(request.resource.data);
       allow update: if isOwner(supervisorId) && validSupervisorProfile(request.resource.data);
       allow delete: if false;
+
+      match /idosos/{subId} {
+        allow read: if isAuth();
+        allow write: if isOwner(supervisorId);
+      }
     }
 
     match /lembretes/{lembreteId} {

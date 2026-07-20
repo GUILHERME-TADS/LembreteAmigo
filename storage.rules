@@ -71,7 +71,7 @@ service firebase.storage {
 
     // Profile photos: perfis/{idosoId}/{fileName}
     match /perfis/{idosoId}/{fileName} {
-      allow read: if canAccessElderlyData(idosoId);
+      allow read: if true;
       allow write: if canAccessElderlyData(idosoId) &&
         isImage() &&
         fileName.matches('.*\\.(jpg|jpeg|png|webp)$') &&
@@ -81,7 +81,7 @@ service firebase.storage {
 
     // Supervisor profile photos: perfis_supervisor/{supervisorId}/{fileName}
     match /perfis_supervisor/{supervisorId}/{fileName} {
-      allow read: if request.auth != null && request.auth.uid == supervisorId;
+      allow read: if true;
       allow write: if request.auth != null && request.auth.uid == supervisorId &&
         isImage() &&
         fileName.matches('.*\\.(jpg|jpeg|png|webp)$') &&

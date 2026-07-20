@@ -59,35 +59,33 @@ service cloud.firestore {
       return value is string && value.size() > 0 && value.size() <= max;
     }
 
-    function isOptionalString(data, field, max) {
-      return !data.keys().hasAny([field]) ||
-        data[field] == null ||
-        (data[field] is string && data[field].size() <= max);
+    function isOptionalString(data, field, maxLen) {
+      return !data.keys().hasAny([field]) || data[field] == null ||
+             (data[field] is string && data[field].size() <= maxLen);
+    }
+
+    function isOptionalInt(data, field, minVal, maxVal) {
+      return !data.keys().hasAny([field]) || data[field] == null ||
+             (data[field] is int && data[field] >= minVal && data[field] <= maxVal);
     }
 
     function isOptionalBool(data, field) {
-      return !data.keys().hasAny([field]) || data[field] is bool;
+      return !data.keys().hasAny([field]) || data[field] == null || data[field] is bool;
     }
 
-    function isOptionalInt(data, field, min, max) {
-      return !data.keys().hasAny([field]) ||
-        (data[field] is int && data[field] >= min && data[field] <= max);
+    function isOptionalList(data, field, maxSize) {
+      return !data.keys().hasAny([field]) || data[field] == null ||
+             (data[field] is list && data[field].size() <= maxSize);
     }
 
-    function isOptionalList(data, field, max) {
-      return !data.keys().hasAny([field]) ||
-        (data[field] is list && data[field].size() <= max);
+    function isOptionalIsoStringOrTimestamp(data, field) {
+      return !data.keys().hasAny([field]) || data[field] == null || data[field] is string || data[field] is timestamp;
     }
 
     function isIsoStringOrTimestamp(value) {
       return value is string || value is timestamp;
     }
 
-    function isOptionalIsoStringOrTimestamp(data, field) {
-      return !data.keys().hasAny([field]) ||
-        data[field] == null ||
-        isIsoStringOrTimestamp(data[field]);
-    }
 
     function validRole(value) {
       return value in ['elderly', 'supervisor'];
@@ -394,8 +392,7 @@ service cloud.firestore {
     }
 
     match /lembretes/{lembreteId} {
-      allow read: if isAuth() && docHasIdosoId() &&
-        canAccessIdosoData(resource.data.idosoId);
+      allow read: if isAuth() && canAccessIdosoData(resource.data.idosoId);
       allow create: if isAuth() && requestHasIdosoId() &&
         canAccessIdosoData(request.resource.data.idosoId) &&
         validReminder(request.resource.data);
@@ -407,8 +404,7 @@ service cloud.firestore {
     }
 
     match /lembrete_eventos/{eventoId} {
-      allow read: if isAuth() && docHasIdosoId() &&
-        canAccessIdosoData(resource.data.idosoId);
+      allow read: if isAuth() && canAccessIdosoData(resource.data.idosoId);
       allow create: if isAuth() && requestHasIdosoId() &&
         canAccessIdosoData(request.resource.data.idosoId) &&
         validEvent(request.resource.data);
@@ -417,8 +413,7 @@ service cloud.firestore {
     }
 
     match /mensagens/{msgId} {
-      allow read: if isAuth() && docHasIdosoId() &&
-        canAccessIdosoData(resource.data.idosoId);
+      allow read: if isAuth() && canAccessIdosoData(resource.data.idosoId);
       allow create: if isAuth() && requestHasIdosoId() &&
         canAccessIdosoData(request.resource.data.idosoId) &&
         validMessage(request.resource.data);

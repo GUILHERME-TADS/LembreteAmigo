@@ -22,6 +22,8 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
   bool _hasSpoken = false;
   bool _isSpeakingAudio = false;
   String? _fotoPath;
+  bool _loadingBula = false;
+  String? _bulaTexto;
 
   @override
   void initState() {
@@ -299,6 +301,7 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
 
                     // 6. Botão Gigante "🔊 OUVIR NOVAMENTE"
                     _buildListenAgainButton(cfg),
+                    _buildBulaFacilSection(cfg),
 
                     if (_lembrete != null) ...[
                       const SizedBox(height: 32),
@@ -483,6 +486,91 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildBulaFacilSection(_ReminderCategoryConfig cfg) {
+    if (_lembrete?.categoria != 'medicacao') return const SizedBox.shrink();
+
+    return Column(
+      children: [
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          height: 64,
+          child: ElevatedButton.icon(
+            onPressed: _loadingBula
+                ? null
+                : () async {
+                    setState(() => _loadingBula = true);
+                    TTSService.instance.parar(caller: this);
+                    await TTSService.instance.falar('Consultando a bula fácil deste medicamento. Só um instante...', caller: this);
+                    final resposta = await LembreteService.instance.queryMedicationFAQ(
+                      medicationName: _lembrete!.titulo,
+                      question: 'Para que serve este remédio, como devo tomar e quais os principais cuidados de forma muito simples para um idoso entender?',
+                    );
+                    if (mounted) {
+                      setState(() {
+                        _loadingBula = false;
+                        _bulaTexto = resposta;
+                      });
+                      TTSService.instance.falar(resposta, caller: this);
+                    }
+                  },
+            icon: _loadingBula
+                ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
+                : const Icon(Icons.info_outline, size: 30),
+            label: Text(
+              _loadingBula ? 'CONSULTANDO BULA IA...' : 'ℹ️ PARA QUE SERVE? (Bula Fácil)',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1E88E5),
+              foregroundColor: Colors.white,
+              elevation: 4,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            ),
+          ),
+        ),
+        if (_bulaTexto != null) ...[
+          const SizedBox(height: 16),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE3F2FD),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFF1E88E5), width: 3),
+            ),
+            child: Column(
+              children: [
+                const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.auto_awesome, color: Color(0xFF1E88E5), size: 28),
+                    SizedBox(width: 8),
+                    Text(
+                      'BULA FÁCIL (IA)',
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Color(0xFF1E88E5)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  _bulaTexto!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF0D47A1),
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
     );
   }
 

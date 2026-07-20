@@ -5,7 +5,6 @@ import 'dart:convert';
 
 import '../utils/firebase_helper.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -49,8 +48,6 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   String _nomeIdoso = 'Idoso';
   String _enderecoIdoso = '';
   String _selectedCategoryFilter = 'Todos';
-  String _selectedStatusFilter = 'Todos';
-  bool _showChartsAccordion = false;
   bool _refortIsLoading = false;
   bool _callIsLoading = false;
   SupervisorInsights? _aiInsights;
@@ -445,36 +442,33 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
             _buildTopBar(context),
             Expanded(
               child: _isConnected
-                  ? RefreshIndicator(
-                      onRefresh: _refreshDashboard,
-                      color: AppColors.primary,
-                      child: SingleChildScrollView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-                        child: Column(
-                          children: [
-                            _buildQuickActionsBar(),
-                            const SizedBox(height: 20),
-                            _buildAISummarySection(),
+                  ? SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                      child: Column(
+                        children: [
+                          _buildAISummarySection(),
+                          const SizedBox(height: 24),
+                          _buildSmartAlertsSection(),
+                          if (_smartAlerts.isNotEmpty)
                             const SizedBox(height: 24),
-                            _buildSmartAlertsSection(),
-                            if (_smartAlerts.isNotEmpty)
-                              const SizedBox(height: 24),
-                            _buildDeviceBarrierSection(),
-                            if (_deviceBarriers.isNotEmpty)
-                              const SizedBox(height: 24),
-                            _buildMessagesShortcut(),
+                          _buildDeviceBarrierSection(),
+                          if (_deviceBarriers.isNotEmpty)
                             const SizedBox(height: 24),
-                            _buildOverviewSection(),
-                            const SizedBox(height: 24),
-                            _buildExpandableChartsSection(),
-                            const SizedBox(height: 24),
-                            _buildTodayReminders(context),
-                            const SizedBox(height: 24),
-                            _buildRecentHistory(context),
-                            const SizedBox(height: 24),
-                          ],
-                        ),
+                          _buildMessagesShortcut(),
+                          const SizedBox(height: 24),
+                          _buildOverviewSection(),
+                          const SizedBox(height: 24),
+                          _buildAdherenceChartSection(),
+                          const SizedBox(height: 24),
+                          _buildWeeklyComparisonSection(),
+                          const SizedBox(height: 24),
+                          _buildCategoryChartSection(),
+                          const SizedBox(height: 24),
+                          _buildTodayReminders(context),
+                          const SizedBox(height: 24),
+                          _buildRecentHistory(context),
+                          const SizedBox(height: 24),
+                        ],
                       ),
                     )
                   : _buildUnconnectedState(context),
@@ -1529,90 +1523,6 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: AppColors.surfaceContainer,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'RADAR APARLEHO',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.onSurfaceVariant,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              _deviceDiagnosticsStale ? 'Stale' : (_deviceBarriers.any((b) => b.severity == DeviceBarrierSeverity.critical) ? 'Alerta' : 'Normal'),
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w700,
-                                color: _deviceDiagnosticsStale || _deviceBarriers.any((b) => b.severity == DeviceBarrierSeverity.critical)
-                                    ? AppColors.error
-                                    : Colors.green,
-                              ),
-                            ),
-                            Text(
-                              _deviceBarriers.isEmpty ? 'Nenhum problema' : '${_deviceBarriers.length} aviso(s)',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: AppColors.surfaceContainer,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'CONEXÃO',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.onSurfaceVariant,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              _isConnected ? 'Online' : 'Offline',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w700,
-                                color: _isConnected ? Colors.green : AppColors.error,
-                              ),
-                            ),
-                            const Text(
-                              'Tempo Real',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: AppColors.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
               ],
             ),
           ),
@@ -1662,231 +1572,13 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     );
   }
 
-  Future<void> _refreshDashboard() async {
-    HapticFeedback.mediumImpact();
-    await _checkConnectionAndInit();
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Dados do painel atualizados!'),
-          backgroundColor: AppColors.primary,
-          duration: Duration(seconds: 2),
-        ),
-      );
-    }
-  }
-
-  Widget _buildQuickActionsBar() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            '⚡ Ações Rápidas no Idoso',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-              color: AppColors.primary,
-            ),
-          ),
-          const SizedBox(height: 12),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                ElevatedButton.icon(
-                  onPressed: _callIsLoading ? null : () => _initiateCall('video'),
-                  icon: const Icon(Icons.videocam, size: 20),
-                  label: const Text('Chamada de Vídeo'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1E88E5),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton.icon(
-                  onPressed: () => Navigator.pushNamed(context, '/supervisor-messages'),
-                  icon: const Icon(Icons.mic, size: 20),
-                  label: const Text('Recado de Voz'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF43A047),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton.icon(
-                  onPressed: () => Navigator.pushNamed(context, '/new-reminder'),
-                  icon: const Icon(Icons.add_alarm, size: 20),
-                  label: const Text('Novo Lembrete'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFB8C00),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton.icon(
-                  onPressed: _refreshDashboard,
-                  icon: const Icon(Icons.sync, size: 20),
-                  label: const Text('Sincronizar'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.secondary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildExpandableChartsSection() {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.outlineVariant),
-      ),
-      child: Column(
-        children: [
-          ListTile(
-            onTap: () {
-              setState(() {
-                _showChartsAccordion = !_showChartsAccordion;
-              });
-            },
-            leading: const Icon(Icons.analytics_outlined, color: AppColors.primary, size: 28),
-            title: const Text(
-              'Análises e Gráficos Detalhados',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.onSurface),
-            ),
-            subtitle: Text(
-              _showChartsAccordion ? 'Toque para recolher os gráficos' : 'Toque para ver adesão, comparação e categorias',
-              style: const TextStyle(fontSize: 13, color: AppColors.onSurfaceVariant),
-            ),
-            trailing: Icon(
-              _showChartsAccordion ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-              color: AppColors.primary,
-              size: 28,
-            ),
-          ),
-          if (_showChartsAccordion) ...[
-            const Divider(height: 1),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  _buildAdherenceChartSection(),
-                  const SizedBox(height: 24),
-                  _buildWeeklyComparisonSection(),
-                  const SizedBox(height: 24),
-                  _buildCategoryChartSection(),
-                ],
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatusFilters(List<Lembrete> allReminders) {
-    int countAtrasados = 0;
-    int countPendentes = 0;
-    int countConcluidos = 0;
-    for (final l in allReminders) {
-      final st = reminderVisualStatusFromLembrete(l);
-      if (st == ReminderStatus.late || st == ReminderStatus.missed || st == ReminderStatus.needsHelp) {
-        countAtrasados++;
-      } else if (st == ReminderStatus.scheduled || st == ReminderStatus.postponed) {
-        countPendentes++;
-      } else if (st == ReminderStatus.done || st == ReminderStatus.doneWithPhoto || st == ReminderStatus.caregiverConfirmed) {
-        countConcluidos++;
-      }
-    }
-
-    final filters = [
-      {'key': 'Todos', 'label': '⚪ Todos (${allReminders.length})'},
-      {'key': 'Atrasados', 'label': '🔴 Atrasados ($countAtrasados)'},
-      {'key': 'Pendentes', 'label': '🟡 Pendentes ($countPendentes)'},
-      {'key': 'Concluídos', 'label': '🟢 Tomados ($countConcluidos)'},
-    ];
-
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: filters.map((item) {
-          final isSelected = _selectedStatusFilter == item['key'];
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: FilterChip(
-              label: Text(
-                item['label']!,
-                style: TextStyle(
-                  color: isSelected ? Colors.white : AppColors.onSurface,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                ),
-              ),
-              selected: isSelected,
-              selectedColor: item['key'] == 'Atrasados'
-                  ? AppColors.error
-                  : item['key'] == 'Pendentes'
-                      ? const Color(0xFFF59E0B)
-                      : item['key'] == 'Concluídos'
-                          ? Colors.green
-                          : AppColors.primary,
-              backgroundColor: AppColors.surfaceContainerLowest,
-              onSelected: (selected) {
-                setState(() {
-                  _selectedStatusFilter = selected ? item['key']! : 'Todos';
-                });
-              },
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
   Widget _buildTodayReminders(BuildContext context) {
     final rawList = ReminderStateHelper.activeTodaySorted(
       LembreteService.instance.lembretes,
     );
-    var filteredList = _selectedCategoryFilter == 'Todos'
+    final filteredList = _selectedCategoryFilter == 'Todos'
         ? rawList
         : rawList.where((l) => l.categoria == _selectedCategoryFilter).toList();
-
-    if (_selectedStatusFilter == 'Atrasados') {
-      filteredList = filteredList.where((l) {
-        final st = reminderVisualStatusFromLembrete(l);
-        return st == ReminderStatus.late || st == ReminderStatus.missed || st == ReminderStatus.needsHelp;
-      }).toList();
-    } else if (_selectedStatusFilter == 'Pendentes') {
-      filteredList = filteredList.where((l) {
-        final st = reminderVisualStatusFromLembrete(l);
-        return st == ReminderStatus.scheduled || st == ReminderStatus.postponed;
-      }).toList();
-    } else if (_selectedStatusFilter == 'Concluídos') {
-      filteredList = filteredList.where((l) {
-        final st = reminderVisualStatusFromLembrete(l);
-        return st == ReminderStatus.done || st == ReminderStatus.doneWithPhoto || st == ReminderStatus.caregiverConfirmed;
-      }).toList();
-    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1901,8 +1593,6 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
         ),
         const SizedBox(height: 12),
         _buildCategoryFilters(),
-        const SizedBox(height: 8),
-        _buildStatusFilters(rawList),
         const SizedBox(height: 16),
         AudioPlayerCard(
           accentColor: AppColors.primary,

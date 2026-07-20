@@ -17,8 +17,10 @@ import 'screens/all_reminders_screen.dart';
 import 'screens/edit_profile_screen.dart';
 import 'screens/elderly_help_screen.dart';
 import 'screens/elderly_home_screen.dart';
+import 'screens/elderly_ai_doctor_screen.dart';
 import 'screens/elderly_onboarding_screen.dart';
 import 'screens/elderly_pairing_screen.dart';
+
 import 'screens/elderly_profile_screen.dart';
 import 'screens/emergency_alert_screen.dart';
 import 'screens/identify_medication_screen.dart';
@@ -132,7 +134,9 @@ bool isElderlyOnlyRoute(String routeName) {
     '/elderly-home',
     '/elderly-pairing',
     '/elderly-help',
+    '/doutor-ia',
     '/all-reminders',
+
     '/active-reminder',
     '/meal-detail',
     '/exercise-detail',
@@ -867,6 +871,10 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
           case '/elderly-help':
             page = const ElderlyHelpScreen();
             break;
+          case '/doutor-ia':
+            page = const ElderlyAiDoctorScreen();
+            break;
+
           case '/messages':
             page = const MessagesScreen();
             break;

@@ -1362,4 +1362,19 @@ class LembreteService {
     }
     return 'Não foi possível consultar a bula no momento.';
   }
+
+  Future<String> alexChat(String message) async {
+    if (!_useFirebase) return 'O assistente inteligente não está disponível offline.';
+    try {
+      final callable = FirebaseFunctions.instance.httpsCallable('alexChat');
+      final result = await callable.call({'message': message});
+      if (result.data is Map) {
+        final data = Map<String, dynamic>.from(result.data as Map);
+        return data['reply'] as String? ?? 'Desculpe, não entendi a pergunta.';
+      }
+    } catch (e) {
+      debugPrint('Erro ao conversar com Alex IA: $e');
+    }
+    return 'Desculpe, tive um problema de conexão para processar sua pergunta. Pode falar novamente?';
+  }
 }

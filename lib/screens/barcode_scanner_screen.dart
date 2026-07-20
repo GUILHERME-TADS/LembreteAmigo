@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../theme/app_theme.dart';
 import '../services/barcode_service.dart';
-import '../services/tts_service.dart';
 
 class BarcodeScannerScreen extends StatefulWidget {
   const BarcodeScannerScreen({super.key});
@@ -60,25 +59,6 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
           onDetect: _onDetect,
         ),
         _buildScanOverlay(),
-        Positioned(
-          bottom: 24,
-          left: 24,
-          right: 24,
-          child: ElevatedButton.icon(
-            onPressed: _digitarCodigoManual,
-            icon: const Icon(Icons.keyboard, size: 24),
-            label: const Text(
-              'DIGITAR NÚMERO DO CÓDIGO',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-            ),
-          ),
-        ),
         if (_isProcessing)
           Container(
             color: Colors.black54,
@@ -139,69 +119,8 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
     final barcode = barcodes.first.rawValue;
     if (barcode == null || barcode.isEmpty) return;
 
-    _consultarCodigo(barcode);
-  }
-
-  void _digitarCodigoManual() {
-    final controller = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.keyboard, color: AppColors.primary),
-            SizedBox(width: 8),
-            Text('Digitar Código de Barras'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Digite os números (EAN) que aparecem abaixo das barrinhas na embalagem:',
-              style: TextStyle(fontSize: 14, color: AppColors.onSurfaceVariant),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: controller,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Número do Código',
-                hintText: 'Ex: 7891234567890',
-                border: OutlineInputBorder(),
-              ),
-              autofocus: true,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final codigo = controller.text.trim();
-              if (codigo.isNotEmpty) {
-                Navigator.pop(ctx);
-                _consultarCodigo(codigo);
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Consultar'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _consultarCodigo(String barcode) async {
     setState(() => _isProcessing = true);
     HapticFeedback.heavyImpact();
-    TTSService.instance.falar('Código capturado, consultando...');
 
     try {
       final result = await BarcodeService.instance.lookupBarcode(barcode);
@@ -212,9 +131,6 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
       });
       if (result.sucesso) {
         HapticFeedback.heavyImpact();
-        TTSService.instance.falar('Código lido: ${result.nome}. ${result.dosagem}');
-      } else {
-        TTSService.instance.falar('Código não identificado no banco de dados.');
       }
     } catch (e) {
       if (!mounted) return;
@@ -320,29 +236,6 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                 const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () async {
-                      final result = await Navigator.pushNamed(
-                        context,
-                        '/identify-medication',
-                      );
-                      if (result != null && mounted) {
-                        Navigator.pop(context, result);
-                      }
-                    },
-                    icon: const Icon(Icons.auto_awesome),
-                    label: const Text('Ler Embalagem com Inteligência Artificial',
-                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2E7D32),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
                   child: TextButton(
                     onPressed: () => Navigator.pop(context),
                     child: const Text('Voltar',
@@ -369,102 +262,17 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Detalhes identificados:',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF64748B),
-                ),
-              ),
-              ElevatedButton.icon(
-                onPressed: _ouvirResultado,
-                icon: const Icon(Icons.volume_up, size: 18),
-                label: const Text('Ouvir'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  minimumSize: Size.zero,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _infoRow('Nome', _result!.nome, onEdit: () => _editarCampo('nome', _result!.nome)),
-          _infoRow('Dosagem', _result!.dosagem.isEmpty ? 'Não especificada' : _result!.dosagem, onEdit: () => _editarCampo('dosagem', _result!.dosagem)),
+          _infoRow('Nome', _result!.nome),
+          if (_result!.dosagem.isNotEmpty)
+            _infoRow('Dosagem', _result!.dosagem),
         ],
       ),
     );
   }
 
-  void _ouvirResultado() {
-    final result = _result;
-    if (result == null || !result.sucesso) return;
-    TTSService.instance.parar();
-    TTSService.instance.falar('Código lido com sucesso: medicamento ${result.nome}, dosagem ${result.dosagem}');
-  }
-
-  void _editarCampo(String campo, String valorAtual) {
-    final controller = TextEditingController(text: valorAtual);
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Editar ${campo.toUpperCase()}'),
-        content: TextField(
-          controller: controller,
-          decoration: InputDecoration(
-            labelText: campo,
-            border: const OutlineInputBorder(),
-          ),
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              setState(() {
-                if (_result != null) {
-                  if (campo == 'nome') {
-                    _result = BarcodeResult(
-                      barcode: _result!.barcode,
-                      nome: controller.text.trim(),
-                      dosagem: _result!.dosagem,
-                      erro: _result!.erro,
-                    );
-                  } else if (campo == 'dosagem') {
-                    _result = BarcodeResult(
-                      barcode: _result!.barcode,
-                      nome: _result!.nome,
-                      dosagem: controller.text.trim(),
-                      erro: _result!.erro,
-                    );
-                  }
-                }
-              });
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Salvar'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _infoRow(String label, String value, {VoidCallback? onEdit}) {
+  Widget _infoRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -489,14 +297,6 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
               ),
             ),
           ),
-          if (onEdit != null)
-            IconButton(
-              icon: const Icon(Icons.edit, size: 18, color: AppColors.primary),
-              constraints: const BoxConstraints(),
-              padding: const EdgeInsets.only(left: 8),
-              onPressed: onEdit,
-              tooltip: 'Editar $label',
-            ),
         ],
       ),
     );

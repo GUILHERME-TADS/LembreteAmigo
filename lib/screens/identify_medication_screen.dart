@@ -5,7 +5,6 @@ import 'package:image_picker/image_picker.dart';
 import '../theme/app_theme.dart';
 import '../services/medication_identifier_service.dart';
 import '../services/prescription_parser_service.dart';
-import '../services/tts_service.dart';
 
 class IdentifyMedicationScreen extends StatefulWidget {
   const IdentifyMedicationScreen({super.key});
@@ -103,24 +102,7 @@ class _IdentifyMedicationScreenState
                   color: AppColors.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(height: 12),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton.icon(
-                  onPressed: _mostrarDicasFoto,
-                  icon: const Icon(Icons.tips_and_updates, color: AppColors.primary, size: 20),
-                  label: const Text(
-                    'Dicas para uma foto perfeita com IA',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.primary),
-                  ),
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 32),
               Expanded(
                 child: Center(
                   child: _fotoPath != null
@@ -150,25 +132,17 @@ class _IdentifyMedicationScreenState
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Icon(
-                                  Icons.add_a_photo,
-                                  size: 72,
+                                  Icons.camera_alt,
+                                  size: 80,
                                   color: AppColors.primary,
                                 ),
                                 SizedBox(height: 16),
                                 Text(
-                                  'ADICIONAR FOTO',
+                                  'TIRAR FOTO',
                                   style: TextStyle(
                                     fontSize: 22,
                                     fontWeight: FontWeight.w800,
                                     color: AppColors.primary,
-                                  ),
-                                ),
-                                SizedBox(height: 6),
-                                Text(
-                                  'Câmera ou Galeria',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    color: AppColors.onSurfaceVariant,
                                   ),
                                 ),
                               ],
@@ -260,49 +234,9 @@ class _IdentifyMedicationScreenState
   }
 
   Future<void> _tirarFoto() async {
-    await showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Adicionar Imagem',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 16),
-              ListTile(
-                leading: const Icon(Icons.photo_camera, color: AppColors.primary, size: 28),
-                title: const Text('Tirar Foto com a Câmera', style: TextStyle(fontWeight: FontWeight.bold)),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _pickPhotoSource(ImageSource.camera);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.photo_library, color: AppColors.primary, size: 28),
-                title: const Text('Escolher da Galeria', style: TextStyle(fontWeight: FontWeight.bold)),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _pickPhotoSource(ImageSource.gallery);
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _pickPhotoSource(ImageSource source) async {
     try {
       final image = await _imagePicker.pickImage(
-        source: source,
+        source: ImageSource.camera,
         imageQuality: 80,
       );
       if (image != null && mounted) {
@@ -310,13 +244,12 @@ class _IdentifyMedicationScreenState
           _fotoPath = image.path;
           _result = null;
         });
-        _identificar();
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erro ao selecionar foto: $e'),
+            content: Text('Erro ao tirar foto: $e'),
             backgroundColor: AppColors.error,
           ),
         );
@@ -427,41 +360,25 @@ class _IdentifyMedicationScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          const Row(
             children: [
-              const Row(
-                children: [
-                  Icon(Icons.check_circle, color: Color(0xFF2E7D32), size: 26),
-                  SizedBox(width: 8),
-                  Text(
-                    'Identificado!',
-                    style: TextStyle(
-                      fontSize: 19,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF2E7D32),
-                    ),
-                  ),
-                ],
-              ),
-              ElevatedButton.icon(
-                onPressed: _ouvirResultado,
-                icon: const Icon(Icons.volume_up, size: 18),
-                label: const Text('Ouvir'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  minimumSize: Size.zero,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              Icon(Icons.check_circle,
+                  color: Color(0xFF2E7D32), size: 28),
+              SizedBox(width: 8),
+              Text(
+                'Medicamento Identificado!',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF2E7D32),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          _detailRow('Nome', result.nome, onEdit: () => _editarCampo('nome', result.nome)),
-          _detailRow('Dosagem', result.dosagem, onEdit: () => _editarCampo('dosagem', result.dosagem)),
-          _detailRow('Intervalo sugerido', result.intervaloSugerido, onEdit: () => _editarCampo('intervalo', result.intervaloSugerido)),
+          _detailRow('Nome', result.nome),
+          _detailRow('Dosagem', result.dosagem),
+          _detailRow('Intervalo sugerido', result.intervaloSugerido),
           if (result.observacoes.isNotEmpty) ...[
             const SizedBox(height: 8),
             Text(
@@ -478,121 +395,8 @@ class _IdentifyMedicationScreenState
     );
   }
 
-  void _ouvirResultado() {
-    final result = _result;
-    if (result == null) return;
-    TTSService.instance.parar();
-    final texto = 'Identifiquei o medicamento ${result.nome}, dosagem ${result.dosagem}. Sugestão de uso: ${result.intervaloSugerido}. ${result.observacoes}';
-    TTSService.instance.falar(texto);
-  }
-
-  void _editarCampo(String campo, String valorAtual) {
-    final controller = TextEditingController(text: valorAtual);
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Editar ${campo.toUpperCase()}'),
-        content: TextField(
-          controller: controller,
-          decoration: InputDecoration(
-            labelText: campo,
-            border: const OutlineInputBorder(),
-          ),
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              setState(() {
-                if (_result != null) {
-                  if (campo == 'nome') {
-                    _result = MedicationIdentifierResult(
-                      nome: controller.text.trim(),
-                      dosagem: _result!.dosagem,
-                      intervaloSugerido: _result!.intervaloSugerido,
-                      observacoes: _result!.observacoes,
-                    );
-                  } else if (campo == 'dosagem') {
-                    _result = MedicationIdentifierResult(
-                      nome: _result!.nome,
-                      dosagem: controller.text.trim(),
-                      intervaloSugerido: _result!.intervaloSugerido,
-                      observacoes: _result!.observacoes,
-                    );
-                  } else if (campo == 'intervalo') {
-                    _result = MedicationIdentifierResult(
-                      nome: _result!.nome,
-                      dosagem: _result!.dosagem,
-                      intervaloSugerido: controller.text.trim(),
-                      observacoes: _result!.observacoes,
-                    );
-                  }
-                }
-              });
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Salvar'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _mostrarDicasFoto() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.tips_and_updates, color: AppColors.primary),
-            SizedBox(width: 8),
-            Text('Dicas para Boa Foto'),
-          ],
-        ),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(Icons.light_mode, color: Colors.amber),
-              title: Text('Boa iluminação', style: TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Text('Tire a foto em um local bem iluminado para evitar sombras sobre o texto.'),
-            ),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(Icons.center_focus_strong, color: AppColors.primary),
-              title: Text('Foco no texto principal', style: TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Text('Foque bem no nome do remédio e na dosagem (ex: 50mg ou 10ml).'),
-            ),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(Icons.flash_off, color: Colors.orange),
-              title: Text('Cuidado com reflexos', style: TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Text('Evite que o flash da câmera reflita no plástico ou vidro da embalagem.'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Entendi', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _detailRow(String label, String value, {VoidCallback? onEdit}) {
-    if (value.isEmpty && onEdit == null) return const SizedBox.shrink();
+  Widget _detailRow(String label, String value) {
+    if (value.isEmpty) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
@@ -611,7 +415,7 @@ class _IdentifyMedicationScreenState
           ),
           Expanded(
             child: Text(
-              value.isEmpty ? '(Não identificado)' : value,
+              value,
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -619,19 +423,10 @@ class _IdentifyMedicationScreenState
               ),
             ),
           ),
-          if (onEdit != null)
-            IconButton(
-              icon: const Icon(Icons.edit, size: 18, color: AppColors.primary),
-              constraints: const BoxConstraints(),
-              padding: const EdgeInsets.only(left: 8),
-              onPressed: onEdit,
-              tooltip: 'Editar $label',
-            ),
         ],
       ),
     );
   }
-
 
   void _confirmarResultado() {
     final result = _result;

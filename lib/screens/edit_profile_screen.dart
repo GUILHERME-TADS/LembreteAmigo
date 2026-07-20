@@ -654,10 +654,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       case 0:
         stepTitle = 'Qual o seu nome completo?';
         currentField = SeniorInputField(
+          key: const ValueKey('step_0'),
           label: 'Meu nome completo',
           placeholder: 'Meu nome',
           prefixIcon: Icons.person,
           controller: _nameController,
+          keyboardType: TextInputType.name,
           onTapAudio: () => TTSService.instance.falar(
             'Digite o seu nome completo nesta caixa ou aperte no microfone para ditar.',
             caller: this,
@@ -669,6 +671,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       case 1:
         stepTitle = 'Quando você nasceu?';
         currentField = SeniorInputField(
+          key: const ValueKey('step_1'),
           label: 'Meu nascimento',
           placeholder: 'DD/MM/AAAA',
           prefixIcon: Icons.calendar_today,
@@ -686,14 +689,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       case 2:
         stepTitle = 'Qual o seu telefone?';
         currentField = SeniorInputField(
+          key: const ValueKey('step_2'),
           label: 'Meu telefone',
-          placeholder: '(11) 99999-9999',
+          placeholder: '(00) 00000-0000',
           prefixIcon: Icons.phone,
           controller: _phoneController,
           keyboardType: TextInputType.phone,
           inputFormatters: [PhoneInputFormatter()],
           onTapAudio: () => TTSService.instance.falar(
-            'Digite o número do seu celular com o código da cidade ou aperte no microfone para ditar.',
+            'Digite o número do seu telefone com DDD ou aperte no microfone para ditar.',
             caller: this,
           ),
           onTapMic: () => _ditarCampo(2, _phoneController),
@@ -703,6 +707,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       case 3:
         stepTitle = 'Telefone da Ambulância';
         currentField = SeniorInputField(
+          key: const ValueKey('step_3'),
           label: 'Telefone da Ambulância',
           placeholder: 'Número local da ambulância',
           prefixIcon: Icons.local_hospital,
@@ -720,10 +725,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       case 4:
         stepTitle = 'Qual o seu endereço?';
         currentField = SeniorInputField(
+          key: const ValueKey('step_4'),
           label: 'Endereço',
           placeholder: 'Rua, número, bairro',
           prefixIcon: Icons.location_on,
           controller: _addressController,
+          keyboardType: TextInputType.streetAddress,
           onTapAudio: () => TTSService.instance.falar(
             'Digite o nome da sua rua e o número da sua casa ou aperte no microfone para ditar.',
             caller: this,

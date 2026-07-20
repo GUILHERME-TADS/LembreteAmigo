@@ -116,6 +116,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
             setState(() {
               _fotoIdoso = _profilePhotoUrl(data);
               _fotoSupervisor = null;
+              _fotoSupervisor = null;
             });
           }
           loadedFromFirebase = true;
@@ -180,6 +181,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
   Future<void> _startVoiceRecording() async {
     if (_sending || _isStartingRecording || _isRecordingVoice) return;
+    await TTSService.instance.parar();
     setState(() => _isStartingRecording = true);
     try {
       if (await _voiceRecorder.hasPermission()) {

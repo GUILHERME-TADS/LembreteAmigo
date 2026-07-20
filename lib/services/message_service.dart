@@ -192,7 +192,9 @@ class MessageService {
       texto: trimmed,
       criadoEm: DateTime.now(),
     );
-    await saveOutgoing(message);
+    await _saveOutgoingLocal(message);
+    OfflineSyncService.instance.markMessagePending(message.id);
+    unawaited(_sendOutgoingRemote(message));
     return true;
   }
 
@@ -213,7 +215,9 @@ class MessageService {
       audioPath: trimmedUrl,
       criadoEm: DateTime.now(),
     );
-    await saveOutgoing(message);
+    await _saveOutgoingLocal(message);
+    OfflineSyncService.instance.markMessagePending(message.id);
+    unawaited(_sendOutgoingRemote(message));
     return true;
   }
 
@@ -230,20 +234,6 @@ class MessageService {
       audioPath,
       prefix: messageId,
     );
-    try {
-      storedAudioPath = await _uploadAudioIfNeeded(
-        audioPath: storedAudioPath,
-        idosoId: idosoId,
-        messageId: messageId,
-      );
-    } catch (e) {
-      debugPrint('Erro ao subir audio da mensagem (salvando local): $e');
-      AppStatusService.instance.report(
-        id: 'message-audio-pending',
-        title: 'Audio pendente',
-        message: 'A mensagem de audio sera enviada automaticamente quando a internet voltar.',
-      );
-    }
     final message = AppMessage(
       id: messageId,
       idosoId: idosoId,
@@ -255,7 +245,16 @@ class MessageService {
       criadoEm: DateTime.now(),
       duracaoSegundos: duracaoSegundos,
     );
-    await saveOutgoing(message);
+    await _saveOutgoingLocal(message);
+    OfflineSyncService.instance.markMessagePending(messageId);
+    unawaited(
+      _processAndSendAudioRemote(
+        message,
+        storedAudioPath,
+        idosoId,
+        messageId,
+      ),
+    );
     return true;
   }
 
@@ -308,19 +307,59 @@ class MessageService {
     );
   }
 
-  Future<void> saveOutgoing(AppMessage message) async {
+  Future<void> _saveOutgoingLocal(AppMessage message) async {
     _upsert(message);
     await _saveLocal(message.idosoId);
     notifier.value = List.from(_messages);
+  }
 
-    if (_canSyncIdosoId(message.idosoId)) {
-      await OfflineSyncService.instance.setOrQueue(
-        'mensagens',
-        message.id,
-        message.toJson(),
+  Future<void> _processAndSendAudioRemote(
+    AppMessage message,
+    String storedAudioPath,
+    String idosoId,
+    String messageId,
+  ) async {
+    String finalAudioPath = storedAudioPath;
+    try {
+      finalAudioPath = await _uploadAudioIfNeeded(
+        audioPath: storedAudioPath,
+        idosoId: idosoId,
+        messageId: messageId,
       );
-      await _sendMessagePush(message);
+    } catch (e) {
+      debugPrint('Erro ao subir audio da mensagem (salvando local): $e');
+      AppStatusService.instance.report(
+        id: 'message-audio-pending',
+        title: 'Audio pendente',
+        message:
+            'A mensagem de audio sera enviada automaticamente quando a internet voltar.',
+      );
     }
+
+    final updatedMessage = message.copyWith(audioPath: finalAudioPath);
+    await _saveOutgoingLocal(updatedMessage);
+    await _sendOutgoingRemote(updatedMessage);
+  }
+
+  Future<void> _sendOutgoingRemote(AppMessage message) async {
+    try {
+      if (_canSyncIdosoId(message.idosoId)) {
+        await OfflineSyncService.instance.setOrQueue(
+          'mensagens',
+          message.id,
+          message.toJson(),
+        );
+        await _sendMessagePush(message);
+      }
+    } finally {
+      OfflineSyncService.instance.unmarkMessagePending(message.id);
+    }
+  }
+
+  Future<void> saveOutgoing(AppMessage message) async {
+    await _saveOutgoingLocal(message);
+    OfflineSyncService.instance.markMessagePending(message.id);
+    unawaited(_sendOutgoingRemote(message));
   }
 
   Future<void> _sendMessagePush(AppMessage message) async {

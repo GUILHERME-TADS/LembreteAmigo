@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
 import '../theme/app_theme.dart';
+import '../services/tts_service.dart';
 
 class NewReminderAudioScreen extends StatefulWidget {
   const NewReminderAudioScreen({super.key});
@@ -30,6 +31,7 @@ class _NewReminderAudioScreenState extends State<NewReminderAudioScreen> {
   }
 
   Future<void> _startRecording() async {
+    await TTSService.instance.parar();
     try {
       if (_isPlaying) {
         await _audioPlayer.stop();

@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -169,6 +170,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
           builder: (context, setDialogState) {
             Future<void> startRecording() async {
               if (isBusy || isSending || isRecording) return;
+              await TTSService.instance.parar();
               isBusy = true;
               setDialogState(() {});
               try {
@@ -453,18 +455,16 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                               await _audioPlayer.stop();
                             }
                             try {
-                              final prefs =
-                                  await SharedPreferences.getInstance();
-                              final idosoId =
-                                  prefs.getString('paired_idoso_id') ??
-                                  SessionRoleService.unpairedIdosoId;
-
+                              final prefs = await SharedPreferences.getInstance();
                               String idosoName = 'Idoso';
-                              final doc = await ElderlyProfileRepository
-                                  .instance
-                                  .getDocument(idosoId);
-                              if (doc.exists) {
-                                idosoName = doc.data()?['nome'] ?? 'Idoso';
+                              final jsonStr = prefs.getString('idoso_perfil');
+                              if (jsonStr != null) {
+                                try {
+                                  final map = jsonDecode(jsonStr);
+                                  if (map is Map && map['nome'] != null) {
+                                    idosoName = map['nome'].toString();
+                                  }
+                                } catch (_) {}
                               }
 
                               final sent = await MessageService.instance

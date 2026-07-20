@@ -25,6 +25,7 @@ class OfflineSyncService {
   final ValueNotifier<Set<String>> pendingMessageIds = ValueNotifier(
     <String>{},
   );
+  final Set<String> _preUploadPendingMessageIds = <String>{};
   bool _syncing = false;
   bool _autoSyncStarted = false;
   Timer? _autoSyncTimer;
@@ -54,8 +55,8 @@ class OfflineSyncService {
     final queueKey = await _queueKey();
     final raw = await SecureCacheService.instance.read(queueKey);
     if (raw == null || raw.isEmpty) {
-      pendingCount.value = 0;
-      pendingMessageIds.value = <String>{};
+      pendingCount.value = _preUploadPendingMessageIds.length;
+      pendingMessageIds.value = Set.from(_preUploadPendingMessageIds);
       return <OfflineWrite>[];
     }
 
@@ -73,8 +74,8 @@ class OfflineSyncService {
     } catch (e) {
       debugPrint('Fila offline corrompida. Removendo cache local: $e');
       await SecureCacheService.instance.delete(queueKey);
-      pendingCount.value = 0;
-      pendingMessageIds.value = <String>{};
+      pendingCount.value = _preUploadPendingMessageIds.length;
+      pendingMessageIds.value = Set.from(_preUploadPendingMessageIds);
       return <OfflineWrite>[];
     }
     _updatePendingNotifiers(writes);
@@ -351,13 +352,24 @@ class OfflineSyncService {
     _updatePendingNotifiers(queue);
   }
 
+  void markMessagePending(String messageId) {
+    _preUploadPendingMessageIds.add(messageId);
+    pendingMessageIds.value = {...pendingMessageIds.value, messageId};
+  }
+
+  void unmarkMessagePending(String messageId) {
+    _preUploadPendingMessageIds.remove(messageId);
+    unawaited(loadQueue());
+  }
+
   void _updatePendingNotifiers(List<OfflineWrite> queue) {
     final pending = queue.where((write) => !write.failed).toList();
-    pendingCount.value = pending.length;
-    pendingMessageIds.value = pending
+    pendingCount.value = pending.length + _preUploadPendingMessageIds.length;
+    final queueMsgIds = pending
         .where((write) => write.collection == 'mensagens')
         .map((write) => write.docId)
         .toSet();
+    pendingMessageIds.value = {...queueMsgIds, ..._preUploadPendingMessageIds};
   }
 
   Future<void> retryFailedWrites() async {

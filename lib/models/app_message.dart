@@ -23,15 +23,19 @@ class AppMessage {
     this.duracaoSegundos,
   });
 
-  AppMessage copyWith({bool? lido}) {
+  AppMessage copyWith({
+    String? audioPath,
+    bool? lido,
+    String? texto,
+  }) {
     return AppMessage(
       id: id,
       idosoId: idosoId,
       nomeIdoso: nomeIdoso,
       senderRole: senderRole,
       tipo: tipo,
-      texto: texto,
-      audioPath: audioPath,
+      texto: texto ?? this.texto,
+      audioPath: audioPath ?? this.audioPath,
       criadoEm: criadoEm,
       lido: lido ?? this.lido,
       duracaoSegundos: duracaoSegundos,

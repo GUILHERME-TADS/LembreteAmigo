@@ -36,7 +36,7 @@ class AdherenceTrendChart extends StatelessWidget {
       return _emptyState();
     }
 
-    final maxVal = maxY > 0 ? maxY + 10.0 : 100.0;
+    final maxVal = 100.0;
     final minVal = minY > 0 ? 0.0 : minY;
 
     return Column(

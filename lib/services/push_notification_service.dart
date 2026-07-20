@@ -129,6 +129,21 @@ class PushNotificationService {
       }
 
       final role = SessionRoleService.isSupervisor ? 'supervisor' : 'elderly';
+      
+      // Apagar token do papel antigo (se houver) no mesmo usuário
+      final authUid = FirebaseAuth.instance.currentUser?.uid;
+      if (authUid != null) {
+        final otherRole = role == 'supervisor' ? 'elderly' : 'supervisor';
+        try {
+          await FirebaseFirestore.instance
+              .collection('fcm_tokens')
+              .doc('${otherRole}_$authUid')
+              .delete();
+        } catch (e) {
+          debugPrint('Aviso: Não foi possível apagar token antigo: $e');
+        }
+      }
+
       await FirebaseFirestore.instance
           .collection('fcm_tokens')
           .doc('${role}_$id')

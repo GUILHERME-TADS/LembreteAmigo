@@ -144,8 +144,8 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
 
   Future<void> _loadProfilePhoto() async {
     try {
-      final localFoto =
-          await ElderlyProfileRepository.instance.getCachedPhotoPath();
+      final localFoto = await ElderlyProfileRepository.instance
+          .getCachedPhotoPath();
       if (mounted) {
         setState(() {
           _fotoPath = localFoto;
@@ -640,7 +640,11 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
           setState(() => _isProcessingAction = true);
           try {
             _stopAllAudioAndTts();
-            await Navigator.pushNamed(context, '/reminder-detail', arguments: lembrete);
+            await Navigator.pushNamed(
+              context,
+              '/reminder-detail',
+              arguments: lembrete,
+            );
           } finally {
             if (mounted) setState(() => _isProcessingAction = false);
           }
@@ -807,103 +811,78 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                     ),
                     const SizedBox(width: 6),
                   ],
-                  GestureDetector(
-                    onTap: () async {
-                      if (_isProcessingAction) return;
-                      setState(() => _isProcessingAction = true);
-                      try {
-                        if (isMed && !lembrete.concluido) {
-                          await Navigator.pushNamed(
-                            context,
-                            '/take-photo-confirmation',
-                            arguments: lembrete.id,
-                          );
-                        } else {
-                          final ok = await LembreteService.instance
-                              .alternarConclusao(lembrete.id);
-                          if (!ok) return;
-                        }
-                      } finally {
-                        if (mounted) {
-                          setState(() => _isProcessingAction = false);
-                        }
-                      }
-                    },
-                    child: Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: lembrete.concluido
-                            ? (isHighContrast
-                                  ? Colors.black
-                                  : AppColors.tertiaryFixedDim)
-                            : lembrete.status == LembreteStatus.adiado
-                            ? (isHighContrast
-                                  ? Colors.yellow
-                                  : AppColors.secondaryFixed)
-                            : (isAtrasado ||
-                                  lembrete.status == LembreteStatus.perdido ||
-                                  lembrete.status ==
-                                      LembreteStatus.precisaDeAjuda)
-                            ? (isHighContrast ? Colors.red : AppColors.error)
-                            : (isHighContrast
-                                  ? Colors.white
-                                  : accentColor.withValues(alpha: 0.1)),
-                        shape: BoxShape.rectangle,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: isHighContrast
-                              ? Colors.black
-                              : (lembrete.concluido
-                                    ? AppColors.onTertiaryFixedVariant
-                                    : lembrete.status == LembreteStatus.adiado
-                                    ? AppColors.onSecondaryFixedVariant
-                                    : (isAtrasado ||
-                                          lembrete.status ==
-                                              LembreteStatus.perdido ||
-                                          lembrete.status ==
-                                              LembreteStatus.precisaDeAjuda)
-                                    ? AppColors.onError
-                                    : accentColor),
-                          width: 2,
-                        ),
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: lembrete.concluido
+                          ? (isHighContrast
+                                ? Colors.black
+                                : AppColors.tertiaryFixedDim)
+                          : lembrete.status == LembreteStatus.adiado
+                          ? (isHighContrast
+                                ? Colors.yellow
+                                : AppColors.secondaryFixed)
+                          : (isAtrasado ||
+                                lembrete.status == LembreteStatus.perdido ||
+                                lembrete.status ==
+                                    LembreteStatus.precisaDeAjuda)
+                          ? (isHighContrast ? Colors.red : AppColors.error)
+                          : (isHighContrast
+                                ? Colors.white
+                                : accentColor.withValues(alpha: 0.1)),
+                      shape: BoxShape.rectangle,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: isHighContrast
+                            ? Colors.black
+                            : (lembrete.concluido
+                                  ? AppColors.onTertiaryFixedVariant
+                                  : lembrete.status == LembreteStatus.adiado
+                                  ? AppColors.onSecondaryFixedVariant
+                                  : (isAtrasado ||
+                                        lembrete.status ==
+                                            LembreteStatus.perdido ||
+                                        lembrete.status ==
+                                            LembreteStatus.precisaDeAjuda)
+                                  ? AppColors.onError
+                                  : accentColor),
+                        width: 2,
                       ),
-                      child:
-                          lembrete.concluido ||
-                              lembrete.status == LembreteStatus.adiado ||
-                              isAtrasado ||
-                              lembrete.status == LembreteStatus.perdido ||
-                              lembrete.status == LembreteStatus.precisaDeAjuda
-                          ? Icon(
-                              lembrete.concluido
-                                  ? Icons.check
-                                  : lembrete.status == LembreteStatus.adiado
-                                  ? Icons.schedule
-                                  : lembrete.status ==
-                                        LembreteStatus.precisaDeAjuda
-                                  ? Icons.support_agent
-                                  : lembrete.status == LembreteStatus.perdido
-                                  ? Icons.close
-                                  : Icons.priority_high,
-                              color: lembrete.concluido
-                                  ? (isHighContrast
-                                        ? Colors.white
-                                        : AppColors.onTertiaryFixedVariant)
-                                  : lembrete.status == LembreteStatus.adiado
-                                  ? (isHighContrast
-                                        ? Colors.black
-                                        : AppColors.onSecondaryFixedVariant)
-                                  : Colors.white,
-                              size: 26,
-                            )
-                          : Icon(
-                              Icons.radio_button_unchecked,
-                              color: isHighContrast
-                                  ? Colors.black
-                                  : accentColor,
-                              size: 26,
-                            ),
                     ),
+                    child:
+                        lembrete.concluido ||
+                            lembrete.status == LembreteStatus.adiado ||
+                            isAtrasado ||
+                            lembrete.status == LembreteStatus.perdido ||
+                            lembrete.status == LembreteStatus.precisaDeAjuda
+                        ? Icon(
+                            lembrete.concluido
+                                ? Icons.check
+                                : lembrete.status == LembreteStatus.adiado
+                                ? Icons.schedule
+                                : lembrete.status ==
+                                      LembreteStatus.precisaDeAjuda
+                                ? Icons.support_agent
+                                : lembrete.status == LembreteStatus.perdido
+                                ? Icons.close
+                                : Icons.priority_high,
+                            color: lembrete.concluido
+                                ? (isHighContrast
+                                      ? Colors.white
+                                      : AppColors.onTertiaryFixedVariant)
+                                : lembrete.status == LembreteStatus.adiado
+                                ? (isHighContrast
+                                      ? Colors.black
+                                      : AppColors.onSecondaryFixedVariant)
+                                : Colors.white,
+                            size: 26,
+                          )
+                        : Icon(
+                            Icons.radio_button_unchecked,
+                            color: isHighContrast ? Colors.black : accentColor,
+                            size: 26,
+                          ),
                   ),
                 ],
               ),
@@ -1788,7 +1767,8 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                     if (remainingTime.isNotEmpty) ...[
                                       const SizedBox(height: 4),
                                       Semantics(
-                                        label: 'Faltam $remainingTime para este lembrete.',
+                                        label:
+                                            'Faltam $remainingTime para este lembrete.',
                                         child: Text(
                                           remainingTime.toUpperCase(),
                                           style: TextStyle(
@@ -1808,7 +1788,8 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                           ),
                           const SizedBox(height: 16),
                           Semantics(
-                            label: 'Lembrete: ${lembrete.titulo}, marcado para ${lembrete.horarioFormatado}',
+                            label:
+                                'Lembrete: ${lembrete.titulo}, marcado para ${lembrete.horarioFormatado}',
                             child: Text(
                               '${lembrete.titulo} — ${lembrete.horarioFormatado}',
                               style: TextStyle(

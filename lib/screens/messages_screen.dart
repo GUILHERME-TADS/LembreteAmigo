@@ -534,12 +534,16 @@ class _MessagesScreenState extends State<MessagesScreen> {
     // Custom font size for elderly readability
     final double textFontSize = _isSupervisor ? 16.0 : 20.0;
 
-    return Align(
-      alignment: alignment,
-      child: GestureDetector(
+    final avatarUrl = sentByMe
+        ? null
+        : (_isSupervisor ? _fotoIdoso : _fotoSupervisor);
+    final senderName = sentByMe
+        ? null
+        : (_isSupervisor ? message.nomeIdoso : _nomeSupervisor);
+
+    Widget bubbleWidget = GestureDetector(
         onLongPress: () => _confirmDeleteMessage(message),
         child: Container(
-          margin: const EdgeInsets.symmetric(vertical: 4),
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
           decoration: BoxDecoration(
             color: bubbleColor,
@@ -708,6 +712,49 @@ class _MessagesScreenState extends State<MessagesScreen> {
             ],
           ),
         ),
+      );
+
+    if (!sentByMe) {
+      bubbleWidget = Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          CircleAvatar(
+            radius: 18,
+            backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
+            backgroundColor: AppColors.surfaceContainerHigh,
+            child: avatarUrl == null ? const Icon(Icons.person, size: 24, color: AppColors.onSurfaceVariant) : null,
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (senderName != null)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4, bottom: 2),
+                    child: Text(
+                      senderName,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                  ),
+                bubbleWidget,
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Align(
+      alignment: alignment,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: bubbleWidget,
       ),
     );
   }

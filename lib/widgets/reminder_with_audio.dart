@@ -160,7 +160,9 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
       if (!AudioManager.requestPlay(audioId)) return;
       setState(() => _isSpeaking = true);
       _waveController.repeat(reverse: true);
-      final texto = widget.ttsText ?? '${widget.title} ${PeriodHelper.getSpokenTimeWithPrepositionFromStr(widget.time)}';
+      final texto =
+          widget.ttsText ??
+          '${widget.title} ${PeriodHelper.getSpokenTimeWithPrepositionFromStr(widget.time)}';
       await TTSService.instance.falar(texto, caller: this);
       _waveController.stop();
       _waveController.reset();
@@ -216,8 +218,10 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
 
   @override
   Widget build(BuildContext context) {
-    final isHighContrast = Theme.of(context).colorScheme.primary == Colors.black;
-    final isDoneStatus = widget.status == ReminderStatus.done ||
+    final isHighContrast =
+        Theme.of(context).colorScheme.primary == Colors.black;
+    final isDoneStatus =
+        widget.status == ReminderStatus.done ||
         widget.status == ReminderStatus.doneWithPhoto ||
         widget.status == ReminderStatus.caregiverConfirmed;
     final isPostponed = widget.status == ReminderStatus.postponed;
@@ -320,11 +324,11 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
                                             fontSize: 28,
                                             fontWeight: FontWeight.w700,
                                             height: 1.3,
-                                            color:
-                                                isDoneStatus
+                                            color: isDoneStatus
                                                 ? AppColors.onSurfaceVariant
                                                 : isPostponed
-                                                ? AppColors.onSecondaryFixedVariant
+                                                ? AppColors
+                                                      .onSecondaryFixedVariant
                                                 : isAttentionStatus
                                                 ? AppColors.error
                                                 : widget.accentColor,
@@ -361,24 +365,30 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
                                                 ),
                                                 const SizedBox(width: 8),
                                                 Container(
-                                                  padding: const EdgeInsets.symmetric(
-                                                    horizontal: 10,
-                                                    vertical: 4,
-                                                  ),
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 10,
+                                                        vertical: 4,
+                                                      ),
                                                   decoration: BoxDecoration(
                                                     color:
                                                         PeriodHelper.getPeriodColorFromStr(
                                                           widget.time,
                                                           widget.accentColor,
-                                                        ).withValues(alpha: 0.12),
+                                                        ).withValues(
+                                                          alpha: 0.12,
+                                                        ),
                                                     borderRadius:
-                                                        BorderRadius.circular(8),
+                                                        BorderRadius.circular(
+                                                          8,
+                                                        ),
                                                   ),
                                                   child: Text(
                                                     widget.time,
                                                     style: TextStyle(
                                                       fontSize: 16,
-                                                      fontWeight: FontWeight.w700,
+                                                      fontWeight:
+                                                          FontWeight.w700,
                                                       color:
                                                           PeriodHelper.getPeriodColorFromStr(
                                                             widget.time,
@@ -413,22 +423,32 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
                                             decoration: BoxDecoration(
                                               color: _isPlaying || _isSpeaking
                                                   ? (isDoneStatus
-                                                        ? AppColors.tertiaryFixedDim
+                                                        ? AppColors
+                                                              .tertiaryFixedDim
                                                         : isPostponed
-                                                        ? AppColors.secondaryFixed
+                                                        ? AppColors
+                                                              .secondaryFixed
                                                         : isAttentionStatus
-                                                        ? AppColors.error.withValues(alpha: 0.2)
-                                                        : widget.accentColor.withValues(
-                                                            alpha: 0.2,
-                                                          ))
-                                                  : widget.accentColor.withValues(alpha: 0.1),
+                                                        ? AppColors.error
+                                                              .withValues(
+                                                                alpha: 0.2,
+                                                              )
+                                                        : widget.accentColor
+                                                              .withValues(
+                                                                alpha: 0.2,
+                                                              ))
+                                                  : widget.accentColor
+                                                        .withValues(alpha: 0.1),
                                               shape: BoxShape.rectangle,
-                                              borderRadius: BorderRadius.circular(14),
+                                              borderRadius:
+                                                  BorderRadius.circular(14),
                                               border: Border.all(
                                                 color: isDoneStatus
-                                                    ? AppColors.onTertiaryFixedVariant
+                                                    ? AppColors
+                                                          .onTertiaryFixedVariant
                                                     : isPostponed
-                                                    ? AppColors.onSecondaryFixedVariant
+                                                    ? AppColors
+                                                          .onSecondaryFixedVariant
                                                     : isAttentionStatus
                                                     ? AppColors.error
                                                     : widget.accentColor,
@@ -440,9 +460,11 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
                                                   ? Icons.stop
                                                   : Icons.play_arrow,
                                               color: isDoneStatus
-                                                  ? AppColors.onTertiaryFixedVariant
+                                                  ? AppColors
+                                                        .onTertiaryFixedVariant
                                                   : isPostponed
-                                                  ? AppColors.onSecondaryFixedVariant
+                                                  ? AppColors
+                                                        .onSecondaryFixedVariant
                                                   : isAttentionStatus
                                                   ? AppColors.error
                                                   : widget.accentColor,
@@ -451,58 +473,66 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
                                           ),
                                         ),
                                         const SizedBox(width: 12),
-                                        GestureDetector(
-                                          onTap: widget.onStatusTap ?? widget.onTap,
-                                          child: Container(
-                                            width: 56,
-                                            height: 56,
-                                            decoration: BoxDecoration(
-                                              color: isDoneStatus
-                                                  ? const Color(0xFFC8E6C9)
-                                                  : isPostponed
-                                                  ? const Color(0xFFFFF59D)
-                                                  : isAttentionStatus
-                                                  ? const Color(0xFFFFCDD2)
-                                                  : widget.accentColor.withValues(alpha: 0.1),
-                                              shape: BoxShape.rectangle,
-                                              borderRadius: BorderRadius.circular(14),
-                                              border: Border.all(
-                                                color: isDoneStatus
-                                                    ? const Color(0xFF388E3C)
-                                                    : isPostponed
-                                                    ? const Color(0xFFFBC02D)
-                                                    : isAttentionStatus
-                                                    ? AppColors.error
-                                                    : widget.accentColor,
-                                                width: 3,
-                                              ),
-                                            ),
-                                            child: isDoneStatus ||
-                                                    isPostponed ||
-                                                    isAttentionStatus
-                                                ? Icon(
-                                                    isDoneStatus
-                                                        ? Icons.check
-                                                        : isPostponed
-                                                            ? Icons.schedule
-                                                            : widget.status == ReminderStatus.needsHelp
-                                                                ? Icons.support_agent
-                                                            : widget.status == ReminderStatus.missed
-                                                                ? Icons.close
-                                                                : Icons.priority_high,
-                                                    color: isDoneStatus
-                                                        ? const Color(0xFF005312)
-                                                        : isPostponed
-                                                            ? const Color(0xFF827717)
-                                                            : AppColors.error,
-                                                    size: 32,
-                                                  )
-                                                : Icon(
-                                                    Icons.radio_button_unchecked,
-                                                    color: isHighContrast ? Colors.black : widget.accentColor,
-                                                    size: 32,
+                                        Container(
+                                          width: 56,
+                                          height: 56,
+                                          decoration: BoxDecoration(
+                                            color: isDoneStatus
+                                                ? const Color(0xFFC8E6C9)
+                                                : isPostponed
+                                                ? const Color(0xFFFFF59D)
+                                                : isAttentionStatus
+                                                ? const Color(0xFFFFCDD2)
+                                                : widget.accentColor.withValues(
+                                                    alpha: 0.1,
                                                   ),
+                                            shape: BoxShape.rectangle,
+                                            borderRadius: BorderRadius.circular(
+                                              14,
+                                            ),
+                                            border: Border.all(
+                                              color: isDoneStatus
+                                                  ? const Color(0xFF388E3C)
+                                                  : isPostponed
+                                                  ? const Color(0xFFFBC02D)
+                                                  : isAttentionStatus
+                                                  ? AppColors.error
+                                                  : widget.accentColor,
+                                              width: 3,
+                                            ),
                                           ),
+                                          child:
+                                              isDoneStatus ||
+                                                  isPostponed ||
+                                                  isAttentionStatus
+                                              ? Icon(
+                                                  isDoneStatus
+                                                      ? Icons.check
+                                                      : isPostponed
+                                                      ? Icons.schedule
+                                                      : widget.status ==
+                                                            ReminderStatus
+                                                                .needsHelp
+                                                      ? Icons.support_agent
+                                                      : widget.status ==
+                                                            ReminderStatus
+                                                                .missed
+                                                      ? Icons.close
+                                                      : Icons.priority_high,
+                                                  color: isDoneStatus
+                                                      ? const Color(0xFF005312)
+                                                      : isPostponed
+                                                      ? const Color(0xFF827717)
+                                                      : AppColors.error,
+                                                  size: 32,
+                                                )
+                                              : Icon(
+                                                  Icons.radio_button_unchecked,
+                                                  color: isHighContrast
+                                                      ? Colors.black
+                                                      : widget.accentColor,
+                                                  size: 32,
+                                                ),
                                         ),
                                       ],
                                     ),

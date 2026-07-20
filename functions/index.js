@@ -8,6 +8,26 @@ admin.initializeApp();
 
 
 // =============================================================================
+// JSON PARSING HELPER
+// =============================================================================
+
+/**
+ * Cleans markdown formatting from Gemini JSON responses.
+ * @param {string} text
+ * @return {string}
+ */
+function cleanJsonResponse(text) {
+  if (!text) return "{}";
+  // Remove markdown code block markers like ```json, ``` json, ```html,
+  // or just ```
+  let cleaned = text.replace(/```[a-zA-Z]*\s*/gi, "");
+  // Remove any stray markdown markers at the end
+  cleaned = cleaned.replace(/```\s*$/g, "");
+  // Strip any leading/trailing whitespace
+  return cleaned.trim();
+}
+
+// =============================================================================
 // SECURITY HELPERS
 // =============================================================================
 
@@ -425,11 +445,7 @@ exports.supervisorChat = onCall(
         );
         const responseText = result.response.text();
 
-        const cleaned = responseText
-            .replace(/```json\s*/gi, "")
-            .replace(/```\s*$/g, "")
-            .replace(/```/g, "")
-            .trim();
+        const cleaned = cleanJsonResponse(responseText);
 
         let parsed;
         try {
@@ -554,7 +570,7 @@ exports.generateReportInsights = onCall(
 
         let parsed;
         try {
-          parsed = JSON.parse(responseText.trim());
+          parsed = JSON.parse(cleanJsonResponse(responseText));
         } catch (e) {
           console.error(
               "Erro ao analisar JSON de relatorio:", e, responseText,
@@ -715,7 +731,7 @@ exports.identifyMedication = onCall(
 
         let parsed;
         try {
-          parsed = JSON.parse(responseText.trim());
+          parsed = JSON.parse(cleanJsonResponse(responseText));
         } catch (e) {
           console.error(
               "Erro ao analisar JSON retornado:",
@@ -856,7 +872,7 @@ exports.parsePrescription = onCall(
 
         let parsed;
         try {
-          parsed = JSON.parse(responseText.trim());
+          parsed = JSON.parse(cleanJsonResponse(responseText));
         } catch (e) {
           console.error(
               "Erro ao analisar JSON de receita:", e, responseText,
@@ -979,7 +995,7 @@ exports.parseVoiceReminder = onCall(
 
         let parsed;
         try {
-          parsed = JSON.parse(responseText.trim());
+          parsed = JSON.parse(cleanJsonResponse(responseText));
         } catch (e) {
           console.error(
               "Erro ao analisar JSON retornado:",
@@ -1215,7 +1231,7 @@ exports.lookupBarcode = onCall(
 
         let parsed;
         try {
-          parsed = JSON.parse(responseText.trim());
+          parsed = JSON.parse(cleanJsonResponse(responseText));
         } catch (e) {
           console.error(
               "Erro ao analisar JSON de barcode:", e,
@@ -1376,7 +1392,7 @@ exports.analyzeMedication = onCall(
 
         let parsed;
         try {
-          parsed = JSON.parse(responseText.trim());
+          parsed = JSON.parse(cleanJsonResponse(responseText));
         } catch (e) {
           console.error("Erro ao analisar JSON de analise:", e);
           return {
@@ -1472,7 +1488,7 @@ exports.queryMedicationFAQ = onCall(
 
         let parsed;
         try {
-          parsed = JSON.parse(responseText.trim());
+          parsed = JSON.parse(cleanJsonResponse(responseText));
         } catch (e) {
           console.error("Erro ao analisar JSON de FAQ:", e);
           return {answer: "Não foi possível obter a resposta no momento."};

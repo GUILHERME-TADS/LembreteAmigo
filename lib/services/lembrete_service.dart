@@ -1222,10 +1222,18 @@ class LembreteService {
     final lembrete = await _findLocalOrRemote(id);
     await NotificationService.instance.cancelar(id);
     _lembretes.removeWhere((item) => item.id == id);
+    
+    final relatedEvents = _eventos.where((e) => e.lembreteId == id).toList();
+    _eventos.removeWhere((e) => e.lembreteId == id);
+    
     await _salvar();
+    await _salvarEventosLocais();
 
     if (_canSyncIdosoId(lembrete?.idosoId)) {
       await OfflineSyncService.instance.deleteOrQueue('lembretes', id);
+      for (final event in relatedEvents) {
+        await OfflineSyncService.instance.deleteOrQueue('lembrete_eventos', event.id);
+      }
     }
   }
 

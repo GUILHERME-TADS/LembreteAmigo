@@ -88,6 +88,9 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
       _titleController.text = l.titulo;
       _selectedTime = TimeOfDay(hour: l.horarioHour, minute: l.horarioMinute);
       _selectedDiasSemana = List<int>.from(l.diasSemana);
+      if (_selectedDiasSemana.isEmpty && l.repeteTodosOsDias) {
+        _selectedDiasSemana = [1, 2, 3, 4, 5, 6, 7];
+      }
       _selectedSingleDate = l.lembreteUnico ? l.dataInicio : null;
       _isUsoContinuo = l.isUsoContinuo;
       _dataInicio = l.dataInicio ?? DateTime.now();
@@ -1319,36 +1322,59 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                   color: AppColors.onSurface,
                 ),
               ),
-              TextButton.icon(
-                onPressed: () async {
-                  final now = DateTime.now();
-                  final date = await showDatePicker(
-                    context: context,
-                    initialDate: now,
-                    firstDate: now,
-                    lastDate: now.add(const Duration(days: 365)),
-                    builder: (context, child) {
-                      return Theme(
-                        data: Theme.of(context).copyWith(
-                          colorScheme: const ColorScheme.light(
-                            primary: AppColors.primary,
-                            onPrimary: Colors.white,
-                            onSurface: AppColors.onSurface,
-                          ),
-                        ),
-                        child: child!,
-                      );
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        _selectedSingleDate = null;
+                        _selectedDiasSemana = [1, 2, 3, 4, 5, 6, 7];
+                      });
                     },
-                  );
-                  if (date != null) {
-                    setState(() {
-                      _selectedSingleDate = date;
-                      _selectedDiasSemana = [];
-                    });
-                  }
-                },
-                icon: const Icon(Icons.calendar_month, size: 18),
-                label: const Text('Data Única'),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      minimumSize: Size.zero,
+                    ),
+                    child: const Text('Todos os dias'),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton.icon(
+                    onPressed: () async {
+                      final now = DateTime.now();
+                      final date = await showDatePicker(
+                        context: context,
+                        initialDate: now,
+                        firstDate: now,
+                        lastDate: now.add(const Duration(days: 365)),
+                        builder: (context, child) {
+                          return Theme(
+                            data: Theme.of(context).copyWith(
+                              colorScheme: const ColorScheme.light(
+                                primary: AppColors.primary,
+                                onPrimary: Colors.white,
+                                onSurface: AppColors.onSurface,
+                              ),
+                            ),
+                            child: child!,
+                          );
+                        },
+                      );
+                      if (date != null) {
+                        setState(() {
+                          _selectedSingleDate = date;
+                          _selectedDiasSemana = [];
+                        });
+                      }
+                    },
+                    icon: const Icon(Icons.calendar_month, size: 18),
+                    label: const Text('Data Única'),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      minimumSize: Size.zero,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -1678,12 +1704,18 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
     if (_selectedSingleDate != null) {
       targetDate = _selectedSingleDate!;
     } else if (_selectedDiasSemana.isEmpty) {
-      final now = DateTime.now();
-      final reminderTime = DateTime(now.year, now.month, now.day, _selectedTime!.hour, _selectedTime!.minute);
-      if (reminderTime.isAfter(now)) {
-        targetDate = DateTime(now.year, now.month, now.day);
+      if (widget.lembrete != null && widget.lembrete!.dataInicio != null) {
+        // Na edição, mantemos a data de início original para lembretes de dia único, 
+        // em vez de jogá-los para amanhã, a menos que o usuário mude a data explicitamente.
+        targetDate = _dataInicio;
       } else {
-        targetDate = DateTime(now.year, now.month, now.day).add(const Duration(days: 1));
+        final now = DateTime.now();
+        final reminderTime = DateTime(now.year, now.month, now.day, _selectedTime!.hour, _selectedTime!.minute);
+        if (reminderTime.isAfter(now)) {
+          targetDate = DateTime(now.year, now.month, now.day);
+        } else {
+          targetDate = DateTime(now.year, now.month, now.day).add(const Duration(days: 1));
+        }
       }
     } else {
       targetDate = _dataInicio;

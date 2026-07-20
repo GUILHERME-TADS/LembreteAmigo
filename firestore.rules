@@ -409,7 +409,8 @@ service cloud.firestore {
         canAccessIdosoData(request.resource.data.idosoId) &&
         validEvent(request.resource.data);
       allow update: if false;
-      allow delete: if false;
+      allow delete: if isAuth() && docHasIdosoId() &&
+        canAccessIdosoData(resource.data.idosoId);
     }
 
     match /mensagens/{msgId} {
@@ -487,7 +488,10 @@ service cloud.firestore {
           validToken(request.resource.data, 'supervisor', request.auth.uid)
         )
       );
-      allow delete: if false;
+      allow delete: if isAuth() && (
+        docId == 'elderly_' + request.auth.uid ||
+        docId == 'supervisor_' + request.auth.uid
+      );
     }
 
     match /alertas/{alertaId} {

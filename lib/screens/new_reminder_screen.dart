@@ -117,11 +117,53 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
       return;
     }
     if (_isCapturingPhoto) return;
+
+    await showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Adicionar Foto do Remédio',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.photo_camera, color: AppColors.primary, size: 28),
+                title: const Text('Tirar Foto com a Câmera', style: TextStyle(fontWeight: FontWeight.bold)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickFotoRemedio(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library, color: AppColors.primary, size: 28),
+                title: const Text('Escolher da Galeria', style: TextStyle(fontWeight: FontWeight.bold)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickFotoRemedio(ImageSource.gallery);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickFotoRemedio(ImageSource source) async {
+    if (_isCapturingPhoto) return;
     setState(() => _isCapturingPhoto = true);
 
     try {
       final image = await _imagePicker.pickImage(
-        source: ImageSource.camera,
+        source: source,
         imageQuality: 85,
       );
       if (image == null || !mounted) return;
@@ -137,7 +179,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Não foi possível tirar a foto: $e'),
+          content: Text('Não foi possível adicionar a foto: $e'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -297,6 +339,8 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                       ),
                     ),
                     const SizedBox(height: 24),
+                    _buildIACard(),
+                    const SizedBox(height: 24),
                     // Passo 1: Identificação (Categoria e Foto)
                     _buildStepCard(
                       stepNumber: 1,
@@ -305,8 +349,6 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                       children: [
                         _buildCategorySelector(),
                         if (_selectedCategory == 'medicacao') ...[
-                          const SizedBox(height: 20),
-                          _buildIACard(),
                           const SizedBox(height: 20),
                           _buildFotoSection(),
                         ],
@@ -654,19 +696,38 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                 size: 26,
               ),
               const SizedBox(width: 8),
-              const Text(
-                'Preencher com Foto (IA)',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
+              const Flexible(
+                child: Text(
+                  'PREENCHIMENTO RÁPIDO COM IA',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.2,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text(
+                  'Opcional',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 8),
           const Text(
-            'Tire uma foto da receita médica ou da caixa do remédio para preencher os dados automaticamente com IA.',
+            'Tem uma receita médica ou caixinha de remédio? Toque abaixo para a Inteligência Artificial ler e preencher o formulário automaticamente para você.',
             style: TextStyle(
               fontSize: 14,
               color: AppColors.onSurfaceVariant,
@@ -695,6 +756,17 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                         }
                         if (data['fotoPath'] != null) {
                           _fotoPath = data['fotoPath'] as String;
+                        }
+                        if (data['observacoes'] != null && data['observacoes'].toString().isNotEmpty) {
+                          _medicamentoInstrucoes = data['observacoes'] as String;
+                        }
+                        if (data['intervaloSugerido'] != null && data['intervaloSugerido'].toString().isNotEmpty) {
+                          final interval = data['intervaloSugerido'] as String;
+                          if (_medicamentoInstrucoes != null && _medicamentoInstrucoes!.isNotEmpty) {
+                            _medicamentoInstrucoes = '$_medicamentoInstrucoes (Sugestão de intervalo: $interval)';
+                          } else {
+                            _medicamentoInstrucoes = 'Sugestão de intervalo: $interval';
+                          }
                         }
                       });
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -1021,17 +1093,25 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
-                        Icons.photo_camera,
-                        size: 48,
+                        Icons.add_a_photo,
+                        size: 44,
                         color: AppColors.primary,
                       ),
                       SizedBox(height: 8),
                       Text(
-                        'Tirar Foto do Remédio',
+                        'Adicionar Foto do Remédio',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
                           color: AppColors.primary,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Câmera ou Galeria',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -1237,13 +1317,19 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
   }
 
   Widget _buildRecurrenceSection() {
+    final bool isDiario = _selectedSingleDate == null && _selectedDiasSemana.length == 7;
+    final bool isDataUnica = _selectedSingleDate != null || (_selectedSingleDate == null && _selectedDiasSemana.isEmpty);
+    final bool isSemanal = _selectedSingleDate == null && _selectedDiasSemana.isNotEmpty && _selectedDiasSemana.length < 7;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          children: [
-            const Text(
-              'REPETIÇÃO DO LEMBRETE',
+          children: const [
+            Icon(Icons.repeat, color: AppColors.primary, size: 20),
+            SizedBox(width: 8),
+            Text(
+              'FREQUÊNCIA E REPETIÇÃO',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w800,
@@ -1251,26 +1337,155 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                 color: AppColors.onSurfaceVariant,
               ),
             ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: AppColors.onSurfaceVariant.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: const Text(
-                'Opcional',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.onSurfaceVariant,
-                ),
-              ),
-            ),
           ],
         ),
         const SizedBox(height: 12),
-        if (_selectedSingleDate != null) ...[
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            ChoiceChip(
+              label: const Text('Todos os Dias', style: TextStyle(fontWeight: FontWeight.bold)),
+              selected: isDiario,
+              onSelected: (_) {
+                setState(() {
+                  _selectedSingleDate = null;
+                  _selectedDiasSemana = [1, 2, 3, 4, 5, 6, 7];
+                });
+              },
+            ),
+            ChoiceChip(
+              label: const Text('Dias da Semana', style: TextStyle(fontWeight: FontWeight.bold)),
+              selected: isSemanal,
+              onSelected: (_) {
+                setState(() {
+                  _selectedSingleDate = null;
+                  if (_selectedDiasSemana.isEmpty || _selectedDiasSemana.length == 7) {
+                    _selectedDiasSemana = [1, 2, 3, 4, 5];
+                  }
+                });
+              },
+            ),
+            ChoiceChip(
+              label: const Text('Data Única', style: TextStyle(fontWeight: FontWeight.bold)),
+              selected: isDataUnica,
+              onSelected: (_) {
+                setState(() {
+                  _selectedSingleDate = _selectedSingleDate ?? DateTime.now();
+                  _selectedDiasSemana = [];
+                });
+              },
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        if (isDiario) ...[
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceContainerLowest,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: const [
+                Icon(Icons.check_circle, color: AppColors.primary, size: 24),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'O lembrete tocará todos os dias da semana (de Domingo a Sábado).',
+                    style: TextStyle(fontSize: 14, color: AppColors.onSurface),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ] else if (isSemanal) ...[
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Toque nos dias em que o lembrete deve tocar:',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.onSurfaceVariant),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: List.generate(7, (idx) {
+                  final weekdays = [7, 1, 2, 3, 4, 5, 6];
+                  final weekday = weekdays[idx];
+                  final labels = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
+                  final isSelected = _selectedDiasSemana.contains(weekday);
+                  return GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        if (isSelected) {
+                          if (_selectedDiasSemana.length > 1) {
+                            _selectedDiasSemana.remove(weekday);
+                          }
+                        } else {
+                          _selectedDiasSemana.add(weekday);
+                        }
+                      });
+                    },
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: isSelected ? AppColors.primary : AppColors.surfaceContainerLowest,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isSelected ? AppColors.primary : AppColors.outlineVariant,
+                          width: 1.5,
+                        ),
+                        boxShadow: isSelected
+                            ? [BoxShadow(color: AppColors.primary.withValues(alpha: 0.3), blurRadius: 4, offset: const Offset(0, 2))]
+                            : null,
+                      ),
+                      child: Center(
+                        child: Text(
+                          labels[idx],
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: isSelected ? Colors.white : AppColors.onSurface,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  TextButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _selectedDiasSemana = [1, 2, 3, 4, 5];
+                      });
+                    },
+                    icon: const Icon(Icons.work_outline, size: 16),
+                    label: const Text('Seg a Sex', style: TextStyle(fontSize: 12)),
+                    style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8), minimumSize: Size.zero),
+                  ),
+                  const SizedBox(width: 16),
+                  TextButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _selectedDiasSemana = [6, 7];
+                      });
+                    },
+                    icon: const Icon(Icons.weekend_outlined, size: 16),
+                    label: const Text('Fim de Semana', style: TextStyle(fontSize: 12)),
+                    style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8), minimumSize: Size.zero),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ] else ...[
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -1280,147 +1495,63 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
             ),
             child: Row(
               children: [
-                const Icon(Icons.calendar_today, color: AppColors.primary),
-                const SizedBox(width: 12),
+                const Icon(Icons.calendar_month, color: AppColors.primary, size: 28),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'Agendado para data única',
+                        'Data do Lembrete',
                         style: TextStyle(fontSize: 12, color: AppColors.onSurfaceVariant),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${_selectedSingleDate!.day.toString().padLeft(2, '0')}/${_selectedSingleDate!.month.toString().padLeft(2, '0')}/${_selectedSingleDate!.year}',
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        _selectedSingleDate != null
+                            ? '${_selectedSingleDate!.day.toString().padLeft(2, '0')}/${_selectedSingleDate!.month.toString().padLeft(2, '0')}/${_selectedSingleDate!.year}'
+                            : 'Selecione uma data',
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),
                 ),
-                TextButton(
-                  onPressed: () {
-                    setState(() {
-                      _selectedDiasSemana = [_selectedSingleDate!.weekday];
-                      _selectedSingleDate = null;
-                    });
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    final now = DateTime.now();
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: _selectedSingleDate ?? now,
+                      firstDate: now,
+                      lastDate: now.add(const Duration(days: 365)),
+                      builder: (context, child) {
+                        return Theme(
+                          data: Theme.of(context).copyWith(
+                            colorScheme: const ColorScheme.light(
+                              primary: AppColors.primary,
+                              onPrimary: Colors.white,
+                              onSurface: AppColors.onSurface,
+                            ),
+                          ),
+                          child: child!,
+                        );
+                      },
+                    );
+                    if (date != null) {
+                      setState(() {
+                        _selectedSingleDate = date;
+                        _selectedDiasSemana = [];
+                      });
+                    }
                   },
-                  child: const Text('Repetir Semanal'),
+                  icon: const Icon(Icons.edit_calendar, size: 18),
+                  label: const Text('Alterar'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                  ),
                 ),
               ],
             ),
-          ),
-        ] else ...[
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Selecione os dias da semana:',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.onSurface,
-                ),
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextButton(
-                    onPressed: () {
-                      setState(() {
-                        _selectedSingleDate = null;
-                        _selectedDiasSemana = [1, 2, 3, 4, 5, 6, 7];
-                      });
-                    },
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      minimumSize: Size.zero,
-                    ),
-                    child: const Text('Todos os dias'),
-                  ),
-                  const SizedBox(width: 8),
-                  TextButton.icon(
-                    onPressed: () async {
-                      final now = DateTime.now();
-                      final date = await showDatePicker(
-                        context: context,
-                        initialDate: now,
-                        firstDate: now,
-                        lastDate: now.add(const Duration(days: 365)),
-                        builder: (context, child) {
-                          return Theme(
-                            data: Theme.of(context).copyWith(
-                              colorScheme: const ColorScheme.light(
-                                primary: AppColors.primary,
-                                onPrimary: Colors.white,
-                                onSurface: AppColors.onSurface,
-                              ),
-                            ),
-                            child: child!,
-                          );
-                        },
-                      );
-                      if (date != null) {
-                        setState(() {
-                          _selectedSingleDate = date;
-                          _selectedDiasSemana = [];
-                        });
-                      }
-                    },
-                    icon: const Icon(Icons.calendar_month, size: 18),
-                    label: const Text('Data Única'),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      minimumSize: Size.zero,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: List.generate(7, (idx) {
-              final weekdays = [7, 1, 2, 3, 4, 5, 6];
-              final weekday = weekdays[idx];
-              final labels = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
-              final isSelected = _selectedDiasSemana.contains(weekday);
-              return GestureDetector(
-                onTap: () {
-                  setState(() {
-                    if (isSelected) {
-                      _selectedDiasSemana.remove(weekday);
-                    } else {
-                      _selectedDiasSemana.add(weekday);
-                    }
-                  });
-                },
-                child: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? AppColors.primary
-                        : AppColors.surfaceContainerLowest,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: isSelected ? AppColors.primary : AppColors.outlineVariant,
-                    ),
-                  ),
-                  child: Center(
-                    child: Text(
-                      labels[idx],
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: isSelected ? Colors.white : AppColors.onSurface,
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }),
           ),
         ],
         const SizedBox(height: 16),

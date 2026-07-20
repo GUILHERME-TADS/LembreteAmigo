@@ -1025,7 +1025,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                                         SizedBox(width: 12),
                                         Flexible(
                                           child: Text(
-                                            'VELOCIDADE DA VOZ DO ALEX',
+                                            'VELOCIDADE DA VOZ',
                                             textAlign: TextAlign.center,
                                             style: TextStyle(
                                               fontSize: 18,

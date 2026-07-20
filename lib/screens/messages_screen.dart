@@ -35,6 +35,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
   String? _fotoIdoso;
   String? _fotoSupervisor;
   String? _nomeSupervisor;
+  String? _nomeIdoso;
   final TextEditingController _textController = TextEditingController();
 
   // Voice recording state
@@ -47,7 +48,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
   String? _profilePhotoUrl(Map<String, dynamic> data) {
     final photo = (data['fotoPath'] as String?) ?? (data['foto'] as String?);
-    if (photo == null || photo.isEmpty || !photo.startsWith('http')) {
+    if (photo == null || photo.isEmpty) {
       return null;
     }
     return photo;
@@ -104,8 +105,16 @@ class _MessagesScreenState extends State<MessagesScreen> {
         final decoded = jsonDecode(jsonStr);
         if (decoded is Map) {
           localProfile = Map<String, dynamic>.from(decoded);
+          if (mounted) {
+            setState(() {
+              _nomeIdoso = localProfile?['nome'] as String?;
+            });
+          }
         }
       }
+
+      String? localFoto = prefs.getString('idoso_foto_path');
+      if (localFoto != null && localFoto.isEmpty) localFoto = null;
 
       bool loadedFromFirebase = false;
       if (Firebase.apps.isNotEmpty) {
@@ -114,13 +123,19 @@ class _MessagesScreenState extends State<MessagesScreen> {
         if (data != null) {
           if (mounted) {
             setState(() {
-              _fotoIdoso = _profilePhotoUrl(data);
-              _fotoSupervisor = null;
+              _fotoIdoso = _profilePhotoUrl(data) ?? localFoto;
+              _nomeIdoso = data['nome'] as String? ?? _nomeIdoso;
               _fotoSupervisor = null;
             });
           }
           loadedFromFirebase = true;
         }
+      }
+
+      if (!loadedFromFirebase && mounted) {
+        setState(() {
+          _fotoIdoso = localFoto;
+        });
       }
 
       final supervisorData = await _loadSupervisorData(idosoId, localProfile);
@@ -139,7 +154,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
         final cachedProfile = localProfile;
         if (cachedProfile != null && mounted) {
           setState(() {
-            _fotoIdoso = _profilePhotoUrl(cachedProfile);
+            _fotoIdoso ??= _profilePhotoUrl(cachedProfile) ?? localFoto;
             _fotoSupervisor ??= _profilePhotoUrl({
               'fotoPath': cachedProfile['fotoSupervisor'],
             });
@@ -438,7 +453,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
   Widget _buildTopBar() {
     final contactName = _isSupervisor
-        ? 'Idoso'
+        ? (_nomeIdoso ?? 'Idoso')
         : (_nomeSupervisor ?? 'Cuidador');
 
     return Container(

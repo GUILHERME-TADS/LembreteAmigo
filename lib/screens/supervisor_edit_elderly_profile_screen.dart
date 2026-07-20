@@ -236,6 +236,13 @@ class _SupervisorEditElderlyProfileScreenState
                     height: 52,
                     child: ElevatedButton.icon(
                       onPressed: _isSaving ? null : _save,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
                       icon: _isSaving
                           ? const SizedBox(
                               width: 20,
@@ -246,7 +253,13 @@ class _SupervisorEditElderlyProfileScreenState
                               ),
                             )
                           : const Icon(Icons.save),
-                      label: Text(_isSaving ? 'Salvando...' : 'Salvar dados'),
+                      label: Text(
+                        _isSaving ? 'Salvando...' : 'Salvar dados',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
                 ],

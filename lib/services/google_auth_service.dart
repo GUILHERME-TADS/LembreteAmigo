@@ -50,11 +50,14 @@ class GoogleAuthService {
     if (!kIsWeb) {
       await _initialize();
       try {
-        await GoogleSignIn.instance.signOut();
-      } catch (_) {
-        // A sessao Firebase ainda deve ser encerrada mesmo sem sessao Google.
-      }
+        await GoogleSignIn.instance.disconnect().timeout(const Duration(seconds: 2));
+      } catch (_) {}
+      try {
+        await GoogleSignIn.instance.signOut().timeout(const Duration(seconds: 2));
+      } catch (_) {}
     }
-    await FirebaseAuth.instance.signOut();
+    try {
+      await FirebaseAuth.instance.signOut().timeout(const Duration(seconds: 3));
+    } catch (_) {}
   }
 }

@@ -1893,7 +1893,12 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
       setState(() => _isSaving = true);
     }
 
-    if (_selectedCategory == 'medicacao') {
+    final bool isMedicationChanged = widget.lembrete == null ||
+        widget.lembrete!.titulo.trim().toLowerCase() != titulo.trim().toLowerCase() ||
+        widget.lembrete!.horarioHour != _selectedTime!.hour ||
+        widget.lembrete!.horarioMinute != _selectedTime!.minute;
+
+    if (_selectedCategory == 'medicacao' && isMedicationChanged) {
       showDialog(
         context: context,
         barrierDismissible: false,

@@ -173,6 +173,7 @@ class AppTheme {
         fontFamily: AppTypography.fontFamily,
         fontSize: 24,
         fontWeight: FontWeight.bold,
+        color: AppColors.primary,
       ),
     ),
     colorScheme: ColorScheme(

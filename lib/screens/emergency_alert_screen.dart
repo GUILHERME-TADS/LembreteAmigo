@@ -7,6 +7,7 @@ import '../theme/app_theme.dart';
 import 'package:firebase_core/firebase_core.dart';
 import '../services/session_role_service.dart';
 import '../models/lembrete.dart';
+import '../services/video_call_service.dart';
 import '../widgets/index.dart';
 
 class EmergencyAlertScreen extends StatefulWidget {
@@ -23,6 +24,7 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
   String _idosoName = 'Idoso';
   String _idosoPhone = '';
   String? _idosoFoto;
+  bool _isCalling = false;
 
   @override
   void initState() {
@@ -34,40 +36,68 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final idosoId = await SessionRoleService.getActiveIdosoId();
+      String nome = 'Idoso';
+      String telefone = '';
+      String? foto;
+
+      final localFoto = prefs.getString('idoso_foto_path');
+      if (localFoto != null && localFoto.isNotEmpty) {
+        foto = localFoto;
+      }
+      final jsonStr = prefs.getString('idoso_perfil');
+      if (jsonStr != null) {
+        try {
+          final decoded = jsonDecode(jsonStr);
+          if (decoded is Map) {
+            final data = Map<String, dynamic>.from(decoded);
+            nome = data['nome'] as String? ?? nome;
+            telefone = data['telefone'] as String? ?? telefone;
+            if (foto == null || (data['fotoPath'] as String?)?.startsWith('http') == true) {
+              foto = data['fotoPath'] as String? ?? foto;
+            }
+          }
+        } catch (_) {}
+      }
 
       bool useFirebase = false;
       try {
         useFirebase = Firebase.apps.isNotEmpty;
       } catch (_) {}
 
-      if (useFirebase) {
-        final doc = await FirebaseFirestore.instance
-            .collection('idosos')
-            .doc(idosoId)
-            .get();
-        if (doc.exists && doc.data() != null && mounted) {
-          setState(() {
-            _idosoName = doc.data()?['nome'] ?? 'Idoso';
-            _idosoPhone = doc.data()?['telefone'] ?? '';
-            _idosoFoto = doc.data()?['fotoPath'] as String?;
-          });
-          return;
+      if (useFirebase && !SessionRoleService.isLocalOnlyIdosoId(idosoId)) {
+        try {
+          final docPerfil = await FirebaseFirestore.instance
+              .collection('idoso_perfil')
+              .doc(idosoId)
+              .get();
+          final docIdoso = await FirebaseFirestore.instance
+              .collection('idosos')
+              .doc(idosoId)
+              .get();
+
+          if (docIdoso.exists && docIdoso.data() != null) {
+            final data = docIdoso.data()!;
+            nome = data['nome'] as String? ?? nome;
+            telefone = data['telefone'] as String? ?? telefone;
+            foto = data['fotoPath'] as String? ?? foto;
+          }
+          if (docPerfil.exists && docPerfil.data() != null) {
+            final data = docPerfil.data()!;
+            nome = data['nome'] as String? ?? nome;
+            telefone = data['telefone'] as String? ?? telefone;
+            foto = data['fotoPath'] as String? ?? foto;
+          }
+        } catch (fbErr) {
+          debugPrint('Erro ao carregar do Firebase no alerta crítico: $fbErr');
         }
       }
 
-      // Fallback local simulation
-      final jsonStr = prefs.getString('idoso_perfil');
-      if (jsonStr != null) {
-        final decoded = jsonDecode(jsonStr);
-        if (decoded is! Map) return;
-        final data = Map<String, dynamic>.from(decoded);
-        if (mounted) {
-          setState(() {
-            _idosoName = data['nome'] as String? ?? 'Idoso';
-            _idosoPhone = data['telefone'] as String? ?? '';
-            _idosoFoto = data['fotoPath'] as String?;
-          });
-        }
+      if (mounted) {
+        setState(() {
+          _idosoName = nome;
+          _idosoPhone = telefone;
+          _idosoFoto = foto;
+        });
       }
     } catch (e) {
       debugPrint('Erro ao carregar dados do idoso para alerta: $e');
@@ -99,6 +129,46 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
       }
     } catch (e) {
       debugPrint('Erro ao abrir discador: $e');
+    }
+  }
+
+  Future<void> _fazerLigacaoApp(String callType) async {
+    if (_isCalling) return;
+    setState(() => _isCalling = true);
+    try {
+      final idosoId = await SessionRoleService.getActiveIdosoId();
+      final call = await VideoCallService.instance.initiateCall(
+        idosoId: idosoId,
+        callType: callType,
+        initiatedBy: SessionRoleService.isSupervisor ? 'supervisor' : 'idoso',
+      );
+      if (call != null && mounted) {
+        await VideoCallService.instance.joinCall(
+          call.roomName,
+          callType: callType,
+          callId: call.callId,
+          alreadyVerified: true,
+        );
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Não foi possível iniciar a chamada pelo aplicativo.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Erro ao iniciar chamada pelo app: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao iniciar chamada: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isCalling = false);
     }
   }
 
@@ -207,27 +277,10 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
                           ),
                         ),
                         const SizedBox(height: 24),
-                        Container(
-                          width: 80,
-                          height: 80,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: AppColors.surfaceContainerHigh,
-                            border: Border.all(color: AppColors.outlineVariant),
-                            image: _idosoFoto != null && _idosoFoto!.isNotEmpty
-                                ? DecorationImage(
-                                    image: NetworkImage(_idosoFoto!),
-                                    fit: BoxFit.cover,
-                                  )
-                                : null,
-                          ),
-                          child: _idosoFoto == null || _idosoFoto!.isEmpty
-                              ? const Icon(
-                                  Icons.person,
-                                  size: 48,
-                                  color: AppColors.onSurfaceVariant,
-                                )
-                              : null,
+                        ElderlyProfileAvatar(
+                          fotoPath: _idosoFoto,
+                          size: 80,
+                          borderWidth: 2,
                         ),
                         const SizedBox(height: 12),
                         Text(
@@ -279,16 +332,25 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
                         const SizedBox(height: 8),
                         SizedBox(
                           width: double.infinity,
-                          height: 64,
+                          height: 60,
                           child: ElevatedButton.icon(
-                            onPressed: _fazerLigacao,
-                            icon: const Icon(Icons.phone, size: 28),
+                            onPressed: _isCalling ? null : () => _fazerLigacaoApp('video'),
+                            icon: _isCalling
+                                ? const SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Icon(Icons.videocam, size: 28),
                             label: Text(
-                              'Ligar para $_idosoName',
+                              _isCalling ? 'Iniciando vídeo...' : 'Vídeo com $_idosoName',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                fontSize: 20,
+                                fontSize: 19,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
@@ -306,12 +368,60 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
                           width: double.infinity,
                           height: 56,
                           child: ElevatedButton.icon(
-                            onPressed: _verDetalhes,
-                            icon: const Icon(Icons.visibility, size: 24),
+                            onPressed: _isCalling ? null : () => _fazerLigacaoApp('voice'),
+                            icon: const Icon(Icons.phone_in_talk, size: 26),
                             label: const Text(
-                              'Ver Detalhes',
+                              'Ligação de Voz pelo App',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: OutlinedButton.icon(
+                            onPressed: _isCalling ? null : _fazerLigacao,
+                            icon: const Icon(Icons.phone, size: 22, color: AppColors.onSurfaceVariant),
+                            label: const Text(
+                              'Ligar por Telefone Celular (GSM)',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.onSurfaceVariant,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: AppColors.outlineVariant),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: ElevatedButton.icon(
+                            onPressed: _verDetalhes,
+                            icon: const Icon(Icons.visibility, size: 22),
+                            label: const Text(
+                              'Ver Detalhes do Lembrete',
+                              style: TextStyle(
+                                fontSize: 16,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),

@@ -658,8 +658,8 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                           VibrationService.stopVibration();
                                           AudioManager.stopAll();
                                           _noResponseTimer?.cancel();
-                                          await _familyAudioPlayer.stop();
-                                          await TTSService.instance.parar(caller: this);
+                                          _runInBackground(_familyAudioPlayer.stop(), 'parar audio');
+                                          _runInBackground(TTSService.instance.parar(caller: this), 'parar tts');
                                           if (lembrete != null) {
                                             _runInBackground(
                                               NotificationService.instance
@@ -678,7 +678,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                               return;
                                             }
                                             AudioManager.stopAll();
-                                            await TTSService.instance.parar(caller: this);
+                                            _runInBackground(TTSService.instance.parar(caller: this), 'parar tts');
                                             await navigator.pushNamed(
                                               '/take-photo-confirmation',
                                               arguments: id,
@@ -741,8 +741,17 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                           }
                                         }
                                       },
-                                icon: const Icon(Icons.check_circle, size: 36),
-                                label: FittedBox(
+                                  icon: _isProcessingAction
+                                      ? const SizedBox(
+                                          width: 36,
+                                          height: 36,
+                                          child: CircularProgressIndicator(
+                                            color: Colors.white,
+                                            strokeWidth: 3,
+                                          ),
+                                        )
+                                      : const Icon(Icons.check_circle, size: 36),
+                                  label: FittedBox(
                                   fit: BoxFit.scaleDown,
                                   child: Text(
                                     confirmButtonText,
@@ -787,8 +796,8 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                           _isLoopPaused = false;
                                           VibrationService.stopVibration();
                                           _noResponseTimer?.cancel();
-                                          _familyAudioPlayer.stop();
-                                          TTSService.instance.parar(caller: this);
+                                          _runInBackground(_familyAudioPlayer.stop(), 'parar audio');
+                                          _runInBackground(TTSService.instance.parar(caller: this), 'parar tts');
                                           final navigator = Navigator.of(
                                             context,
                                           );
@@ -833,8 +842,17 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                           }
                                         }
                                       },
-                                icon: const Icon(Icons.access_time, size: 30),
-                                label: const FittedBox(
+                                  icon: _isProcessingAction
+                                      ? const SizedBox(
+                                          width: 30,
+                                          height: 30,
+                                          child: CircularProgressIndicator(
+                                            color: Colors.black54,
+                                            strokeWidth: 3,
+                                          ),
+                                        )
+                                      : const Icon(Icons.access_time, size: 30),
+                                  label: const FittedBox(
                                   fit: BoxFit.scaleDown,
                                   child: Text(
                                     'DAQUI A POUCO (10 MINUTOS)',
@@ -881,8 +899,8 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                           _isSpeakingLoopActive = false;
                                           _isLoopPaused = false;
                                           VibrationService.stopVibration();
-                                          await _familyAudioPlayer.stop();
-                                          TTSService.instance.parar(caller: this);
+                                          _runInBackground(_familyAudioPlayer.stop(), 'parar audio');
+                                          _runInBackground(TTSService.instance.parar(caller: this), 'parar tts');
                                           if (lembrete != null) {
                                             _runInBackground(
                                               NotificationService.instance

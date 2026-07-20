@@ -159,7 +159,7 @@ class _AlexFloatingHelpButtonState extends State<AlexFloatingHelpButton>
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          isThisSpeaking ? 'PARAR DE OUVIR' : 'ME EXPLICA',
+                          isThisSpeaking ? 'PARAR DE FALAR' : 'ME EXPLICA',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 18,

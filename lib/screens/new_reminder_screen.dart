@@ -1311,8 +1311,8 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
             ),
           ),
         ] else ...[
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
                 'Selecione os dias da semana:',
@@ -1322,8 +1322,11 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                   color: AppColors.onSurface,
                 ),
               ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   TextButton(
                     onPressed: () {
@@ -1338,7 +1341,6 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                     ),
                     child: const Text('Todos os dias'),
                   ),
-                  const SizedBox(width: 8),
                   TextButton.icon(
                     onPressed: () async {
                       final now = DateTime.now();

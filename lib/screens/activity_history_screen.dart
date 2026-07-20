@@ -710,32 +710,35 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
   Widget _buildStatusChips() {
     final statuses = ['Todos', 'Concluídos', 'Não concluídos'];
 
-    return Row(
-      children: statuses.map((status) {
-        final isSelected = _selectedStatus == status;
-        return Padding(
-          padding: const EdgeInsets.only(right: 8),
-          child: ChoiceChip(
-            label: Text(
-              status,
-              style: TextStyle(
-                color: isSelected ? Colors.white : AppColors.secondary,
-                fontWeight: FontWeight.bold,
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: statuses.map((status) {
+          final isSelected = _selectedStatus == status;
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ChoiceChip(
+              label: Text(
+                status,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : AppColors.secondary,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
+              selected: isSelected,
+              selectedColor: AppColors.secondary,
+              backgroundColor: AppColors.surfaceContainerLowest,
+              onSelected: (selected) {
+                if (selected) {
+                  setState(() {
+                    _selectedStatus = status;
+                  });
+                }
+              },
             ),
-            selected: isSelected,
-            selectedColor: AppColors.secondary,
-            backgroundColor: AppColors.surfaceContainerLowest,
-            onSelected: (selected) {
-              if (selected) {
-                setState(() {
-                  _selectedStatus = status;
-                });
-              }
-            },
-          ),
-        );
-      }).toList(),
+          );
+        }).toList(),
+      ),
     );
   }
 

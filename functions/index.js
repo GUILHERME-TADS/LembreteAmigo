@@ -346,79 +346,19 @@ function appendElderlyAudioSafetyNote(text) {
 // ALEX CHAT (Elderly Assistant)
 // =============================================================================
 
-const ALEX_CHAT_SCHEMA = {
-  type: "object",
-  properties: {
-    reply: {type: "string"},
-    emotion: {type: "string"},
-    action: {
-      type: "object",
-      properties: {
-        type: {type: "string"},
-        confidence: {type: "number"},
-      },
-      required: ["type", "confidence"],
-    },
-  },
-  required: ["reply", "emotion", "action"],
-};
-
 exports.alexChat = onCall(
     {cors: true},
     async (request) => {
       const uid = requireAuth(request);
       await checkRateLimit(uid, "alexChat");
 
-      const message = validateString(request.data?.message, "message", 2000);
+      validateString(request.data?.message, "message", 2000);
 
-      try {
-        const model = createGeminiModel("gemini-2.5-flash", {
-          generationConfig: {
-            temperature: 0.3,
-            responseMimeType: "application/json",
-            responseSchema: ALEX_CHAT_SCHEMA,
-          },
-        });
-
-        const prompt =
-          "Você é o Alex, o assistente virtual carinhoso e inteligente do " +
-          "aplicativo LembreteAmigo para idosos com baixo letramento.\n" +
-          "O idoso (ou familiar) disse ou perguntou por voz: '" + message + "'\n\n" +
-          "Instruções:\n" +
-          "1. Responda de forma extremamente acolhedora, respeitosa, " +
-          "empática e simples (máximo de 2 a 3 frases curtas e diretas).\n" +
-          "2. Se for dúvida sobre remédio ou saúde, oriente com segurança e " +
-          "avise que se a dúvida persistir, o médico ou cuidador deve ser consultado.\n" +
-          "3. Seja animador para incentivar a hidratação, boa alimentação e bem-estar.";
-
-        const result = await model.generateContent([{text: prompt}]);
-        const responseText = result.response.text();
-
-        let parsed;
-        try {
-          parsed = JSON.parse(cleanJsonResponse(responseText));
-        } catch (e) {
-          console.error("Erro ao analisar JSON de alexChat:", e);
-          return {
-            reply: "Olá! Entendi sua dúvida. Recomendo sempre tomar os remédios nos horários certinhos e conversar com seu cuidador.",
-            emotion: "acolhedor",
-            action: {type: "general", confidence: 1},
-          };
-        }
-
-        return {
-          reply: parsed.reply || "Estou aqui para ajudar com sua rotina de saúde!",
-          emotion: parsed.emotion || "acolhedor",
-          action: parsed.action || {type: "general", confidence: 1},
-        };
-      } catch (error) {
-        console.error("alexChat error:", error);
-        return {
-          reply: "Desculpe, tive um pequeno problema para pensar agora. Pode falar comigo de novo em alguns instantes?",
-          emotion: "informativo",
-          action: {type: "general", confidence: 0},
-        };
-      }
+      return {
+        reply: "Desculpe, ainda nao sei responder a essa pergunta.",
+        emotion: "informativo",
+        action: {type: "general", confidence: 0},
+      };
     },
 );
 

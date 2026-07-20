@@ -25,7 +25,6 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
   String _transcricao = '';
   String? _selectedCategory;
 
-
   @override
   void initState() {
     super.initState();
@@ -453,7 +452,6 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
       _hasRecorded = false;
       _selectedCategory = null;
     });
-
     await TTSService.instance.falar('Tudo bem, pode falar novamente.', caller: this);
     _toggleListening();
   }
@@ -576,7 +574,6 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
         ),
       );
     }
-
   }
 
   Widget _buildTopBar(BuildContext context) {

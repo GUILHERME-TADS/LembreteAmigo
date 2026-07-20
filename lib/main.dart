@@ -17,10 +17,8 @@ import 'screens/all_reminders_screen.dart';
 import 'screens/edit_profile_screen.dart';
 import 'screens/elderly_help_screen.dart';
 import 'screens/elderly_home_screen.dart';
-import 'screens/elderly_ai_doctor_screen.dart';
 import 'screens/elderly_onboarding_screen.dart';
 import 'screens/elderly_pairing_screen.dart';
-
 import 'screens/elderly_profile_screen.dart';
 import 'screens/emergency_alert_screen.dart';
 import 'screens/identify_medication_screen.dart';
@@ -90,14 +88,15 @@ Future<bool> _consumeNotificationLaunch(
   final prefs = await SharedPreferences.getInstance();
   final fingerprint = '$payload|${actionId ?? ''}';
   final previous = prefs.getString(_lastNotificationLaunchKey);
-  if (previous == fingerprint) {
+  final previousAt = prefs.getInt(_lastNotificationLaunchAtKey) ?? 0;
+  final now = DateTime.now().millisecondsSinceEpoch;
+  if (previous == fingerprint && now - previousAt < 2 * 60 * 1000) {
     return false;
   }
   await prefs.setString(_lastNotificationLaunchKey, fingerprint);
-  await prefs.setInt(_lastNotificationLaunchAtKey, DateTime.now().millisecondsSinceEpoch);
+  await prefs.setInt(_lastNotificationLaunchAtKey, now);
   return true;
 }
-
 
 void _openWidgetUri(Uri? uri) {
   final navigator = navigatorKey.currentState;
@@ -133,9 +132,7 @@ bool isElderlyOnlyRoute(String routeName) {
     '/elderly-home',
     '/elderly-pairing',
     '/elderly-help',
-    '/doutor-ia',
     '/all-reminders',
-
     '/active-reminder',
     '/meal-detail',
     '/exercise-detail',
@@ -870,10 +867,6 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
           case '/elderly-help':
             page = const ElderlyHelpScreen();
             break;
-          case '/doutor-ia':
-            page = const ElderlyAiDoctorScreen();
-            break;
-
           case '/messages':
             page = const MessagesScreen();
             break;

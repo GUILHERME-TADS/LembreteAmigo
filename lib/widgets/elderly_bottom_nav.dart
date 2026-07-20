@@ -3,7 +3,7 @@ import '../theme/app_theme.dart';
 import '../services/tts_service.dart';
 import 'message_unread_badge.dart';
 
-enum ElderlyNavDestination { none, home, reminders, aiDoctor, help }
+enum ElderlyNavDestination { none, home, reminders, help }
 
 class ElderlyBottomNav extends StatefulWidget {
   final ElderlyNavDestination selected;
@@ -47,7 +47,7 @@ class _ElderlyBottomNavState extends State<ElderlyBottomNav> {
     return SafeArea(
       top: false,
       child: Container(
-        margin: const EdgeInsets.only(left: 10, right: 10, bottom: 12),
+        margin: const EdgeInsets.only(left: 16, right: 16, bottom: 12),
         height: 88,
         decoration: BoxDecoration(
           color: AppColors.surfaceContainerLowest,
@@ -65,7 +65,7 @@ class _ElderlyBottomNavState extends State<ElderlyBottomNav> {
           ],
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 8),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
@@ -86,14 +86,6 @@ class _ElderlyBottomNavState extends State<ElderlyBottomNav> {
                     : () => _handleTap('/all-reminders', context),
               ),
               _ElderlyNavItem(
-                icon: Icons.medical_services_rounded,
-                label: 'Doutor IA',
-                selected: widget.selected == ElderlyNavDestination.aiDoctor,
-                onTap: widget.selected == ElderlyNavDestination.aiDoctor
-                    ? null
-                    : () => _handleTap('/doutor-ia', context),
-              ),
-              _ElderlyNavItem(
                 icon: Icons.help_center,
                 label: 'Ajuda',
                 showMessageBadge: true,
@@ -109,7 +101,6 @@ class _ElderlyBottomNavState extends State<ElderlyBottomNav> {
     );
   }
 }
-
 
 class _ElderlyNavItem extends StatelessWidget {
   final IconData icon;

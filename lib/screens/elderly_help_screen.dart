@@ -178,7 +178,12 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
 
                 if (await _audioRecorder.hasPermission()) {
                   await _audioRecorder.start(
-                    const RecordConfig(encoder: AudioEncoder.aacLc),
+                    const RecordConfig(
+                      encoder: AudioEncoder.aacLc,
+                      autoGain: true,
+                      echoCancel: true,
+                      noiseSuppress: true,
+                    ),
                     path: path,
                   );
                   setDialogState(() {

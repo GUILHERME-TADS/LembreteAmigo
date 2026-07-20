@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
@@ -135,6 +136,8 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
         ImageProvider imageProvider;
         if (photoPath.startsWith('assets/')) {
           imageProvider = AssetImage(photoPath);
+        } else if (kIsWeb || photoPath.startsWith('http')) {
+          imageProvider = NetworkImage(photoPath);
         } else {
           imageProvider = FileImage(File(photoPath));
         }

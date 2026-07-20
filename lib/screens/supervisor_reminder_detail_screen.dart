@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/lembrete_service.dart';
@@ -274,9 +275,9 @@ class SupervisorReminderDetailScreen extends StatelessWidget {
                     child: Image(
                       image: photoPath.startsWith('assets/')
                           ? AssetImage(photoPath) as ImageProvider
-                          : photoPath.startsWith('http')
-                          ? NetworkImage(photoPath)
-                          : FileImage(File(photoPath)),
+                          : (kIsWeb || photoPath.startsWith('http'))
+                          ? NetworkImage(photoPath) as ImageProvider
+                          : FileImage(File(photoPath)) as ImageProvider,
                       fit: BoxFit.contain,
                     ),
                   ),
@@ -312,9 +313,9 @@ class SupervisorReminderDetailScreen extends StatelessWidget {
           child: Image(
             image: photoPath.startsWith('assets/')
                 ? AssetImage(photoPath) as ImageProvider
-                : photoPath.startsWith('http')
-                ? NetworkImage(photoPath)
-                : FileImage(File(photoPath)),
+                : (kIsWeb || photoPath.startsWith('http'))
+                ? NetworkImage(photoPath) as ImageProvider
+                : FileImage(File(photoPath)) as ImageProvider,
             fit: BoxFit.cover,
             errorBuilder: (context, error, stackTrace) =>
                 Icon(iconData, size: 56, color: accentColor),

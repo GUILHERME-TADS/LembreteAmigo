@@ -190,7 +190,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
               '${tempDir.path}/msg_voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
         }
         await _voiceRecorder.start(
-          const RecordConfig(encoder: AudioEncoder.aacLc),
+          const RecordConfig(
+            encoder: AudioEncoder.aacLc,
+            autoGain: true,
+            echoCancel: true,
+            noiseSuppress: true,
+          ),
           path: path,
         );
         if (!mounted) return;

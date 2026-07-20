@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../services/remote_media_cache_service.dart';
 import '../theme/app_theme.dart';
@@ -51,6 +52,7 @@ class _ElderlyProfileAvatarState extends State<ElderlyProfileAvatar> {
     final showLocalImage = fotoPath != null &&
         !fotoPath.startsWith('avatar_') &&
         !fotoPath.startsWith('http') &&
+        !kIsWeb &&
         File(fotoPath).existsSync();
 
     final showNetworkImage = fotoPath != null && fotoPath.startsWith('http');

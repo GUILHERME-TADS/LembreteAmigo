@@ -54,7 +54,12 @@ class _NewReminderAudioScreenState extends State<NewReminderAudioScreen> {
           '${tempDir.path}/familiar_audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
 
       await _audioRecorder.start(
-        const RecordConfig(encoder: AudioEncoder.aacLc),
+        const RecordConfig(
+          encoder: AudioEncoder.aacLc,
+          autoGain: true,
+          echoCancel: true,
+          noiseSuppress: true,
+        ),
         path: path,
       );
       setState(() {

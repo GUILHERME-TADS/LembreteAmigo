@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../models/lembrete.dart';
 import '../services/lembrete_service.dart';
@@ -181,7 +182,7 @@ class PhotoGalleryScreen extends StatelessWidget {
   Widget _buildPhotoCell(BuildContext context, Lembrete lembrete) {
     final path = lembrete.medicamentoFotoPath!;
     final bool isLocalFile =
-        !path.startsWith('http') && !path.startsWith('avatar_');
+        !kIsWeb && !path.startsWith('http') && !path.startsWith('avatar_');
 
     return GestureDetector(
       onTap: () => _showFullScreenPhoto(context, lembrete),

@@ -93,6 +93,7 @@ class TTSService {
     }
     _cancelSpeech = true;
     _activeSessionToken = null;
+    _activeCaller = null;
     await _tts.stop();
     _resetCompleter();
 
@@ -128,7 +129,6 @@ class TTSService {
   void _resetCompleter() {
     speakingNotifier.value = false;
     _activeText = null;
-    _activeCaller = null;
     if (_completer != null && !_completer!.isCompleted) {
       _completer!.complete();
     }

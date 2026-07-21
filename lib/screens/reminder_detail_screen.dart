@@ -44,6 +44,7 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
       debugPrint('Erro ao carregar foto no reminder detail: $e');
     }
   }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -61,8 +62,6 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
     TTSService.instance.parar(caller: this);
     super.dispose();
   }
-
-
 
   _ReminderCategoryConfig get _config {
     final cat = _lembrete?.categoria ?? '';
@@ -169,6 +168,25 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
     if (mounted) setState(() => _isSpeakingAudio = false);
   }
 
+  String _getRecorrenciaTexto(Lembrete l) {
+    if (l.recorrencia == 'unico' || l.lembreteUnico) {
+      return 'Lembrete único';
+    } else if (l.recorrencia == 'semanal' || l.recorrenciaSemanal) {
+      const diaNomes = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+      final dias = l.diasSemana
+          .map((d) => d >= 1 && d <= 7 ? diaNomes[d - 1] : '')
+          .where((s) => s.isNotEmpty)
+          .join(', ');
+      return dias.isNotEmpty ? 'Toda semana ($dias)' : 'Semanal';
+    } else if (l.recorrencia == 'mensal' || l.recorrenciaMensal) {
+      return 'Todo mês (dia ${l.diaMes ?? l.criadoEm.day})';
+    } else if (l.recorrencia == 'intervalo' || l.recorrenciaIntervalo) {
+      return 'A cada ${l.intervaloHoras ?? 8} horas';
+    } else {
+      return 'Todos os dias';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final cfg = _config;
@@ -193,218 +211,494 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
             _buildTopBar(context, cfg),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
                 child: Column(
                   children: [
-                    // 1. Banner do período do dia
-                    _buildPeriodBanner(_lembrete?.horarioHour ?? DateTime.now().hour, cfg),
-                    const SizedBox(height: 20),
+                    // Card 1: Hero Card do Lembrete
+                    _buildHeroCard(cfg, title, hasPhoto),
+                    const SizedBox(height: 24),
 
-                    // 2. Foto do medicamento ou ícone principal da categoria
-                    if (hasPhoto)
-                      _buildMedicinePhotoContainer(_lembrete!.medicamentoFotoPath!, cfg)
-                    else
-                      _buildPulsingIcon(cfg),
+                    // Card 2: Voz e Orientações
+                    _buildAudioAndInstructionsCard(cfg, hasInstructions),
+                    const SizedBox(height: 28),
 
-                    const SizedBox(height: 20),
+                    // Card 3: Botão Seguro para Gestão (Proteção contra Exclusão Acidental)
+                    if (_lembrete != null) _buildManagementSection(cfg),
+                    const SizedBox(height: 40),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-                    // 4. Título Principal em Fonte Gigante com Alto Contraste
+  Widget _buildHeroCard(
+      _ReminderCategoryConfig cfg, String title, bool hasPhoto) {
+    final visualStatus = _lembrete != null
+        ? ReminderStateHelper.visualStatus(_lembrete!, now: DateTime.now())
+        : ReminderStatus.scheduled;
+
+    String statusText;
+    Color statusColor;
+    IconData statusIcon;
+
+    switch (visualStatus) {
+      case ReminderStatus.done:
+      case ReminderStatus.doneWithPhoto:
+      case ReminderStatus.caregiverConfirmed:
+        statusText = 'CONCLUÍDO HOJE';
+        statusColor = AppColors.success;
+        statusIcon = Icons.check_circle_rounded;
+        break;
+      case ReminderStatus.late:
+        statusText = 'ATRASADO';
+        statusColor = AppColors.warning;
+        statusIcon = Icons.warning_rounded;
+        break;
+      case ReminderStatus.missed:
+        statusText = 'NÃO RESPONDIDO';
+        statusColor = AppColors.error;
+        statusIcon = Icons.cancel_rounded;
+        break;
+      default:
+        statusText = 'AGENDADO';
+        statusColor = cfg.color;
+        statusIcon = Icons.schedule_rounded;
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: cfg.color.withValues(alpha: 0.3), width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 15,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Banner do período do dia no topo do card
+          _buildPeriodBanner(
+              _lembrete?.horarioHour ?? DateTime.now().hour, cfg),
+          const SizedBox(height: 24),
+
+          // Foto do medicamento ou ícone principal da categoria
+          if (hasPhoto)
+            _buildMedicinePhotoContainer(_lembrete!.medicamentoFotoPath!, cfg)
+          else
+            _buildPulsingIcon(cfg),
+          const SizedBox(height: 24),
+
+          // Título Principal em Fonte Gigante com Alto Contraste
+          Text(
+            title.toUpperCase(),
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.w900,
+              height: 1.2,
+              color: cfg.color,
+            ),
+          ),
+          const SizedBox(height: 18),
+
+          // Horário e Recorrência em Badges
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 12,
+            runSpacing: 10,
+            children: [
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: cfg.color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                      color: cfg.color.withValues(alpha: 0.4), width: 2),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.access_time_filled, size: 26, color: cfg.color),
+                    const SizedBox(width: 8),
                     Text(
-                      title.toUpperCase(),
-                      textAlign: TextAlign.center,
+                      _lembrete?.horarioFormatado ?? '00:00',
                       style: TextStyle(
-                        fontSize: 32,
+                        fontSize: 26,
                         fontWeight: FontWeight.w900,
-                        height: 1.2,
                         color: cfg.color,
                       ),
                     ),
-
-                    const SizedBox(height: 10),
-
-                    // Horário em Destaque Gigante
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: cfg.color.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: cfg.color.withValues(alpha: 0.3), width: 2),
+                  ],
+                ),
+              ),
+              if (_lembrete != null)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceContainerHigh,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.repeat_rounded,
+                          size: 22, color: AppColors.onSurfaceVariant),
+                      const SizedBox(width: 6),
+                      Text(
+                        _getRecorrenciaTexto(_lembrete!),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.onSurfaceVariant,
+                        ),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
+                    ],
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 18),
+
+          // Badge de Status do Lembrete
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: statusColor.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(9999),
+              border: Border.all(color: statusColor, width: 1.5),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(statusIcon, size: 20, color: statusColor),
+                const SizedBox(width: 8),
+                Text(
+                  statusText,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: statusColor,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAudioAndInstructionsCard(
+      _ReminderCategoryConfig cfg, bool hasInstructions) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.outlineVariant, width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.volume_up_rounded, size: 28, color: cfg.color),
+              const SizedBox(width: 10),
+              const Text(
+                'AJUDA E VOZ',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.onSurfaceVariant,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Botão OUVIR COMO FAZER (quando existirem instruções textuais)
+          if (hasInstructions) ...[
+            GestureDetector(
+              onTap: () {
+                TTSService.instance.parar(caller: this);
+                TTSService.instance.falar(
+                  'Instruções de como fazer: ${_lembrete!.medicamentoInstrucoes!}',
+                  caller: this,
+                );
+              },
+              child: Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                decoration: BoxDecoration(
+                  color: cfg.color,
+                  borderRadius: BorderRadius.circular(18),
+                  boxShadow: [
+                    BoxShadow(
+                      color: cfg.color.withValues(alpha: 0.35),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.volume_up_rounded,
+                        color: Colors.white, size: 36),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.access_time_filled, size: 28, color: cfg.color),
-                          const SizedBox(width: 8),
-                          Text(
-                            _lembrete?.horarioFormatado ?? '00:00',
+                          const Text(
+                            'OUVIR COMO FAZER',
                             style: TextStyle(
-                              fontSize: 28,
+                              fontSize: 22,
                               fontWeight: FontWeight.w900,
-                              color: cfg.color,
+                              color: Colors.white,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Toque aqui para ouvir as orientações',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white70,
                             ),
                           ),
                         ],
                       ),
                     ),
-
-                    // 5. Instruções Detalhadas / Observações (Foco em Áudio para baixo letramento)
-                    if (hasInstructions) ...[
-                      const SizedBox(height: 20),
-                      GestureDetector(
-                        onTap: () {
-                          TTSService.instance.parar(caller: this);
-                          TTSService.instance.falar(
-                            'Instruções de como fazer: ${_lembrete!.medicamentoInstrucoes!}',
-                            caller: this,
-                          );
-                        },
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                          decoration: BoxDecoration(
-                            color: cfg.color,
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: cfg.color.withValues(alpha: 0.35),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.volume_up_rounded, color: Colors.white, size: 36),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      'OUVIR COMO FAZER',
-                                      style: TextStyle(
-                                        fontSize: 22,
-                                        fontWeight: FontWeight.w900,
-                                        color: Colors.white,
-                                        letterSpacing: 0.5,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    const Text(
-                                      'Toque aqui para ouvir as orientações',
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.white70,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-
-                    const SizedBox(height: 24),
-
-                    // 6. Botão Gigante "🔊 OUVIR NOVAMENTE"
-                    _buildListenAgainButton(cfg),
-
-                    if (_lembrete?.categoria == 'medicacao') ...[
-                      const SizedBox(height: 16),
-                      _buildGeminiButton(cfg),
-                    ],
-
-                    if (_lembrete != null) ...[
-                      const SizedBox(height: 32),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 60,
-                        child: ElevatedButton.icon(
-                          onPressed: () async {
-                            TTSService.instance.parar(caller: this);
-                            final result = await showDialog<String>(
-                              context: context,
-                              builder: (context) => ElderlyEditTitleDialog(initialValue: _lembrete!.titulo),
-                            );
-                            if (result == null || result.isEmpty || result == _lembrete!.titulo) return;
-                            await LembreteService.instance.atualizarTitulo(_lembrete!.id, result);
-                            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pronto. O nome foi trocado.')));
-                          },
-                          icon: const Icon(Icons.edit, size: 28),
-                          label: const Text('MUDAR NOME', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: cfg.color,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 60,
-                        child: ElevatedButton.icon(
-                          onPressed: () async {
-                            TTSService.instance.parar(caller: this);
-                            final picked = await showCustomTimePicker(
-                              context: context,
-                              initialTime: TimeOfDay(
-                                hour: _lembrete!.horarioHour,
-                                minute: _lembrete!.horarioMinute,
-                              ),
-                            );
-                            if (picked == null) return;
-                            await LembreteService.instance.atualizarHorario(
-                              _lembrete!.id,
-                              picked.hour,
-                              picked.minute,
-                            );
-                            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pronto. O horário foi trocado.')));
-                          },
-                          icon: const Icon(Icons.access_time, size: 28),
-                          label: const Text('MUDAR HORÁRIO', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: cfg.color,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 60,
-                        child: OutlinedButton.icon(
-                          onPressed: () async {
-                            TTSService.instance.parar(caller: this);
-                            final confirm = await showDialog<bool>(
-                              context: context,
-                              builder: (context) => ElderlyDeleteReminderDialog(lembrete: _lembrete!),
-                            );
-                            if (confirm != true) return;
-                            await LembreteService.instance.remover(_lembrete!.id);
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lembrete apagado.')));
-                              Navigator.pop(context);
-                            }
-                          },
-                          icon: const Icon(Icons.delete_forever, size: 28),
-                          label: const Text('APAGAR LEMBRETE', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.error,
-                            side: const BorderSide(color: AppColors.error, width: 3),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                          ),
-                        ),
-                      ),
-                    ],
-
-                    const SizedBox(height: 80),
                   ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+
+          // Botão Gigante OUVIR DE NOVO
+          _buildListenAgainButton(cfg),
+
+          // Botão IA para que serve (se for medicação)
+          if (_lembrete?.categoria == 'medicacao') ...[
+            const SizedBox(height: 16),
+            _buildGeminiButton(cfg),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildManagementSection(_ReminderCategoryConfig cfg) {
+    return SizedBox(
+      width: double.infinity,
+      height: 64,
+      child: OutlinedButton.icon(
+        onPressed: () => _showManagementBottomSheet(context, cfg),
+        icon: const Icon(Icons.settings_rounded, size: 28),
+        label: const Text(
+          'GERENCIAR OU APAGAR LEMBRETE',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+        ),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.onSurfaceVariant,
+          side: const BorderSide(color: AppColors.outlineVariant, width: 2),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showManagementBottomSheet(
+      BuildContext context, _ReminderCategoryConfig cfg) {
+    if (_lembrete == null) return;
+    TTSService.instance.parar(caller: this);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(28),
+            topRight: Radius.circular(28),
+          ),
+        ),
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 48,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: AppColors.outlineVariant,
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Icon(Icons.settings_rounded, size: 30, color: cfg.color),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Configurações do Lembrete',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  icon: const Icon(Icons.close_rounded, size: 30),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Ações seguras para modificar ou apagar este lembrete:',
+              style: TextStyle(fontSize: 16, color: AppColors.onSurfaceVariant),
+            ),
+            const SizedBox(height: 24),
+
+            // Mudar Nome
+            SizedBox(
+              height: 60,
+              child: ElevatedButton.icon(
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  TTSService.instance.parar(caller: this);
+                  final result = await showDialog<String>(
+                    context: context,
+                    builder: (context) => ElderlyEditTitleDialog(
+                        initialValue: _lembrete!.titulo),
+                  );
+                  if (result == null ||
+                      result.isEmpty ||
+                      result == _lembrete!.titulo) {
+                    return;
+                  }
+                  await LembreteService.instance
+                      .atualizarTitulo(_lembrete!.id, result);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                        content: Text('Pronto. O nome foi trocado.')));
+                  }
+                },
+                icon: const Icon(Icons.edit_rounded, size: 28),
+                label: const Text('MUDAR NOME DO LEMBRETE',
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: cfg.color,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Mudar Horário
+            SizedBox(
+              height: 60,
+              child: ElevatedButton.icon(
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  TTSService.instance.parar(caller: this);
+                  final picked = await showCustomTimePicker(
+                    context: context,
+                    initialTime: TimeOfDay(
+                      hour: _lembrete!.horarioHour,
+                      minute: _lembrete!.horarioMinute,
+                    ),
+                  );
+                  if (picked == null) {
+                    return;
+                  }
+                  await LembreteService.instance.atualizarHorario(
+                    _lembrete!.id,
+                    picked.hour,
+                    picked.minute,
+                  );
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                        content: Text('Pronto. O horário foi trocado.')));
+                  }
+                },
+                icon: const Icon(Icons.access_time_rounded, size: 28),
+                label: const Text('MUDAR HORÁRIO',
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: cfg.color,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Apagar Lembrete
+            SizedBox(
+              height: 60,
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  TTSService.instance.parar(caller: this);
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (context) =>
+                        ElderlyDeleteReminderDialog(lembrete: _lembrete!),
+                  );
+                  if (confirm != true) {
+                    return;
+                  }
+                  await LembreteService.instance.remover(_lembrete!.id);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Lembrete apagado.')));
+                    Navigator.pop(context);
+                  }
+                },
+                icon: const Icon(Icons.delete_forever_rounded, size: 28),
+                label: const Text('APAGAR ESTE LEMBRETE',
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.error,
+                  side: const BorderSide(color: AppColors.error, width: 2.5),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
                 ),
               ),
             ),
@@ -434,18 +728,13 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
             ),
           ),
           const Spacer(),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                cfg.topBarTitle,
-                style: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.primary,
-                ),
-              ),
-            ],
+          Text(
+            cfg.topBarTitle,
+            style: const TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w700,
+              color: AppColors.primary,
+            ),
           ),
           const Spacer(),
           GestureDetector(
@@ -454,12 +743,7 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
               await Navigator.pushNamed(context, '/elderly-profile');
               _loadProfilePhoto();
             },
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ElderlyProfileAvatar(fotoPath: _fotoPath, size: 56),
-              ],
-            ),
+            child: ElderlyProfileAvatar(fotoPath: _fotoPath, size: 56),
           ),
         ],
       ),
@@ -511,7 +795,9 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
       child: OutlinedButton.icon(
         onPressed: _speak,
         icon: Icon(
-          _isSpeakingAudio ? Icons.graphic_eq_rounded : Icons.volume_up_rounded,
+          _isSpeakingAudio
+              ? Icons.graphic_eq_rounded
+              : Icons.volume_up_rounded,
           size: 30,
           color: cfg.color,
         ),
@@ -540,8 +826,12 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
       height: 60,
       child: ElevatedButton.icon(
         onPressed: _isFetchingExplanation ? null : _explicarRemedio,
-        icon: _isFetchingExplanation 
-            ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
+        icon: _isFetchingExplanation
+            ? const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                    color: Colors.white, strokeWidth: 3))
             : const Icon(Icons.psychology, size: 30),
         label: Text(
           _isFetchingExplanation ? 'PENSANDO...' : 'PARA QUE SERVE?',
@@ -568,10 +858,12 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
       _isFetchingExplanation = true;
     });
 
-    await TTSService.instance.falar("Vou perguntar ao médico virtual, só um momento.", caller: this);
+    await TTSService.instance
+        .falar("Vou perguntar ao médico virtual, só um momento.", caller: this);
 
-    final explanation = await GeminiService.explicarMedicamento(_lembrete!.titulo);
-    
+    final explanation =
+        await GeminiService.explicarMedicamento(_lembrete!.titulo);
+
     if (mounted) {
       setState(() {
         _isFetchingExplanation = false;
@@ -580,9 +872,8 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
     }
   }
 
-
-
-  Widget _buildMedicinePhotoContainer(String path, _ReminderCategoryConfig cfg) {
+  Widget _buildMedicinePhotoContainer(
+      String path, _ReminderCategoryConfig cfg) {
     return GestureDetector(
       onTap: () {
         showDialog(
@@ -598,8 +889,8 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
                       image: path.startsWith('assets/')
                           ? AssetImage(path) as ImageProvider
                           : path.startsWith('http')
-                          ? NetworkImage(path)
-                          : FileImage(File(path)),
+                              ? NetworkImage(path)
+                              : FileImage(File(path)),
                       fit: BoxFit.contain,
                     ),
                   ),
@@ -608,7 +899,8 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
                   top: 20,
                   right: 20,
                   child: IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white, size: 40),
+                    icon:
+                        const Icon(Icons.close, color: Colors.white, size: 40),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ),
@@ -620,33 +912,33 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
       child: Container(
         width: 190,
         height: 190,
-      decoration: BoxDecoration(
-        color: cfg.color.withValues(alpha: 0.15),
-        shape: BoxShape.circle,
-        border: Border.all(color: cfg.color, width: 5),
-        boxShadow: [
-          BoxShadow(
-            color: cfg.color.withValues(alpha: 0.25),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
+        decoration: BoxDecoration(
+          color: cfg.color.withValues(alpha: 0.15),
+          shape: BoxShape.circle,
+          border: Border.all(color: cfg.color, width: 5),
+          boxShadow: [
+            BoxShadow(
+              color: cfg.color.withValues(alpha: 0.25),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: ClipOval(
+          child: Image(
+            image: path.startsWith('assets/')
+                ? AssetImage(path) as ImageProvider
+                : path.startsWith('http')
+                    ? NetworkImage(path)
+                    : FileImage(File(path)),
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) =>
+                Icon(cfg.icon, size: 80, color: cfg.color),
           ),
-        ],
-      ),
-      child: ClipOval(
-        child: Image(
-          image: path.startsWith('assets/')
-              ? AssetImage(path) as ImageProvider
-              : path.startsWith('http')
-              ? NetworkImage(path)
-              : FileImage(File(path)),
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) =>
-              Icon(cfg.icon, size: 80, color: cfg.color),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildPulsingIcon(_ReminderCategoryConfig cfg) {
     return Stack(
@@ -673,8 +965,6 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
       ],
     );
   }
-
-
 }
 
 class _ReminderCategoryConfig {

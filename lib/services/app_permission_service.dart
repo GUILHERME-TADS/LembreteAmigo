@@ -44,6 +44,7 @@ class AppPermissionService {
     ];
     if (Platform.isAndroid) {
       items.add((title: 'Alarmes exatos', description: 'Faz os lembretes tocarem no horário correto.', permission: Permission.scheduleExactAlarm));
+      items.add((title: 'Bateria contínua', description: 'Evita pausas na rádio e atrasos em lembretes com a tela apagada.', permission: Permission.ignoreBatteryOptimizations));
     }
     return items;
   }

@@ -653,8 +653,8 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                                 final introText = audioSummaryList.isEmpty
                                     ? 'Você não tem lembretes desta categoria.'
                                     : audioListDone
-                                    ? 'Muito bem! Você já fez todas as suas $catLabel de hoje!'
-                                    : 'Aqui estão suas $catLabel de hoje:';
+                                    ? 'Muito bem! Você já fez todos os seus $catLabel de hoje!'
+                                    : 'Aqui estão seus $catLabel de hoje:';
                                 return [
                                   introText,
                                   ...audioSummaryList.map((l) {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 import '../services/radio_service.dart';
 import '../services/tts_service.dart';
 import '../services/elderly_profile_repository.dart';
@@ -13,14 +14,35 @@ class ElderlyRadioScreen extends StatefulWidget {
   State<ElderlyRadioScreen> createState() => _ElderlyRadioScreenState();
 }
 
-class _ElderlyRadioScreenState extends State<ElderlyRadioScreen> {
+class _ElderlyRadioScreenState extends State<ElderlyRadioScreen>
+    with WidgetsBindingObserver {
   String? _fotoPath;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WakelockPlus.enable();
     TTSService.instance.init();
     _loadProfilePhoto();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    WakelockPlus.disable();
+    RadioService.instance.stopRadio();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.detached) {
+      RadioService.instance.stopRadio();
+      _stopAllAudioAndTts();
+    }
   }
 
   void _stopAllAudioAndTts() {
@@ -48,7 +70,7 @@ class _ElderlyRadioScreenState extends State<ElderlyRadioScreen> {
       backgroundColor: AppColors.background,
       floatingActionButton: AlexFloatingHelpButton(
         textoExplicacao:
-            'Olá! Esta é a sua Rádio Amiga. Aqui você pode escolher entre estações com músicas românticas, clássicos, flashback e MPB para ouvir enquanto relaxa ou faz suas atividades.',
+            'Rádio Amiga. Toque em qualquer estação abaixo para ouvir. Para parar, toque no botão Parar.',
         onTapped: _stopAllAudioAndTts,
       ),
       bottomNavigationBar: const ElderlyBottomNav(
@@ -66,7 +88,60 @@ class _ElderlyRadioScreenState extends State<ElderlyRadioScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     _buildMasterPlayerCard(isHighContrast),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
+                    GestureDetector(
+                      onTap: () {
+                        HapticFeedback.mediumImpact();
+                        _stopAllAudioAndTts();
+                        TTSService.instance.falar(
+                          'Esta é a sua Rádio Amiga. Toque em qualquer estação abaixo para ouvir músicas selecionadas. Para parar, toque em Parar.',
+                          caller: this,
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                        decoration: BoxDecoration(
+                          color: isHighContrast ? Colors.yellow : AppColors.secondaryContainer,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: isHighContrast ? Colors.black : AppColors.primary,
+                            width: 2.5,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.volume_up_rounded, size: 30, color: isHighContrast ? Colors.black : AppColors.primary),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'OUVIR ORIENTAÇÕES DA RÁDIO',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w900,
+                                      color: isHighContrast ? Colors.black : AppColors.primary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Toque aqui para saber como usar',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: isHighContrast ? Colors.black87 : AppColors.onSecondaryContainer,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
                     Text(
                       'Escolha uma estação de música:',
                       style: TextStyle(
@@ -217,39 +292,78 @@ class _ElderlyRadioScreenState extends State<ElderlyRadioScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  GestureDetector(
-                    onTap: () {
-                      HapticFeedback.lightImpact();
-                      RadioService.instance.toggleRadio();
-                    },
-                    child: Container(
-                      width: 100,
-                      height: 100,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: isHighContrast
-                            ? (isPlaying ? Colors.black : Colors.yellow)
-                            : (isPlaying ? AppColors.primary : AppColors.secondaryContainer),
-                        border: Border.all(
-                          color: isHighContrast ? Colors.black : Colors.white,
-                          width: 4,
-                        ),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Colors.black26,
-                            blurRadius: 12,
-                            offset: Offset(0, 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      GestureDetector(
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          RadioService.instance.previousStation();
+                        },
+                        child: Container(
+                          width: 70,
+                          height: 70,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isHighContrast ? Colors.white : AppColors.surfaceContainerHighest,
+                            border: Border.all(color: isHighContrast ? Colors.black : AppColors.outlineVariant, width: 2),
                           ),
-                        ],
+                          child: Icon(Icons.skip_previous_rounded, size: 40, color: isHighContrast ? Colors.black : AppColors.primary),
+                        ),
                       ),
-                      child: Icon(
-                        isPlaying ? Icons.pause : Icons.play_arrow,
-                        size: 52,
-                        color: isHighContrast
-                            ? (isPlaying ? Colors.white : Colors.black)
-                            : (isPlaying ? Colors.white : AppColors.onSecondaryContainer),
+                      const SizedBox(width: 24),
+                      GestureDetector(
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          RadioService.instance.toggleRadio();
+                        },
+                        child: Container(
+                          width: 100,
+                          height: 100,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isHighContrast
+                                ? (isPlaying ? Colors.black : Colors.yellow)
+                                : (isPlaying ? AppColors.primary : AppColors.secondaryContainer),
+                            border: Border.all(
+                              color: isHighContrast ? Colors.black : Colors.white,
+                              width: 4,
+                            ),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Colors.black26,
+                                blurRadius: 12,
+                                offset: Offset(0, 6),
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                            size: 52,
+                            color: isHighContrast
+                                ? (isPlaying ? Colors.white : Colors.black)
+                                : (isPlaying ? Colors.white : AppColors.onSecondaryContainer),
+                          ),
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 24),
+                      GestureDetector(
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          RadioService.instance.nextStation();
+                        },
+                        child: Container(
+                          width: 70,
+                          height: 70,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isHighContrast ? Colors.white : AppColors.surfaceContainerHighest,
+                            border: Border.all(color: isHighContrast ? Colors.black : AppColors.outlineVariant, width: 2),
+                          ),
+                          child: Icon(Icons.skip_next_rounded, size: 40, color: isHighContrast ? Colors.black : AppColors.primary),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

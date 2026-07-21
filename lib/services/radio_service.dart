@@ -1,5 +1,4 @@
 import 'package:just_audio/just_audio.dart';
-import 'package:just_audio_background/just_audio_background.dart';
 import 'package:flutter/foundation.dart';
 
 class RadioService {
@@ -86,7 +85,13 @@ class RadioService {
     if (isPlayingNotifier.value) {
       await stopRadio();
     } else {
-      await playRadio();
+      if (currentStationUrlNotifier.value != null) {
+        final url = currentStationUrlNotifier.value!;
+        final matching = stations.firstWhere((s) => s['url'] == url, orElse: () => stations.first);
+        await playStation(matching['url']!, matching['name']!, matching['subtitle']);
+      } else {
+        await playRadio();
+      }
     }
   }
 
@@ -95,35 +100,53 @@ class RadioService {
     await _player.stop();
   }
 
+  bool _isChangingStation = false;
+
   Future<void> playStation(String url, String name, [String? subtitle]) async {
     _initIfNeeded();
+    if (_isChangingStation) {
+      await _player.stop();
+    }
+    _isChangingStation = true;
     try {
       currentStationNameNotifier.value = name;
       currentStationUrlNotifier.value = url;
 
-      final matching = stations.firstWhere(
-        (s) => s['url'] == url || s['name'] == name,
-        orElse: () => {'subtitle': subtitle ?? 'Músicas e programação 24h'},
-      );
-      final stationSubtitle = subtitle ?? matching['subtitle'] ?? 'Músicas e programação 24h';
-
-      final source = AudioSource.uri(
-        Uri.parse(url),
-        tag: MediaItem(
-          id: url,
-          album: 'Rádio LembreteAmigo',
-          title: name,
-          artist: stationSubtitle,
-          artUri: Uri.parse('https://cdn-icons-png.flaticon.com/512/3128/3128308.png'),
-        ),
-      );
+      await _player.stop();
+      final source = AudioSource.uri(Uri.parse(url));
       await _player.setAudioSource(source);
       _player.play();
     } catch (e) {
+      if (e.toString().contains('abort') || e.toString().contains('interrupted')) {
+        return; // Usuário pulou a estação muito rápido, ignorar o erro
+      }
       debugPrint('Erro ao tentar tocar a estação $name ($url): $e');
       currentStationNameNotifier.value = 'Erro ao conectar';
       currentStationUrlNotifier.value = null;
+    } finally {
+      _isChangingStation = false;
     }
+  }
+
+  Future<void> nextStation() async {
+    _initIfNeeded();
+    if (stations.isEmpty) return;
+    final currentUrl = currentStationUrlNotifier.value;
+    int currentIndex = stations.indexWhere((s) => s['url'] == currentUrl);
+    int nextIndex = (currentIndex + 1) % stations.length;
+    final next = stations[nextIndex];
+    await playStation(next['url']!, next['name']!, next['subtitle']);
+  }
+
+  Future<void> previousStation() async {
+    _initIfNeeded();
+    if (stations.isEmpty) return;
+    final currentUrl = currentStationUrlNotifier.value;
+    int currentIndex = stations.indexWhere((s) => s['url'] == currentUrl);
+    if (currentIndex == -1) currentIndex = 0;
+    int prevIndex = (currentIndex - 1 + stations.length) % stations.length;
+    final prev = stations[prevIndex];
+    await playStation(prev['url']!, prev['name']!, prev['subtitle']);
   }
 
   Future<void> playRadio() async {
@@ -138,22 +161,12 @@ class RadioService {
       final station = stations[(startIndex + i) % stations.length];
       final streamUrl = station['url']!;
       final stationName = station['name']!;
-      final stationSubtitle = station['subtitle'] ?? 'Transmissão ao vivo';
 
       try {
         currentStationNameNotifier.value = stationName;
         currentStationUrlNotifier.value = streamUrl;
 
-        final source = AudioSource.uri(
-          Uri.parse(streamUrl),
-          tag: MediaItem(
-            id: streamUrl,
-            album: 'Rádio LembreteAmigo',
-            title: stationName,
-            artist: stationSubtitle,
-            artUri: Uri.parse('https://cdn-icons-png.flaticon.com/512/3128/3128308.png'),
-          ),
-        );
+        final source = AudioSource.uri(Uri.parse(streamUrl));
         await _player.setAudioSource(source);
         _player.play();
         connected = true;

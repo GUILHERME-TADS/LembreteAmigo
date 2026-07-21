@@ -1319,6 +1319,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
   @override
   Widget build(BuildContext context) {
     const bgColor = AppColors.background;
+    final isHighContrast = Theme.of(context).colorScheme.primary == Colors.black;
 
     return Stack(
       children: [
@@ -1326,7 +1327,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
           backgroundColor: bgColor,
           floatingActionButton: AlexFloatingHelpButton(
             textoExplicacao:
-                'Olá! Esta é a tela do seu dia. Aqui você vê o que precisa fazer hoje nas categorias: remédio, refeição, hidratação e exercício. Para falar com o Alex, aperte o grande círculo amarelo no meio da tela e diga o que precisa.',
+                'Tela principal. Toque em Falar para conversar comigo ou ouça os seus lembretes do dia abaixo.',
             onTapped: _stopAllAudioAndTts,
           ),
           body: SafeArea(
@@ -1346,17 +1347,60 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                         ],
 
                         _buildActionButtons(),
-                        const SizedBox(height: 24),
-                        Text(
-                          'Aperte para falar comigo',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w700,
-                            height: 1.5,
-                            color: AppColors.primary,
+                        const SizedBox(height: 16),
+                        GestureDetector(
+                          onTap: () {
+                            HapticFeedback.mediumImpact();
+                            _stopAllAudioAndTts();
+                            TTSService.instance.falar(
+                              'Esta é a tela principal. Toque no grande círculo para falar comigo ou ouça os seus lembretes do dia abaixo.',
+                              caller: this,
+                            );
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                            decoration: BoxDecoration(
+                              color: isHighContrast ? Colors.yellow : AppColors.secondaryContainer,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: isHighContrast ? Colors.black : AppColors.primary,
+                                width: 2.5,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.volume_up_rounded, size: 30, color: isHighContrast ? Colors.black : AppColors.primary),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'OUVIR ORIENTAÇÕES DA TELA',
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w900,
+                                          color: isHighContrast ? Colors.black : AppColors.primary,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'Toque aqui se precisar de ajuda',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color: isHighContrast ? Colors.black87 : AppColors.onSecondaryContainer,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
+                        const SizedBox(height: 16),
                         _buildNextReminderBanner(),
                         const SizedBox(height: 24),
                         _buildRotinaToggle(),

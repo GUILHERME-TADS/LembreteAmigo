@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/tts_service.dart';
+import '../services/radio_service.dart';
 import 'message_unread_badge.dart';
 
 enum ElderlyNavDestination { none, home, reminders, radio, help }
@@ -19,6 +20,7 @@ class _ElderlyBottomNavState extends State<ElderlyBottomNav> {
 
   void _stopAllAudioAndTts() {
     TTSService.instance.parar();
+    RadioService.instance.stopRadio();
   }
 
   void _handleTap(String routeName, BuildContext context) async {

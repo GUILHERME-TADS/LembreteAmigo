@@ -26,7 +26,6 @@ import '../services/effectiveness_service.dart';
 import '../utils/period_helper.dart';
 import '../theme/app_theme.dart';
 import '../widgets/skeleton_loading.dart';
-import '../widgets/audio_player_card.dart';
 import '../widgets/message_unread_badge.dart';
 import '../widgets/reminder_with_audio.dart';
 import '../widgets/supervisor_bottom_nav.dart';
@@ -1920,20 +1919,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
         _buildCategoryFilters(),
         const SizedBox(height: 8),
         _buildStatusFilters(rawList),
-        const SizedBox(height: 16),
-        AudioPlayerCard(
-          accentColor: AppColors.primary,
-          subtitle: _dateFilterMode == 'todos' ? 'Ouça todos os lembretes' : 'Ouça todos os lembretes do dia',
-          textsToSpeak: filteredList.isEmpty
-              ? [_dateFilterMode == 'todos' ? 'Nenhum lembrete cadastrado nesta categoria.' : 'Nenhum lembrete cadastrado para este dia.']
-              : [
-                  _dateFilterMode == 'todos' ? 'Todos os lembretes de $_nomeIdoso:' : 'Lembretes do dia ${targetDate.day.toString().padLeft(2, '0')} para $_nomeIdoso:',
-                  ...filteredList.map(
-                    (l) => '${l.titulo} às ${l.horarioFormatado}.',
-                  ),
-                ],
-        ),
-        const SizedBox(height: 16),
+
         if (filteredList.isEmpty)
           Container(
             width: double.infinity,

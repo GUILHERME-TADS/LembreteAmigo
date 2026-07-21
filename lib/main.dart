@@ -5,11 +5,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:home_widget/home_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:alarm/alarm.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:just_audio_background/just_audio_background.dart';
 
 import 'models/lembrete.dart';
 import 'models/video_call.dart';
@@ -20,7 +18,6 @@ import 'screens/edit_profile_screen.dart';
 import 'screens/elderly_help_screen.dart';
 import 'screens/elderly_home_screen.dart';
 import 'screens/elderly_radio_screen.dart';
-import 'screens/widget_settings_screen.dart';
 import 'screens/elderly_onboarding_screen.dart';
 import 'screens/elderly_pairing_screen.dart';
 import 'screens/elderly_profile_screen.dart';
@@ -66,7 +63,7 @@ import 'services/video_call_service.dart';
 import 'services/tts_service.dart';
 import 'services/always_listening_service.dart';
 import 'services/voice_notification_service.dart';
-import 'services/widget_service.dart';
+import 'services/radio_service.dart';
 import 'services/analytics_service.dart';
 import 'services/remote_config_service.dart';
 import 'services/alarm_service.dart';
@@ -80,7 +77,6 @@ import 'services/app_permission_service.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 final _RouteTracker _routeTracker = _RouteTracker();
-Uri? _pendingWidgetUri;
 bool _reminderNotificationActionInProgress = false;
 const String _lastNotificationLaunchKey = 'last_notification_launch_key';
 const String _lastNotificationLaunchAtKey = 'last_notification_launch_at';
@@ -109,42 +105,6 @@ Future<bool> _consumeNotificationLaunch(
   return true;
 }
 
-void _openWidgetUri(Uri? uri) {
-  final navigator = navigatorKey.currentState;
-  if (navigator == null) {
-    _pendingWidgetUri = uri;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final pending = _pendingWidgetUri;
-      _pendingWidgetUri = null;
-      _openWidgetUri(pending);
-    });
-    return;
-  }
-
-  final role = uri?.queryParameters['role'];
-  if (role == 'supervisor' || SessionRoleService.isSupervisor) {
-    navigator.pushNamed('/supervisor-dashboard');
-    return;
-  }
-
-  final action = uri?.queryParameters['action'];
-  if (action == 'radio') {
-    navigator.pushNamed('/elderly-radio');
-    return;
-  }
-  if (action == 'talk') {
-    navigator.pushNamed('/recording-audio');
-    return;
-  }
-
-  final reminderId = uri?.queryParameters['id'];
-  if (reminderId != null && reminderId.isNotEmpty) {
-    navigator.pushNamed('/active-reminder', arguments: reminderId);
-  } else {
-    navigator.pushNamed('/elderly-home');
-  }
-}
-
 
 
 bool isElderlyOnlyRoute(String routeName) {
@@ -154,7 +114,6 @@ bool isElderlyOnlyRoute(String routeName) {
     '/elderly-pairing',
     '/elderly-help',
     '/elderly-radio',
-    '/widget-settings',
     '/all-reminders',
     '/active-reminder',
     '/meal-detail',
@@ -214,6 +173,11 @@ class _RouteTracker extends NavigatorObserver {
         getIt<AnalyticsService>().logScreenView(screenName: name);
       } catch (_) {}
     }
+    if (name != '/elderly-radio') {
+      try {
+        RadioService.instance.stopRadio();
+      } catch (_) {}
+    }
   }
 
   @override
@@ -237,21 +201,8 @@ class _RouteTracker extends NavigatorObserver {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await JustAudioBackground.init(
-    androidNotificationChannelId: 'com.lembreteamigo.channel.audio',
-    androidNotificationChannelName: 'Rádio LembreteAmigo',
-    androidNotificationOngoing: true,
-  );
   await Alarm.init();
   AlarmService.instance.init();
-  Uri? initialWidgetUri;
-  if (!kIsWeb) {
-    try {
-      initialWidgetUri = await HomeWidget.initiallyLaunchedFromHomeWidget();
-    } catch (e) {
-      debugPrint('Erro ao ler abertura inicial do widget: $e');
-    }
-  }
   configureDependencies();
   try {
     if (kIsWeb) {
@@ -424,15 +375,7 @@ void main() async {
     }
   }
 
-  if (!kIsWeb) {
-    try {
-      await WidgetService.instance.initPreferences();
-      WidgetService.instance.atualizar();
-      HomeWidget.widgetClicked.listen(_openWidgetUri);
-    } catch (e) {
-      debugPrint('Erro ao escutar widget clicks: $e');
-    }
-  }
+
 
   runApp(
     MeuApp(
@@ -440,14 +383,6 @@ void main() async {
       pendingNotificationAction: pendingNotificationAction,
     ),
   );
-  if (initialWidgetUri != null) {
-    _pendingWidgetUri = initialWidgetUri;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final pending = _pendingWidgetUri;
-      _pendingWidgetUri = null;
-      _openWidgetUri(pending);
-    });
-  }
 }
 
 class MeuApp extends StatefulWidget {
@@ -671,7 +606,6 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
       _loadAccessibilityPreferences();
       LembreteService.instance.carregar().then((_) {
         OfflineSyncService.instance.syncPendingWrites();
-        WidgetService.instance.atualizar();
         _openDueReminderIfNeeded();
         _startIncomingCallFirestoreListener();
         _enforceElderlyAuth();
@@ -908,9 +842,7 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
           case '/elderly-radio':
             page = const ElderlyRadioScreen();
             break;
-          case '/widget-settings':
-            page = const WidgetSettingsScreen();
-            break;
+
           case '/messages':
             page = const MessagesScreen();
             break;
@@ -1195,7 +1127,6 @@ class _AppStartupState extends State<_AppStartup> {
       return;
     }
 
-    WidgetService.instance.atualizar();
 
     if (SessionRoleService.isElderly) {
       final user = FirebaseAuth.instance.currentUser;

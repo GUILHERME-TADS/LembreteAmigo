@@ -327,6 +327,16 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
                         'Sair da Conta',
                         'Desconectar do aplicativo',
                         onTap: () async {
+                          final navigator = Navigator.of(context);
+                          showDialog(
+                            context: context,
+                            barrierColor: Colors.black87,
+                            barrierDismissible: false,
+                            builder: (_) => const Center(
+                              child: CircularProgressIndicator(color: AppColors.primary),
+                            ),
+                          );
+
                           try {
                             if (Firebase.apps.isNotEmpty) {
                               await GoogleAuthService.instance.signOut();
@@ -335,9 +345,8 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
                           await SessionRoleService.logout();
                           await LembreteService.instance.reset();
                           await MessageService.instance.reset();
-                          if (context.mounted) {
-                            Navigator.pushNamedAndRemoveUntil(
-                              context,
+                          if (navigator.mounted) {
+                            navigator.pushNamedAndRemoveUntil(
                               '/',
                               (route) => false,
                             );

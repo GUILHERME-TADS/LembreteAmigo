@@ -319,7 +319,16 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
               ),
               onTap: () async {
                 final navigator = Navigator.of(context);
-                navigator.pop();
+                
+                showDialog(
+                  context: context,
+                  barrierColor: Colors.black87,
+                  barrierDismissible: false,
+                  builder: (_) => const Center(
+                    child: CircularProgressIndicator(color: AppColors.primary),
+                  ),
+                );
+
                 try {
                   if (Firebase.apps.isNotEmpty) {
                     await GoogleAuthService.instance.signOut();

@@ -391,7 +391,7 @@ class _IdentifyMedicationScreenState
 
   Widget _buildResultCard() {
     final result = _result!;
-    if (result.hasError) {
+    if (!result.success) {
       return Container(
         margin: const EdgeInsets.only(top: 16),
         padding: const EdgeInsets.all(16),
@@ -405,7 +405,7 @@ class _IdentifyMedicationScreenState
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                result.erro,
+                result.hasError ? result.erro : 'Nenhum medicamento reconhecido na imagem. Tente tirar outra foto.',
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,

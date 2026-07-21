@@ -1,11 +1,11 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
 import '../models/smart_alert.dart';
-import '../models/lembrete.dart';
 import 'lembrete_service.dart';
 import 'smart_alert_service.dart';
 import 'effectiveness_service.dart';
 import '../utils/reminder_state_helper.dart';
+import '../models/lembrete.dart';
 
 class SupervisorInsights {
   final String summary;

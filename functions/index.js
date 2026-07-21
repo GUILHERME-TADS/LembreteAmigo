@@ -714,7 +714,9 @@ exports.identifyMedication = onCall(
 
         const prompt =
           "Analise esta imagem de um medicamento e extraia " +
-          "as informações correspondentes.";
+          "as informações correspondentes. " +
+          "MUITO IMPORTANTE: Se a imagem não contiver um medicamento " +
+          "legível, deixe o campo 'nome' completamente vazio (\"\").";
 
         const imageParts = [
           {text: prompt},
@@ -787,6 +789,9 @@ const prescriptionPrompt =
     "medicamentos listados, interpretando a posologia e determinando o " +
     "horario de agendamento inicial correto para cada lembrete de " +
     "medicao.\n" +
+    "MUITO IMPORTANTE: Se a imagem não for uma receita médica " +
+    "ou não contiver nenhum medicamento, retorne um array " +
+    "'lembretes' vazio.\n" +
     "Se a receita descrever multiplas doses (ex: de 8 em 8 horas), " +
     "crie apenas o lembrete para a primeira dose do dia, e indique " +
     "o intervalo nas observacoes.";

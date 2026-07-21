@@ -22,6 +22,15 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   final roomName = message.data['roomName'];
   final callType = message.data['callType'] ?? 'video';
   final callerName = message.data['callerName'];
+  final initiatedBy = message.data['initiatedBy'] as String?;
+  
+  await SessionRoleService.load();
+  final currentRole = SessionRoleService.isSupervisor ? 'supervisor' : 'elderly';
+  
+  if (initiatedBy == currentRole || (initiatedBy == 'sos' && currentRole == 'elderly')) {
+    return;
+  }
+
   if (callId == null ||
       callId.isEmpty ||
       roomName == null ||
@@ -195,7 +204,14 @@ class PushNotificationService {
     final roomName = message.data['roomName'] as String?;
     final callType = message.data['callType'] as String? ?? 'video';
     final callerName = message.data['callerName'] as String?;
+    final initiatedBy = message.data['initiatedBy'] as String?;
+
     if (callId == null || roomName == null) return;
+
+    final currentRole = SessionRoleService.isSupervisor ? 'supervisor' : 'elderly';
+    if (initiatedBy == currentRole || (initiatedBy == 'sos' && currentRole == 'elderly')) {
+      return;
+    }
 
     if (fromBackground) {
       onVideoCallOpenedApp?.call(callId, roomName, callType);

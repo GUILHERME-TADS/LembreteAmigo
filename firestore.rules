@@ -252,7 +252,8 @@ service cloud.firestore {
         'callType',
         'startedAt',
         'endedAt',
-        'durationSeconds'
+        'durationSeconds',
+        'callerName'
       ]) &&
       isNonEmptyString(data.roomName, 96) &&
       isNonEmptyString(data.idosoId, 128) &&
@@ -262,7 +263,8 @@ service cloud.firestore {
       data.callType in ['video', 'voice'] &&
       isOptionalIsoStringOrTimestamp(data, 'startedAt') &&
       isOptionalIsoStringOrTimestamp(data, 'endedAt') &&
-      isOptionalInt(data, 'durationSeconds', 0, 86400);
+      isOptionalInt(data, 'durationSeconds', 0, 86400) &&
+      isOptionalString(data, 'callerName', 120);
     }
 
     function validVideoCallUpdate() {
@@ -428,7 +430,8 @@ service cloud.firestore {
       allow update: if isAuth() && docHasIdosoId() &&
         canAccessIdosoData(resource.data.idosoId) &&
         validMessageUpdate();
-      allow delete: if false;
+      allow delete: if isAuth() && docHasIdosoId() &&
+        canAccessIdosoData(resource.data.idosoId);
     }
 
     match /video_calls/{callId} {

@@ -23,6 +23,7 @@ import '../services/smart_alert_service.dart';
 import '../services/message_service.dart';
 import '../services/video_call_service.dart';
 import '../services/effectiveness_service.dart';
+import '../utils/period_helper.dart';
 import '../theme/app_theme.dart';
 import '../widgets/skeleton_loading.dart';
 import '../widgets/audio_player_card.dart';
@@ -382,16 +383,19 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     if (_refortIsLoading) return;
     setState(() => _refortIsLoading = true);
     try {
+      final periodo = PeriodHelper.getPeriodLabel(lembrete.horarioHour).toUpperCase();
+      final horaStr =
+          '${lembrete.horarioHour.toString().padLeft(2, '0')}:${lembrete.horarioMinute.toString().padLeft(2, '0')} DA $periodo';
       final sent = await MessageService.instance.sendText(
-        '🚨 ATENÇÃO $_nomeIdoso: Está na hora de "${lembrete.titulo}". Por favor, faça agora!',
+        'ATENÇÃO ${_nomeIdoso.toUpperCase()}: SEU LEMBRETE ${lembrete.titulo.toUpperCase()} ESTÁ MARCADO PARA $horaStr, NÃO SE ESQUEÇA',
       );
       if (!sent) {
-        throw StateError('Nenhum idoso conectado para receber o reforco.');
+        throw StateError('Nenhum idoso conectado para receber o reforço.');
       }
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Reforco enviado como mensagem para o idoso.'),
+          content: Text('Reforço enviado como mensagem para o idoso.'),
           backgroundColor: Colors.green,
           duration: Duration(seconds: 4),
         ),
@@ -400,7 +404,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Nao foi possivel enviar o reforco: $e'),
+          content: Text('Não foi possível enviar o reforço: $e'),
           backgroundColor: AppColors.error,
         ),
       );

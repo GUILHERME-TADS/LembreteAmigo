@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.graphics.Color
 import android.net.Uri
+import android.util.TypedValue
 import android.view.View
 import android.widget.RemoteViews
 import es.antonborri.home_widget.HomeWidgetLaunchIntent
@@ -33,17 +34,73 @@ class LembreteAmigoWidgetProvider : HomeWidgetProvider() {
         val views = RemoteViews(context.packageName, R.layout.lembrete_amigo_widget_layout)
         val jsonString = widgetData.getString("reminders", null)
         val role = widgetData.getString("widget_role", "elderly") ?: "elderly"
+        val theme = widgetData.getString("widget_theme", "classic_blue") ?: "classic_blue"
+        val fontSizeStr = widgetData.getString("widget_font_size", "normal") ?: "normal"
+
         val updatedAt = widgetData.getString("widget_updated_at", null)
         val updatedLabel = if (!updatedAt.isNullOrBlank() && updatedAt.length >= 16) {
             "Atualizado às ${updatedAt.substring(11, 16)}"
         } else {
-            "Últimos dados disponíveis"
+            "Últimos dados"
         }
         views.setTextViewText(R.id.widget_updated, updatedLabel)
         views.setOnClickPendingIntent(
             R.id.widget_container,
             launchIntent(context, null, role)
         )
+
+        // Configurar botões de ação rápida (Falar e Rádio)
+        views.setOnClickPendingIntent(
+            R.id.widget_btn_talk,
+            launchActionIntent(context, "talk", role)
+        )
+        views.setOnClickPendingIntent(
+            R.id.widget_btn_radio,
+            launchActionIntent(context, "radio", role)
+        )
+
+        // Aplicar Tema Visual (Azul Clássico, Alto Contraste ou Modo Noturno)
+        val isHighContrast = theme == "high_contrast_yellow"
+        val isDarkMode = theme == "dark_mode"
+
+        val bgRes = when (theme) {
+            "high_contrast_yellow" -> R.drawable.widget_bg_high_contrast
+            "dark_mode" -> R.drawable.widget_bg_dark_mode
+            else -> R.drawable.widget_bg_classic_blue
+        }
+        val cardRes = when (theme) {
+            "high_contrast_yellow" -> R.drawable.widget_card_high_contrast
+            "dark_mode" -> R.drawable.widget_card_dark_mode
+            else -> R.drawable.widget_card_classic_blue
+        }
+        val btnRes = when (theme) {
+            "high_contrast_yellow" -> R.drawable.widget_btn_high_contrast
+            "dark_mode" -> R.drawable.widget_btn_dark
+            else -> R.drawable.widget_btn_classic
+        }
+
+        views.setInt(R.id.widget_container, "setBackgroundResource", bgRes)
+        views.setInt(R.id.widget_btn_talk, "setBackgroundResource", btnRes)
+        views.setInt(R.id.widget_btn_radio, "setBackgroundResource", btnRes)
+
+        val mainTextColor = if (isHighContrast) Color.BLACK else Color.WHITE
+        val subTextColor = if (isHighContrast) Color.DKGRAY else Color.argb(217, 255, 255, 255)
+        val btnTextColor = if (isDarkMode) Color.WHITE else if (isHighContrast) Color.YELLOW else Color.BLACK
+
+        views.setTextColor(R.id.widget_title, mainTextColor)
+        views.setTextColor(R.id.widget_updated, subTextColor)
+        views.setTextColor(R.id.widget_empty, mainTextColor)
+        views.setTextColor(R.id.widget_btn_talk_text, btnTextColor)
+        views.setTextColor(R.id.widget_btn_radio_text, btnTextColor)
+
+        // Tamanhos de fonte
+        val baseSizeDelta = when (fontSizeStr) {
+            "grande" -> 2f
+            "extra_grande" -> 4f
+            else -> 0f
+        }
+        views.setTextViewTextSize(R.id.widget_title, TypedValue.COMPLEX_UNIT_SP, 15f + baseSizeDelta)
+        views.setTextViewTextSize(R.id.widget_empty, TypedValue.COMPLEX_UNIT_SP, 14f + baseSizeDelta)
 
         val itemIds = intArrayOf(
             R.id.widget_item_1,
@@ -106,20 +163,26 @@ class LembreteAmigoWidgetProvider : HomeWidgetProvider() {
                     else -> R.id.widget_title_3
                 }
 
+                views.setInt(itemId, "setBackgroundResource", cardRes)
                 views.setTextViewText(timeId, timeStr)
                 views.setTextViewText(iconId, icon)
                 views.setTextViewText(
                     titleId,
                     if (statusLabel.isEmpty()) title else "$statusLabel • $title"
                 )
-                val color = when (status) {
-                    "agora" -> Color.rgb(255, 235, 59)
-                    "atrasado" -> Color.rgb(255, 205, 210)
-                    "adiado" -> Color.rgb(255, 224, 178)
-                    else -> Color.WHITE
+
+                views.setTextViewTextSize(timeId, TypedValue.COMPLEX_UNIT_SP, 15f + baseSizeDelta)
+                views.setTextViewTextSize(iconId, TypedValue.COMPLEX_UNIT_SP, 16f + baseSizeDelta)
+                views.setTextViewTextSize(titleId, TypedValue.COMPLEX_UNIT_SP, 15f + baseSizeDelta)
+
+                val itemColor = when (status) {
+                    "agora" -> if (isHighContrast) Color.rgb(200, 0, 0) else Color.rgb(255, 235, 59)
+                    "atrasado" -> if (isHighContrast) Color.rgb(180, 0, 0) else Color.rgb(255, 205, 210)
+                    "adiado" -> if (isHighContrast) Color.rgb(150, 100, 0) else Color.rgb(255, 224, 178)
+                    else -> mainTextColor
                 }
-                views.setTextColor(timeId, color)
-                views.setTextColor(titleId, color)
+                views.setTextColor(timeId, itemColor)
+                views.setTextColor(titleId, itemColor)
                 views.setViewVisibility(itemId, View.VISIBLE)
                 views.setOnClickPendingIntent(
                     itemId,
@@ -137,12 +200,12 @@ class LembreteAmigoWidgetProvider : HomeWidgetProvider() {
 
     private fun getCategoryIcon(category: String): String {
         return when (category) {
-            "medicacao" -> "\uD83D\uDC8A"
-            "refeicao", "refeicoes" -> "\uD83C\uDF7D"
-            "exercicio" -> "\uD83C\uDFC3"
-            "agua", "hidratacao" -> "\uD83D\uDCA7"
-            "bem_estar" -> "\uD83D\uDE0A"
-            else -> "\u23F0"
+            "medicacao" -> "💊"
+            "refeicao", "refeicoes" -> "🍽️"
+            "exercicio" -> "🏃"
+            "agua", "hidratacao" -> "💧"
+            "bem_estar" -> "😊"
+            else -> "⏰"
         }
     }
 
@@ -176,6 +239,18 @@ class LembreteAmigoWidgetProvider : HomeWidgetProvider() {
                 .scheme("lembreteamigo")
                 .authority("widget")
                 .appendQueryParameter("id", reminderId ?: "")
+                .appendQueryParameter("role", role)
+                .build()
+        )
+
+    private fun launchActionIntent(context: Context, action: String, role: String) =
+        HomeWidgetLaunchIntent.getActivity(
+            context,
+            MainActivity::class.java,
+            Uri.Builder()
+                .scheme("lembreteamigo")
+                .authority("widget")
+                .appendQueryParameter("action", action)
                 .appendQueryParameter("role", role)
                 .build()
         )

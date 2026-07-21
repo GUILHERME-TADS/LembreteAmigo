@@ -1,6 +1,7 @@
 import 'dart:convert';
-
+import 'package:flutter/foundation.dart';
 import 'package:home_widget/home_widget.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/lembrete.dart';
 import '../models/widget_data.dart';
@@ -17,6 +18,47 @@ class WidgetService {
   static const String _dataKey = 'reminders';
   static const String _roleKey = 'widget_role';
   static const String _updatedAtKey = 'widget_updated_at';
+  static const String _themeKey = 'widget_theme';
+  static const String _fontSizeKey = 'widget_font_size';
+
+  final ValueNotifier<String> themeNotifier = ValueNotifier<String>('classic_blue');
+  final ValueNotifier<String> fontSizeNotifier = ValueNotifier<String>('normal');
+
+  Future<void> initPreferences() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final theme = prefs.getString(_themeKey) ?? 'classic_blue';
+      final fontSize = prefs.getString(_fontSizeKey) ?? 'normal';
+      themeNotifier.value = theme;
+      fontSizeNotifier.value = fontSize;
+    } catch (e) {
+      debugPrint('Erro ao carregar preferências do widget: $e');
+    }
+  }
+
+  Future<void> setTheme(String theme) async {
+    try {
+      themeNotifier.value = theme;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_themeKey, theme);
+      await HomeWidget.saveWidgetData<String>(_themeKey, theme);
+      await atualizar();
+    } catch (e) {
+      debugPrint('Erro ao salvar tema do widget: $e');
+    }
+  }
+
+  Future<void> setFontSize(String size) async {
+    try {
+      fontSizeNotifier.value = size;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_fontSizeKey, size);
+      await HomeWidget.saveWidgetData<String>(_fontSizeKey, size);
+      await atualizar();
+    } catch (e) {
+      debugPrint('Erro ao salvar tamanho de fonte do widget: $e');
+    }
+  }
 
   Future<void> atualizar() async {
     try {
@@ -100,6 +142,9 @@ class WidgetService {
         _updatedAtKey,
         now.toIso8601String(),
       );
+      await HomeWidget.saveWidgetData<String>(_themeKey, themeNotifier.value);
+      await HomeWidget.saveWidgetData<String>(_fontSizeKey, fontSizeNotifier.value);
+
       await HomeWidget.updateWidget(
         name: _widgetName,
         androidName: _androidWidgetClass,

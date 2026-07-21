@@ -18,6 +18,8 @@ import 'screens/all_reminders_screen.dart';
 import 'screens/edit_profile_screen.dart';
 import 'screens/elderly_help_screen.dart';
 import 'screens/elderly_home_screen.dart';
+import 'screens/elderly_radio_screen.dart';
+import 'screens/widget_settings_screen.dart';
 import 'screens/elderly_onboarding_screen.dart';
 import 'screens/elderly_pairing_screen.dart';
 import 'screens/elderly_profile_screen.dart';
@@ -124,6 +126,16 @@ void _openWidgetUri(Uri? uri) {
     return;
   }
 
+  final action = uri?.queryParameters['action'];
+  if (action == 'radio') {
+    navigator.pushNamed('/elderly-radio');
+    return;
+  }
+  if (action == 'talk') {
+    navigator.pushNamed('/recording-audio');
+    return;
+  }
+
   final reminderId = uri?.queryParameters['id'];
   if (reminderId != null && reminderId.isNotEmpty) {
     navigator.pushNamed('/active-reminder', arguments: reminderId);
@@ -140,6 +152,8 @@ bool isElderlyOnlyRoute(String routeName) {
     '/elderly-home',
     '/elderly-pairing',
     '/elderly-help',
+    '/elderly-radio',
+    '/widget-settings',
     '/all-reminders',
     '/active-reminder',
     '/meal-detail',
@@ -406,6 +420,8 @@ void main() async {
 
   if (!kIsWeb) {
     try {
+      await WidgetService.instance.initPreferences();
+      WidgetService.instance.atualizar();
       HomeWidget.widgetClicked.listen(_openWidgetUri);
     } catch (e) {
       debugPrint('Erro ao escutar widget clicks: $e');
@@ -882,6 +898,12 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
             break;
           case '/elderly-help':
             page = const ElderlyHelpScreen();
+            break;
+          case '/elderly-radio':
+            page = const ElderlyRadioScreen();
+            break;
+          case '/widget-settings':
+            page = const WidgetSettingsScreen();
             break;
           case '/messages':
             page = const MessagesScreen();

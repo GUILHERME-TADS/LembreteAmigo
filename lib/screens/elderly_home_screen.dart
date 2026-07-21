@@ -9,6 +9,7 @@ import '../models/lembrete.dart';
 import '../services/lembrete_service.dart';
 import '../services/session_role_service.dart';
 import '../services/tts_service.dart';
+import '../services/location_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/audio_path_helper.dart';
 import '../utils/period_helper.dart';
@@ -1344,7 +1345,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                           const SizedBox(height: 12),
                         ],
 
-                        _buildVoiceButton(),
+                        _buildActionButtons(),
                         const SizedBox(height: 24),
                         Text(
                           'Aperte para falar comigo',
@@ -1377,13 +1378,81 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     );
   }
 
+  Future<void> _showWhereAmI() async {
+    _stopAllAudioAndTts();
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+
+    final sosResult = await LocationService.instance.getCurrentSosLocation();
+    
+    if (!mounted) return;
+    Navigator.of(context).pop(); // fecha o loading
+
+    String enderecoTexto = 'Endereço não encontrado';
+    if (sosResult.hasLocation) {
+      enderecoTexto = await LocationService.instance.getAddressFromCoordinates(
+        sosResult.latitude!, 
+        sosResult.longitude!
+      );
+    }
+
+    if (!mounted) return;
+    
+    showDialog(
+      context: context,
+      builder: (context) {
+        TTSService.instance.falar('Você está na $enderecoTexto');
+        
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          backgroundColor: AppColors.surface,
+          title: const Text(
+            'Você está aqui:',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.primary),
+          ),
+          content: Text(
+            enderecoTexto,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w800, color: Colors.black87),
+          ),
+          actionsAlignment: MainAxisAlignment.center,
+          actions: [
+            ElevatedButton(
+              onPressed: () {
+                TTSService.instance.parar();
+                Navigator.of(context).pop();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 24),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+              child: const Text('OK', style: TextStyle(fontSize: 28, color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildTopBar() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: const BoxDecoration(color: AppColors.surface),
       child: Row(
         children: [
-          const SizedBox(width: 48),
+          IconButton(
+            icon: const Icon(Icons.location_on, color: AppColors.primary, size: 36),
+            onPressed: _showWhereAmI,
+            tooltip: 'Onde estou?',
+          ),
           Expanded(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1426,52 +1495,56 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     );
   }
 
-  Widget _buildVoiceButton() {
+  Widget _buildActionButtons() {
     final isHighContrast =
         Theme.of(context).colorScheme.primary == Colors.black;
-    return GestureDetector(
-      onTap: _abrirGravacao,
-      child: Container(
-        width: 176,
-        height: 176,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: isHighContrast ? Colors.yellow : AppColors.secondaryContainer,
-          border: Border.all(
-            color: isHighContrast ? Colors.black : Colors.white,
-            width: 8,
-          ),
-          boxShadow: isHighContrast
-              ? null
-              : const [
-                  BoxShadow(
-                    color: Colors.black26,
-                    blurRadius: 16,
-                    offset: Offset(0, 8),
-                  ),
-                ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.mic,
-              size: 64,
-              color: isHighContrast
-                  ? Colors.black
-                  : AppColors.onSecondaryContainer,
+    
+    return Center(
+      child: GestureDetector(
+        onTap: _abrirGravacao,
+        child: Container(
+          width: 172,
+          height: 172,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: isHighContrast ? Colors.yellow : AppColors.secondaryContainer,
+            border: Border.all(
+              color: isHighContrast ? Colors.black : Colors.white,
+              width: 6,
             ),
-            Text(
-              'Falar',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.w700,
+            boxShadow: isHighContrast
+                ? null
+                : const [
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 16,
+                      offset: Offset(0, 8),
+                    ),
+                  ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.mic,
+                size: 64,
                 color: isHighContrast
                     ? Colors.black
                     : AppColors.onSecondaryContainer,
               ),
-            ),
-          ],
+              const SizedBox(height: 4),
+              Text(
+                'Falar',
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w800,
+                  color: isHighContrast
+                      ? Colors.black
+                      : AppColors.onSecondaryContainer,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

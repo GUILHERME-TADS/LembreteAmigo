@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
 
 class SosLocationResult {
   final double? latitude;
@@ -69,6 +71,35 @@ class LocationService {
         }
       } catch (_) {}
       return SosLocationResult.failure('Nao foi possivel obter localizacao.');
+    }
+  }
+
+  Future<String> getAddressFromCoordinates(double lat, double lon) async {
+    try {
+      final url = Uri.parse(
+          'https://nominatim.openstreetmap.org/reverse?format=json&lat=$lat&lon=$lon&zoom=18&addressdetails=1');
+      final response = await http.get(url, headers: {
+        'User-Agent': 'LembreteAmigoApp/1.0',
+        'Accept-Language': 'pt-BR,pt;q=0.9',
+      });
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data != null && data['address'] != null) {
+          final address = data['address'];
+          final road = address['road'] ?? address['pedestrian'] ?? address['suburb'] ?? '';
+          final number = address['house_number'] ?? '';
+          
+          if (road.isNotEmpty) {
+            return '$road${number.isNotEmpty ? ', $number' : ''}';
+          }
+        }
+        return 'Endereço não encontrado na base';
+      }
+      return 'Falha ao buscar endereço';
+    } catch (e) {
+      debugPrint('Erro no geocoding reverso: $e');
+      return 'Sem internet para buscar endereço';
     }
   }
 }

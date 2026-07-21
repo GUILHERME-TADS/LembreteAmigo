@@ -3,7 +3,7 @@ import '../theme/app_theme.dart';
 import '../services/tts_service.dart';
 import 'message_unread_badge.dart';
 
-enum ElderlyNavDestination { none, home, reminders, help }
+enum ElderlyNavDestination { none, home, reminders, radio, help }
 
 class ElderlyBottomNav extends StatefulWidget {
   final ElderlyNavDestination selected;
@@ -84,6 +84,14 @@ class _ElderlyBottomNavState extends State<ElderlyBottomNav> {
                 onTap: widget.selected == ElderlyNavDestination.reminders
                     ? null
                     : () => _handleTap('/all-reminders', context),
+              ),
+              _ElderlyNavItem(
+                icon: Icons.radio,
+                label: 'Rádio',
+                selected: widget.selected == ElderlyNavDestination.radio,
+                onTap: widget.selected == ElderlyNavDestination.radio
+                    ? null
+                    : () => _handleTap('/elderly-radio', context),
               ),
               _ElderlyNavItem(
                 icon: Icons.help_center,

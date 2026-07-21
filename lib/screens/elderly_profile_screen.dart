@@ -628,7 +628,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
       backgroundColor: AppColors.background,
       floatingActionButton: const AlexFloatingHelpButton(
         textoExplicacao:
-            'Olá! Esta é a tela com os seus dados. Aqui você vê seu nome, telefone, medicações e lembretes. Para mudar sua foto, aperte no círculo da foto. Para mudar seus dados, aperte o botão amarelo. Para arrumar a minha voz, aperte o botão azul.',
+            'Olá! Esta é a tela com os seus dados. Aqui você vê seu nome, telefone, medicações e lembretes. Para mudar seus dados, aperte o botão amarelo. Para arrumar a minha voz ou personalizar o widget na tela inicial, aperte os botões coloridos.',
       ),
       body: SafeArea(
         child: Column(
@@ -1026,6 +1026,47 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                                         Flexible(
                                           child: Text(
                                             'VELOCIDADE DA VOZ',
+                                            textAlign: TextAlign.center,
+                                            style: TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 64,
+                                  child: ElevatedButton(
+                                    onPressed: () async {
+                                      TTSService.instance.parar(caller: this);
+                                      await Navigator.pushNamed(
+                                        context,
+                                        '/widget-settings',
+                                      );
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor:
+                                          AppColors.tertiaryContainer,
+                                      foregroundColor:
+                                          AppColors.onTertiaryContainer,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                    child: const Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.widgets, size: 28),
+                                        SizedBox(width: 12),
+                                        Flexible(
+                                          child: Text(
+                                            'PERSONALIZAR WIDGET',
                                             textAlign: TextAlign.center,
                                             style: TextStyle(
                                               fontSize: 18,

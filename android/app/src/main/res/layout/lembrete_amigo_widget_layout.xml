@@ -4,33 +4,52 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="12dp"
-    android:background="#FF1565C0">
+    android:padding="14dp"
+    android:background="@drawable/widget_bg_classic_blue">
 
-    <TextView
-        android:id="@+id/widget_title"
+    <!-- Cabeçalho do Widget -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Próximos lembretes"
-        android:textColor="#FFFFFF"
-        android:textSize="14sp"
-        android:textStyle="bold"
-        android:fontFamily="sans-serif-medium" />
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
 
+        <TextView
+            android:id="@+id/widget_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Lembretes de Hoje"
+            android:textColor="#FFFFFF"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:fontFamily="sans-serif-medium" />
+
+        <TextView
+            android:id="@+id/widget_updated"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Atualizado"
+            android:textColor="#D9FFFFFF"
+            android:textSize="11sp" />
+    </LinearLayout>
+
+    <!-- Área de Lista / Vazio -->
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:layout_marginTop="8dp">
+        android:layout_marginTop="10dp">
 
         <TextView
             android:id="@+id/widget_empty"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:gravity="center"
-            android:text="Nenhum lembrete pendente"
-            android:textColor="#B3FFFFFF"
-            android:textSize="12sp" />
+            android:text="✨ Nenhum lembrete pendente para agora!"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:textStyle="bold" />
 
         <LinearLayout
             android:id="@+id/widget_list"
@@ -44,24 +63,28 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:visibility="gone"
-                android:paddingVertical="2dp">
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="6dp"
+                android:layout_marginBottom="6dp"
+                android:background="@drawable/widget_card_classic_blue"
+                android:gravity="center_vertical">
 
                 <TextView
                     android:id="@+id/widget_time_1"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:textColor="#FFFFFF"
-                    android:textSize="13sp"
+                    android:textSize="15sp"
                     android:textStyle="bold"
-                    android:minWidth="45dp" />
+                    android:minWidth="52dp" />
 
                 <TextView
                     android:id="@+id/widget_icon_1"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:textColor="#FFFFFF"
-                    android:textSize="13sp"
-                    android:layout_marginHorizontal="4dp" />
+                    android:textSize="16sp"
+                    android:layout_marginHorizontal="6dp" />
 
                 <TextView
                     android:id="@+id/widget_title_1"
@@ -69,7 +92,8 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:textColor="#FFFFFF"
-                    android:textSize="13sp"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
                     android:ellipsize="end"
                     android:maxLines="1" />
             </LinearLayout>
@@ -80,24 +104,28 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:visibility="gone"
-                android:paddingVertical="2dp">
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="6dp"
+                android:layout_marginBottom="6dp"
+                android:background="@drawable/widget_card_classic_blue"
+                android:gravity="center_vertical">
 
                 <TextView
                     android:id="@+id/widget_time_2"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:textColor="#FFFFFF"
-                    android:textSize="13sp"
+                    android:textSize="15sp"
                     android:textStyle="bold"
-                    android:minWidth="45dp" />
+                    android:minWidth="52dp" />
 
                 <TextView
                     android:id="@+id/widget_icon_2"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:textColor="#FFFFFF"
-                    android:textSize="13sp"
-                    android:layout_marginHorizontal="4dp" />
+                    android:textSize="16sp"
+                    android:layout_marginHorizontal="6dp" />
 
                 <TextView
                     android:id="@+id/widget_title_2"
@@ -105,7 +133,8 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:textColor="#FFFFFF"
-                    android:textSize="13sp"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
                     android:ellipsize="end"
                     android:maxLines="1" />
             </LinearLayout>
@@ -116,24 +145,27 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:visibility="gone"
-                android:paddingVertical="2dp">
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="6dp"
+                android:background="@drawable/widget_card_classic_blue"
+                android:gravity="center_vertical">
 
                 <TextView
                     android:id="@+id/widget_time_3"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:textColor="#FFFFFF"
-                    android:textSize="13sp"
+                    android:textSize="15sp"
                     android:textStyle="bold"
-                    android:minWidth="45dp" />
+                    android:minWidth="52dp" />
 
                 <TextView
                     android:id="@+id/widget_icon_3"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:textColor="#FFFFFF"
-                    android:textSize="13sp"
-                    android:layout_marginHorizontal="4dp" />
+                    android:textSize="16sp"
+                    android:layout_marginHorizontal="6dp" />
 
                 <TextView
                     android:id="@+id/widget_title_3"
@@ -141,7 +173,8 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:textColor="#FFFFFF"
-                    android:textSize="13sp"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
                     android:ellipsize="end"
                     android:maxLines="1" />
             </LinearLayout>
@@ -150,13 +183,56 @@
 
     </FrameLayout>
 
-    <TextView
-        android:id="@+id/widget_updated"
+    <!-- Barra Inferior com Ações Rápidas (Falar e Rádio) -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:gravity="end"
-        android:text="Atualizado agora"
-        android:textColor="#B3FFFFFF"
-        android:textSize="10sp" />
+        android:orientation="horizontal"
+        android:layout_marginTop="10dp"
+        android:gravity="center_vertical">
+
+        <LinearLayout
+            android:id="@+id/widget_btn_talk"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@drawable/widget_btn_classic"
+            android:gravity="center"
+            android:paddingVertical="8dp">
+
+            <TextView
+                android:id="@+id/widget_btn_talk_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🎙️ Falar"
+                android:textColor="#000000"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="10dp"
+            android:layout_height="1dp" />
+
+        <LinearLayout
+            android:id="@+id/widget_btn_radio"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@drawable/widget_btn_classic"
+            android:gravity="center"
+            android:paddingVertical="8dp">
+
+            <TextView
+                android:id="@+id/widget_btn_radio_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🎶 Rádio"
+                android:textColor="#000000"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+    </LinearLayout>
 
 </LinearLayout>

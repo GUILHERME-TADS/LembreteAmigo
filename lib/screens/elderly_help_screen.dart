@@ -1310,16 +1310,29 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
     );
 
     try {
+      final prefs = await SharedPreferences.getInstance();
+      String nome = 'O IDOSO';
+      final jsonStr = prefs.getString('idoso_perfil');
+      if (jsonStr != null) {
+        try {
+          final data = jsonDecode(jsonStr) as Map<String, dynamic>;
+          final n = data['nome'] as String?;
+          if (n != null && n.trim().isNotEmpty && n != 'Não cadastrado') {
+            nome = n.trim().toUpperCase();
+          }
+        } catch (_) {}
+      }
+
       final location = await LocationService.instance.getCurrentSosLocation();
       bool sent;
       if (location.hasLocation && location.mapsUrl != null) {
         sent = await MessageService.instance.sendLocation(
-          'SOS! Preciso de ajuda urgente.',
+          'ATENÇÃO CUIDADOR: $nome ACABOU DE ENVIAR SUA LOCALIZAÇÃO ATUAL NO MAPA!',
           location.mapsUrl!,
         );
       } else {
         final message =
-            'SOS! Preciso de ajuda urgente. Não consegui ver onde estou pelo celular. ${location.errorMessage ?? ''}';
+            'ATENÇÃO CUIDADOR: $nome ACABOU DE PEDIR AJUDA URGENTE, MAS NÃO FOI POSSÍVEL OBTER A LOCALIZAÇÃO PELO CELULAR. ${location.errorMessage ?? ''}';
         sent = await MessageService.instance.sendText(message);
       }
 

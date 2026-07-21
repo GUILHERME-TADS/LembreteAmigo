@@ -383,16 +383,38 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
                             color: AppColors.primary,
                           ),
                         ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'Mostre este número para quem cuida de você. Ela vai digitar esse número no celular dela para conectar os dois aparelhos:',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: AppColors.onSurfaceVariant,
+                        GestureDetector(
+                          onTap: () {
+                            TTSService.instance.parar(caller: this);
+                            TTSService.instance.falar(
+                              'Mostre este número para quem cuida de você. Ela vai digitar esse número no celular dela para conectar os dois aparelhos.',
+                              caller: this,
+                            );
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: AppColors.secondaryContainer,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.volume_up_rounded, color: AppColors.onSecondaryContainer, size: 28),
+                                SizedBox(width: 10),
+                                Text(
+                                  'OUVIR COMO CONECTAR',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.onSecondaryContainer,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                        const SizedBox(height: 32),
+                        const SizedBox(height: 24),
                         if (_isLoading)
                           const Center(
                             child: CircularProgressIndicator(

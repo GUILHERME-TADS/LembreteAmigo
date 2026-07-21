@@ -662,36 +662,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
                 ],
               )
             else
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Flexible(
-                    child: Text(
-                      message.texto,
-                      style: TextStyle(
-                        fontSize: textFontSize,
-                        height: 1.3,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.black87,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    icon: const Icon(
-                      Icons.volume_up,
-                      color: Color(0xFF008069),
-                      size: 24,
-                    ),
-                    onPressed: () => TTSService.instance.falar(
-                      message.texto,
-                      caller: this,
-                    ),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
-                ],
+              AudioPlayerCard(
+                key: ValueKey('tts_${message.id}'),
+                subtitle: message.texto,
+                textsToSpeak: [message.texto],
+                isChatDesign: true,
+                accentColor: const Color(0xFF008069),
               ),
             const SizedBox(height: 4),
             Row(

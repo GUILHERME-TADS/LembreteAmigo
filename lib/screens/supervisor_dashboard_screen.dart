@@ -383,7 +383,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     setState(() => _refortIsLoading = true);
     try {
       final sent = await MessageService.instance.sendText(
-        'Reforco do cuidador: $_nomeIdoso, por favor confira agora o lembrete "${lembrete.titulo}".',
+        '🚨 ATENÇÃO $_nomeIdoso: Está na hora de "${lembrete.titulo}". Por favor, faça agora!',
       );
       if (!sent) {
         throw StateError('Nenhum idoso conectado para receber o reforco.');

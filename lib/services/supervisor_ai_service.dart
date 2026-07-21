@@ -1,6 +1,7 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
 import '../models/smart_alert.dart';
+import '../models/lembrete.dart';
 import 'lembrete_service.dart';
 import 'smart_alert_service.dart';
 import 'effectiveness_service.dart';
@@ -31,6 +32,13 @@ class SupervisorAIService {
   static final SupervisorAIService _instance = SupervisorAIService._();
   static SupervisorAIService get instance => _instance;
 
+  String _getUrgencia(Lembrete l) {
+    final title = l.titulo.toLowerCase();
+    if (title.contains('insulina')) return 'critico';
+    if (l.categoria == 'medicacao') return 'aviso';
+    return 'normal';
+  }
+
   Map<String, dynamic> _buildElderlyData() {
     final lembretes = ReminderStateHelper.activeTodaySorted(
       LembreteService.instance.lembretes,
@@ -52,7 +60,7 @@ class SupervisorAIService {
                 'categoria': l.categoria,
                 'concluido': l.concluido,
                 'recorrencia': l.recorrencia,
-                'urgencia': 'critico',
+                'urgencia': _getUrgencia(l),
               })
           .toList(),
       'eventos': eventos

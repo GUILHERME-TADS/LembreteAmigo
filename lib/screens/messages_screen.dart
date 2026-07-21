@@ -420,7 +420,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            const VolumeWarningBanner(),
+            if (!_isSupervisor) const VolumeWarningBanner(),
             _buildTopBar(),
             Expanded(
               child: ValueListenableBuilder<List<AppMessage>>(

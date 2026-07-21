@@ -398,6 +398,9 @@ class DeviceBarrierService {
     if (duration.inDays >= 1) {
       return '${duration.inDays} dia${duration.inDays == 1 ? '' : 's'}';
     }
-    return '${duration.inHours} hora${duration.inHours == 1 ? '' : 's'}';
+    if (duration.inHours >= 1) {
+      return '${duration.inHours} hora${duration.inHours == 1 ? '' : 's'}';
+    }
+    return '${duration.inMinutes} minuto${duration.inMinutes == 1 ? '' : 's'}';
   }
 }

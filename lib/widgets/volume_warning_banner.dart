@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../services/session_role_service.dart';
 import '../services/tts_service.dart';
 import '../services/volume_service.dart';
 import '../theme/app_theme.dart';
@@ -85,7 +86,7 @@ class _VolumeWarningBannerState extends State<VolumeWarningBanner>
 
   @override
   Widget build(BuildContext context) {
-    if (!VolumeService.isLow(_volumePercentage)) {
+    if (SessionRoleService.isSupervisor || !VolumeService.isLow(_volumePercentage)) {
       return const SizedBox.shrink();
     }
 

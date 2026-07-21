@@ -162,17 +162,19 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
 
   Future<void> _exportarRelatorioPDF() async {
     try {
-      final fontData = await rootBundle.load("assets/fonts/Roboto-Regular.ttf");
-      final robotoFont = pw.Font.ttf(fontData);
       final pdfTheme = pw.ThemeData.withFont(
-        base: robotoFont,
-        bold: robotoFont,
+        base: pw.Font.helvetica(),
+        bold: pw.Font.helveticaBold(),
       );
 
       final pdf = pw.Document();
       final weeklyPct = _weeklyTotal == 0
           ? 0
           : ((_weeklyDone / _weeklyTotal) * 100).round();
+
+      String sanitize(String text) {
+        return text.replaceAll(RegExp(r'[^\x20-\x7E\xA0-\xFF]'), '');
+      }
 
       pdf.addPage(
         pw.Page(
@@ -192,7 +194,7 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
                     ),
                   ),
                   pw.SizedBox(height: 16),
-                  pw.Text('Paciente: $_idosoName'),
+                  pw.Text('Paciente: ${sanitize(_idosoName)}'),
                   pw.Text(
                     'Gerado em: ${DateTime.now().toIso8601String().substring(0, 10)}',
                   ),
@@ -206,8 +208,8 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
                   pw.Bullet(text: 'Atividades registradas: $_weeklyTotal'),
                   pw.Bullet(text: 'Atividades concluidas: $_weeklyDone'),
                   pw.Bullet(text: 'Atividades nao feitas: $_weeklyMissed'),
-                  pw.Bullet(text: 'Resumo familiar: $_weeklyHumanSummary'),
-                  pw.Bullet(text: 'Ponto de atencao: $_weeklyAttention'),
+                  pw.Bullet(text: 'Resumo familiar: ${sanitize(_weeklyHumanSummary)}'),
+                  pw.Bullet(text: 'Ponto de atencao: ${sanitize(_weeklyAttention)}'),
                   pw.SizedBox(height: 20),
                   pw.Text(
                     'ADERENCIA POR CATEGORIA',
@@ -607,25 +609,26 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
     final pending = total - completed;
 
     final sections = <PieChartSectionData>[
-      PieChartSectionData(
-        color: AppColors.tertiaryFixed,
-        value: completed.toDouble(),
-        title: completed > 0 ? '$completed' : '',
-        radius: 55,
-        titleStyle: const TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
+      if (completed > 0)
+        PieChartSectionData(
+          color: AppColors.tertiaryFixed,
+          value: completed.toDouble(),
+          title: '$completed',
+          radius: 35,
+          titleStyle: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
         ),
-      ),
       if (pending > 0)
         PieChartSectionData(
           color: AppColors.surfaceContainerHigh,
           value: pending.toDouble(),
           title: '$pending',
-          radius: 55,
+          radius: 35,
           titleStyle: const TextStyle(
-            fontSize: 14,
+            fontSize: 12,
             fontWeight: FontWeight.bold,
             color: AppColors.onSurfaceVariant,
           ),
@@ -667,7 +670,7 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
                       : PieChart(
                           PieChartData(
                             sections: sections,
-                            centerSpaceRadius: 40,
+                            centerSpaceRadius: 30,
                             sectionsSpace: 2,
                             borderData: FlBorderData(show: false),
                           ),

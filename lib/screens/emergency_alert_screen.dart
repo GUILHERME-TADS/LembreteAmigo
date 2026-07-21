@@ -7,6 +7,7 @@ import '../theme/app_theme.dart';
 import 'package:firebase_core/firebase_core.dart';
 import '../services/session_role_service.dart';
 import '../models/lembrete.dart';
+import '../services/lembrete_service.dart';
 import '../services/video_call_service.dart';
 import '../widgets/index.dart';
 
@@ -169,6 +170,51 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
       }
     } finally {
       if (mounted) setState(() => _isCalling = false);
+    }
+  }
+
+  Future<void> _resolverLembrete() async {
+    final lembrete = widget.lembrete;
+    if (lembrete == null) return;
+    
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Resolver Lembrete', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+        content: const Text('Deseja marcar este lembrete como resolvido/concluído? Ele não aparecerá mais como alerta crítico.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('CANCELAR', style: TextStyle(color: AppColors.primary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('RESOLVER', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true) return;
+
+    try {
+      final sucesso = await LembreteService.instance.concluir(lembrete.id);
+      if (sucesso && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Lembrete resolvido com sucesso.'), backgroundColor: Colors.green),
+        );
+        Navigator.pop(context); // Fechar a tela de alerta
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Não foi possível resolver o lembrete agora.'), backgroundColor: AppColors.error),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao resolver: $e'), backgroundColor: AppColors.error),
+        );
+      }
     }
   }
 
@@ -411,6 +457,33 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
                             ),
                           ),
                         ),
+                        if (SessionRoleService.isSupervisor && widget.lembrete != null) ...[
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 52,
+                            child: ElevatedButton.icon(
+                              onPressed: _resolverLembrete,
+                              icon: const Icon(Icons.check_circle, size: 22),
+                              label: const Text(
+                                'Resolver Lembrete',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 12),
                         SizedBox(
                           width: double.infinity,

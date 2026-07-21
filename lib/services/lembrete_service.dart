@@ -845,6 +845,7 @@ class LembreteService {
   }
 
   bool _bloqueiaConclusaoSemFoto(Lembrete lembrete, LembreteStatus status) {
+    if (SessionRoleService.isSupervisor) return false;
     return lembrete.categoria == 'medicacao' &&
         status.isConcluido &&
         status != LembreteStatus.concluidoComFoto;

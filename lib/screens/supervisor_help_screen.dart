@@ -66,6 +66,23 @@ class _SupervisorHelpScreenState extends State<SupervisorHelpScreen> {
       question: 'O que são as barreiras do "Radar do Celular"?',
       answer: 'São alertas automatizados baseados em sensores. Por exemplo, se o volume do idoso estiver no mínimo ou se o app estiver inativo, o cuidador será avisado.',
     ),
+    // Configurações Gerais
+    FAQItem(
+      category: 'Configurações Gerais',
+      question: 'Como edito a foto ou as informações do paciente?',
+      answer: 'Você pode editar o perfil do paciente, incluindo foto e dados pessoais, acessando o menu lateral e selecionando a opção de edição de perfil.',
+    ),
+    FAQItem(
+      category: 'Configurações Gerais',
+      question: 'Como configurar as opções de voz (Alex) para o idoso?',
+      answer: 'Para configurar a voz e leitura de tela, acesse o menu lateral, vá em "Configurações de Voz" e personalize a assistente virtual de acordo com a preferência do idoso.',
+    ),
+    // Chamadas
+    FAQItem(
+      category: 'Monitoramento de Saúde',
+      question: 'Como funcionam as chamadas de vídeo e áudio?',
+      answer: 'Através do painel principal, você pode iniciar chamadas de vídeo ou áudio para se comunicar com o idoso de forma simples e rápida, permitindo verificar como ele está em tempo real.',
+    ),
   ];
 
   void _showQuickTour(BuildContext context) {
@@ -233,6 +250,7 @@ class _SupervisorHelpScreenState extends State<SupervisorHelpScreen> {
       'Histórico e Relatórios': {'icon': Icons.history, 'color': AppColors.mealsColor},
       'Monitoramento de Saúde': {'icon': Icons.favorite, 'color': AppColors.tertiaryContainer},
       'Alertas de Emergência': {'icon': Icons.warning_amber, 'color': AppColors.error},
+      'Configurações Gerais': {'icon': Icons.settings, 'color': AppColors.primary},
     };
 
     return Scaffold(
@@ -434,7 +452,7 @@ class _SupervisorHelpScreenState extends State<SupervisorHelpScreen> {
                             children: [
                               Expanded(
                                 child: ElevatedButton.icon(
-                                  onPressed: () => _launchUrlHelper('https://wa.me/5511999998888?text=Olá,%20preciso%20de%20ajuda%20com%20o%20app%20Lembrete%20Amigo.'),
+                                  onPressed: () => _launchUrlHelper('https://wa.me/5586994194571?text=Olá,%20preciso%20de%20ajuda%20com%20o%20app%20Lembrete%20Amigo.'),
                                   icon: const Icon(Icons.forum, size: 20),
                                   label: const FittedBox(fit: BoxFit.scaleDown, child: Text('WhatsApp')),
                                   style: ElevatedButton.styleFrom(
@@ -448,7 +466,7 @@ class _SupervisorHelpScreenState extends State<SupervisorHelpScreen> {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: ElevatedButton.icon(
-                                  onPressed: () => _launchUrlHelper('tel:+5511999998888'),
+                                  onPressed: () => _launchUrlHelper('tel:+5586994194571'),
                                   icon: const Icon(Icons.phone, size: 20),
                                   label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Ligar')),
                                   style: ElevatedButton.styleFrom(
@@ -462,7 +480,7 @@ class _SupervisorHelpScreenState extends State<SupervisorHelpScreen> {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: ElevatedButton.icon(
-                                  onPressed: () => _launchUrlHelper('mailto:suporte@lembreteamigo.com?subject=Ajuda%20Lembrete%20Amigo'),
+                                  onPressed: () => _launchUrlHelper('mailto:guilhermebarbosa556@gmail.com?subject=Ajuda%20Lembrete%20Amigo'),
                                   icon: const Icon(Icons.email, size: 20),
                                   label: const FittedBox(fit: BoxFit.scaleDown, child: Text('E-mail')),
                                   style: ElevatedButton.styleFrom(

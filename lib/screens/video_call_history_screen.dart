@@ -66,6 +66,61 @@ class _VideoCallHistoryScreenState extends State<VideoCallHistoryScreen> {
     }
   }
 
+  String _getDateHeader(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    final itemDate = DateTime(date.year, date.month, date.day);
+
+    if (itemDate == today) {
+      return 'Hoje';
+    } else if (itemDate == yesterday) {
+      return 'Ontem';
+    } else {
+      final d = itemDate.day.toString().padLeft(2, '0');
+      final m = itemDate.month.toString().padLeft(2, '0');
+      final y = itemDate.year;
+      return '$d/$m/$y';
+    }
+  }
+
+  List<Widget> _buildGroupedList(bool isElderly) {
+    final List<Widget> items = [];
+    String? lastHeader;
+
+    for (var i = 0; i < _calls.length; i++) {
+      final call = _calls[i];
+      final header = _getDateHeader(call.startedAt);
+
+      if (header != lastHeader) {
+        items.add(
+          Padding(
+            padding: const EdgeInsets.only(top: 16.0, bottom: 8.0, left: 8.0),
+            child: Text(
+              header,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: AppColors.onSurfaceVariant,
+              ),
+            ),
+          ),
+        );
+        lastHeader = header;
+      }
+
+      items.add(
+        _CallHistoryTile(
+          call: call,
+          isElderly: isElderly,
+          onCallBack: (type) => _startCall(type),
+        ),
+      );
+    }
+
+    return items;
+  }
+
   @override
   Widget build(BuildContext context) {
     final isElderly = SessionRoleService.isElderly;
@@ -73,37 +128,15 @@ class _VideoCallHistoryScreenState extends State<VideoCallHistoryScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(isElderly ? 'Ligações' : 'Ligações de Voz e Vídeo'),
-        actions: [
-          if (!isElderly) ...[
-            IconButton(
-              icon: const Icon(Icons.phone),
-              tooltip: 'Nova ligação de voz',
-              onPressed: () => _startCall('voice'),
-            ),
-            IconButton(
-              icon: const Icon(Icons.videocam),
-              tooltip: 'Nova ligação com imagem',
-              onPressed: () => _startCall('video'),
-            ),
-          ],
-        ],
       ),
       body: SafeArea(
         child: _loading
             ? const Center(child: CircularProgressIndicator())
             : _calls.isEmpty
                 ? _EmptyState(isElderly: isElderly, onStartCall: () => _startCall('video'))
-                : ListView.builder(
+                : ListView(
                     padding: const EdgeInsets.all(16),
-                    itemCount: _calls.length,
-                    itemBuilder: (context, index) {
-                      final call = _calls[index];
-                      return _CallHistoryTile(
-                        call: call,
-                        isElderly: isElderly,
-                        onCallBack: (type) => _startCall(type),
-                      );
-                    },
+                    children: _buildGroupedList(isElderly),
                   ),
       ),
       floatingActionButton: isElderly
@@ -200,25 +233,37 @@ class _CallHistoryTile extends StatelessWidget {
 
     Color iconBgColor;
     IconData callIcon;
+    Color cardBgColor = AppColors.surfaceContainerLowest;
 
     if (isSos) {
       iconBgColor = AppColors.error;
       callIcon = Icons.warning_rounded;
+      cardBgColor = AppColors.errorContainer.withValues(alpha: 0.3);
     } else if (isMissed) {
-      iconBgColor = Colors.orange;
+      iconBgColor = AppColors.error;
       callIcon = Icons.call_missed_rounded;
+      cardBgColor = AppColors.errorContainer.withValues(alpha: 0.15);
     } else if (call.isVoiceCall) {
-      iconBgColor = const Color(0xFF1E88E5);
+      iconBgColor = AppColors.secondary;
       callIcon = Icons.phone_callback_rounded;
     } else {
-      iconBgColor = const Color(0xFF00897B);
+      iconBgColor = AppColors.primary;
       callIcon = Icons.video_camera_back_rounded;
     }
 
     return Card(
+      color: cardBgColor,
       margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: (isSos || isMissed)
+              ? AppColors.error.withValues(alpha: 0.3)
+              : AppColors.outlineVariant.withValues(alpha: 0.5),
+          width: 1,
+        ),
+      ),
+      elevation: 0,
       child: Padding(
         padding: const EdgeInsets.all(8.0),
         child: ListTile(
@@ -272,36 +317,29 @@ class _CallHistoryTile extends StatelessWidget {
               style: TextStyle(
                 fontSize: isElderly ? 16 : 13,
                 fontWeight: FontWeight.w600,
+                color: AppColors.onSurfaceVariant,
               ),
             ),
           ),
-          trailing: InkWell(
-            onTap: () => onCallBack(call.callType),
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              decoration: BoxDecoration(
-                color: const Color(0xFF2E7D32),
-                borderRadius: BorderRadius.circular(12),
+          trailing: OutlinedButton.icon(
+            onPressed: () => onCallBack(call.callType),
+            icon: Icon(
+              call.isVoiceCall ? Icons.phone : Icons.videocam,
+              size: isElderly ? 24 : 18,
+            ),
+            label: Text(
+              'Ligar',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: isElderly ? 16 : 14,
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    call.isVoiceCall ? Icons.phone : Icons.videocam,
-                    color: Colors.white,
-                    size: isElderly ? 24 : 18,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Ligar',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: isElderly ? 16 : 14,
-                    ),
-                  ),
-                ],
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              side: const BorderSide(color: AppColors.primary, width: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
               ),
             ),
           ),

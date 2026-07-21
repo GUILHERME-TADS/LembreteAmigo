@@ -104,15 +104,19 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
       if (user == null) {
         throw StateError('O Google nao retornou uma conta valida.');
       }
-      await FirebaseFirestore.instance
-          .collection('supervisores')
-          .doc(user.uid)
-          .set({
-            'nome': user.displayName ?? 'Cuidador',
-            'email': user.email ?? '',
-            'fotoPath': user.photoURL,
-            'updatedAt': DateTime.now().toIso8601String(),
-          }, SetOptions(merge: true));
+      final docRef = FirebaseFirestore.instance.collection('supervisores').doc(user.uid);
+      final doc = await docRef.get();
+      final Map<String, dynamic> updateData = {
+        'nome': user.displayName ?? 'Cuidador',
+        'email': user.email ?? '',
+        'updatedAt': DateTime.now().toIso8601String(),
+      };
+
+      if (!doc.exists || (doc.data()?['fotoPath'] == null && user.photoURL != null)) {
+        updateData['fotoPath'] = user.photoURL;
+      }
+
+      await docRef.set(updateData, SetOptions(merge: true));
       await SessionRoleService.setSupervisor();
       await SessionRoleService.restoreSupervisorIdosoLink();
       await PushNotificationService.instance.saveCurrentToken();

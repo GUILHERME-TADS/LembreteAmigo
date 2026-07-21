@@ -748,6 +748,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                       final data = result as Map<String, dynamic>;
                       setState(() {
                         _selectedCategory = 'medicacao';
+                        _activeStep = 2;
                         if (data['titulo'] != null &&
                             data['titulo'].toString().isNotEmpty) {
                           final title = data['titulo'] as String;
@@ -808,6 +809,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                       final data = result as Map<String, dynamic>;
                       setState(() {
                         _selectedCategory = 'medicacao';
+                        _activeStep = 2;
                         if (data['titulo'] != null &&
                             data['titulo'].toString().isNotEmpty) {
                           _titleController.text = data['titulo'] as String;

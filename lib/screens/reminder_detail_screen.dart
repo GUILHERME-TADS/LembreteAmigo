@@ -4,6 +4,7 @@ import '../theme/app_theme.dart';
 import '../models/lembrete.dart';
 import '../services/lembrete_service.dart';
 import '../services/tts_service.dart';
+import '../services/gemini_service.dart';
 import '../services/elderly_profile_repository.dart';
 import '../utils/period_helper.dart';
 import '../widgets/index.dart';
@@ -21,6 +22,7 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
   Lembrete? _lembrete;
   bool _hasSpoken = false;
   bool _isSpeakingAudio = false;
+  bool _isFetchingExplanation = false;
   String? _fotoPath;
 
   @override
@@ -300,6 +302,11 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
                     // 6. Botão Gigante "🔊 OUVIR NOVAMENTE"
                     _buildListenAgainButton(cfg),
 
+                    if (_lembrete?.categoria == 'medicacao') ...[
+                      const SizedBox(height: 16),
+                      _buildGeminiButton(cfg),
+                    ],
+
                     if (_lembrete != null) ...[
                       const SizedBox(height: 32),
                       SizedBox(
@@ -514,6 +521,52 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildGeminiButton(_ReminderCategoryConfig cfg) {
+    return SizedBox(
+      width: double.infinity,
+      height: 60,
+      child: ElevatedButton.icon(
+        onPressed: _isFetchingExplanation ? null : _explicarRemedio,
+        icon: _isFetchingExplanation 
+            ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
+            : const Icon(Icons.psychology, size: 30),
+        label: Text(
+          _isFetchingExplanation ? 'PENSANDO...' : 'PARA QUE SERVE?',
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _explicarRemedio() async {
+    if (_lembrete == null) return;
+    TTSService.instance.parar(caller: this);
+    setState(() {
+      _isFetchingExplanation = true;
+    });
+
+    await TTSService.instance.falar("Vou perguntar ao médico virtual, só um momento.", caller: this);
+
+    final explanation = await GeminiService.explicarMedicamento(_lembrete!.titulo);
+    
+    if (mounted) {
+      setState(() {
+        _isFetchingExplanation = false;
+      });
+      await TTSService.instance.falar(explanation, caller: this);
+    }
   }
 
 

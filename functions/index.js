@@ -302,7 +302,7 @@ function createGeminiModel(modelName, config) {
   }
   const genAI = new GoogleGenerativeAI(apiKey);
   return genAI.getGenerativeModel({
-    model: modelName || "gemini-2.5-flash",
+    model: modelName || "gemini-flash-lite-latest",
     ...config,
   });
 }
@@ -422,7 +422,7 @@ exports.supervisorChat = onCall(
       }
 
       try {
-        const model = createGeminiModel("gemini-2.5-flash", {
+        const model = createGeminiModel("gemini-flash-lite-latest", {
           generationConfig: {
             temperature: 0.5,
             topP: 0.9,
@@ -542,7 +542,7 @@ exports.generateReportInsights = onCall(
           Math.min(100, Math.max(0, data.hidratacaoPct)) : 0;
 
       try {
-        const model = createGeminiModel("gemini-2.5-flash", {
+        const model = createGeminiModel("gemini-flash-lite-latest", {
           generationConfig: {
             temperature: 0.3,
             maxOutputTokens: 1024,
@@ -685,7 +685,7 @@ exports.identifyMedication = onCall(
       const validatedImage = validateBase64(imageBase64, "imageBase64");
 
       try {
-        const model = createGeminiModel("gemini-2.5-flash", {
+        const model = createGeminiModel("gemini-flash-lite-latest", {
           generationConfig: {
             temperature: 0.2,
             maxOutputTokens: 2048,
@@ -845,7 +845,7 @@ exports.parsePrescription = onCall(
       const validatedImage = validateBase64(imageBase64, "imageBase64");
 
       try {
-        const model = createGeminiModel("gemini-2.5-flash", {
+        const model = createGeminiModel("gemini-flash-lite-latest", {
           generationConfig: {
             temperature: 0.15,
             maxOutputTokens: 2048,
@@ -953,7 +953,7 @@ exports.parseVoiceReminder = onCall(
       const validatedText = validateString(text, "text", 2000);
 
       try {
-        const model = createGeminiModel("gemini-2.5-flash", {
+        const model = createGeminiModel("gemini-flash-lite-latest", {
           generationConfig: {
             temperature: 0.1,
             maxOutputTokens: 1024,
@@ -1197,7 +1197,7 @@ exports.lookupBarcode = onCall(
 
       // 2. Try Gemini to identify by barcode using Google Search grounding
       try {
-        const searchModel = createGeminiModel("gemini-2.5-flash", {
+        const searchModel = createGeminiModel("gemini-flash-lite-latest", {
           tools: [{googleSearch: {}}],
         });
 
@@ -1212,7 +1212,7 @@ exports.lookupBarcode = onCall(
             await searchModel.generateContent([{text: searchPrompt}]);
         const searchText = searchResult.response.text();
 
-        const parserModel = createGeminiModel("gemini-2.5-flash", {
+        const parserModel = createGeminiModel("gemini-flash-lite-latest", {
           generationConfig: {
             temperature: 0.1,
             responseMimeType: "application/json",
@@ -1341,7 +1341,7 @@ exports.analyzeMedication = onCall(
           })).filter((m) => m.titulo.length > 0) : [];
 
       try {
-        const model = createGeminiModel("gemini-2.5-flash", {
+        const model = createGeminiModel("gemini-flash-lite-latest", {
           generationConfig: {
             temperature: 0.2,
             responseMimeType: "application/json",
@@ -1462,7 +1462,7 @@ exports.queryMedicationFAQ = onCall(
       const cleanQuestion = String(question).trim().slice(0, 500);
 
       try {
-        const model = createGeminiModel("gemini-2.5-flash", {
+        const model = createGeminiModel("gemini-flash-lite-latest", {
           generationConfig: {
             temperature: 0.3,
             responseMimeType: "application/json",

@@ -50,6 +50,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   String _enderecoIdoso = '';
   String _selectedCategoryFilter = 'Todos';
   String _selectedStatusFilter = 'Todos';
+  String _dateFilterMode = 'hoje'; // 'hoje', 'data', 'todos'
+  DateTime _selectedDate = DateTime.now();
   bool _showChartsAccordion = false;
   bool _refortIsLoading = false;
   bool _callIsLoading = false;
@@ -1780,10 +1782,85 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     );
   }
 
-  Widget _buildTodayReminders(BuildContext context) {
-    final rawList = ReminderStateHelper.activeTodaySorted(
-      LembreteService.instance.lembretes,
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.primary,
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
+    if (picked != null && mounted) {
+      setState(() {
+        _selectedDate = picked;
+        _dateFilterMode = 'data';
+      });
+    }
+  }
+
+  Widget _buildDateModeChip(String label, String mode, IconData icon) {
+    final isSelected = _dateFilterMode == mode;
+    return ChoiceChip(
+      avatar: Icon(
+        icon,
+        size: 18,
+        color: isSelected ? Colors.white : AppColors.primary,
+      ),
+      label: Text(
+        label,
+        style: TextStyle(
+          color: isSelected ? Colors.white : AppColors.primary,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      showCheckmark: false,
+      selected: isSelected,
+      selectedColor: AppColors.primary,
+      backgroundColor: AppColors.surfaceContainer,
+      onSelected: (selected) {
+        if (selected) {
+          if (mode == 'data' && _dateFilterMode != 'data') {
+            _pickDate();
+          } else if (mode == 'data' && _dateFilterMode == 'data') {
+            _pickDate();
+          } else {
+            setState(() {
+              _dateFilterMode = mode;
+            });
+          }
+        }
+      },
+    );
+  }
+
+  Widget _buildTodayReminders(BuildContext context) {
+    final targetDate = _dateFilterMode == 'hoje' ? DateTime.now() : _selectedDate;
+    
+    var rawList = _dateFilterMode == 'todos'
+        ? LembreteService.instance.lembretes.toList()
+        : ReminderStateHelper.activeTodaySorted(
+            LembreteService.instance.lembretes,
+            now: targetDate,
+          );
+
+    if (_dateFilterMode == 'todos') {
+      rawList.sort((a, b) {
+        if (a.horarioHour != b.horarioHour) {
+          return a.horarioHour.compareTo(b.horarioHour);
+        }
+        return a.horarioMinute.compareTo(b.horarioMinute);
+      });
+    }
+
     var filteredList = _selectedCategoryFilter == 'Todos'
         ? rawList
         : rawList.where((l) => l.categoria == _selectedCategoryFilter).toList();
@@ -1809,7 +1886,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Lembretes de Hoje',
+          'Lembretes',
           style: TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.w700,
@@ -1817,17 +1894,36 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
           ),
         ),
         const SizedBox(height: 12),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              _buildDateModeChip('Hoje', 'hoje', Icons.today),
+              const SizedBox(width: 8),
+              _buildDateModeChip(
+                _dateFilterMode == 'data' 
+                  ? 'Dia ${targetDate.day.toString().padLeft(2, '0')}/${targetDate.month.toString().padLeft(2, '0')}' 
+                  : 'Outra Data', 
+                'data', 
+                Icons.calendar_month,
+              ),
+              const SizedBox(width: 8),
+              _buildDateModeChip('Todos', 'todos', Icons.all_inclusive),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
         _buildCategoryFilters(),
         const SizedBox(height: 8),
         _buildStatusFilters(rawList),
         const SizedBox(height: 16),
         AudioPlayerCard(
           accentColor: AppColors.primary,
-          subtitle: 'Ouça todos os lembretes do dia',
+          subtitle: _dateFilterMode == 'todos' ? 'Ouça todos os lembretes' : 'Ouça todos os lembretes do dia',
           textsToSpeak: filteredList.isEmpty
-              ? ['Nenhum lembrete cadastrado para hoje nesta categoria.']
+              ? [_dateFilterMode == 'todos' ? 'Nenhum lembrete cadastrado nesta categoria.' : 'Nenhum lembrete cadastrado para este dia.']
               : [
-                  'Lembretes de hoje para $_nomeIdoso:',
+                  _dateFilterMode == 'todos' ? 'Todos os lembretes de $_nomeIdoso:' : 'Lembretes do dia ${targetDate.day.toString().padLeft(2, '0')} para $_nomeIdoso:',
                   ...filteredList.map(
                     (l) => '${l.titulo} às ${l.horarioFormatado}.',
                   ),

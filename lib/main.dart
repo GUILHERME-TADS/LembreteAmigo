@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:alarm/alarm.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'models/lembrete.dart';
 import 'models/video_call.dart';
@@ -783,6 +784,14 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
       navigatorKey: navigatorKey,
       navigatorObservers: [_routeTracker],
       debugShowCheckedModeBanner: false,
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('pt', 'BR'),
+      ],
       theme: AppTheme.theme.copyWith(
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(

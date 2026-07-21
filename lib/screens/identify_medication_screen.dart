@@ -28,15 +28,19 @@ class _IdentifyMedicationScreenState
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Identificar Remédio'),
+        title: const Text(
+          'Identificar Remédio',
+          style: TextStyle(color: Colors.white),
+        ),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -121,61 +125,59 @@ class _IdentifyMedicationScreenState
                 ),
               ),
               const SizedBox(height: 20),
-              Expanded(
-                child: Center(
-                  child: _fotoPath != null
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: Image.file(
-                            File(_fotoPath!),
-                            height: 300,
-                            fit: BoxFit.contain,
-                            errorBuilder: (_, error, stackTrace) =>
-                                const Icon(Icons.broken_image, size: 64),
-                          ),
-                        )
-                      : GestureDetector(
-                          onTap: _tirarFoto,
-                          child: Container(
-                            height: 300,
-                            decoration: BoxDecoration(
-                              color: AppColors.surfaceContainerLow,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: AppColors.outlineVariant,
-                                width: 2,
-                              ),
+              Center(
+                child: _fotoPath != null
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Image.file(
+                          File(_fotoPath!),
+                          height: 300,
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, error, stackTrace) =>
+                              const Icon(Icons.broken_image, size: 64),
+                        ),
+                      )
+                    : GestureDetector(
+                        onTap: _tirarFoto,
+                        child: Container(
+                          height: 300,
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceContainerLow,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: AppColors.outlineVariant,
+                              width: 2,
                             ),
-                            child: const Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.add_a_photo,
-                                  size: 72,
+                          ),
+                          child: const Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.add_a_photo,
+                                size: 72,
+                                color: AppColors.primary,
+                              ),
+                              SizedBox(height: 16),
+                              Text(
+                                'ADICIONAR FOTO',
+                                style: TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w800,
                                   color: AppColors.primary,
                                 ),
-                                SizedBox(height: 16),
-                                Text(
-                                  'ADICIONAR FOTO',
-                                  style: TextStyle(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColors.primary,
-                                  ),
+                              ),
+                              SizedBox(height: 6),
+                              Text(
+                                'Câmera ou Galeria',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  color: AppColors.onSurfaceVariant,
                                 ),
-                                SizedBox(height: 6),
-                                Text(
-                                  'Câmera ou Galeria',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    color: AppColors.onSurfaceVariant,
-                                  ),
-                                ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ),
-                ),
+                      ),
               ),
               if (_result != null) _buildResultCard(),
               const SizedBox(height: 24),
@@ -183,7 +185,9 @@ class _IdentifyMedicationScreenState
                 height: 64,
                 child: ElevatedButton(
                   onPressed:
-                      _fotoPath != null && !_isProcessing ? _identificar : null,
+                      _fotoPath != null && !_isProcessing
+                          ? (_result != null ? _tirarFoto : _identificar)
+                          : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
@@ -254,6 +258,7 @@ class _IdentifyMedicationScreenState
               ],
             ],
           ),
+        ),
         ),
       ),
     );

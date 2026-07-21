@@ -1,4 +1,5 @@
 import 'package:just_audio/just_audio.dart';
+import 'package:just_audio_background/just_audio_background.dart';
 import 'package:flutter/foundation.dart';
 
 class RadioService {
@@ -94,12 +95,29 @@ class RadioService {
     await _player.stop();
   }
 
-  Future<void> playStation(String url, String name) async {
+  Future<void> playStation(String url, String name, [String? subtitle]) async {
     _initIfNeeded();
     try {
       currentStationNameNotifier.value = name;
       currentStationUrlNotifier.value = url;
-      await _player.setUrl(url);
+
+      final matching = stations.firstWhere(
+        (s) => s['url'] == url || s['name'] == name,
+        orElse: () => {'subtitle': subtitle ?? 'Músicas e programação 24h'},
+      );
+      final stationSubtitle = subtitle ?? matching['subtitle'] ?? 'Músicas e programação 24h';
+
+      final source = AudioSource.uri(
+        Uri.parse(url),
+        tag: MediaItem(
+          id: url,
+          album: 'Rádio LembreteAmigo',
+          title: name,
+          artist: stationSubtitle,
+          artUri: Uri.parse('https://cdn-icons-png.flaticon.com/512/3128/3128308.png'),
+        ),
+      );
+      await _player.setAudioSource(source);
       _player.play();
     } catch (e) {
       debugPrint('Erro ao tentar tocar a estação $name ($url): $e');
@@ -120,11 +138,23 @@ class RadioService {
       final station = stations[(startIndex + i) % stations.length];
       final streamUrl = station['url']!;
       final stationName = station['name']!;
+      final stationSubtitle = station['subtitle'] ?? 'Transmissão ao vivo';
 
       try {
         currentStationNameNotifier.value = stationName;
         currentStationUrlNotifier.value = streamUrl;
-        await _player.setUrl(streamUrl);
+
+        final source = AudioSource.uri(
+          Uri.parse(streamUrl),
+          tag: MediaItem(
+            id: streamUrl,
+            album: 'Rádio LembreteAmigo',
+            title: stationName,
+            artist: stationSubtitle,
+            artUri: Uri.parse('https://cdn-icons-png.flaticon.com/512/3128/3128308.png'),
+          ),
+        );
+        await _player.setAudioSource(source);
         _player.play();
         connected = true;
         break;

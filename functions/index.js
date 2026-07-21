@@ -684,63 +684,120 @@ exports.identifyMedication = onCall(
       const {imageBase64} = request.data;
       const validatedImage = validateBase64(imageBase64, "imageBase64");
 
-      try {
-        const model = createGeminiModel("gemini-flash-lite-latest", {
-          generationConfig: {
-            temperature: 0.2,
-            maxOutputTokens: 2048,
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: "object",
-              properties: {
-                nome: {type: "string"},
-                dosagem: {type: "string"},
-                forma: {type: "string"},
-                cor: {type: "string"},
-                intervaloSugerido: {type: "string"},
-                observacoes: {type: "string"},
-              },
-              required: [
-                "nome",
-                "dosagem",
-                "forma",
-                "cor",
-                "intervaloSugerido",
-                "observacoes",
-              ],
-            },
+      const generationConfig = {
+        temperature: 0.2,
+        maxOutputTokens: 2048,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "object",
+          properties: {
+            nome: {type: "string"},
+            dosagem: {type: "string"},
+            forma: {type: "string"},
+            cor: {type: "string"},
+            intervaloSugerido: {type: "string"},
+            observacoes: {type: "string"},
           },
+          required: [
+            "nome",
+            "dosagem",
+            "forma",
+            "cor",
+            "intervaloSugerido",
+            "observacoes",
+          ],
+        },
+      };
+
+      const prompt =
+          "Você é um farmacêutico clínico especialista em triagem visual de " +
+          "embalagens de medicamentos no Brasil.\n" +
+          "Analise esta imagem de medicamento (caixa, cartela ou frasco) e " +
+          "extraia as informações em formato JSON estrito.\n" +
+          "REGRAS CLÍNICAS E DE SEGURANÇA:\n" +
+          "1. Priorize Princípio Ativo e Dosagem na face principal.\n" +
+          "2. Ignore slogans publicitários, marcas de farmácia e lote/data.\n" +
+          "3. Se houver reflexo ou desfoque na dosagem, indique incerteza " +
+          "no campo 'observacoes'. Nunca adivinhe números.\n" +
+          "MUITO IMPORTANTE: Se a imagem não contiver um medicamento " +
+          "legível, deixe o campo 'nome' completamente vazio (\"\").\n\n" +
+          "EXEMPLOS DE ORIENTAÇÃO (FEW-SHOT):\n" +
+          "1. Se a imagem mostrar 'Losartana Potássica 50mg, 30 comp':\n" +
+          "   - nome: \"Losartana Potássica\"\n" +
+          "   - dosagem: \"50mg\"\n" +
+          "   - forma: \"Comprimido revestido\"\n" +
+          "   - cor: \"Branca\"\n" +
+          "   - intervaloSugerido: \"Conforme orientação médica ou bula\"\n" +
+          "   - observacoes: \"Embalagem com 30 comprimidos revestidos.\"\n\n" +
+          "2. Se a imagem mostrar frasco 'Novalgina Gotas 500mg/mL 20mL':\n" +
+          "   - nome: \"Novalgina\"\n" +
+          "   - dosagem: \"500mg/mL\"\n" +
+          "   - forma: \"Gotas / Solução oral\"\n" +
+          "   - cor: \"Líquido / Embalagem escura\"\n" +
+          "   - intervaloSugerido: \"Conforme prescrição ou bula\"\n" +
+          "   - observacoes: \"Frasco com 20mL em gotas.\"\n\n" +
+          "3. Se a imagem não for um medicamento legível:\n" +
+          "   - nome: \"\"\n" +
+          "   - dosagem: \"\"\n" +
+          "   - forma: \"\"\n" +
+          "   - cor: \"\"\n" +
+          "   - intervaloSugerido: \"\"\n" +
+          "   - observacoes: \"Nenhum medicamento reconhecido na imagem.\"";
+
+      const imageParts = [
+        {text: prompt},
+        {
+          inlineData: {
+            mimeType: "image/jpeg",
+            data: validatedImage,
+          },
+        },
+      ];
+
+      try {
+        // Tentativa 1: gemini-flash-lite-latest (95% dos casos)
+        const model = createGeminiModel("gemini-flash-lite-latest", {
+          generationConfig,
         });
 
-        const prompt =
-          "Analise esta imagem de um medicamento e extraia " +
-          "as informações correspondentes. " +
-          "MUITO IMPORTANTE: Se a imagem não contiver um medicamento " +
-          "legível, deixe o campo 'nome' completamente vazio (\"\").";
+        let responseText = "";
+        let parsed = null;
 
-        const imageParts = [
-          {text: prompt},
-          {
-            inlineData: {
-              mimeType: "image/jpeg",
-              data: validatedImage,
-            },
-          },
-        ];
-
-        const result = await model.generateContent(imageParts);
-        const responseText = result.response.text();
-
-        let parsed;
         try {
+          const result = await model.generateContent(imageParts);
+          responseText = result.response.text();
           parsed = JSON.parse(cleanJsonResponse(responseText));
-        } catch (e) {
-          console.error(
-              "Erro ao analisar JSON retornado:",
-              e,
-              "Resposta original:",
-              responseText,
+        } catch (liteError) {
+          console.warn(
+              "Falha ao processar com gemini-flash-lite-latest:",
+              liteError,
           );
+        }
+
+        // Fallback Inteligente: Aciona se falhou ou retornou nome vazio
+        if (!parsed || !String(parsed.nome || "").trim()) {
+          console.log(
+              "[Smart Fallback] identifyMedication: " +
+              "gemini-flash-lite-latest retornou vazio ou falhou. " +
+              "Acionando resgate com gemini-2.5-flash...",
+          );
+          try {
+            const fallbackModel = createGeminiModel("gemini-2.5-flash", {
+              generationConfig,
+            });
+            const fallbackResult =
+                await fallbackModel.generateContent(imageParts);
+            responseText = fallbackResult.response.text();
+            parsed = JSON.parse(cleanJsonResponse(responseText));
+          } catch (fallbackError) {
+            console.error(
+                "Erro no fallback do identifyMedication:",
+                fallbackError,
+            );
+          }
+        }
+
+        if (!parsed || !String(parsed.nome || "").trim()) {
           return {
             nome: "",
             dosagem: "",
@@ -748,8 +805,9 @@ exports.identifyMedication = onCall(
             cor: "",
             intervaloSugerido: "",
             observacoes: "",
-            erro: "Nao foi possivel interpretar a imagem " +
-                  "como um medicamento.",
+            erro: "Não foi possível interpretar a imagem como " +
+                  "um medicamento. Tente tirar outra foto com mais " +
+                  "iluminação e foco.",
           };
         }
 
@@ -785,16 +843,37 @@ exports.identifyMedication = onCall(
 // =============================================================================
 
 const prescriptionPrompt =
-    "Analise esta imagem de uma receita medica. Extraia todos os " +
-    "medicamentos listados, interpretando a posologia e determinando o " +
-    "horario de agendamento inicial correto para cada lembrete de " +
-    "medicao.\n" +
-    "MUITO IMPORTANTE: Se a imagem não for uma receita médica " +
-    "ou não contiver nenhum medicamento, retorne um array " +
-    "'lembretes' vazio.\n" +
-    "Se a receita descrever multiplas doses (ex: de 8 em 8 horas), " +
-    "crie apenas o lembrete para a primeira dose do dia, e indique " +
-    "o intervalo nas observacoes.";
+    "Você é um assistente médico especialista em decifrar receitas " +
+    "médicas brasileiras (impressas, manuscritas e cursivas).\n" +
+    "Analise a imagem da receita e extraia os medicamentos para criar " +
+    "os agendamentos iniciais de lembrete em JSON.\n" +
+    "REGRAS DE OCR PARA RECEITAS E MANUSCRITO:\n" +
+    "1. Atenção especial a letra cursiva de médico e abreviações comuns " +
+    "(ex: '1 cp 12/12h' = 1 comprimido de 12 em 12h; 'VO' = via oral; " +
+    "'SN' = se necessário; 'AC' = antes das refeições).\n" +
+    "2. Se a receita descrever múltiplas doses no dia, crie o lembrete " +
+    "apenas para a PRIMEIRA dose e detalhe o intervalo nas observações.\n" +
+    "3. Se o nome estiver legível mas a dosagem ou horário borrados, " +
+    "avise em 'observacoes': 'Atenção: confirme a dosagem ilegível'.\n" +
+    "MUITO IMPORTANTE: Se não for uma receita ou não houver medicamentos " +
+    "legíveis, retorne um array 'lembretes' vazio [].\n\n" +
+    "EXEMPLOS DE ORIENTAÇÃO (FEW-SHOT):\n" +
+    "1. Se disser: 'Amoxicilina 500mg - 1 cp 8/8h por 7d (início 08h)':\n" +
+    "   - titulo: \"Amoxicilina\"\n" +
+    "   - dosagem: \"500mg - 1 cápsula\"\n" +
+    "   - horarioHour: 8\n" +
+    "   - horarioMinute: 0\n" +
+    "   - categoria: \"medicacao\"\n" +
+    "   - observacoes: \"Tomar 1 cápsula de 8 em 8 horas por 7 dias.\"\n\n" +
+    "2. Se disser: 'Dipirona Gotas 500mg/mL - 35 gotas 6/6h SN (14:30)':\n" +
+    "   - titulo: \"Dipirona Gotas\"\n" +
+    "   - dosagem: \"500mg/mL (35 gotas)\"\n" +
+    "   - horarioHour: 14\n" +
+    "   - horarioMinute: 30\n" +
+    "   - categoria: \"medicacao\"\n" +
+    "   - observacoes: \"Tomar 35 gotas de 6/6h se febre ou dor forte.\"\n\n" +
+    "3. Se a imagem estiver ilegível ou for sem medicamentos:\n" +
+    "   - lembretes: []";
 
 const prescriptionSchema = {
   type: "object",
@@ -849,42 +928,76 @@ exports.parsePrescription = onCall(
       const {imageBase64} = request.data;
       const validatedImage = validateBase64(imageBase64, "imageBase64");
 
-      try {
-        const model = createGeminiModel("gemini-flash-lite-latest", {
-          generationConfig: {
-            temperature: 0.15,
-            maxOutputTokens: 2048,
-            responseMimeType: "application/json",
-            responseSchema: prescriptionSchema,
+      const generationConfig = {
+        temperature: 0.15,
+        maxOutputTokens: 2048,
+        responseMimeType: "application/json",
+        responseSchema: prescriptionSchema,
+      };
+
+      const imageParts = [
+        {text: "Analise esta receita medica:"},
+        {
+          inlineData: {
+            mimeType: "image/jpeg",
+            data: validatedImage,
           },
+        },
+      ];
+
+      try {
+        // Tentativa 1: gemini-flash-lite-latest (95% dos casos)
+        const model = createGeminiModel("gemini-flash-lite-latest", {
+          generationConfig,
         });
 
-        const imageParts = [
-          {text: "Analise esta receita medica:"},
-          {
-            inlineData: {
-              mimeType: "image/jpeg",
-              data: validatedImage,
-            },
-          },
-        ];
+        let responseText = "";
+        let parsed = null;
 
-        const result = await model.generateContent([
-          {text: prescriptionPrompt},
-          ...imageParts,
-        ]);
-        const responseText = result.response.text();
-
-        let parsed;
         try {
+          const result = await model.generateContent([
+            {text: prescriptionPrompt},
+            ...imageParts,
+          ]);
+          responseText = result.response.text();
           parsed = JSON.parse(cleanJsonResponse(responseText));
-        } catch (e) {
-          console.error(
-              "Erro ao analisar JSON de receita:", e, responseText,
+        } catch (liteError) {
+          console.warn(
+              "Falha com gemini-flash-lite-latest em receita:",
+              liteError,
           );
+        }
+
+        // Fallback Inteligente: Aciona se falhou ou retornou 0 lembretes
+        if (!parsed || !parsed.lembretes || parsed.lembretes.length === 0) {
+          console.log(
+              "[Smart Fallback] parsePrescription: " +
+              "gemini-flash-lite-latest não identificou medicamentos. " +
+              "Acionando resgate com gemini-2.5-flash...",
+          );
+          try {
+            const fallbackModel = createGeminiModel("gemini-2.5-flash", {
+              generationConfig,
+            });
+            const fallbackResult = await fallbackModel.generateContent([
+              {text: prescriptionPrompt},
+              ...imageParts,
+            ]);
+            responseText = fallbackResult.response.text();
+            parsed = JSON.parse(cleanJsonResponse(responseText));
+          } catch (fallbackError) {
+            console.error(
+                "Erro no fallback de parsePrescription:",
+                fallbackError,
+            );
+          }
+        }
+
+        if (!parsed || !parsed.lembretes) {
           return {
             lembretes: [],
-            erro: "Nao foi possivel estruturar os dados da receita.",
+            erro: "Não foi possível estruturar os dados da receita " +
+                  "médica. Verifique a nitidez da foto e tente novamente.",
           };
         }
 
@@ -909,7 +1022,7 @@ exports.parsePrescription = onCall(
         console.error("parsePrescription error:", error);
         return {
           lembretes: [],
-          erro: "Erro ao processar receita medica. Tente novamente.",
+          erro: "Erro ao processar receita médica. Tente novamente.",
         };
       }
     },
@@ -1207,11 +1320,10 @@ exports.lookupBarcode = onCall(
         });
 
         const searchPrompt =
-          "Pesquise na internet qual é o produto ou " +
-          "medicamento brasileiro correspondente ao " +
-          "código de barras EAN-13 '" + cleanBarcode + "'. " +
-          "Retorne detalhes como nome do produto, " +
-          "dosagem/peso, forma de uso e cor da embalagem.";
+          "Pesquise no Google qual é o medicamento ou produto de saúde " +
+          "registrado no Brasil para o código de barras EAN-13 " +
+          "'" + cleanBarcode + "'. Priorize sites como ANVISA, bulas " +
+          "e farmácias confiáveis. Retorne nome, dosagem, forma e cor.";
 
         const searchResult =
             await searchModel.generateContent([{text: searchPrompt}]);
@@ -1226,10 +1338,11 @@ exports.lookupBarcode = onCall(
         });
 
         const parsePrompt =
-          "Extraia as informações do seguinte texto sobre o " +
-          "produto do código de barras " + cleanBarcode + ":\n\n" +
+          "Extraia os dados clínicos e farmacêuticos do texto abaixo " +
+          "sobre o produto do código de barras " + cleanBarcode + ":\n\n" +
           searchText + "\n\n" +
-          "Responda em JSON seguindo o esquema definido.";
+          "REGRAS: Ignore totalmente preços, valores R$, promoções, " +
+          "frete grátis, descontos e nomes de lojas. Responda em JSON.";
 
         const result = await parserModel.generateContent([{text: parsePrompt}]);
         const responseText = result.response.text();

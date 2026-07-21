@@ -128,32 +128,124 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
     final lower = texto.toLowerCase();
     
     final medicacaoKeywords = [
+      // 1. Termos e formas farmacêuticas gerais
       'remédio', 'remedio', 'comprimido', 'cápsula', 'capsula', 'gotas', 'pomada',
-      'medicamento', 'dipirona', 'losartana', 'vitamina', 'aspirina', 'paracetamol',
-      'analgésico', 'ibuprofeno', 'antibiótico', 'colírio', 'colirio', 'insulina',
-      'vacina', 'injeção', 'injecao', 'xarope', 'inalador', 'bombinha', 'calmante',
-      'anti-inflamatório', 'antiinflamatorio', 'sinvastatina', 'metformina',
-      'enalapril', 'omeprazol', 'rivotril', 'pastilha', 'pílula', 'pilula', 'suplemento'
+      'medicamento', 'vitamina', 'analgésico', 'analgesico', 'antibiótico', 'antibiotico',
+      'colírio', 'colirio', 'insulina', 'vacina', 'injeção', 'injecao', 'xarope',
+      'inalador', 'bombinha', 'calmante', 'anti-inflamatório', 'antiinflamatorio',
+      'pastilha', 'pílula', 'pilula', 'suplemento', 'creme', 'gel', 'spray', 'flaconete',
+      'ampola', 'drágea', 'dragea', 'elixir', 'suspensão', 'suspensao', 'soro',
+      'solução oral', 'ferro', 'cálcio', 'calcio', 'ômega', 'omega', 'probiótico',
+      'probiotico', 'colágeno', 'colageno', 'antigripal', 'antialérgico', 'antialergico',
+      'antidepressivo', 'anti-hipertensivo', 'dose', 'medicação', 'medicacao',
+
+      // 2. Analgésicos, antitérmicos, relaxantes e anti-inflamatórios
+      'dipirona', 'novalgina', 'paracetamol', 'tylenol', 'ibuprofeno', 'alivium',
+      'aspirina', 'aas', 'dorflex', 'tandrilax', 'neosaldina', 'neosa', 'toragesic',
+      'trometamol', 'cetorolaco', 'nimesulida', 'scimflam', 'diclofenaco', 'cataflam',
+      'voltaren', 'meloxicam', 'piroxicam', 'celecoxibe', 'naproxeno', 'flurbiprofeno',
+      'ketoprofeno', 'cetoprofeno', 'lisador', 'cimegripe', 'benegrip', 'resfenol',
+      'coristina', 'vick', 'multigrip', 'mioflex', 'trimed',
+
+      // 3. Saúde cardiovascular (pressão arterial, colesterol, circulação)
+      'losartana', 'aradois', 'valsartana', 'candesartana', 'olmesartana', 'telmisartana',
+      'enalapril', 'captopril', 'ramipril', 'lisinopril', 'atenolol', 'propranolol',
+      'metoprolol', 'selozok', 'bisoprolol', 'carvedilol', 'anlodipino', 'nifedipino',
+      'diltiazem', 'verapamil', 'hidroclorotiazida', 'furosemida', 'lasix',
+      'espironolactona', 'aldactone', 'clortalidona', 'indapamida', 'sinvastatina',
+      'atorvastatina', 'rosuvastatina', 'ezetimiba', 'clopidogrel', 'plavix',
+      'somalgin', 'varfarina', 'marevan', 'xarelto', 'rivaroxabana', 'apixabana',
+      'eliquis', 'daflon', 'diosmina', 'hesperidina', 'vasopril', 'concor',
+
+      // 4. Diabetes e metabolismo
+      'metformina', 'glifage', 'glibenclamida', 'gliclazida', 'diamicron',
+      'glimepirida', 'sitagliptina', 'januvia', 'vildagliptina', 'galvus',
+      'dapagliflozina', 'forxiga', 'empagliflozina', 'jardiance', 'dulaglutida',
+      'trulicity', 'semaglutida', 'ozempic', 'rybelsus', 'liraglutida', 'saxenda',
+      'victoza', 'lantus', 'tresiba', 'humalog', 'novorapid', 'nph', 'regular',
+
+      // 5. Sistema digestivo e gástrico (estômago, enjoo, intestino)
+      'omeprazol', 'pantoprazol', 'esomeprazol', 'rabeprazol', 'lansoprazol',
+      'ranitidina', 'famotidina', 'domperidona', 'motilium', 'plasil', 'metoclopramida',
+      'dramin', 'dimenidrato', 'vonau', 'ondansetrona', 'buscopan', 'escopolamina',
+      'simeticona', 'luftal', 'estomazil', 'eno', 'sonrisal', 'lactulona', 'lactulose',
+      'tamarine', 'bisacodil', 'dulcolax', 'imosec', 'loperamida', 'floratil',
+
+      // 6. Sistema nervoso, sono, psiquiatria e ansiedade
+      'rivotril', 'clonazepam', 'diazepam', 'valium', 'alprazolam', 'frontal',
+      'bromazepam', 'lexotan', 'lorazepam', 'zolpidem', 'stilnox', 'zopiclona',
+      'melatonina', 'amitriptilina', 'nortriptilina', 'sertralina', 'zoloft',
+      'fluoxetina', 'prozac', 'escitalopram', 'lexapro', 'citalopram', 'venlafaxina',
+      'desvenlafaxina', 'duloxetina', 'trazodona', 'donaren', 'mirtazapina',
+      'pregabalina', 'lyrica', 'gabapentina', 'quetiapina', 'risperidona',
+      'olanzapina', 'aripiprazol', 'lítio', 'litio', 'carbolitium', 'biotonico',
+
+      // 7. Respiratório, alergia e colírios
+      'loratadina', 'claritin', 'desloratadina', 'cetirizina', 'fexofenadina',
+      'allegra', 'dexclorfeniramina', 'polaramine', 'hidrocortisona', 'prednisona',
+      'meticorten', 'prednisolona', 'dexametasona', 'decadron', 'betametasona',
+      'budesonida', 'busonid', 'fluticasona', 'avamys', 'berotec', 'atrovent',
+      'aerolin', 'salbutamol', 'symbicort', 'alenia', 'seretide', 'montelucaste',
+      'singular', 'neosoro', 'sorine', 'rinoro', 'hyabak', 'systane', 'lacrifilm', 'optive',
+
+      // 8. Tireoide e ossos
+      'levotiroxina', 'puran', 'euthyrox', 'synthroid', 'tapazol', 'alendronato',
+      'ibandronato', 'bonviva', 'risedronato', 'actonel', 'calcitriol',
+
+      // 9. Antibióticos e antifúngicos
+      'amoxicilina', 'clavulanato', 'azitromicina', 'astro', 'cefalexina', 'keflex',
+      'ciprofloxacino', 'levofloxacino', 'norfloxacino', 'sulfametoxazol', 'bactrim',
+      'metronidazol', 'fluconazol', 'itraconazol', 'nistatina', 'miconazol', 'cetoconazol'
     ];
     
     final refeicoesKeywords = [
+      // 1. Refeições principais e rotina de alimentação
       'almoço', 'almoco', 'jantar', 'café', 'cafe', 'refeição', 'refeicao',
       'comer', 'comida', 'lanche', 'café da manhã', 'cafedamanha', 'janta',
-      'alimentar', 'fruta', 'sopa', 'chá', 'cha', 'suco', 'leite', 'biscoito',
-      'pão', 'pao', 'merenda', 'ceia', 'desjejum', 'sobremesa', 'refeicoes'
+      'alimentar', 'merenda', 'ceia', 'desjejum', 'sobremesa', 'refeicoes',
+      'almoçar', 'almocar', 'lanchar', 'tomar café', 'tomar cafe', 'merendar',
+      'banquete', 'marmita', 'quentinha', 'alimento', 'alimentação', 'alimentacao',
+
+      // 2. Alimentos, lanches e preparações caseiras
+      'fruta', 'sopa', 'chá', 'cha', 'suco', 'leite', 'biscoito', 'pão', 'pao',
+      'mingau', 'papa', 'caldo', 'canja', 'gelatina', 'iogurte', 'queijo',
+      'bolacha', 'bolo', 'tapioca', 'cuzcuz', 'cuscuz', 'aveia', 'vitamina de fruta',
+      'purê', 'pure', 'arroz', 'feijão', 'feijao', 'salada', 'carne', 'frango',
+      'peixe', 'ovo', 'ovos', 'omelete', 'torrada', 'banana', 'maçã', 'maca',
+
+      // 3. Suplementação nutricional e dietas
+      'ensure', 'nutren', 'sustagen', 'papinha', 'sonda', 'dieta', 'jejum',
+      'pós-refeição', 'pos-refeicao', 'antes de comer', 'depois de comer'
     ];
     
     final exercicioKeywords = [
+      // 1. Atividades físicas gerais e caminhada
       'caminhar', 'caminhada', 'exercício', 'exercicio', 'alongamento', 'fisioterapia',
       'andar', 'academia', 'alongar', 'treino', 'treinar', 'passeio', 'passear',
       'correr', 'corrida', 'fisio', 'ginástica', 'ginastica', 'mexer', 'exercitar',
-      'hidroginástica', 'hidroginastica', 'pilates', 'yoga', 'ioga', 'alongar-se'
+      'hidroginástica', 'hidroginastica', 'pilates', 'yoga', 'ioga', 'alongar-se',
+      'dar uma volta', 'movimentar', 'movimento', 'fazer exercício', 'fazer exercicio', 'praticar',
+
+      // 2. Reabilitação, fisioterapia e mobilidade para idosos
+      'bicicleta', 'ergométrica', 'ergometrica', 'esteira', 'pesinho', 'halter',
+      'agachamento', 'mobilidade', 'postura', 'equilíbrio', 'equilibrio',
+      'coordenação', 'coordenacao', 'respiratório', 'respiratorio', 'exercício pulmonar',
+      'exercicio pulmonar', 'exercício para perna', 'exercicio para perna',
+      'exercício para o joelho', 'alongar coluna', 'exercitar braço', 'subir escada',
+      'fortalecimento', 'motor', 'motora'
     ];
     
     final hidratacaoKeywords = [
+      // 1. Água e consumo diário de líquidos
       'água', 'agua', 'beber', 'copo', 'hidratar', 'hidratacao', 'hidratação',
       'líquido', 'liquido', 'garrafa', 'copinho', 'gole', 'beber água', 'beber agua',
-      'sede', 'hidratando', 'copo d\'água', 'copo d\'agua'
+      'sede', 'hidratando', 'copo d\'água', 'copo d\'agua', 'tomar água', 'tomar agua',
+      'garrafinha', 'se hidratar', 'hidratar o corpo', 'mais água', 'goles de água',
+
+      // 2. Reidratação, água de coco e soro
+      'água de coco', 'agua de coco', 'soro caseiro', 'soro oral', 'reidratar',
+      'reidratação', 'reidratacao', 'isotônico', 'isotonico', 'beber líquido',
+      'beber liquido', 'tomar líquido', 'tomar liquido'
     ];
 
     for (final kw in medicacaoKeywords) {

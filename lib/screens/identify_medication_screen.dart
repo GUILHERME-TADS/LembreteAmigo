@@ -308,7 +308,9 @@ class _IdentifyMedicationScreenState
     try {
       final image = await _imagePicker.pickImage(
         source: source,
-        imageQuality: 80,
+        maxWidth: 1600,
+        maxHeight: 1600,
+        imageQuality: 85,
       );
       if (image != null && mounted) {
         setState(() {

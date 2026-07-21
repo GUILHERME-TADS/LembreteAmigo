@@ -1,10 +1,14 @@
 package com.example.lembretes_app
 
+import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.content.Context
+import android.content.Intent
 import android.content.SharedPreferences
 import android.graphics.Color
 import android.net.Uri
+import android.os.Build
+import android.util.Log
 import android.util.TypedValue
 import android.view.View
 import android.widget.RemoteViews
@@ -32,91 +36,91 @@ class LembreteAmigoWidgetProvider : HomeWidgetProvider() {
         widgetData: SharedPreferences
     ) {
         val views = RemoteViews(context.packageName, R.layout.lembrete_amigo_widget_layout)
-        val jsonString = widgetData.getString("reminders", null)
-        val role = widgetData.getString("widget_role", "elderly") ?: "elderly"
-        val theme = widgetData.getString("widget_theme", "classic_blue") ?: "classic_blue"
-        val fontSizeStr = widgetData.getString("widget_font_size", "normal") ?: "normal"
-
-        val updatedAt = widgetData.getString("widget_updated_at", null)
-        val updatedLabel = if (!updatedAt.isNullOrBlank() && updatedAt.length >= 16) {
-            "Atualizado às ${updatedAt.substring(11, 16)}"
-        } else {
-            "Últimos dados"
-        }
-        views.setTextViewText(R.id.widget_updated, updatedLabel)
-        views.setOnClickPendingIntent(
-            R.id.widget_container,
-            launchIntent(context, null, role)
-        )
-
-        // Configurar botões de ação rápida (Falar e Rádio)
-        views.setOnClickPendingIntent(
-            R.id.widget_btn_talk,
-            launchActionIntent(context, "talk", role)
-        )
-        views.setOnClickPendingIntent(
-            R.id.widget_btn_radio,
-            launchActionIntent(context, "radio", role)
-        )
-
-        // Aplicar Tema Visual (Azul Clássico, Alto Contraste ou Modo Noturno)
-        val isHighContrast = theme == "high_contrast_yellow"
-        val isDarkMode = theme == "dark_mode"
-
-        val bgRes = when (theme) {
-            "high_contrast_yellow" -> R.drawable.widget_bg_high_contrast
-            "dark_mode" -> R.drawable.widget_bg_dark_mode
-            else -> R.drawable.widget_bg_classic_blue
-        }
-        val cardRes = when (theme) {
-            "high_contrast_yellow" -> R.drawable.widget_card_high_contrast
-            "dark_mode" -> R.drawable.widget_card_dark_mode
-            else -> R.drawable.widget_card_classic_blue
-        }
-        val btnRes = when (theme) {
-            "high_contrast_yellow" -> R.drawable.widget_btn_high_contrast
-            "dark_mode" -> R.drawable.widget_btn_dark
-            else -> R.drawable.widget_btn_classic
-        }
-
-        views.setInt(R.id.widget_container, "setBackgroundResource", bgRes)
-        views.setInt(R.id.widget_btn_talk, "setBackgroundResource", btnRes)
-        views.setInt(R.id.widget_btn_radio, "setBackgroundResource", btnRes)
-
-        val mainTextColor = if (isHighContrast) Color.BLACK else Color.WHITE
-        val subTextColor = if (isHighContrast) Color.DKGRAY else Color.argb(217, 255, 255, 255)
-        val btnTextColor = if (isDarkMode) Color.WHITE else if (isHighContrast) Color.YELLOW else Color.BLACK
-
-        views.setTextColor(R.id.widget_title, mainTextColor)
-        views.setTextColor(R.id.widget_updated, subTextColor)
-        views.setTextColor(R.id.widget_empty, mainTextColor)
-        views.setTextColor(R.id.widget_btn_talk_text, btnTextColor)
-        views.setTextColor(R.id.widget_btn_radio_text, btnTextColor)
-
-        // Tamanhos de fonte
-        val baseSizeDelta = when (fontSizeStr) {
-            "grande" -> 2f
-            "extra_grande" -> 4f
-            else -> 0f
-        }
-        views.setTextViewTextSize(R.id.widget_title, TypedValue.COMPLEX_UNIT_SP, 15f + baseSizeDelta)
-        views.setTextViewTextSize(R.id.widget_empty, TypedValue.COMPLEX_UNIT_SP, 14f + baseSizeDelta)
-
-        val itemIds = intArrayOf(
-            R.id.widget_item_1,
-            R.id.widget_item_2,
-            R.id.widget_item_3
-        )
-        itemIds.forEach { views.setViewVisibility(it, View.GONE) }
-
-        if (jsonString.isNullOrEmpty()) {
-            views.setViewVisibility(R.id.widget_empty, View.VISIBLE)
-            views.setViewVisibility(R.id.widget_list, View.GONE)
-            appWidgetManager.updateAppWidget(appWidgetId, views)
-            return
-        }
-
         try {
+            val jsonString = widgetData.getString("reminders", null)
+            val role = widgetData.getString("widget_role", "elderly") ?: "elderly"
+            val theme = widgetData.getString("widget_theme", "classic_blue") ?: "classic_blue"
+            val fontSizeStr = widgetData.getString("widget_font_size", "normal") ?: "normal"
+
+            val updatedAt = widgetData.getString("widget_updated_at", null)
+            val updatedLabel = if (!updatedAt.isNullOrBlank() && updatedAt.length >= 16) {
+                "Atualizado às ${updatedAt.substring(11, 16)}"
+            } else {
+                "Últimos dados"
+            }
+            views.setTextViewText(R.id.widget_updated, updatedLabel)
+            views.setOnClickPendingIntent(
+                R.id.widget_container,
+                launchIntent(context, null, role, appWidgetId)
+            )
+
+            // Configurar botões de ação rápida (Falar e Rádio)
+            views.setOnClickPendingIntent(
+                R.id.widget_btn_talk,
+                launchActionIntent(context, "talk", role, appWidgetId)
+            )
+            views.setOnClickPendingIntent(
+                R.id.widget_btn_radio,
+                launchActionIntent(context, "radio", role, appWidgetId)
+            )
+
+            // Aplicar Tema Visual (Azul Clássico, Alto Contraste ou Modo Noturno)
+            val isHighContrast = theme == "high_contrast_yellow"
+            val isDarkMode = theme == "dark_mode"
+
+            val bgRes = when (theme) {
+                "high_contrast_yellow" -> R.drawable.widget_bg_high_contrast
+                "dark_mode" -> R.drawable.widget_bg_dark_mode
+                else -> R.drawable.widget_bg_classic_blue
+            }
+            val cardRes = when (theme) {
+                "high_contrast_yellow" -> R.drawable.widget_card_high_contrast
+                "dark_mode" -> R.drawable.widget_card_dark_mode
+                else -> R.drawable.widget_card_classic_blue
+            }
+            val btnRes = when (theme) {
+                "high_contrast_yellow" -> R.drawable.widget_btn_high_contrast
+                "dark_mode" -> R.drawable.widget_btn_dark
+                else -> R.drawable.widget_btn_classic
+            }
+
+            views.setInt(R.id.widget_container, "setBackgroundResource", bgRes)
+            views.setInt(R.id.widget_btn_talk, "setBackgroundResource", btnRes)
+            views.setInt(R.id.widget_btn_radio, "setBackgroundResource", btnRes)
+
+            val mainTextColor = if (isHighContrast) Color.BLACK else Color.WHITE
+            val subTextColor = if (isHighContrast) Color.DKGRAY else Color.argb(217, 255, 255, 255)
+            val btnTextColor = if (isDarkMode) Color.WHITE else if (isHighContrast) Color.YELLOW else Color.BLACK
+
+            views.setTextColor(R.id.widget_title, mainTextColor)
+            views.setTextColor(R.id.widget_updated, subTextColor)
+            views.setTextColor(R.id.widget_empty, mainTextColor)
+            views.setTextColor(R.id.widget_btn_talk_text, btnTextColor)
+            views.setTextColor(R.id.widget_btn_radio_text, btnTextColor)
+
+            // Tamanhos de fonte
+            val baseSizeDelta = when (fontSizeStr) {
+                "grande" -> 2f
+                "extra_grande" -> 4f
+                else -> 0f
+            }
+            views.setTextViewTextSize(R.id.widget_title, TypedValue.COMPLEX_UNIT_SP, 15f + baseSizeDelta)
+            views.setTextViewTextSize(R.id.widget_empty, TypedValue.COMPLEX_UNIT_SP, 14f + baseSizeDelta)
+
+            val itemIds = intArrayOf(
+                R.id.widget_item_1,
+                R.id.widget_item_2,
+                R.id.widget_item_3
+            )
+            itemIds.forEach { views.setViewVisibility(it, View.GONE) }
+
+            if (jsonString.isNullOrEmpty()) {
+                views.setViewVisibility(R.id.widget_empty, View.VISIBLE)
+                views.setViewVisibility(R.id.widget_list, View.GONE)
+                appWidgetManager.updateAppWidget(appWidgetId, views)
+                return
+            }
+
             val reminders = JSONArray(jsonString)
             if (reminders.length() == 0) {
                 views.setViewVisibility(R.id.widget_empty, View.VISIBLE)
@@ -186,15 +190,18 @@ class LembreteAmigoWidgetProvider : HomeWidgetProvider() {
                 views.setViewVisibility(itemId, View.VISIBLE)
                 views.setOnClickPendingIntent(
                     itemId,
-                    launchIntent(context, reminder.optString("id", ""), role)
+                    launchIntent(context, reminder.optString("id", ""), role, appWidgetId * 10 + i)
                 )
             }
 
             appWidgetManager.updateAppWidget(appWidgetId, views)
-        } catch (e: Exception) {
-            views.setViewVisibility(R.id.widget_empty, View.VISIBLE)
-            views.setViewVisibility(R.id.widget_list, View.GONE)
-            appWidgetManager.updateAppWidget(appWidgetId, views)
+        } catch (e: Throwable) {
+            Log.e("LembreteWidget", "Erro ao atualizar widget (fallback acionado): ${e.message}", e)
+            try {
+                views.setViewVisibility(R.id.widget_empty, View.VISIBLE)
+                views.setViewVisibility(R.id.widget_list, View.GONE)
+                appWidgetManager.updateAppWidget(appWidgetId, views)
+            } catch (ignored: Throwable) {}
         }
     }
 
@@ -231,27 +238,41 @@ class LembreteAmigoWidgetProvider : HomeWidgetProvider() {
         }
     }
 
-    private fun launchIntent(context: Context, reminderId: String?, role: String) =
-        HomeWidgetLaunchIntent.getActivity(
-            context,
-            MainActivity::class.java,
-            Uri.Builder()
-                .scheme("lembreteamigo")
-                .authority("widget")
-                .appendQueryParameter("id", reminderId ?: "")
-                .appendQueryParameter("role", role)
-                .build()
-        )
+    private fun launchIntent(context: Context, reminderId: String?, role: String, requestCode: Int): PendingIntent {
+        val uri = Uri.Builder()
+            .scheme("lembreteamigo")
+            .authority("widget")
+            .appendQueryParameter("id", reminderId ?: "")
+            .appendQueryParameter("role", role)
+            .build()
+        return createSafePendingIntent(context, uri, requestCode)
+    }
 
-    private fun launchActionIntent(context: Context, action: String, role: String) =
-        HomeWidgetLaunchIntent.getActivity(
-            context,
-            MainActivity::class.java,
-            Uri.Builder()
-                .scheme("lembreteamigo")
-                .authority("widget")
-                .appendQueryParameter("action", action)
-                .appendQueryParameter("role", role)
-                .build()
-        )
+    private fun launchActionIntent(context: Context, action: String, role: String, requestCode: Int): PendingIntent {
+        val uri = Uri.Builder()
+            .scheme("lembreteamigo")
+            .authority("widget")
+            .appendQueryParameter("action", action)
+            .appendQueryParameter("role", role)
+            .build()
+        return createSafePendingIntent(context, uri, requestCode + 1000)
+    }
+
+    private fun createSafePendingIntent(context: Context, uri: Uri, requestCode: Int): PendingIntent {
+        try {
+            return HomeWidgetLaunchIntent.getActivity(context, MainActivity::class.java, uri)
+        } catch (e: Throwable) {
+            val intent = Intent(context, MainActivity::class.java).apply {
+                action = Intent.ACTION_VIEW
+                data = uri
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+            val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            } else {
+                PendingIntent.FLAG_UPDATE_CURRENT
+            }
+            return PendingIntent.getActivity(context, requestCode, intent, flags)
+        }
+    }
 }

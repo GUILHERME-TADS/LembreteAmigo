@@ -289,7 +289,7 @@ class _ElderlyRadioScreenState extends State<ElderlyRadioScreen> {
                     if (isCurrent) {
                       RadioService.instance.stopRadio();
                     } else {
-                      RadioService.instance.playStation(url, name);
+                      RadioService.instance.playStation(url, name, subtitle);
                     }
                   },
                   child: AnimatedContainer(

@@ -9,6 +9,7 @@ import 'package:home_widget/home_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:alarm/alarm.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:just_audio_background/just_audio_background.dart';
 
 import 'models/lembrete.dart';
 import 'models/video_call.dart';
@@ -236,6 +237,11 @@ class _RouteTracker extends NavigatorObserver {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await JustAudioBackground.init(
+    androidNotificationChannelId: 'com.lembreteamigo.channel.audio',
+    androidNotificationChannelName: 'Rádio LembreteAmigo',
+    androidNotificationOngoing: true,
+  );
   await Alarm.init();
   AlarmService.instance.init();
   Uri? initialWidgetUri;

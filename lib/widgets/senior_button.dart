@@ -237,13 +237,13 @@ class _SeniorInputFieldState extends State<SeniorInputField> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
-                            widget.isListening ? Icons.mic : Icons.mic_none,
+                            widget.isListening ? Icons.stop : Icons.mic_none,
                             size: 20,
                             color: Colors.white,
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            widget.isListening ? 'Ouvindo...' : 'Falar',
+                            widget.isListening ? 'Parar' : 'Falar',
                             style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w900,
@@ -379,9 +379,9 @@ class _SeniorInputFieldState extends State<SeniorInputField> {
                   ),
                   child: IconButton(
                     onPressed: widget.onTapMic,
-                    tooltip: 'Ditar por voz',
+                    tooltip: widget.isListening ? 'Parar gravação' : 'Ditar por voz',
                     icon: Icon(
-                      widget.isListening ? Icons.mic : Icons.mic_none,
+                      widget.isListening ? Icons.stop : Icons.mic_none,
                       color: Colors.white,
                       size: 24,
                     ),

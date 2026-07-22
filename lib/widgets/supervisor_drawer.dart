@@ -8,6 +8,7 @@ import '../services/lembrete_service.dart';
 import '../services/message_service.dart';
 import '../services/google_auth_service.dart';
 import 'message_unread_badge.dart';
+import 'missed_calls_badge.dart';
 
 class SupervisorDrawer extends StatefulWidget {
   final String currentRoute;
@@ -219,9 +220,11 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
                 Opacity(
                   opacity: _isConnected ? 1.0 : 0.4,
                   child: ListTile(
-                    leading: const Icon(
-                      Icons.videocam,
-                      color: AppColors.primary,
+                    leading: const MissedCallsBadge(
+                      child: Icon(
+                        Icons.videocam,
+                        color: AppColors.primary,
+                      ),
                     ),
                     title: const Text(
                       'Chamadas de Vídeo',

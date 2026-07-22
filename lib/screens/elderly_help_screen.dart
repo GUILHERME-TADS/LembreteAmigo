@@ -953,6 +953,63 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
             ),
           ],
         ),
+        const SizedBox(height: 16),
+
+        // HISTÓRICO DE LIGAÇÕES (Verde Água)
+        Material(
+          color: const Color(0xFFE0F2F1), // Soft Teal
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            onTap: () async {
+              if (_isProcessingAction) return;
+              setState(() => _isProcessingAction = true);
+              try {
+                await TTSService.instance.falar(
+                  'Abrindo o seu histórico de ligações.',
+                  caller: this,
+                );
+                if (context.mounted) {
+                  await Navigator.pushNamed(context, '/video-call-history');
+                }
+              } finally {
+                if (mounted) setState(() => _isProcessingAction = false);
+              }
+            },
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: const Color(0xFF00695C),
+                  width: 3,
+                ),
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  MissedCallsBadge(
+                    child: Icon(
+                      Icons.history,
+                      size: 32,
+                      color: Color(0xFF00695C),
+                    ),
+                  ),
+                  SizedBox(width: 12),
+                  Text(
+                    'Histórico de Ligações',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF00695C),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
         const SizedBox(height: 24),
 
         // CASO DE EMERGÊNCIA (Vermelho)

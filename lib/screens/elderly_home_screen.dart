@@ -9,7 +9,6 @@ import '../models/lembrete.dart';
 import '../services/lembrete_service.dart';
 import '../services/session_role_service.dart';
 import '../services/tts_service.dart';
-import '../services/location_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/audio_path_helper.dart';
 import '../utils/period_helper.dart';
@@ -1422,81 +1421,13 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     );
   }
 
-  Future<void> _showWhereAmI() async {
-    _stopAllAudioAndTts();
-    
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(),
-      ),
-    );
-
-    final sosResult = await LocationService.instance.getCurrentSosLocation();
-    
-    if (!mounted) return;
-    Navigator.of(context).pop(); // fecha o loading
-
-    String enderecoTexto = 'Endereço não encontrado';
-    if (sosResult.hasLocation) {
-      enderecoTexto = await LocationService.instance.getAddressFromCoordinates(
-        sosResult.latitude!, 
-        sosResult.longitude!
-      );
-    }
-
-    if (!mounted) return;
-    
-    showDialog(
-      context: context,
-      builder: (context) {
-        TTSService.instance.falar('Você está na $enderecoTexto');
-        
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-          backgroundColor: AppColors.surface,
-          title: const Text(
-            'Você está aqui:',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.primary),
-          ),
-          content: Text(
-            enderecoTexto,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w800, color: Colors.black87),
-          ),
-          actionsAlignment: MainAxisAlignment.center,
-          actions: [
-            ElevatedButton(
-              onPressed: () {
-                TTSService.instance.parar();
-                Navigator.of(context).pop();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 24),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              ),
-              child: const Text('OK', style: TextStyle(fontSize: 28, color: Colors.white)),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   Widget _buildTopBar() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: const BoxDecoration(color: AppColors.surface),
       child: Row(
         children: [
-          IconButton(
-            icon: const Icon(Icons.location_on, color: AppColors.primary, size: 36),
-            onPressed: _showWhereAmI,
-            tooltip: 'Onde estou?',
-          ),
+          const SizedBox(width: 56),
           Expanded(
             child: Column(
               mainAxisSize: MainAxisSize.min,

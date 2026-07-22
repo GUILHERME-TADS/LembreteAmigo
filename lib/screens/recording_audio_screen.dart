@@ -554,12 +554,20 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
     final now = DateTime.now();
     final titulo = extraido.$3.isNotEmpty ? extraido.$3 : _transcricao;
 
+    final parsedInfo = VoiceReminderParser.parse(_transcricao);
+    final dataInicio = parsedInfo?.dataInicio ?? now;
+    final recorrencia = parsedInfo?.recorrencia ?? 'unico';
+    final diasSemana = parsedInfo?.diasSemana ?? const [];
+
     final lembrete = Lembrete(
       id: now.millisecondsSinceEpoch.toString(),
       titulo: titulo,
       horarioHour: extraido.$1,
       horarioMinute: extraido.$2,
       categoria: _selectedCategory ?? 'personalizado',
+      dataInicio: dataInicio,
+      recorrencia: recorrencia,
+      diasSemana: diasSemana,
     );
     try {
       await LembreteService.instance.adicionar(lembrete);

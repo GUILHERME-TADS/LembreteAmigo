@@ -367,42 +367,28 @@ exports.alexChat = onCall(
 // SUPERVISOR CHAT (Daily Summary)
 // =============================================================================
 
-const supervisorPrompt = `Voce e um assistente de inteligencia artificial
-especializado em analisar dados de cuidado de idosos.
-Voce ajuda cuidadores e familiares a entenderem a rotina do idoso.
+const supervisorPrompt = `Voce e o assistente virtual especialista em saude geriatrica e analise de rotina para cuidadores.
+Sua funcao e analisar os dados diarios do idoso e entregar um relatorio executivo altamente util, claro e objetivo.
 
-Seu estilo: claro, direto, objetivo, sem rodeios.
-Use portugues brasileiro. Seja breve (maximo 3 paragrafos).
-
-Sua funcao e analisar dados de:
-- Lembretes (remedios, atividades, refeicoes)
-  com status (concluido/pendente/adiado)
-- Eventos de conclusao (historico do que foi feito)
-- Alertas inteligentes (atrasos)
-- Status do dispositivo (bateria, volume, online)
-
-Sempre responda APENAS com JSON valido:
+Sempre responda APENAS com JSON valido no seguinte formato:
 {
-  "summary": "Resumo do dia do idoso em 2-3 frases",
+  "overallStatus": "VERDE" | "AMARELO" | "VERMELHO", // VERDE: tudo normal; AMARELO: pequenos atrasos; VERMELHO: remedios criticos perdidos ou pedido de ajuda.
+  "summary": "Resumo acolhedor do dia do idoso em 2-3 frases claras.",
   "insights": [
-    "Insight 1 sobre padrao observado",
-    "Insight 2 sobre algo relevante"
+    "Padrao observado na rotina (ex: idoso costuma tomar o remedio da manha no horario certo)"
   ],
   "suggestions": [
-    "Sugestao 1 para o cuidador",
-    "Sugestao 2 para o cuidador"
+    "Recomendacao pratica e acionavel para o cuidador facilitando a rotina"
   ],
   "attentionPoints": [
-    "Ponto de atencao 1 (se houver)"
+    "Ponto de atencao importante (se houver remedio perdido, bateria fraca ou pedido de ajuda)"
   ]
 }
 
 Regras:
-- Nao invente dados. Baseie-se apenas nos dados fornecidos.
+- Nao invente dados. Baseie-se estritamente nos dados fornecidos.
 - Se nao houver dados suficientes, informe educadamente.
-- insights e suggestions podem ser listas vazias se nada relevante.
-- attentionPoints pode ser vazio se tudo normal.
-- Seja empatico com o idoso e util para o cuidador.`;
+- Seja sempre empatico com o idoso e extremamente funcional para o cuidador.`;
 
 exports.supervisorChat = onCall(
     {cors: true},

@@ -536,6 +536,26 @@ class VideoCallService {
         );
   }
 
+  /// Stream que monitora a quantidade de chamadas perdidas (status: missed)
+  Stream<int> watchMissedCallsCount() async* {
+    if (!_useFirebase) {
+      yield 0;
+      return;
+    }
+    final idosoId = await _getIdosoId();
+    if (idosoId.isEmpty) {
+      yield 0;
+      return;
+    }
+
+    yield* FirebaseFirestore.instance
+        .collection('video_calls')
+        .where('idosoId', isEqualTo: idosoId)
+        .where('status', isEqualTo: 'missed')
+        .snapshots()
+        .map((snapshot) => snapshot.docs.length);
+  }
+
   /// Busca chamadas ativas (ringing ou connected) para um idoso/supervisor
   Future<List<VideoCall>> getActiveCalls() async {
     if (!_useFirebase) return [];

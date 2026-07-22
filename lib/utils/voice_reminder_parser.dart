@@ -4,14 +4,34 @@ class VoiceReminderParseResult {
   final int hour;
   final int minute;
   final String title;
+  final DateTime? dataInicio;
+  final String? recorrencia;
+  final List<int>? diasSemana;
 
   const VoiceReminderParseResult({
     required this.hour,
     required this.minute,
     required this.title,
+    this.dataInicio,
+    this.recorrencia,
+    this.diasSemana,
   });
 
   (int, int, String) toRecord() => (hour, minute, title);
+}
+
+class _DateInfo {
+  final DateTime? dataInicio;
+  final String? recorrencia;
+  final List<int>? diasSemana;
+  final String? matchedText;
+
+  const _DateInfo({
+    this.dataInicio,
+    this.recorrencia,
+    this.diasSemana,
+    this.matchedText,
+  });
 }
 
 class VoiceReminderParser {
@@ -256,26 +276,138 @@ class VoiceReminderParser {
     int minute,
     String original,
     String normalized,
-    String matchedTime,
-  ) {
-    final title = _cleanTitle(original, normalized, matchedTime);
-    return VoiceReminderParseResult(hour: hour, minute: minute, title: title);
+    String matchedTime, {
+    DateTime? now,
+  }) {
+    final dateInfo = _parseDateInfo(normalized, now: now);
+    final title = _cleanTitle(original, normalized, matchedTime, dateInfo?.matchedText);
+    return VoiceReminderParseResult(
+      hour: hour,
+      minute: minute,
+      title: title,
+      dataInicio: dateInfo?.dataInicio,
+      recorrencia: dateInfo?.recorrencia,
+      diasSemana: dateInfo?.diasSemana,
+    );
+  }
+
+  static _DateInfo? _parseDateInfo(String text, {DateTime? now}) {
+    final base = now ?? DateTime.now();
+    final today = DateTime(base.year, base.month, base.day);
+
+    if (RegExp(r'\bdepois\s+de\s+amanha\b').hasMatch(text)) {
+      return _DateInfo(
+        dataInicio: today.add(const Duration(days: 2)),
+        recorrencia: 'unico',
+        matchedText: 'depois de amanha',
+      );
+    }
+
+    if (RegExp(r'\bamanha\b').hasMatch(text)) {
+      return _DateInfo(
+        dataInicio: today.add(const Duration(days: 1)),
+        recorrencia: 'unico',
+        matchedText: 'amanha',
+      );
+    }
+
+    if (RegExp(r'\bhoje\b').hasMatch(text)) {
+      return _DateInfo(
+        dataInicio: today,
+        recorrencia: 'unico',
+        matchedText: 'hoje',
+      );
+    }
+
+    final daquiADias = RegExp(r'\bdaqui\s+a\s+(\d+)\s+dias?\b').firstMatch(text);
+    if (daquiADias != null) {
+      final days = int.tryParse(daquiADias.group(1)!);
+      if (days != null && days > 0) {
+        return _DateInfo(
+          dataInicio: today.add(Duration(days: days)),
+          recorrencia: 'unico',
+          matchedText: daquiADias.group(0),
+        );
+      }
+    }
+
+    // Regra para dias da semana (ex: "proxima terca", "terca-feira que vem", "na terca", "toda terca")
+    final weekdayRegex = RegExp(
+      r'\b(?:(toda|todos\s+os)\s+)?(?:(proxima|proximo|na|no)\s+)?(segunda|terca|quarta|quinta|sexta|sabado|domingo)(?:-feira)?(?:\s+(que\s+vem|proxima|proximo))?\b',
+    );
+    final match = weekdayRegex.firstMatch(text);
+    if (match != null) {
+      final isRecurrent = match.group(1) != null;
+      final isNext = match.group(2) == 'proxima' || match.group(2) == 'proximo' || match.group(4) != null;
+      final dayName = match.group(3)!;
+
+      const weekdaysMap = {
+        'segunda': DateTime.monday,
+        'terca': DateTime.tuesday,
+        'quarta': DateTime.wednesday,
+        'quinta': DateTime.thursday,
+        'sexta': DateTime.friday,
+        'sabado': DateTime.saturday,
+        'domingo': DateTime.sunday,
+      };
+
+      final targetWeekday = weekdaysMap[dayName];
+      if (targetWeekday != null) {
+        if (isRecurrent) {
+          return _DateInfo(
+            dataInicio: today,
+            recorrencia: 'semanal',
+            diasSemana: [targetWeekday],
+            matchedText: match.group(0),
+          );
+        } else {
+          int daysAhead = targetWeekday - today.weekday;
+          if (daysAhead <= 0 || isNext) {
+            daysAhead += 7;
+          }
+          return _DateInfo(
+            dataInicio: today.add(Duration(days: daysAhead)),
+            recorrencia: 'unico',
+            matchedText: match.group(0),
+          );
+        }
+      }
+    }
+
+    if (RegExp(r'\b(?:todos\s+os\s+dias|diario|diaria|diariamente)\b').hasMatch(text)) {
+      final m = RegExp(r'\b(?:todos\s+os\s+dias|diario|diaria|diariamente)\b').firstMatch(text);
+      return _DateInfo(
+        dataInicio: today,
+        recorrencia: 'diario',
+        matchedText: m?.group(0),
+      );
+    }
+
+    return null;
   }
 
   static String _cleanTitle(
     String original,
     String normalized,
-    String matchedTime,
-  ) {
+    String matchedTime, [
+    String? matchedDate,
+  ]) {
     var cleaned = normalized.replaceFirst(
       RegExp(RegExp.escape(matchedTime), caseSensitive: false),
       ' ',
     );
 
+    if (matchedDate != null && matchedDate.isNotEmpty) {
+      cleaned = cleaned.replaceFirst(
+        RegExp(RegExp.escape(matchedDate), caseSensitive: false),
+        ' ',
+      );
+    }
+
     cleaned = cleaned
         .replaceAll(
           RegExp(
-            r'\b(?:as|a|ao|de|da|do|pela|pelo|no|na|turno|periodo)\b',
+            r'\b(?:as|a|ao|de|da|do|pela|pelo|no|na|turno|periodo|para|pra|pro)\b',
           ),
           ' ',
         )

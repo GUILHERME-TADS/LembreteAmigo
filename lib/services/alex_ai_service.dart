@@ -34,6 +34,8 @@ class AlexVoiceReminderResult {
   final int horarioHour;
   final int horarioMinute;
   final String categoria;
+  final DateTime? dataInicio;
+  final String? recorrencia;
   final bool sucesso;
   final String erro;
 
@@ -42,16 +44,25 @@ class AlexVoiceReminderResult {
     required this.horarioHour,
     required this.horarioMinute,
     required this.categoria,
+    this.dataInicio,
+    this.recorrencia,
     required this.sucesso,
     this.erro = '',
   });
 
   factory AlexVoiceReminderResult.fromJson(Map<String, dynamic> json) {
+    DateTime? dt;
+    if (json['dataInicio'] != null) {
+      dt = DateTime.tryParse(json['dataInicio'].toString());
+    }
+
     return AlexVoiceReminderResult(
       titulo: json['titulo'] as String? ?? '',
       horarioHour: (json['horarioHour'] as num?)?.toInt() ?? 0,
       horarioMinute: (json['horarioMinute'] as num?)?.toInt() ?? 0,
       categoria: json['categoria'] as String? ?? 'personalizado',
+      dataInicio: dt,
+      recorrencia: json['recorrencia'] as String?,
       sucesso: json['sucesso'] as bool? ?? false,
       erro: json['erro'] as String? ?? '',
     );

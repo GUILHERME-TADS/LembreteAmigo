@@ -27,6 +27,7 @@ import '../utils/period_helper.dart';
 import '../theme/app_theme.dart';
 import '../widgets/skeleton_loading.dart';
 import '../widgets/message_unread_badge.dart';
+import '../widgets/missed_calls_badge.dart';
 import '../widgets/reminder_with_audio.dart';
 import '../widgets/supervisor_bottom_nav.dart';
 import '../widgets/supervisor_drawer.dart';
@@ -1104,6 +1105,50 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
+              ),
+            ),
+            const Divider(height: 24, color: AppColors.outlineVariant),
+            InkWell(
+              onTap: () => Navigator.pushNamed(context, '/supervisor-calls'),
+              child: Row(
+                children: [
+                  const MissedCallsBadge(
+                    child: Icon(
+                      Icons.videocam,
+                      color: AppColors.primary,
+                      size: 34,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Chamadas e Ligações',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Histórico de ligações de vídeo e voz.',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: AppColors.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(
+                    Icons.arrow_forward_ios,
+                    color: AppColors.onSurfaceVariant,
+                    size: 18,
+                  ),
+                ],
               ),
             ),
           ],

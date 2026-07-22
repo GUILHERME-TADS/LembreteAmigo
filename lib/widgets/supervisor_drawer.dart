@@ -233,7 +233,7 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    onTap: () => _navigateTo(context, '/video-call-history'),
+                    onTap: () => _navigateTo(context, '/supervisor-calls'),
                   ),
                 ),
                 Opacity(

@@ -25,6 +25,7 @@ import 'screens/emergency_alert_screen.dart';
 import 'screens/identify_medication_screen.dart';
 import 'screens/reminder_detail_screen.dart';
 import 'screens/incoming_video_call_screen.dart';
+import 'screens/supervisor_call_screen.dart';
 import 'screens/post_call_summary_screen.dart';
 import 'screens/video_call_history_screen.dart';
 import 'screens/forgot_password_screen.dart';
@@ -978,6 +979,9 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
             break;
           case '/video-call-history':
             page = const VideoCallHistoryScreen();
+            break;
+          case '/supervisor-calls':
+            page = const SupervisorCallScreen();
             break;
           case '/welcome':
             page = const WelcomeScreen();

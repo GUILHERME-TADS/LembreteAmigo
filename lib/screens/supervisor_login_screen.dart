@@ -277,27 +277,11 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
+                      GoogleSignInButton(
+                        onPressed: _isLoading ? null : _entrarComGoogle,
+                        label: 'Entrar com Google',
                         height: 64,
-                        child: OutlinedButton.icon(
-                          onPressed: _isLoading ? null : _entrarComGoogle,
-                          icon: const Icon(Icons.account_circle, size: 28),
-                          label: const Text(
-                            'Entrar com Google',
-                            style: TextStyle(
-                              fontSize: 21,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.primary,
-                            side: const BorderSide(color: AppColors.primary),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                        ),
+                        fontSize: 20,
                       ),
                       const SizedBox(height: 24),
                       Wrap(

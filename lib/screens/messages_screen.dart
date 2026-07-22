@@ -13,6 +13,7 @@ import 'package:record/record.dart';
 import '../models/app_message.dart';
 import '../services/message_service.dart';
 import '../services/offline_sync_service.dart';
+import '../services/presence_service.dart';
 import '../services/session_role_service.dart';
 import '../services/elderly_profile_repository.dart';
 import '../services/tts_service.dart';
@@ -36,6 +37,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
   String? _fotoSupervisor;
   String? _nomeSupervisor;
   String? _nomeIdoso;
+  String? _targetUserId;
   final TextEditingController _textController = TextEditingController();
 
   // Voice recording state
@@ -160,6 +162,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
             });
           });
         }
+      }
+      if (_isSupervisor) {
+        _targetUserId = idosoId;
+      } else {
+        _targetUserId = (supervisorData?['uid'] as String?) ??
+            (localProfile?['supervisorId'] as String?);
       }
     } catch (e) {
       debugPrint('Erro ao carregar fotos do chat: $e');
@@ -474,10 +482,34 @@ class _MessagesScreenState extends State<MessagesScreen> {
             },
           ),
           const SizedBox(width: 4),
-          ElderlyProfileAvatar(
-            fotoPath: _isSupervisor ? _fotoIdoso : _fotoSupervisor,
-            size: 40,
-            borderWidth: 0,
+          Stack(
+            alignment: Alignment.bottomRight,
+            children: [
+              ElderlyProfileAvatar(
+                fotoPath: _isSupervisor ? _fotoIdoso : _fotoSupervisor,
+                size: 40,
+                borderWidth: 0,
+              ),
+              StreamBuilder<PresenceStatus>(
+                stream: PresenceService.instance.watchUserPresence(
+                  userId: _targetUserId ?? '',
+                  isSupervisorTarget: !_isSupervisor,
+                ),
+                builder: (context, snapshot) {
+                  final isOnline = snapshot.data?.isOnline ?? false;
+                  if (!isOnline) return const SizedBox.shrink();
+                  return Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: Colors.greenAccent.shade400,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: const Color(0xFF008069), width: 2),
+                    ),
+                  );
+                },
+              ),
+            ],
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -493,9 +525,28 @@ class _MessagesScreenState extends State<MessagesScreen> {
                     color: Colors.white,
                   ),
                 ),
-                const Text(
-                  'conectado',
-                  style: TextStyle(fontSize: 13, color: Colors.white70),
+                StreamBuilder<PresenceStatus>(
+                  stream: PresenceService.instance.watchUserPresence(
+                    userId: _targetUserId ?? '',
+                    isSupervisorTarget: !_isSupervisor,
+                  ),
+                  builder: (context, snapshot) {
+                    final presence = snapshot.data;
+                    final text = presence?.statusText ?? 'Offline';
+                    final isOnline = presence?.isOnline ?? false;
+                    return Text(
+                      text,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: isOnline ? FontWeight.bold : FontWeight.normal,
+                        color: isOnline
+                            ? Colors.greenAccent.shade100
+                            : Colors.white.withValues(alpha: 0.85),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),

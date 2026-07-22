@@ -324,7 +324,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   }
 
   Widget _buildProfileButton({
-    required IconData icon,
+    IconData? icon,
+    Widget? customIconWidget,
     required String title,
     required String subtitle,
     required Color bgColor,
@@ -363,7 +364,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                     color: iconBgColor,
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(icon, size: 32, color: iconColor),
+                  child: Center(
+                    child: customIconWidget ??
+                        Icon(icon, size: 32, color: iconColor),
+                  ),
                 ),
                 const SizedBox(width: 24),
                 Expanded(

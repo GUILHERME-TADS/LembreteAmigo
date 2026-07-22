@@ -67,6 +67,7 @@ import 'services/voice_notification_service.dart';
 import 'services/radio_service.dart';
 import 'services/analytics_service.dart';
 import 'services/remote_config_service.dart';
+import 'services/presence_service.dart';
 import 'services/alarm_service.dart';
 import 'di/injection.dart';
 
@@ -127,7 +128,6 @@ bool isElderlyOnlyRoute(String routeName) {
     '/edit-profile',
     '/recording-audio',
     '/voice-settings',
-    '/incoming-video-call',
   };
 
   return elderlyRoutes.contains(routeName);
@@ -456,6 +456,7 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
       debugPrint('Erro ao configurar auth listener: $e');
     }
 
+    PresenceService.instance.startHeartbeat();
     _listenerRefreshTimer = Timer.periodic(const Duration(seconds: 4), (_) {
       _startIncomingCallFirestoreListener();
     });

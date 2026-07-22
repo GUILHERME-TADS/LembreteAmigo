@@ -38,6 +38,7 @@ class _VideoCallHistoryScreenState extends State<VideoCallHistoryScreen> {
           });
         }
       });
+      VideoCallService.instance.markMissedCallsAsRead();
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
@@ -225,6 +226,54 @@ class _CallHistoryTile extends StatelessWidget {
     required this.onCallBack,
   });
 
+  Future<void> _confirmDeleteCall(BuildContext context, String callId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: const [
+            Icon(Icons.delete_forever_rounded, color: AppColors.error, size: 28),
+            SizedBox(width: 8),
+            Text('Apagar Ligação', style: TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: const Text('Tem certeza que deseja apagar este registro do histórico de ligações?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Apagar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final success = await VideoCallService.instance.deleteCall(callId);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              success
+                  ? 'Ligação apagada do histórico.'
+                  : 'Não foi possível apagar a ligação.',
+            ),
+            backgroundColor: success ? AppColors.primary : AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isSos = call.isFromSos;
@@ -233,22 +282,34 @@ class _CallHistoryTile extends StatelessWidget {
 
     Color iconBgColor;
     IconData callIcon;
-    Color cardBgColor = AppColors.surfaceContainerLowest;
+    Color cardBgColor;
+    Color borderColor;
+    String statusLabel;
+    Color statusColor;
 
     if (isSos) {
       iconBgColor = AppColors.error;
-      callIcon = Icons.warning_rounded;
-      cardBgColor = AppColors.errorContainer.withValues(alpha: 0.3);
+      callIcon = Icons.warning_amber_rounded;
+      cardBgColor = AppColors.errorContainer.withValues(alpha: 0.35);
+      borderColor = AppColors.error.withValues(alpha: 0.5);
+      statusLabel = 'Emergência SOS';
+      statusColor = AppColors.error;
     } else if (isMissed) {
       iconBgColor = AppColors.error;
-      callIcon = Icons.call_missed_rounded;
-      cardBgColor = AppColors.errorContainer.withValues(alpha: 0.15);
-    } else if (call.isVoiceCall) {
-      iconBgColor = AppColors.secondary;
-      callIcon = Icons.phone_callback_rounded;
+      callIcon = Icons.phone_missed_rounded;
+      cardBgColor = AppColors.errorContainer.withValues(alpha: 0.18);
+      borderColor = AppColors.error.withValues(alpha: 0.35);
+      statusLabel = call.status == VideoCallStatus.declined ? 'Recusada' : 'Não Atendida';
+      statusColor = AppColors.error;
     } else {
-      iconBgColor = AppColors.primary;
-      callIcon = Icons.video_camera_back_rounded;
+      iconBgColor = Colors.teal.shade600;
+      callIcon = call.isVoiceCall
+          ? Icons.phone_callback_rounded
+          : Icons.video_camera_back_rounded;
+      cardBgColor = Colors.teal.shade50.withValues(alpha: 0.35);
+      borderColor = Colors.teal.shade200;
+      statusLabel = 'Atendida • Concluída';
+      statusColor = Colors.teal.shade800;
     }
 
     return Card(
@@ -257,9 +318,7 @@ class _CallHistoryTile extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
-          color: (isSos || isMissed)
-              ? AppColors.error.withValues(alpha: 0.3)
-              : AppColors.outlineVariant.withValues(alpha: 0.5),
+          color: borderColor,
           width: 1,
         ),
       ),
@@ -312,36 +371,67 @@ class _CallHistoryTile extends StatelessWidget {
           ),
           subtitle: Padding(
             padding: const EdgeInsets.only(top: 4.0),
-            child: Text(
-              '${call.formattedStartTime} • ${call.statusDescription}\nTempo: ${call.formattedDetailedDuration}',
-              style: TextStyle(
-                fontSize: isElderly ? 16 : 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.onSurfaceVariant,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  statusLabel,
+                  style: TextStyle(
+                    fontSize: isElderly ? 15 : 13,
+                    fontWeight: FontWeight.w800,
+                    color: statusColor,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${call.formattedStartTime} • Tempo: ${call.formattedDetailedDuration}',
+                  style: TextStyle(
+                    fontSize: isElderly ? 15 : 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.onSurfaceVariant,
+                  ),
+                ),
+              ],
             ),
           ),
-          trailing: OutlinedButton.icon(
-            onPressed: () => onCallBack(call.callType),
-            icon: Icon(
-              call.isVoiceCall ? Icons.phone : Icons.videocam,
-              size: isElderly ? 24 : 18,
-            ),
-            label: Text(
-              'Ligar',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: isElderly ? 16 : 14,
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              OutlinedButton.icon(
+                onPressed: () => onCallBack(call.callType),
+                icon: Icon(
+                  call.isVoiceCall ? Icons.phone : Icons.videocam,
+                  size: isElderly ? 24 : 18,
+                ),
+                label: Text(
+                  'Ligar',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: isElderly ? 16 : 14,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.primary, width: 2),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isElderly ? 16 : 12,
+                    vertical: isElderly ? 12 : 8,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
               ),
-            ),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.primary,
-              side: const BorderSide(color: AppColors.primary, width: 2),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+              IconButton(
+                icon: Icon(
+                  Icons.delete_outline_rounded,
+                  color: AppColors.error,
+                  size: isElderly ? 26 : 22,
+                ),
+                tooltip: 'Apagar ligação',
+                onPressed: () => _confirmDeleteCall(context, call.id),
               ),
-            ),
+            ],
           ),
         ),
       ),

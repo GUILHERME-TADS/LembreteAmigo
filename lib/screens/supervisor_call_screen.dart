@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 import '../theme/app_theme.dart';
 import '../models/video_call.dart';
+import '../services/presence_service.dart';
 import '../services/session_role_service.dart';
+import '../services/elderly_profile_repository.dart';
 import '../services/video_call_service.dart';
+import '../widgets/elderly_profile_avatar.dart';
 import '../widgets/missed_calls_badge.dart';
 import '../widgets/supervisor_drawer.dart';
 
@@ -21,7 +22,6 @@ class _SupervisorCallScreenState extends State<SupervisorCallScreen> {
   String _idosoId = '';
   String _idosoNome = 'Meu Idoso';
   String? _idosoFoto;
-  bool _isOnline = false;
   bool _isLoading = true;
   bool _isCalling = false;
 
@@ -33,32 +33,32 @@ class _SupervisorCallScreenState extends State<SupervisorCallScreen> {
 
   Future<void> _loadIdosoInfo() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final activeIdosoId = prefs.getString('active_idoso_id') ?? '';
+      final activeIdosoId = await SessionRoleService.getActiveIdosoId();
       _idosoId = activeIdosoId;
 
       if (activeIdosoId.isNotEmpty) {
-        final doc = await FirebaseFirestore.instance
-            .collection('idoso_perfil')
-            .doc(activeIdosoId)
-            .get();
+        final profile = await ElderlyProfileRepository.instance.getData(activeIdosoId);
+        if (profile != null) {
+          _idosoNome = profile['nome'] as String? ?? 'Meu Idoso';
+          _idosoFoto = (profile['fotoPath'] as String?) ??
+              (profile['fotoUrl'] as String?) ??
+              (profile['foto'] as String?);
+        } else {
+          final doc = await FirebaseFirestore.instance
+              .collection('idoso_perfil')
+              .doc(activeIdosoId)
+              .get();
 
-        if (doc.exists && doc.data() != null) {
-          final data = doc.data()!;
-          _idosoNome = data['nome'] as String? ?? 'Meu Idoso';
-          _idosoFoto = data['fotoUrl'] as String? ?? data['foto'] as String?;
-          
-          final lastSeen = data['lastSeen'];
-          if (lastSeen != null) {
-            DateTime? dt;
-            if (lastSeen is Timestamp) dt = lastSeen.toDate();
-            if (lastSeen is String) dt = DateTime.tryParse(lastSeen);
-            if (dt != null) {
-              _isOnline = DateTime.now().difference(dt).inMinutes < 5;
-            }
+          if (doc.exists && doc.data() != null) {
+            final data = doc.data()!;
+            _idosoNome = data['nome'] as String? ?? 'Meu Idoso';
+            _idosoFoto = (data['fotoPath'] as String?) ??
+                (data['fotoUrl'] as String?) ??
+                (data['foto'] as String?);
           }
         }
       }
+      VideoCallService.instance.markMissedCallsAsRead();
     } catch (e) {
       debugPrint('Erro ao carregar idoso na tela de chamadas do cuidador: $e');
     } finally {
@@ -108,6 +108,54 @@ class _SupervisorCallScreenState extends State<SupervisorCallScreen> {
     }
   }
 
+  Future<void> _confirmDeleteCall(BuildContext context, String callId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: const [
+            Icon(Icons.delete_forever_rounded, color: AppColors.error, size: 28),
+            SizedBox(width: 8),
+            Text('Apagar Ligação', style: TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: const Text('Tem certeza que deseja apagar este registro do histórico de ligações?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Apagar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final success = await VideoCallService.instance.deleteCall(callId);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              success
+                  ? 'Ligação apagada do histórico.'
+                  : 'Não foi possível apagar a ligação.',
+            ),
+            backgroundColor: success ? AppColors.primary : AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -143,54 +191,69 @@ class _SupervisorCallScreenState extends State<SupervisorCallScreen> {
                     ),
                     child: Column(
                       children: [
-                        Stack(
-                          alignment: Alignment.bottomRight,
-                          children: [
-                            CircleAvatar(
-                              radius: 46,
-                              backgroundColor: AppColors.primaryContainer,
-                              backgroundImage: _idosoFoto != null && _idosoFoto!.startsWith('http')
-                                  ? NetworkImage(_idosoFoto!) as ImageProvider
-                                  : null,
-                              child: _idosoFoto == null || !_idosoFoto!.startsWith('http')
-                                  ? Text(
-                                      _idosoNome.isNotEmpty ? _idosoNome[0].toUpperCase() : 'I',
-                                      style: const TextStyle(
-                                        fontSize: 36,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.primary,
+                        StreamBuilder<PresenceStatus>(
+                          stream: PresenceService.instance.watchUserPresence(
+                            userId: _idosoId,
+                            isSupervisorTarget: false,
+                          ),
+                          builder: (context, snapshot) {
+                            final presence = snapshot.data;
+                            final isOnline = presence?.isOnline ?? false;
+                            final statusText = presence?.statusText ?? (isOnline ? 'Online' : 'Offline');
+
+                            return Column(
+                              children: [
+                                Stack(
+                                  alignment: Alignment.bottomRight,
+                                  children: [
+                                    ElderlyProfileAvatar(
+                                      fotoPath: _idosoFoto,
+                                      size: 92,
+                                      borderWidth: 3,
+                                    ),
+                                    Container(
+                                      width: 22,
+                                      height: 22,
+                                      decoration: BoxDecoration(
+                                        color: isOnline ? Colors.green.shade600 : Colors.grey.shade400,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(color: Colors.white, width: 3),
                                       ),
-                                    )
-                                  : null,
-                            ),
-                            Container(
-                              width: 20,
-                              height: 20,
-                              decoration: BoxDecoration(
-                                color: _isOnline ? Colors.green : Colors.grey,
-                                shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white, width: 3),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          _idosoNome,
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _isOnline ? '🟢 Online e Conectado' : '⚪ Visto recentemente',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: _isOnline ? Colors.green.shade700 : AppColors.onSurfaceVariant,
-                          ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  _idosoNome,
+                                  style: const TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.circle,
+                                      size: 10,
+                                      color: isOnline ? Colors.green.shade600 : Colors.grey.shade400,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      statusText,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                        color: isOnline ? Colors.green.shade700 : AppColors.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            );
+                          },
                         ),
                         const SizedBox(height: 24),
 
@@ -301,47 +364,156 @@ class _SupervisorCallScreenState extends State<SupervisorCallScreen> {
                               itemCount: calls.length > 10 ? 10 : calls.length,
                               itemBuilder: (context, index) {
                                 final call = calls[index];
-                                final isMissed = call.status == VideoCallStatus.missed;
-                                final isVoice = call.callType == 'voice';
-                                final dateStr = call.startedAt != null
-                                    ? '${call.startedAt!.day.toString().padLeft(2, '0')}/${call.startedAt!.month.toString().padLeft(2, '0')} às ${call.startedAt!.hour.toString().padLeft(2, '0')}:${call.startedAt!.minute.toString().padLeft(2, '0')}'
-                                    : '';
+                                final isSos = call.isFromSos;
+                                final isMissed = call.status == VideoCallStatus.missed ||
+                                    call.status == VideoCallStatus.declined;
+
+                                Color iconBgColor;
+                                IconData callIcon;
+                                Color cardBgColor;
+                                Color borderColor;
+                                String statusLabel;
+                                Color statusColor;
+
+                                if (isSos) {
+                                  iconBgColor = AppColors.error;
+                                  callIcon = Icons.warning_amber_rounded;
+                                  cardBgColor = AppColors.errorContainer.withValues(alpha: 0.35);
+                                  borderColor = AppColors.error.withValues(alpha: 0.5);
+                                  statusLabel = 'Emergência SOS';
+                                  statusColor = AppColors.error;
+                                } else if (isMissed) {
+                                  iconBgColor = AppColors.error;
+                                  callIcon = Icons.phone_missed_rounded;
+                                  cardBgColor = AppColors.errorContainer.withValues(alpha: 0.18);
+                                  borderColor = AppColors.error.withValues(alpha: 0.35);
+                                  statusLabel = call.status == VideoCallStatus.declined ? 'Recusada' : 'Não Atendida';
+                                  statusColor = AppColors.error;
+                                } else {
+                                  iconBgColor = Colors.teal.shade600;
+                                  callIcon = call.isVoiceCall
+                                      ? Icons.phone_callback_rounded
+                                      : Icons.video_camera_back_rounded;
+                                  cardBgColor = Colors.teal.shade50.withValues(alpha: 0.35);
+                                  borderColor = Colors.teal.shade200;
+                                  statusLabel = 'Atendida • Concluída';
+                                  statusColor = Colors.teal.shade800;
+                                }
 
                                 return Card(
-                                  margin: const EdgeInsets.only(bottom: 10),
+                                  color: cardBgColor,
+                                  margin: const EdgeInsets.only(bottom: 12),
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14),
+                                    borderRadius: BorderRadius.circular(16),
+                                    side: BorderSide(
+                                      color: borderColor,
+                                      width: 1,
+                                    ),
                                   ),
-                                  elevation: 1,
-                                  child: ListTile(
-                                    leading: CircleAvatar(
-                                      backgroundColor: isMissed
-                                          ? AppColors.errorContainer
-                                          : AppColors.primaryContainer,
-                                      child: Icon(
-                                        isMissed
-                                            ? Icons.phone_missed
-                                            : (isVoice ? Icons.phone : Icons.videocam),
-                                        color: isMissed ? AppColors.error : AppColors.primary,
+                                  elevation: 0,
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: ListTile(
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      leading: Container(
+                                        width: 48,
+                                        height: 48,
+                                        decoration: BoxDecoration(
+                                          color: iconBgColor,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Icon(
+                                          callIcon,
+                                          color: Colors.white,
+                                          size: 24,
+                                        ),
                                       ),
-                                    ),
-                                    title: Text(
-                                      isVoice ? 'Chamada de Voz' : 'Chamada de Vídeo',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
+                                      title: Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              call.isFromSupervisor ? 'Ligação para Idoso' : 'Ligação do Idoso',
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w900,
+                                                fontSize: 16,
+                                              ),
+                                            ),
+                                          ),
+                                          if (isSos)
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: AppColors.error,
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                              child: const Text(
+                                                'SOS',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w900,
+                                                ),
+                                              ),
+                                            ),
+                                        ],
                                       ),
-                                    ),
-                                    subtitle: Text(
-                                      isMissed ? 'Chamada Perdida • $dateStr' : 'Concluída • $dateStr',
-                                      style: TextStyle(
-                                        color: isMissed ? AppColors.error : AppColors.onSurfaceVariant,
-                                        fontWeight: isMissed ? FontWeight.bold : FontWeight.normal,
+                                      subtitle: Padding(
+                                        padding: const EdgeInsets.only(top: 4.0),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              statusLabel,
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w800,
+                                                color: statusColor,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              '${call.formattedStartTime} • Tempo: ${call.formattedDetailedDuration}',
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                                color: AppColors.onSurfaceVariant,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
-                                    ),
-                                    trailing: IconButton(
-                                      icon: const Icon(Icons.call, color: AppColors.primary),
-                                      onPressed: () => _iniciarChamada(call.callType),
+                                      trailing: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          OutlinedButton.icon(
+                                            onPressed: () => _iniciarChamada(call.callType),
+                                            icon: Icon(
+                                              call.isVoiceCall ? Icons.phone : Icons.videocam,
+                                              size: 18,
+                                            ),
+                                            label: const Text(
+                                              'Ligar',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                            style: OutlinedButton.styleFrom(
+                                              foregroundColor: AppColors.primary,
+                                              side: const BorderSide(color: AppColors.primary, width: 2),
+                                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(12),
+                                              ),
+                                            ),
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 22),
+                                            tooltip: 'Apagar ligação',
+                                            onPressed: () => _confirmDeleteCall(context, call.id),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 );

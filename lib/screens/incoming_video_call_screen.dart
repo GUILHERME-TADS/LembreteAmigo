@@ -96,7 +96,9 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen>
           ? (isVoice
                 ? '$_callerName quer falar com você. Toque no botão verde grande para atender.'
                 : '$_callerName quer fazer uma ligação com imagem com você. Toque no botão verde grande para atender.')
-          : 'Ligação de ${isVoice ? 'voz' : 'vídeo'} de $_callerName.';
+          : (_isSosCall
+                ? 'Atenção! Alerta de emergência! $_callerName está pedindo ajuda!'
+                : 'Chamada de ${isVoice ? 'voz' : 'vídeo'} de $_callerName. Toque para atender.');
       TTSService.instance.falar(msg, caller: this);
     } catch (_) {}
   }

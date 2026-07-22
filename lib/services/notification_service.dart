@@ -569,6 +569,7 @@ class NotificationService {
           'Alertas inteligentes sobre atrasos e dificuldades nos lembretes',
       importance: isUrgent ? Importance.max : Importance.defaultImportance,
       priority: isUrgent ? Priority.high : Priority.defaultPriority,
+      sound: RawResourceAndroidNotificationSound(isUrgent ? 'chamada' : 'recado'),
       playSound: true,
       enableVibration: true,
       color: alertColor,

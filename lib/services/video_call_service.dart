@@ -536,7 +536,7 @@ class VideoCallService {
         );
   }
 
-  /// Stream que monitora a quantidade de chamadas perdidas (status: missed)
+  /// Stream que monitora a quantidade de chamadas perdidas não lidas (status: missed e seen != true)
   Stream<int> watchMissedCallsCount() async* {
     if (!_useFirebase) {
       yield 0;
@@ -553,7 +553,41 @@ class VideoCallService {
         .where('idosoId', isEqualTo: idosoId)
         .where('status', isEqualTo: 'missed')
         .snapshots()
-        .map((snapshot) => snapshot.docs.length);
+        .map(
+          (snapshot) =>
+              snapshot.docs.where((doc) => doc.data()['seen'] != true).length,
+        );
+  }
+
+  /// Marca todas as chamadas perdidas como lidas
+  Future<void> markMissedCallsAsRead() async {
+    if (!_useFirebase) return;
+    try {
+      final idosoId = await _getIdosoId();
+      if (idosoId.isEmpty) return;
+
+      final snapshot = await FirebaseFirestore.instance
+          .collection('video_calls')
+          .where('idosoId', isEqualTo: idosoId)
+          .where('status', isEqualTo: 'missed')
+          .get();
+
+      final batch = FirebaseFirestore.instance.batch();
+      var hasUpdates = false;
+
+      for (final doc in snapshot.docs) {
+        if (doc.data()['seen'] != true) {
+          batch.update(doc.reference, {'seen': true});
+          hasUpdates = true;
+        }
+      }
+
+      if (hasUpdates) {
+        await batch.commit();
+      }
+    } catch (e) {
+      debugPrint('Erro ao marcar chamadas perdidas como lidas: $e');
+    }
   }
 
   /// Busca chamadas ativas (ringing ou connected) para um idoso/supervisor
@@ -587,6 +621,21 @@ class VideoCallService {
     }
 
     return calls;
+  }
+
+  /// Remove uma chamada do histórico no Firestore
+  Future<bool> deleteCall(String callId) async {
+    if (!_useFirebase) return false;
+    try {
+      await FirebaseFirestore.instance
+          .collection('video_calls')
+          .doc(callId)
+          .delete();
+      return true;
+    } catch (e) {
+      debugPrint('Erro ao deletar chamada $callId: $e');
+      return false;
+    }
   }
 
   Future<void> dispose() async {

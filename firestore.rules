@@ -253,7 +253,8 @@ service cloud.firestore {
         'startedAt',
         'endedAt',
         'durationSeconds',
-        'callerName'
+        'callerName',
+        'seen'
       ]) &&
       isNonEmptyString(data.roomName, 96) &&
       isNonEmptyString(data.idosoId, 128) &&
@@ -264,7 +265,8 @@ service cloud.firestore {
       isOptionalIsoStringOrTimestamp(data, 'startedAt') &&
       isOptionalIsoStringOrTimestamp(data, 'endedAt') &&
       isOptionalInt(data, 'durationSeconds', 0, 86400) &&
-      isOptionalString(data, 'callerName', 120);
+      isOptionalString(data, 'callerName', 120) &&
+      isOptionalBool(data, 'seen');
     }
 
     function validVideoCallUpdate() {
@@ -275,10 +277,11 @@ service cloud.firestore {
         request.resource.data.initiatedBy == resource.data.initiatedBy &&
         request.resource.data.callType == resource.data.callType &&
         request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['status', 'endedAt', 'durationSeconds']) &&
+          .hasAny(['status', 'endedAt', 'durationSeconds', 'seen']) &&
         (
           resource.data.status == 'ringing' ||
-          resource.data.status == 'connected'
+          resource.data.status == 'connected' ||
+          (resource.data.status == 'missed' && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seen']))
         );
     }
 
@@ -296,7 +299,8 @@ service cloud.firestore {
         'pairingCode',
         'pairingCodeExpires',
         'createdAt',
-        'updatedAt'
+        'updatedAt',
+        'lastSeen'
       ]) &&
       isOptionalString(data, 'nome', 120) &&
       isOptionalInt(data, 'idade', 0, 130) &&
@@ -310,7 +314,8 @@ service cloud.firestore {
       isOptionalString(data, 'pairingCode', 20) &&
       isOptionalIsoStringOrTimestamp(data, 'pairingCodeExpires') &&
       isOptionalIsoStringOrTimestamp(data, 'createdAt') &&
-      isOptionalIsoStringOrTimestamp(data, 'updatedAt');
+      isOptionalIsoStringOrTimestamp(data, 'updatedAt') &&
+      isOptionalIsoStringOrTimestamp(data, 'lastSeen');
     }
 
     function validPairingClaim() {
@@ -330,7 +335,8 @@ service cloud.firestore {
         'fotoPath',
         'criadoEm',
         'createdAt',
-        'updatedAt'
+        'updatedAt',
+        'lastSeen'
       ]) &&
       isOptionalString(data, 'nome', 120) &&
       isOptionalString(data, 'email', 254) &&
@@ -338,7 +344,8 @@ service cloud.firestore {
       isOptionalString(data, 'fotoPath', 2048) &&
       isOptionalIsoStringOrTimestamp(data, 'criadoEm') &&
       isOptionalIsoStringOrTimestamp(data, 'createdAt') &&
-      isOptionalIsoStringOrTimestamp(data, 'updatedAt');
+      isOptionalIsoStringOrTimestamp(data, 'updatedAt') &&
+      isOptionalIsoStringOrTimestamp(data, 'lastSeen');
     }
 
     function validToken(data, expectedRole, expectedUserId) {
@@ -450,7 +457,10 @@ service cloud.firestore {
         canAccessIdosoData(resource.data.idosoId) ||
         isOwner(resource.data.supervisorId)
       ) && validVideoCallUpdate();
-      allow delete: if false;
+      allow delete: if isAuth() && (
+        canAccessIdosoData(resource.data.idosoId) ||
+        isOwner(resource.data.supervisorId)
+      );
     }
 
     match /health_metrics/{idosoId} {

@@ -19,3 +19,4 @@ export 'charts/category_distribution_chart.dart';
 export 'charts/weekly_comparison_chart.dart';
 export 'supervisor_header.dart';
 export 'info_bottom_sheet.dart';
+export 'google_sign_in_button.dart';

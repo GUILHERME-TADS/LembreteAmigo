@@ -34,8 +34,6 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen>
   String _callerName = '';
   Timer? _vibrateTimer;
   Timer? _ttsTimer;
-  Timer? _sosTimer;
-  int _sosSecondsRemaining = 15;
   bool _isSosCall = false;
   bool _accepted = false;
   bool _leaving = false;
@@ -72,23 +70,6 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen>
     });
   }
 
-  void _startSosCountdown() {
-    setState(() {
-      _isSosCall = true;
-    });
-    _sosTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) return;
-      if (_sosSecondsRemaining <= 1) {
-        timer.cancel();
-        _accept();
-      } else {
-        setState(() {
-          _sosSecondsRemaining--;
-        });
-      }
-    });
-  }
-
   void _announceCall() {
     try {
       final isVoice = widget.callType == 'voice';
@@ -113,7 +94,9 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen>
         _leaveIncomingScreen();
       }
     } else if (activeCall.initiatedBy == 'sos' && !_isSosCall) {
-      _startSosCountdown();
+      setState(() {
+        _isSosCall = true;
+      });
     }
   }
 
@@ -136,7 +119,6 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen>
   void _cleanupTimers() {
     _vibrateTimer?.cancel();
     _ttsTimer?.cancel();
-    _sosTimer?.cancel();
   }
 
   @override
@@ -278,7 +260,7 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen>
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            'EMERGÊNCIA SOS!\nVou atender sozinho em $_sosSecondsRemaining segundos.',
+                            'ALERTA DE EMERGÊNCIA SOS!',
                             textAlign: TextAlign.center,
                             style: const TextStyle(
                               color: Colors.white,

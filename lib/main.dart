@@ -637,6 +637,7 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
     _listenerRefreshTimer?.cancel();
     _incomingCallFirestoreSubscription?.cancel();
     OfflineSyncService.instance.stopAutoSync();
+    PresenceService.instance.stopHeartbeat();
     LembreteService.instance.notifier.removeListener(_openDueReminderIfNeeded);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();

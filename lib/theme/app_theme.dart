@@ -64,9 +64,11 @@ class AppColors {
 
 class AppTypography {
   static const fontFamily = 'Atkinson Hyperlegible Next';
+  static const fontFallback = <String>['Roboto', 'sans-serif'];
 
   static const headlineLg = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: fontFallback,
     fontSize: 40,
     fontWeight: FontWeight.bold,
     height: 1.2,
@@ -75,6 +77,7 @@ class AppTypography {
 
   static const headlineLgMobile = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: fontFallback,
     fontSize: 32,
     fontWeight: FontWeight.bold,
     height: 1.2,
@@ -82,6 +85,7 @@ class AppTypography {
 
   static const headlineMd = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: fontFallback,
     fontSize: 28,
     fontWeight: FontWeight.bold,
     height: 1.3,
@@ -89,6 +93,7 @@ class AppTypography {
 
   static const bodyLg = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: fontFallback,
     fontSize: 24,
     fontWeight: FontWeight.bold,
     height: 1.5,
@@ -96,6 +101,7 @@ class AppTypography {
 
   static const bodyMd = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: fontFallback,
     fontSize: 18,
     fontWeight: FontWeight.bold,
     height: 1.6,
@@ -103,6 +109,7 @@ class AppTypography {
 
   static const labelCaps = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: fontFallback,
     fontSize: 16,
     fontWeight: FontWeight.bold,
     height: 1.2,
@@ -111,6 +118,7 @@ class AppTypography {
 
   static const supervisorData = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: fontFallback,
     fontSize: 14,
     fontWeight: FontWeight.bold,
     height: 1.4,

@@ -1,10 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lembretes_app/main.dart';
+import 'package:lembretes_app/services/presence_service.dart';
 
 void main() {
   testWidgets('App renders welcome screen', (WidgetTester tester) async {
     await tester.pumpWidget(const MeuApp());
     expect(find.text('MeuApp Lembretes'), findsNothing);
+    PresenceService.instance.stopHeartbeat();
   });
 
   test('identifica rotas exclusivas do idoso', () {

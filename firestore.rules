@@ -40,7 +40,7 @@ service cloud.firestore {
     }
 
     function canAccessIdosoData(idosoId) {
-      return isAuth();
+      return isAuth() && (request.auth.uid == idosoId || isLinkedSupervisor(idosoId));
     }
 
     function docHasIdosoId() {

@@ -11,7 +11,7 @@ service firebase.storage {
     }
 
     function canAccessElderlyData(idosoId) {
-      return isAuth();
+      return isAuth() && (request.auth.uid == idosoId || isSupervisor());
     }
 
     function isAudio() {

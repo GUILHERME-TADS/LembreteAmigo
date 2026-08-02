@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
@@ -54,7 +53,8 @@ class LembreteService {
 
   String? _cacheIdosoId(String? idosoId) {
     if (idosoId == null || idosoId.isEmpty) return null;
-    if (SessionRoleService.isLocalOnlyIdosoId(idosoId)) {
+    if (SessionRoleService.isLocalOnlyIdosoId(idosoId) &&
+        !FirebaseHelper.isDemoRecording) {
       return SessionRoleService.autonomousIdosoId;
     }
     return idosoId;
@@ -74,7 +74,8 @@ class LembreteService {
   Future<void> carregar() async {
     if (SessionRoleService.isSupervisor) {
       final idosoId = await _getActiveIdosoId();
-      if (SessionRoleService.isLocalOnlyIdosoId(idosoId)) {
+      if (SessionRoleService.isLocalOnlyIdosoId(idosoId) &&
+          !FirebaseHelper.isDemoRecording) {
         await _lembretesSubscription?.cancel();
         _lembretesSubscription = null;
         await _eventosSubscription?.cancel();
@@ -121,6 +122,16 @@ class LembreteService {
 
     _carregarFuture = _executarCarregar(idosoId);
     await _carregarFuture;
+  }
+
+  Future<void> prepareDemoRecordingCache() async {
+    if (!FirebaseHelper.isDemoRecording) return;
+    await reset();
+    const demoIdosoId = 'idoso_simulado';
+    _loadedIdosoId = demoIdosoId;
+    _loaded = true;
+    await _carregarCacheLocal(activeIdosoId: demoIdosoId);
+    await _publicarLembretes();
   }
 
   Future<void> reset() async {
@@ -253,7 +264,8 @@ class LembreteService {
           },
           onError: (Object error, StackTrace stackTrace) {
             debugPrint('Erro ao escutar lembretes no Firestore: $error');
-            if (error is FirebaseException && error.code == 'permission-denied') {
+            if (error is FirebaseException &&
+                error.code == 'permission-denied') {
               _lembretesSubscription?.cancel();
               _lembretesSubscription = null;
             }
@@ -277,7 +289,8 @@ class LembreteService {
           },
           onError: (Object error, StackTrace stackTrace) {
             debugPrint('Erro ao escutar eventos no Firestore: $error');
-            if (error is FirebaseException && error.code == 'permission-denied') {
+            if (error is FirebaseException &&
+                error.code == 'permission-denied') {
               _eventosSubscription?.cancel();
               _eventosSubscription = null;
             }
@@ -309,6 +322,12 @@ class LembreteService {
   }
 
   List<String> _lembretesCacheKeysForRead(String? activeIdosoId) {
+    if (FirebaseHelper.isDemoRecording && activeIdosoId == 'idoso_simulado') {
+      return [
+        _elderlyBackupCacheKey(activeIdosoId),
+        _lembretesCacheKey(activeIdosoId),
+      ];
+    }
     if (SessionRoleService.isLocalOnlyIdosoId(activeIdosoId)) {
       return [
         _elderlyBackupCacheKey(SessionRoleService.autonomousIdosoId),
@@ -322,10 +341,11 @@ class LembreteService {
   }
 
   List<String> _eventosCacheKeysForRead(String? activeIdosoId) {
+    if (FirebaseHelper.isDemoRecording && activeIdosoId == 'idoso_simulado') {
+      return [_eventosCacheKey(activeIdosoId)];
+    }
     if (SessionRoleService.isLocalOnlyIdosoId(activeIdosoId)) {
-      return [
-        _eventosCacheKey(SessionRoleService.autonomousIdosoId),
-      ];
+      return [_eventosCacheKey(SessionRoleService.autonomousIdosoId)];
     }
     return [_eventosCacheKey(activeIdosoId)];
   }
@@ -359,8 +379,9 @@ class LembreteService {
       final existingLocal = await secureCache.read(targetRemindersKey);
       final existingBackup = await secureCache.read(targetBackupRemindersKey);
 
-      final bool hasExistingLocalData = (existingLocal != null && existingLocal.isNotEmpty) ||
-                                         (existingBackup != null && existingBackup.isNotEmpty);
+      final bool hasExistingLocalData =
+          (existingLocal != null && existingLocal.isNotEmpty) ||
+          (existingBackup != null && existingBackup.isNotEmpty);
 
       // If it doesn't have data, attempt to find data in the old keys
       if (!hasExistingLocalData) {
@@ -389,14 +410,17 @@ class LembreteService {
         if (foundData != null) {
           await secureCache.write(targetRemindersKey, foundData);
           await secureCache.write(targetBackupRemindersKey, foundData);
-          debugPrint('Cache de lembretes locais antigos migrado com sucesso para idoso_local.');
+          debugPrint(
+            'Cache de lembretes locais antigos migrado com sucesso para idoso_local.',
+          );
         }
       }
 
       // Repeat the check for events
       final targetEventsKey = 'lembretes_eventos_idoso_local';
       final existingEvents = await secureCache.read(targetEventsKey);
-      final bool hasExistingEventsData = existingEvents != null && existingEvents.isNotEmpty;
+      final bool hasExistingEventsData =
+          existingEvents != null && existingEvents.isNotEmpty;
 
       if (!hasExistingEventsData) {
         final oldEventsKeys = [
@@ -422,7 +446,9 @@ class LembreteService {
 
         if (foundData != null) {
           await secureCache.write(targetEventsKey, foundData);
-          debugPrint('Cache de eventos de lembretes antigos migrado com sucesso para idoso_local.');
+          debugPrint(
+            'Cache de eventos de lembretes antigos migrado com sucesso para idoso_local.',
+          );
         }
       }
 
@@ -1229,17 +1255,20 @@ class LembreteService {
     final lembrete = await _findLocalOrRemote(id);
     await NotificationService.instance.cancelar(id);
     _lembretes.removeWhere((item) => item.id == id);
-    
+
     final relatedEvents = _eventos.where((e) => e.lembreteId == id).toList();
     _eventos.removeWhere((e) => e.lembreteId == id);
-    
+
     await _salvar();
     await _salvarEventosLocais();
 
     if (_canSyncIdosoId(lembrete?.idosoId)) {
       await OfflineSyncService.instance.deleteOrQueue('lembretes', id);
       for (final event in relatedEvents) {
-        await OfflineSyncService.instance.deleteOrQueue('lembrete_eventos', event.id);
+        await OfflineSyncService.instance.deleteOrQueue(
+          'lembrete_eventos',
+          event.id,
+        );
       }
     }
   }

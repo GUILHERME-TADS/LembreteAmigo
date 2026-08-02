@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart';
 import 'alex_voice_profile.dart';
 import 'tts_service.dart';
 import 'always_listening_service.dart';
+import '../utils/firebase_helper.dart';
 
 class SessionRoleService {
   static const String _roleKey = 'active_user_role';
@@ -61,7 +62,12 @@ class SessionRoleService {
         if (cachedDoc.exists &&
             cachedData?['supervisorId'] == currentUser.uid &&
             cachedData?['status'] == 'active') {
-          unawaited(ensureSupervisorDocAndSubcollection(currentUser.uid, cachedIdosoId!));
+          unawaited(
+            ensureSupervisorDocAndSubcollection(
+              currentUser.uid,
+              cachedIdosoId!,
+            ),
+          );
           return true;
         }
         await prefs.remove('selected_idoso_id');
@@ -78,7 +84,9 @@ class SessionRoleService {
 
       final linkedIds = snapshot.docs.map((doc) => doc.id).toList()..sort();
       await prefs.setString('selected_idoso_id', linkedIds.first);
-      unawaited(ensureSupervisorDocAndSubcollection(currentUser.uid, linkedIds.first));
+      unawaited(
+        ensureSupervisorDocAndSubcollection(currentUser.uid, linkedIds.first),
+      );
       return true;
     } catch (e) {
       debugPrint('Erro ao restaurar vinculo do cuidador: $e');
@@ -125,6 +133,9 @@ class SessionRoleService {
     final elderlyActive = prefs.getString('paired_idoso_id');
 
     if (isElderly) {
+      if (FirebaseHelper.isDemoRecording && elderlyActive != null) {
+        return elderlyActive;
+      }
       final authenticatedId = Firebase.apps.isNotEmpty
           ? FirebaseAuth.instance.currentUser?.uid
           : null;
@@ -138,9 +149,13 @@ class SessionRoleService {
     }
     if (isSupervisor) {
       final activeId = supervisorActive ?? fallback;
-      final currentUser = Firebase.apps.isNotEmpty ? FirebaseAuth.instance.currentUser : null;
+      final currentUser = Firebase.apps.isNotEmpty
+          ? FirebaseAuth.instance.currentUser
+          : null;
       if (currentUser != null && !isLocalOnlyIdosoId(activeId)) {
-        unawaited(ensureSupervisorDocAndSubcollection(currentUser.uid, activeId));
+        unawaited(
+          ensureSupervisorDocAndSubcollection(currentUser.uid, activeId),
+        );
       }
       return activeId;
     }
@@ -168,6 +183,9 @@ class SessionRoleService {
   static Future<String?> getVerifiedActiveIdosoId() async {
     _lastVerificationFailedByError = false;
     final idosoId = await getActiveIdosoIdOrNull();
+    if (FirebaseHelper.isDemoRecording && idosoId == 'idoso_simulado') {
+      return idosoId;
+    }
     if (isLocalOnlyIdosoId(idosoId)) {
       return idosoId;
     }
@@ -208,6 +226,9 @@ class SessionRoleService {
     bool allowOfflineCache = false,
   }) async {
     final verified = await getVerifiedActiveIdosoId();
+    if (FirebaseHelper.isDemoRecording && verified == 'idoso_simulado') {
+      return true;
+    }
     if (verified != null && !isLocalOnlyIdosoId(verified)) {
       return true;
     }
@@ -228,6 +249,9 @@ class SessionRoleService {
   static Future<bool> isElderlyConnectedToSupervisor() async {
     final prefs = await SharedPreferences.getInstance();
     final idosoId = prefs.getString('paired_idoso_id');
+    if (FirebaseHelper.isDemoRecording && idosoId == 'idoso_simulado') {
+      return true;
+    }
     if (isLocalOnlyIdosoId(idosoId)) {
       return false;
     }
@@ -254,6 +278,10 @@ class SessionRoleService {
   }
 
   static Future<void> watchElderlyConnection() async {
+    if (FirebaseHelper.isDemoRecording) {
+      elderlyConnectionNotifier.value = true;
+      return;
+    }
     if (!isElderly || Firebase.apps.isEmpty) return;
     if (!await canSyncElderlyPrivateData()) {
       await stopWatchingElderlyConnection();
@@ -358,6 +386,9 @@ class SessionRoleService {
     if (!isSupervisor) return false;
 
     final idosoId = await getActiveIdosoIdOrNull();
+    if (FirebaseHelper.isDemoRecording && idosoId == 'idoso_simulado') {
+      return true;
+    }
     if (isLocalOnlyIdosoId(idosoId)) {
       return false;
     }
@@ -407,7 +438,9 @@ class SessionRoleService {
     }
   }
 
-  static Future<void> syncVoiceAndListeningSettings(Map<String, dynamic> data) async {
+  static Future<void> syncVoiceAndListeningSettings(
+    Map<String, dynamic> data,
+  ) async {
     final prefs = await SharedPreferences.getInstance();
     final rate = data['alex_voice_rate'] as num?;
     final pitch = data['alex_voice_pitch'] as num?;
@@ -433,7 +466,8 @@ class SessionRoleService {
       await TTSService.instance.initFromProfile(newProfile);
     }
     if (listening != null) {
-      final currentListening = prefs.getBool('always_listening_enabled') ?? false;
+      final currentListening =
+          prefs.getBool('always_listening_enabled') ?? false;
       if (currentListening != listening) {
         unawaited(AlwaysListeningService.instance.setEnabled(listening));
       }

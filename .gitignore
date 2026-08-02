@@ -33,6 +33,22 @@ migrate_working_dir/
 /build/
 /coverage/
 
+# Local caches and temporary artifact workspaces
+/.cache/
+/.codex-*/
+/.codex_*/
+/.tmp/
+/presentation*_work/
+/review_visuals/
+/slide-review-*/
+/tmp_apresentacao_*/
+/tmp_comparacao_*/
+/test-execution-output.txt
+/*.pptx.inspect.ndjson
+/*.incomplete
+/functions/node_modules/
+/android/.kotlin/
+
 # Symbolication related
 app.*.symbols
 

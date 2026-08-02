@@ -76,6 +76,7 @@ import 'widgets/index.dart';
 import 'widgets/app_status_banner.dart';
 import 'services/app_status_service.dart';
 import 'services/app_permission_service.dart';
+import 'utils/firebase_helper.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 final _RouteTracker _routeTracker = _RouteTracker();
@@ -106,8 +107,6 @@ Future<bool> _consumeNotificationLaunch(
   await prefs.setInt(_lastNotificationLaunchAtKey, now);
   return true;
 }
-
-
 
 bool isElderlyOnlyRoute(String routeName) {
   const elderlyRoutes = {
@@ -154,6 +153,7 @@ bool isSupervisorProtectedRoute(String routeName) {
 }
 
 bool hasSupervisorAuthSession() {
+  if (FirebaseHelper.isDemoRecording) return true;
   try {
     return Firebase.apps.isNotEmpty &&
         FirebaseAuth.instance.currentUser != null;
@@ -375,8 +375,6 @@ void main() async {
       );
     }
   }
-
-
 
   runApp(
     MeuApp(
@@ -748,9 +746,7 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      supportedLocales: const [
-        Locale('pt', 'BR'),
-      ],
+      supportedLocales: const [Locale('pt', 'BR')],
       theme: AppTheme.theme.copyWith(
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
@@ -1111,7 +1107,6 @@ class _AppStartupState extends State<_AppStartup> {
         return false;
       }
 
-
       navigatorKey.currentState?.pushNamed(
         '/active-reminder',
         arguments: lembrete,
@@ -1132,7 +1127,6 @@ class _AppStartupState extends State<_AppStartup> {
       );
       return;
     }
-
 
     if (SessionRoleService.isElderly) {
       final user = FirebaseAuth.instance.currentUser;

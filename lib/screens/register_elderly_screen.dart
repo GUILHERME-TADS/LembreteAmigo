@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -19,7 +20,10 @@ class RegisterElderlyScreen extends StatefulWidget {
 }
 
 class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
-  final List<TextEditingController> _controllers = List.generate(6, (_) => TextEditingController());
+  final List<TextEditingController> _controllers = List.generate(
+    6,
+    (_) => TextEditingController(),
+  );
   final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
   bool _isLoading = false;
   String? _pairedIdosoId;
@@ -46,7 +50,8 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
       });
 
       _focusNodes[i].onKeyEvent = (node, event) {
-        if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.backspace) {
+        if (event is KeyDownEvent &&
+            event.logicalKey == LogicalKeyboardKey.backspace) {
           if (_controllers[i].text.isEmpty && i > 0) {
             _controllers[i - 1].clear();
             _focusNodes[i - 1].requestFocus();
@@ -144,7 +149,9 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
       if (currentUser == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Faça login novamente antes de desconectar um idoso.'),
+            content: Text(
+              'Faça login novamente antes de desconectar um idoso.',
+            ),
           ),
         );
         return;
@@ -162,7 +169,9 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
         if (_useFirebase) {
           final batch = FirebaseFirestore.instance.batch();
           batch.set(
-            FirebaseFirestore.instance.collection('idoso_perfil').doc(_pairedIdosoId!),
+            FirebaseFirestore.instance
+                .collection('idoso_perfil')
+                .doc(_pairedIdosoId!),
             {
               'supervisorId': null,
               'status': 'pending',
@@ -172,7 +181,9 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
             SetOptions(merge: true),
           );
           batch.set(
-            FirebaseFirestore.instance.collection('idosos').doc(_pairedIdosoId!),
+            FirebaseFirestore.instance
+                .collection('idosos')
+                .doc(_pairedIdosoId!),
             {
               'supervisorId': null,
               'status': 'pending',
@@ -226,6 +237,18 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
     if (!_useFirebase) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('selected_idoso_id', 'idoso_simulado');
+      if (FirebaseHelper.isDemoRecording) {
+        await prefs.setString(
+          'idoso_perfil',
+          jsonEncode({
+            'nome': 'Dona Maria',
+            'endereco': 'Residência cadastrada',
+            'status': 'active',
+            'supervisorId': 'cuidador_demo',
+          }),
+        );
+        await prefs.setBool('elderly_autonomous_mode', false);
+      }
       await _loadPairedIdoso();
       if (!mounted) return;
       showDialog(
@@ -441,7 +464,9 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
               border: Border.all(
                 color: isFocused
                     ? AppColors.primary
-                    : (hasDigit ? AppColors.secondary : AppColors.outlineVariant),
+                    : (hasDigit
+                          ? AppColors.secondary
+                          : AppColors.outlineVariant),
                 width: isFocused ? 2.5 : 1.5,
               ),
               boxShadow: isFocused
@@ -517,151 +542,155 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-              if (_pairedIdosoId != null) ...[
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceContainerLowest,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: AppColors.primaryContainer,
-                      width: 2,
-                    ),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black12,
-                        blurRadius: 8,
-                        offset: Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      const Icon(Icons.link, size: 64, color: Colors.green),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Celular Conectado',
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
+                    if (_pairedIdosoId != null) ...[
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceContainerLowest,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: AppColors.primaryContainer,
+                            width: 2,
+                          ),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black12,
+                              blurRadius: 8,
+                              offset: Offset(0, 4),
+                            ),
+                          ],
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        _pairedIdosoName ?? 'Idoso Conectado',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          color: AppColors.onSurface,
-                          fontWeight: FontWeight.w600,
+                        child: Column(
+                          children: [
+                            const Icon(
+                              Icons.link,
+                              size: 64,
+                              color: Colors.green,
+                            ),
+                            const SizedBox(height: 12),
+                            const Text(
+                              'Celular Conectado',
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _pairedIdosoName ?? 'Idoso Conectado',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                color: AppColors.onSurface,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 56,
+                              child: ElevatedButton.icon(
+                                onPressed: _isLoading ? null : _desvincular,
+                                icon: const Icon(
+                                  Icons.link_off,
+                                  size: 24,
+                                  color: Colors.white,
+                                ),
+                                label: const Text(
+                                  'DESCONECTAR APARELHO',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.error,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       const SizedBox(height: 24),
+                    ] else ...[
+                      const Text(
+                        'Conectar Celular do Idoso',
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.w800,
+                          height: 1.2,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Insira o código de conexão de 6 dígitos que está sendo exibido na tela do idoso para vincular o dispositivo ao seu painel.',
+                        style: TextStyle(
+                          fontSize: 18,
+                          height: 1.5,
+                          color: AppColors.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      _buildPinInput(),
+                      const SizedBox(height: 48),
                       SizedBox(
                         width: double.infinity,
-                        height: 56,
+                        height: 64,
                         child: ElevatedButton.icon(
-                          onPressed: _isLoading ? null : _desvincular,
-                          icon: const Icon(
-                            Icons.link_off,
-                            size: 24,
-                            color: Colors.white,
-                          ),
-                          label: const Text(
-                            'DESCONECTAR APARELHO',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
+                          onPressed: _isLoading ? null : _cadastrar,
+                          icon: _isLoading
+                              ? const SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.link, size: 28),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.error,
+                            backgroundColor: AppColors.primary,
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
+                          label: Text(
+                            _isLoading
+                                ? 'CONECTANDO...'
+                                : 'VINCULAR DISPOSITIVO',
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                         ),
                       ),
+                      const SizedBox(height: 24),
                     ],
-                  ),
+                  ],
                 ),
-                const SizedBox(height: 24),
-              ] else ...[
-                const Text(
-                  'Conectar Celular do Idoso',
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.w800,
-                    height: 1.2,
-                    color: AppColors.primary,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Insira o código de conexão de 6 dígitos que está sendo exibido na tela do idoso para vincular o dispositivo ao seu painel.',
-                  style: TextStyle(
-                    fontSize: 18,
-                    height: 1.5,
-                    color: AppColors.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 32),
-                _buildPinInput(),
-                const SizedBox(height: 48),
-                SizedBox(
-                  width: double.infinity,
-                  height: 64,
-                  child: ElevatedButton.icon(
-                    onPressed: _isLoading ? null : _cadastrar,
-                    icon: _isLoading
-                        ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : const Icon(Icons.link, size: 28),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    label: Text(
-                      _isLoading ? 'CONECTANDO...' : 'VINCULAR DISPOSITIVO',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-              ],
-            ],
-          ),
+              ),
+            ),
+          ],
         ),
       ),
-    ],
-  ),
-),
-);
-}
+    );
+  }
 
   Widget _buildTopBar(BuildContext context) {
     return Container(
       height: 64,
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-      ),
+      decoration: const BoxDecoration(color: AppColors.surface),
       child: Row(
         children: [
           IconButton(

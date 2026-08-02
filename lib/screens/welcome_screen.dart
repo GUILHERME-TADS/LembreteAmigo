@@ -9,6 +9,7 @@ import '../services/lembrete_service.dart';
 import '../services/message_service.dart';
 import '../services/google_auth_service.dart';
 import '../services/secure_cache_service.dart';
+import '../utils/firebase_helper.dart';
 import '../widgets/index.dart';
 
 class WelcomeScreen extends StatefulWidget {
@@ -121,6 +122,29 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                 TTSService.instance.parar(caller: this);
                                 await LembreteService.instance.reset();
                                 await MessageService.instance.reset();
+                                if (FirebaseHelper.isDemoRecording) {
+                                  await SessionRoleService.setElderly();
+                                  final prefs =
+                                      await SharedPreferences.getInstance();
+                                  await prefs.setString(
+                                    'paired_idoso_id',
+                                    'idoso_simulado',
+                                  );
+                                  await prefs.setBool(
+                                    'elderly_autonomous_mode',
+                                    false,
+                                  );
+                                  await LembreteService.instance
+                                      .prepareDemoRecordingCache();
+                                  if (!context.mounted) return;
+                                  Navigator.pushNamedAndRemoveUntil(
+                                    context,
+                                    '/elderly-home',
+                                    (route) => false,
+                                    arguments: {'connected': true},
+                                  );
+                                  return;
+                                }
                                 final credential = await GoogleAuthService
                                     .instance
                                     .signIn();
@@ -136,34 +160,64 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                 final previousId = prefs.getString(
                                   'paired_idoso_id',
                                 );
-                                if (previousId != null && previousId != user.uid) {
+                                if (previousId != null &&
+                                    previousId != user.uid) {
                                   // Clear old account preferences and profile data
                                   await prefs.remove('idoso_perfil');
                                   await prefs.remove('idoso_foto_path');
                                   await prefs.remove('alex_voice_rate');
                                   await prefs.remove('alex_voice_pitch');
-                                  await prefs.remove('always_listening_enabled');
+                                  await prefs.remove(
+                                    'always_listening_enabled',
+                                  );
                                   await prefs.remove('elderly_autonomous_mode');
 
                                   // Clear local/autonomous reminder and event cache fallbacks
-                                  final secureCache = SecureCacheService.instance;
-                                  await secureCache.delete('lembretes_idoso_local');
-                                  await secureCache.delete('elderly_backup_lembretes_idoso_local');
-                                  await secureCache.delete('lembretes_eventos_idoso_local');
-                                  await secureCache.delete('offline_write_queue_elderly_anonymous_idoso_local');
+                                  final secureCache =
+                                      SecureCacheService.instance;
+                                  await secureCache.delete(
+                                    'lembretes_idoso_local',
+                                  );
+                                  await secureCache.delete(
+                                    'elderly_backup_lembretes_idoso_local',
+                                  );
+                                  await secureCache.delete(
+                                    'lembretes_eventos_idoso_local',
+                                  );
+                                  await secureCache.delete(
+                                    'offline_write_queue_elderly_anonymous_idoso_local',
+                                  );
 
                                   // Clean up old legacy fallback keys just in case
-                                  await secureCache.delete('lembretes_idoso_autonomo');
-                                  await secureCache.delete('elderly_backup_lembretes_idoso_autonomo');
-                                  await secureCache.delete('lembretes_idoso_sem_vinculo');
-                                  await secureCache.delete('lembretes_idoso_simulado');
+                                  await secureCache.delete(
+                                    'lembretes_idoso_autonomo',
+                                  );
+                                  await secureCache.delete(
+                                    'elderly_backup_lembretes_idoso_autonomo',
+                                  );
+                                  await secureCache.delete(
+                                    'lembretes_idoso_sem_vinculo',
+                                  );
+                                  await secureCache.delete(
+                                    'lembretes_idoso_simulado',
+                                  );
                                   await secureCache.delete('lembretes');
-                                  await secureCache.delete('lembretes_eventos_idoso_autonomo');
-                                  await secureCache.delete('lembretes_eventos_idoso_sem_vinculo');
-                                  await secureCache.delete('lembretes_eventos_idoso_simulado');
+                                  await secureCache.delete(
+                                    'lembretes_eventos_idoso_autonomo',
+                                  );
+                                  await secureCache.delete(
+                                    'lembretes_eventos_idoso_sem_vinculo',
+                                  );
+                                  await secureCache.delete(
+                                    'lembretes_eventos_idoso_simulado',
+                                  );
                                   await secureCache.delete('lembretes_eventos');
-                                  await secureCache.delete('offline_write_queue_elderly_anonymous_idoso_autonomo');
-                                  await secureCache.delete('offline_write_queue_elderly_anonymous_idoso_sem_vinculo');
+                                  await secureCache.delete(
+                                    'offline_write_queue_elderly_anonymous_idoso_autonomo',
+                                  );
+                                  await secureCache.delete(
+                                    'offline_write_queue_elderly_anonymous_idoso_sem_vinculo',
+                                  );
                                 }
                                 await prefs.setString(
                                   'paired_idoso_id',
@@ -365,7 +419,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                     shape: BoxShape.circle,
                   ),
                   child: Center(
-                    child: customIconWidget ??
+                    child:
+                        customIconWidget ??
                         Icon(icon, size: 32, color: iconColor),
                   ),
                 ),
@@ -404,6 +459,4 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       ),
     );
   }
-
-
 }

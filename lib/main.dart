@@ -207,7 +207,10 @@ class _RouteTracker extends NavigatorObserver {
 }
 
 Future<void> _activateAppCheck() async {
-  const webSiteKey = String.fromEnvironment('FIREBASE_APP_CHECK_WEB_KEY');
+  const webSiteKey = String.fromEnvironment(
+    'FIREBASE_APP_CHECK_WEB_KEY',
+    defaultValue: '6Ld6E3ItAAAAAM1l-0HFsk3Ch1kFsH7kqlZ4MmBT',
+  );
 
   if (kIsWeb) {
     if (webSiteKey.isEmpty) {
@@ -223,7 +226,7 @@ Future<void> _activateAppCheck() async {
       return;
     }
     await FirebaseAppCheck.instance.activate(
-      webProvider: ReCaptchaV3Provider(webSiteKey),
+      webProvider: ReCaptchaEnterpriseProvider(webSiteKey),
     );
     return;
   }

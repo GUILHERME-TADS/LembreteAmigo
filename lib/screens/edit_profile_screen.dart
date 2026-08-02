@@ -1,13 +1,13 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../theme/app_theme.dart';
 import '../services/session_role_service.dart';
 import '../services/elderly_profile_repository.dart';
+import '../services/secure_cache_service.dart';
 import '../services/tts_service.dart';
 import '../services/offline_sync_service.dart';
 import '../utils/firebase_helper.dart';
@@ -127,9 +127,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text(
-                'Não consegui ouvir sua voz neste celular.',
-              ),
+              content: Text('Não consegui ouvir sua voz neste celular.'),
             ),
           );
           TTSService.instance.falar(
@@ -213,10 +211,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         text = 'Digite o número do seu celular com o código da cidade.';
         break;
       case 3:
-        text = 'Se você tiver, digite o telefone da ambulância da sua cidade. Se não tiver, pode deixar em branco e avançar.';
+        text =
+            'Se você tiver, digite o telefone da ambulância da sua cidade. Se não tiver, pode deixar em branco e avançar.';
         break;
       case 4:
-        text = 'Por fim, digite o seu endereço completo com a rua, o número e o bairro, e depois clique no botão salvar.';
+        text =
+            'Por fim, digite o seu endereço completo com a rua, o número e o bairro, e depois clique no botão salvar.';
         break;
     }
     TTSService.instance.falar(text, caller: this);
@@ -233,7 +233,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Por favor, digite seu nome completo.')),
         );
-        TTSService.instance.falar('Por favor, digite o seu nome completo.', caller: this);
+        TTSService.instance.falar(
+          'Por favor, digite o seu nome completo.',
+          caller: this,
+        );
         return;
       }
     } else if (_currentStep == 1) {
@@ -243,7 +246,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Digite a data assim: dia, mês e ano.')),
         );
-        TTSService.instance.falar('Digite a data assim: dia, mês e ano.', caller: this);
+        TTSService.instance.falar(
+          'Digite a data assim: dia, mês e ano.',
+          caller: this,
+        );
         return;
       }
     } else if (_currentStep == 2) {
@@ -253,7 +259,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Confira o número do telefone.')),
         );
-        TTSService.instance.falar('Confira o número do telefone.', caller: this);
+        TTSService.instance.falar(
+          'Confira o número do telefone.',
+          caller: this,
+        );
         return;
       }
     } else if (_currentStep == 3) {
@@ -263,7 +272,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Confira o número da ambulância.')),
         );
-        TTSService.instance.falar('Confira o número da ambulância.', caller: this);
+        TTSService.instance.falar(
+          'Confira o número da ambulância.',
+          caller: this,
+        );
         return;
       }
     }
@@ -300,8 +312,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         return;
       }
 
-      final prefs = await SharedPreferences.getInstance();
-      final canUseRemoteProfile = !SessionRoleService.isElderly ||
+      final canUseRemoteProfile =
+          !SessionRoleService.isElderly ||
           await SessionRoleService.canSyncElderlyPrivateData();
       String nome = '';
       String dataNasc = '';
@@ -310,7 +322,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       String endereco = '';
 
       // 1. Sempre carrega os dados locais como fallback/inicialização
-      final jsonStr = prefs.getString('idoso_perfil');
+      final jsonStr = await SecureCacheService.instance.readElderlyProfile();
       if (jsonStr != null) {
         final data = jsonDecode(jsonStr) as Map<String, dynamic>;
         nome = data['nome'] as String? ?? nome;
@@ -383,7 +395,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Future<String?> _resolveEditableIdosoId() async {
     await SessionRoleService.load();
     final idosoId = await SessionRoleService.getActiveIdosoId();
-    final prefs = await SharedPreferences.getInstance();
 
     if (SessionRoleService.isSupervisor) {
       final isConnected = await SessionRoleService.isSupervisorConnected();
@@ -405,7 +416,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
 
     if (SessionRoleService.isLocalOnlyIdosoId(idosoId)) {
-      final hasLocalProfile = prefs.getString('idoso_perfil') != null;
+      final hasLocalProfile =
+          await SecureCacheService.instance.readElderlyProfile() != null;
       if (SessionRoleService.isElderly && hasLocalProfile) {
         _activeIdosoId = idosoId;
         return idosoId;
@@ -437,9 +449,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     if (nome.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor, digite seu nome completo.'),
-        ),
+        const SnackBar(content: Text('Por favor, digite seu nome completo.')),
       );
       TTSService.instance.falar(
         'Por favor, digite seu nome completo.',
@@ -453,9 +463,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     if (dataNasc.isNotEmpty && !dateRegex.hasMatch(dataNasc)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Digite a data assim: dia, mês e ano.'),
-        ),
+        const SnackBar(content: Text('Digite a data assim: dia, mês e ano.')),
       );
       TTSService.instance.falar(
         'Digite a data assim: dia, mês e ano.',
@@ -466,22 +474,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     if (telefone.isNotEmpty && !phoneRegex.hasMatch(telefone)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Confira o número do telefone.'),
-        ),
+        const SnackBar(content: Text('Confira o número do telefone.')),
       );
-      TTSService.instance.falar(
-        'Confira o número do telefone.',
-        caller: this,
-      );
+      TTSService.instance.falar('Confira o número do telefone.', caller: this);
       return;
     }
 
     if (ambulancePhone.isNotEmpty && !phoneRegex.hasMatch(ambulancePhone)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Confira o número da ambulância.'),
-        ),
+        const SnackBar(content: Text('Confira o número da ambulância.')),
       );
       TTSService.instance.falar(
         'Confira o número da ambulância.',
@@ -496,18 +497,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
     setState(() => _isSaving = true);
 
-    final prefs = await SharedPreferences.getInstance();
     final idosoId = _activeIdosoId ?? await _resolveEditableIdosoId();
     if (idosoId == null) {
       if (mounted) setState(() => _isSaving = false);
       return;
     }
-    final canUseRemoteProfile = !SessionRoleService.isElderly ||
+    final canUseRemoteProfile =
+        !SessionRoleService.isElderly ||
         await SessionRoleService.canSyncElderlyPrivateData();
 
     final Map<String, dynamic> perfil = {};
 
-    final jsonStr = prefs.getString('idoso_perfil');
+    final jsonStr = await SecureCacheService.instance.readElderlyProfile();
     if (jsonStr != null) {
       try {
         final existing = jsonDecode(jsonStr) as Map<String, dynamic>;
@@ -529,8 +530,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       } catch (_) {}
     }
 
-    final sanitizedPerfil =
-        ElderlyProfileRepository.instance.sanitize(perfil);
+    final sanitizedPerfil = ElderlyProfileRepository.instance.sanitize(perfil);
     perfil
       ..clear()
       ..addAll(sanitizedPerfil);
@@ -546,7 +546,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     try {
       // Salva localmente primeiro
-      await prefs.setString('idoso_perfil', jsonEncode(perfil));
+      await SecureCacheService.instance.writeElderlyProfile(jsonEncode(perfil));
 
       // Salva no Firebase de forma confiável
       if (_useFirebase &&
@@ -589,7 +589,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
 
       TTSService.instance.parar(caller: this);
-      TTSService.instance.falar('Pronto. Seus dados foram salvos.', caller: this);
+      TTSService.instance.falar(
+        'Pronto. Seus dados foram salvos.',
+        caller: this,
+      );
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -599,9 +602,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     } catch (e) {
       debugPrint('Erro ao salvar alterações do perfil: $e');
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Não consegui salvar seus dados. Tente de novo.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Não consegui salvar seus dados. Tente de novo.'),
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -611,9 +616,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Widget _buildTopBar() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-      ),
+      decoration: const BoxDecoration(color: AppColors.surface),
       child: Row(
         children: [
           IconButton(
@@ -639,7 +642,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ],
           ),
           const Spacer(),
-          const SizedBox(width: 48), // Mantém o equilíbrio visual com o botão de voltar no lado oposto
+          const SizedBox(
+            width: 48,
+          ), // Mantém o equilíbrio visual com o botão de voltar no lado oposto
         ],
       ),
     );
@@ -767,15 +772,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               final isActive = index == _currentStep;
                               final isCompleted = index < _currentStep;
                               return Container(
-                                margin: const EdgeInsets.symmetric(horizontal: 6),
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                ),
                                 width: 48,
                                 height: 12,
                                 decoration: BoxDecoration(
                                   color: isActive
                                       ? AppColors.primary
                                       : (isCompleted
-                                          ? AppColors.primary.withValues(alpha: 0.4)
-                                          : AppColors.outlineVariant),
+                                            ? AppColors.primary.withValues(
+                                                alpha: 0.4,
+                                              )
+                                            : AppColors.outlineVariant),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                               );
@@ -796,7 +805,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: AppColors.outlineVariant, width: 1.5),
+                              border: Border.all(
+                                color: AppColors.outlineVariant,
+                                width: 1.5,
+                              ),
                               boxShadow: const [
                                 BoxShadow(
                                   color: Colors.black12,
@@ -816,7 +828,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                   child: OutlinedButton(
                                     onPressed: _voltar,
                                     style: OutlinedButton.styleFrom(
-                                      side: const BorderSide(color: AppColors.outlineVariant, width: 2),
+                                      side: const BorderSide(
+                                        color: AppColors.outlineVariant,
+                                        width: 2,
+                                      ),
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(12),
                                       ),
@@ -859,7 +874,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                             ),
                                           )
                                         : Text(
-                                            _currentStep == 4 ? 'SALVAR' : 'AVANÇAR',
+                                            _currentStep == 4
+                                                ? 'SALVAR'
+                                                : 'AVANÇAR',
                                             style: const TextStyle(
                                               fontSize: 18,
                                               fontWeight: FontWeight.bold,

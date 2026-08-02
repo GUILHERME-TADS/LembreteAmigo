@@ -1,94 +1,109 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-
     function isAuth() {
       return request.auth != null;
     }
 
-    function isSupervisor() {
-      return isAuth() && firestore.exists(/databases/(default)/documents/supervisores/$(request.auth.uid));
+    function isOwner(userId) {
+      return isAuth() && request.auth.uid == userId;
     }
 
-    function canAccessElderlyData(idosoId) {
-      return isAuth() && (request.auth.uid == idosoId || isSupervisor());
+    function hasCanonicalProfile(elderlyId) {
+      return firestore.exists(
+        /databases/(default)/documents/idoso_perfil/$(elderlyId)
+      );
     }
 
-    function isAudio() {
-      return request.resource.contentType == null ||
-             request.resource.contentType == '' ||
-             request.resource.contentType == 'application/octet-stream' ||
-             request.resource.contentType.matches('audio/.*');
+    function canonicalProfile(elderlyId) {
+      return firestore.get(
+        /databases/(default)/documents/idoso_perfil/$(elderlyId)
+      ).data;
     }
 
-    function isImage() {
-      return request.resource.contentType == null ||
-             request.resource.contentType == '' ||
-             request.resource.contentType == 'application/octet-stream' ||
-             request.resource.contentType.matches('image/.*');
+    function isLinkedSupervisor(elderlyId) {
+      return isAuth() &&
+        hasCanonicalProfile(elderlyId) &&
+        canonicalProfile(elderlyId).status == 'active' &&
+        canonicalProfile(elderlyId).supervisorId == request.auth.uid;
     }
 
-    // Audio recordings for reminders: reminder_audio/{idosoId}/{fileName}
-    match /reminder_audio/{idosoId}/{fileName} {
-      allow read: if canAccessElderlyData(idosoId);
-      allow write: if canAccessElderlyData(idosoId) &&
-        isAudio() &&
-        fileName.matches('.*\\.(mp3|wav|m4a|ogg|aac)$') &&
-        request.resource.size < 10 * 1024 * 1024;
-      allow delete: if canAccessElderlyData(idosoId);
+    function isLinkedElderly(supervisorId) {
+      return isAuth() &&
+        hasCanonicalProfile(request.auth.uid) &&
+        canonicalProfile(request.auth.uid).status == 'active' &&
+        canonicalProfile(request.auth.uid).supervisorId == supervisorId;
     }
 
-    // Medication photos: reminder_photos/{idosoId}/{fileName}
-    match /reminder_photos/{idosoId}/{fileName} {
-      allow read: if canAccessElderlyData(idosoId);
-      allow write: if canAccessElderlyData(idosoId) &&
-        isImage() &&
-        fileName.matches('.*\\.(jpg|jpeg|png|webp)$') &&
-        request.resource.size < 5 * 1024 * 1024;
-      allow delete: if canAccessElderlyData(idosoId);
+    function canAccessElderly(elderlyId) {
+      return isOwner(elderlyId) || isLinkedSupervisor(elderlyId);
     }
 
-    // Confirmation photos (medication taken): confirmation_photos/{idosoId}/{fileName}
-    match /confirmation_photos/{idosoId}/{fileName} {
-      allow read: if canAccessElderlyData(idosoId);
-      allow write: if canAccessElderlyData(idosoId) &&
-        isImage() &&
-        fileName.matches('.*\\.(jpg|jpeg|png|webp)$') &&
-        request.resource.size < 5 * 1024 * 1024;
-      allow delete: if canAccessElderlyData(idosoId);
+    function validAudio(fileName, maxBytes) {
+      return fileName.matches(
+          '^[A-Za-z0-9_-]{1,128}\\.(mp3|wav|m4a|ogg|aac)$'
+        ) &&
+        request.resource.size > 0 &&
+        request.resource.size <= maxBytes &&
+        request.resource.contentType.matches(
+          '^audio/(mpeg|mp4|wav|ogg|aac|x-m4a)$'
+        );
     }
 
-    // Voice messages: message_audio/{idosoId}/{fileName}
-    match /message_audio/{idosoId}/{fileName} {
-      allow read: if canAccessElderlyData(idosoId);
-      allow write: if canAccessElderlyData(idosoId) &&
-        isAudio() &&
-        fileName.matches('.*\\.(mp3|wav|m4a|ogg|aac)$') &&
-        request.resource.size < 10 * 1024 * 1024;
-      allow delete: if false;
+    function validImage(fileName, maxBytes) {
+      return fileName.matches(
+          '^[A-Za-z0-9_-]{1,128}\\.(jpg|jpeg|png|webp)$'
+        ) &&
+        request.resource.size > 0 &&
+        request.resource.size <= maxBytes &&
+        request.resource.contentType.matches(
+          '^image/(jpeg|png|webp)$'
+        );
     }
 
-    // Profile photos: perfis/{idosoId}/{fileName}
-    match /perfis/{idosoId}/{fileName} {
-      allow read: if true;
-      allow write: if canAccessElderlyData(idosoId) &&
-        isImage() &&
-        fileName.matches('.*\\.(jpg|jpeg|png|webp)$') &&
-        request.resource.size < 5 * 1024 * 1024;
-      allow delete: if canAccessElderlyData(idosoId);
+    match /reminder_audio/{elderlyId}/{fileName} {
+      allow read: if canAccessElderly(elderlyId);
+      allow create, update: if canAccessElderly(elderlyId) &&
+        validAudio(fileName, 10 * 1024 * 1024);
+      allow delete: if canAccessElderly(elderlyId);
     }
 
-    // Supervisor profile photos: perfis_supervisor/{supervisorId}/{fileName}
+    match /reminder_photos/{elderlyId}/{fileName} {
+      allow read: if canAccessElderly(elderlyId);
+      allow create, update: if canAccessElderly(elderlyId) &&
+        validImage(fileName, 5 * 1024 * 1024);
+      allow delete: if canAccessElderly(elderlyId);
+    }
+
+    match /confirmation_photos/{elderlyId}/{fileName} {
+      allow read: if canAccessElderly(elderlyId);
+      allow create, update: if canAccessElderly(elderlyId) &&
+        validImage(fileName, 5 * 1024 * 1024);
+      allow delete: if canAccessElderly(elderlyId);
+    }
+
+    match /message_audio/{elderlyId}/{fileName} {
+      allow read: if canAccessElderly(elderlyId);
+      allow create, update: if canAccessElderly(elderlyId) &&
+        validAudio(fileName, 10 * 1024 * 1024);
+      allow delete: if canAccessElderly(elderlyId);
+    }
+
+    match /perfis/{elderlyId}/{fileName} {
+      allow read: if canAccessElderly(elderlyId);
+      allow create, update: if canAccessElderly(elderlyId) &&
+        validImage(fileName, 5 * 1024 * 1024);
+      allow delete: if canAccessElderly(elderlyId);
+    }
+
     match /perfis_supervisor/{supervisorId}/{fileName} {
-      allow read: if true;
-      allow write: if request.auth != null && request.auth.uid == supervisorId &&
-        isImage() &&
-        fileName.matches('.*\\.(jpg|jpeg|png|webp)$') &&
-        request.resource.size < 5 * 1024 * 1024;
-      allow delete: if request.auth != null && request.auth.uid == supervisorId;
+      allow read: if isOwner(supervisorId) ||
+        isLinkedElderly(supervisorId);
+      allow create, update: if isOwner(supervisorId) &&
+        validImage(fileName, 5 * 1024 * 1024);
+      allow delete: if isOwner(supervisorId);
     }
 
-    // Deny all other paths
     match /{allPaths=**} {
       allow read, write: if false;
     }

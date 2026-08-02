@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_theme.dart';
 import 'package:firebase_core/firebase_core.dart';
 import '../services/session_role_service.dart';
+import '../services/secure_cache_service.dart';
 import '../models/lembrete.dart';
 import '../services/lembrete_service.dart';
 import '../services/video_call_service.dart';
@@ -45,7 +46,7 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
       if (localFoto != null && localFoto.isNotEmpty) {
         foto = localFoto;
       }
-      final jsonStr = prefs.getString('idoso_perfil');
+      final jsonStr = await SecureCacheService.instance.readElderlyProfile();
       if (jsonStr != null) {
         try {
           final decoded = jsonDecode(jsonStr);
@@ -53,7 +54,8 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
             final data = Map<String, dynamic>.from(decoded);
             nome = data['nome'] as String? ?? nome;
             telefone = data['telefone'] as String? ?? telefone;
-            if (foto == null || (data['fotoPath'] as String?)?.startsWith('http') == true) {
+            if (foto == null ||
+                (data['fotoPath'] as String?)?.startsWith('http') == true) {
               foto = data['fotoPath'] as String? ?? foto;
             }
           }
@@ -153,7 +155,9 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Não foi possível iniciar a chamada pelo aplicativo.'),
+            content: Text(
+              'Não foi possível iniciar a chamada pelo aplicativo.',
+            ),
             backgroundColor: AppColors.error,
           ),
         );
@@ -176,20 +180,37 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
   Future<void> _resolverLembrete() async {
     final lembrete = widget.lembrete;
     if (lembrete == null) return;
-    
+
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Resolver Lembrete', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
-        content: const Text('Deseja marcar este lembrete como resolvido/concluído? Ele não aparecerá mais como alerta crítico.'),
+        title: const Text(
+          'Resolver Lembrete',
+          style: TextStyle(
+            color: AppColors.primary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: const Text(
+          'Deseja marcar este lembrete como resolvido/concluído? Ele não aparecerá mais como alerta crítico.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('CANCELAR', style: TextStyle(color: AppColors.primary)),
+            child: const Text(
+              'CANCELAR',
+              style: TextStyle(color: AppColors.primary),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('RESOLVER', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+            child: const Text(
+              'RESOLVER',
+              style: TextStyle(
+                color: Colors.green,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -201,18 +222,27 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
       final sucesso = await LembreteService.instance.concluir(lembrete.id);
       if (sucesso && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Lembrete resolvido com sucesso.'), backgroundColor: Colors.green),
+          const SnackBar(
+            content: Text('Lembrete resolvido com sucesso.'),
+            backgroundColor: Colors.green,
+          ),
         );
         Navigator.pop(context); // Fechar a tela de alerta
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Não foi possível resolver o lembrete agora.'), backgroundColor: AppColors.error),
+          const SnackBar(
+            content: Text('Não foi possível resolver o lembrete agora.'),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao resolver: $e'), backgroundColor: AppColors.error),
+          SnackBar(
+            content: Text('Erro ao resolver: $e'),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
     }
@@ -380,7 +410,9 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
                           width: double.infinity,
                           height: 60,
                           child: ElevatedButton.icon(
-                            onPressed: _isCalling ? null : () => _fazerLigacaoApp('video'),
+                            onPressed: _isCalling
+                                ? null
+                                : () => _fazerLigacaoApp('video'),
                             icon: _isCalling
                                 ? const SizedBox(
                                     width: 24,
@@ -392,7 +424,9 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
                                   )
                                 : const Icon(Icons.videocam, size: 28),
                             label: Text(
-                              _isCalling ? 'Iniciando vídeo...' : 'Vídeo com $_idosoName',
+                              _isCalling
+                                  ? 'Iniciando vídeo...'
+                                  : 'Vídeo com $_idosoName',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
@@ -414,7 +448,9 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
                           width: double.infinity,
                           height: 56,
                           child: ElevatedButton.icon(
-                            onPressed: _isCalling ? null : () => _fazerLigacaoApp('voice'),
+                            onPressed: _isCalling
+                                ? null
+                                : () => _fazerLigacaoApp('voice'),
                             icon: const Icon(Icons.phone_in_talk, size: 26),
                             label: const Text(
                               'Ligação de Voz pelo App',
@@ -440,7 +476,11 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
                           height: 52,
                           child: OutlinedButton.icon(
                             onPressed: _isCalling ? null : _fazerLigacao,
-                            icon: const Icon(Icons.phone, size: 22, color: AppColors.onSurfaceVariant),
+                            icon: const Icon(
+                              Icons.phone,
+                              size: 22,
+                              color: AppColors.onSurfaceVariant,
+                            ),
                             label: const Text(
                               'Ligar por Telefone Celular (GSM)',
                               style: TextStyle(
@@ -450,14 +490,17 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
                               ),
                             ),
                             style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: AppColors.outlineVariant),
+                              side: const BorderSide(
+                                color: AppColors.outlineVariant,
+                              ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
                             ),
                           ),
                         ),
-                        if (SessionRoleService.isSupervisor && widget.lembrete != null) ...[
+                        if (SessionRoleService.isSupervisor &&
+                            widget.lembrete != null) ...[
                           const SizedBox(height: 12),
                           SizedBox(
                             width: double.infinity,

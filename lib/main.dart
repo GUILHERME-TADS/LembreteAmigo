@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -155,8 +156,13 @@ bool isSupervisorProtectedRoute(String routeName) {
 bool hasSupervisorAuthSession() {
   if (FirebaseHelper.isDemoRecording) return true;
   try {
-    return Firebase.apps.isNotEmpty &&
-        FirebaseAuth.instance.currentUser != null;
+    if (Firebase.apps.isEmpty) return false;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return false;
+    final usesPassword = user.providerData.any(
+      (provider) => provider.providerId == 'password',
+    );
+    return !usesPassword || user.emailVerified;
   } catch (e) {
     debugPrint('Erro ao verificar sessao de auth: $e');
     return false;
@@ -200,6 +206,38 @@ class _RouteTracker extends NavigatorObserver {
   }
 }
 
+Future<void> _activateAppCheck() async {
+  const webSiteKey = String.fromEnvironment('FIREBASE_APP_CHECK_WEB_KEY');
+
+  if (kIsWeb) {
+    if (webSiteKey.isEmpty) {
+      if (kReleaseMode) {
+        throw StateError(
+          'FIREBASE_APP_CHECK_WEB_KEY is required for a web release.',
+        );
+      }
+      debugPrint(
+        'App Check Web desativado no modo de desenvolvimento: '
+        'informe FIREBASE_APP_CHECK_WEB_KEY para testar funções protegidas.',
+      );
+      return;
+    }
+    await FirebaseAppCheck.instance.activate(
+      webProvider: ReCaptchaV3Provider(webSiteKey),
+    );
+    return;
+  }
+
+  await FirebaseAppCheck.instance.activate(
+    androidProvider: kDebugMode
+        ? AndroidProvider.debug
+        : AndroidProvider.playIntegrity,
+    appleProvider: kDebugMode
+        ? AppleProvider.debug
+        : AppleProvider.appAttestWithDeviceCheckFallback,
+  );
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Alarm.init();
@@ -221,7 +259,8 @@ void main() async {
     } else {
       await Firebase.initializeApp();
     }
-    debugPrint('Firebase inicializado com sucesso.');
+    await _activateAppCheck();
+    debugPrint('Firebase e App Check inicializados com sucesso.');
     await CrashlyticsService.instance.init();
   } catch (e) {
     debugPrint(

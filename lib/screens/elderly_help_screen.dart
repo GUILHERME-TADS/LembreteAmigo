@@ -18,6 +18,7 @@ import '../services/elderly_profile_repository.dart';
 import '../services/tts_service.dart';
 import '../services/location_service.dart';
 import '../services/video_call_service.dart';
+import '../services/secure_cache_service.dart';
 import '../widgets/index.dart';
 
 class ElderlyHelpScreen extends StatefulWidget {
@@ -455,9 +456,9 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                               await _audioPlayer.stop();
                             }
                             try {
-                              final prefs = await SharedPreferences.getInstance();
                               String idosoName = 'Idoso';
-                              final jsonStr = prefs.getString('idoso_perfil');
+                              final jsonStr = await SecureCacheService.instance
+                                  .readElderlyProfile();
                               if (jsonStr != null) {
                                 try {
                                   final map = jsonDecode(jsonStr);
@@ -910,7 +911,9 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                           await Navigator.pushNamed(context, '/messages');
                         }
                       } finally {
-                        if (mounted) setState(() => _isProcessingAction = false);
+                        if (mounted) {
+                          setState(() => _isProcessingAction = false);
+                        }
                       }
                     },
                     child: Container(
@@ -980,10 +983,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
               decoration: BoxDecoration(
-                border: Border.all(
-                  color: const Color(0xFF00695C),
-                  width: 3,
-                ),
+                border: Border.all(color: const Color(0xFF00695C), width: 3),
                 borderRadius: BorderRadius.circular(AppRadius.lg),
               ),
               child: Row(
@@ -1103,7 +1103,11 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                         const SizedBox(height: 8),
                         TextButton.icon(
                           onPressed: _abrirDialogoConfigurarAmbulancia,
-                          icon: const Icon(Icons.edit, size: 20, color: AppColors.error),
+                          icon: const Icon(
+                            Icons.edit,
+                            size: 20,
+                            color: AppColors.error,
+                          ),
                           label: const Text(
                             'Editar número',
                             style: TextStyle(
@@ -1115,7 +1119,10 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                             ),
                           ),
                           style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
                             minimumSize: Size.zero,
                             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
@@ -1136,7 +1143,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
     final controller = TextEditingController(text: _ambulancePhone ?? '');
     final stt.SpeechToText speech = stt.SpeechToText();
     bool isListening = false;
-    
+
     // Anuncia imediatamente ao abrir
     TTSService.instance.falar(
       'Por favor, digite o número da ambulância local ou aperte no microfone para falar o número.',
@@ -1166,7 +1173,10 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                 children: [
                   const Text(
                     'Digite o número da ambulância da sua região (exemplo: 192).',
-                    style: TextStyle(fontSize: 18, color: AppColors.onSurfaceVariant),
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: AppColors.onSurfaceVariant,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   SeniorInputField(
@@ -1194,12 +1204,17 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                       try {
                         final available = await speech.initialize(
                           onError: (e) {
-                            if (isListening) SystemSound.play(SystemSoundType.click);
+                            if (isListening) {
+                              SystemSound.play(SystemSoundType.click);
+                            }
                             setDialogState(() => isListening = false);
                           },
                           onStatus: (status) {
-                            if (status == stt.SpeechToText.doneStatus || status == stt.SpeechToText.notListeningStatus) {
-                              if (isListening) SystemSound.play(SystemSoundType.click);
+                            if (status == stt.SpeechToText.doneStatus ||
+                                status == stt.SpeechToText.notListeningStatus) {
+                              if (isListening) {
+                                SystemSound.play(SystemSoundType.click);
+                              }
                               setDialogState(() => isListening = false);
                             }
                           },
@@ -1222,16 +1237,24 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                               );
                               controller.value = formattedValue;
                               if (result.finalResult) {
-                                if (isListening) SystemSound.play(SystemSoundType.click);
+                                if (isListening) {
+                                  SystemSound.play(SystemSoundType.click);
+                                }
                                 setDialogState(() => isListening = false);
                                 if (controller.text.isNotEmpty) {
-                                  TTSService.instance.falar('Anotado: ${controller.text}', caller: this);
+                                  TTSService.instance.falar(
+                                    'Anotado: ${controller.text}',
+                                    caller: this,
+                                  );
                                 }
                               }
                             },
                           );
                         } else {
-                          TTSService.instance.falar('Não consegui ouvir sua voz neste celular.', caller: this);
+                          TTSService.instance.falar(
+                            'Não consegui ouvir sua voz neste celular.',
+                            caller: this,
+                          );
                         }
                       } catch (e) {
                         setDialogState(() => isListening = false);
@@ -1256,7 +1279,9 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                     if (isListening) speech.stop();
                     final num = controller.text.trim();
                     if (num.isNotEmpty) {
-                      await EmergencyContactService.instance.saveAmbulancePhone(num);
+                      await EmergencyContactService.instance.saveAmbulancePhone(
+                        num,
+                      );
                       if (mounted) {
                         setState(() {
                           _ambulancePhone = num;
@@ -1269,7 +1294,10 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
                   ),
-                  child: const Text('Salvar', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  child: const Text(
+                    'Salvar',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
                 ),
               ],
             );
@@ -1281,8 +1309,8 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
 
   Future<void> _loadProfilePhoto() async {
     try {
-      final localFoto =
-          await ElderlyProfileRepository.instance.getCachedPhotoPath();
+      final localFoto = await ElderlyProfileRepository.instance
+          .getCachedPhotoPath();
       if (mounted) {
         setState(() {
           _fotoPath = localFoto;
@@ -1367,9 +1395,8 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
     );
 
     try {
-      final prefs = await SharedPreferences.getInstance();
       String nome = 'O IDOSO';
-      final jsonStr = prefs.getString('idoso_perfil');
+      final jsonStr = await SecureCacheService.instance.readElderlyProfile();
       if (jsonStr != null) {
         try {
           final data = jsonDecode(jsonStr) as Map<String, dynamic>;
@@ -1433,7 +1460,7 @@ class AmbulancePhoneInputFormatter extends TextInputFormatter {
       return newValue;
     }
     final clean = text.replaceAll(RegExp(r'\D'), '');
-    
+
     // Se for um número de emergência curto (3 a 4 dígitos, como 192, 193) não coloca parênteses
     if (clean.length <= 4) {
       return TextEditingValue(
@@ -1441,7 +1468,7 @@ class AmbulancePhoneInputFormatter extends TextInputFormatter {
         selection: TextSelection.collapsed(offset: clean.length),
       );
     }
-    
+
     // Formata no padrão de telefone/celular: (XX) XXXXX-XXXX
     final buffer = StringBuffer();
     for (int i = 0; i < clean.length; i++) {

@@ -79,6 +79,10 @@ class _SupervisorRegisterScreenState extends State<SupervisorRegisterScreen> {
               'criadoEm': DateTime.now().toIso8601String(),
             });
 
+        await user.sendEmailVerification();
+
+        await FirebaseAuth.instance.signOut();
+
         if (!mounted) return;
         Navigator.pushReplacementNamed(context, '/registration-success');
       } on FirebaseAuthException catch (e) {

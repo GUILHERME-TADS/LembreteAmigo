@@ -5,6 +5,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'session_role_service.dart';
+import 'secure_cache_service.dart';
 
 class EmergencyContactService {
   EmergencyContactService._();
@@ -28,7 +29,7 @@ class EmergencyContactService {
       if (value != null) return value;
     }
 
-    final localProfile = prefs.getString('idoso_perfil');
+    final localProfile = await SecureCacheService.instance.readElderlyProfile();
     final localPhone = _phoneFromJson(localProfile);
     if (localPhone != null) return localPhone;
 
@@ -56,9 +57,10 @@ class EmergencyContactService {
       try {
         final idosoId = await SessionRoleService.getActiveIdosoId();
         if (!SessionRoleService.isLocalOnlyIdosoId(idosoId)) {
-          await FirebaseFirestore.instance.collection('idosos').doc(idosoId).set({
-            'ambulancia_telefone': cleaned,
-          }, SetOptions(merge: true));
+          await FirebaseFirestore.instance
+              .collection('idosos')
+              .doc(idosoId)
+              .set({'ambulancia_telefone': cleaned}, SetOptions(merge: true));
         }
       } catch (_) {}
     }
@@ -77,7 +79,10 @@ class EmergencyContactService {
 
   Future<String?> _phoneFromFirestore(String collection, String id) async {
     try {
-      final doc = await FirebaseFirestore.instance.collection(collection).doc(id).get();
+      final doc = await FirebaseFirestore.instance
+          .collection(collection)
+          .doc(id)
+          .get();
       final data = doc.data();
       if (data == null) return null;
       return _phoneFromMap(data);

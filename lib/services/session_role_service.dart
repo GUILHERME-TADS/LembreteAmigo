@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart';
 import 'alex_voice_profile.dart';
 import 'tts_service.dart';
 import 'always_listening_service.dart';
+import 'secure_cache_service.dart';
 import '../utils/firebase_helper.dart';
 
 class SessionRoleService {
@@ -62,12 +63,6 @@ class SessionRoleService {
         if (cachedDoc.exists &&
             cachedData?['supervisorId'] == currentUser.uid &&
             cachedData?['status'] == 'active') {
-          unawaited(
-            ensureSupervisorDocAndSubcollection(
-              currentUser.uid,
-              cachedIdosoId!,
-            ),
-          );
           return true;
         }
         await prefs.remove('selected_idoso_id');
@@ -84,40 +79,10 @@ class SessionRoleService {
 
       final linkedIds = snapshot.docs.map((doc) => doc.id).toList()..sort();
       await prefs.setString('selected_idoso_id', linkedIds.first);
-      unawaited(
-        ensureSupervisorDocAndSubcollection(currentUser.uid, linkedIds.first),
-      );
       return true;
     } catch (e) {
       debugPrint('Erro ao restaurar vinculo do cuidador: $e');
       return false;
-    }
-  }
-
-  static Future<void> ensureSupervisorDocAndSubcollection(
-    String supervisorId,
-    String idosoId,
-  ) async {
-    try {
-      if (Firebase.apps.isEmpty || isLocalOnlyIdosoId(idosoId)) return;
-      await FirebaseFirestore.instance
-          .collection('supervisores')
-          .doc(supervisorId)
-          .set({
-            'updatedAt': DateTime.now().toIso8601String(),
-          }, SetOptions(merge: true));
-      await FirebaseFirestore.instance
-          .collection('supervisores')
-          .doc(supervisorId)
-          .collection('idosos')
-          .doc(idosoId)
-          .set({
-            'linkedAt': DateTime.now().toIso8601String(),
-          }, SetOptions(merge: true));
-    } catch (e) {
-      debugPrint(
-        'Erro ao garantir subcolecao supervisor/idoso ($supervisorId -> $idosoId): $e',
-      );
     }
   }
 
@@ -148,16 +113,7 @@ class SessionRoleService {
       return fallback;
     }
     if (isSupervisor) {
-      final activeId = supervisorActive ?? fallback;
-      final currentUser = Firebase.apps.isNotEmpty
-          ? FirebaseAuth.instance.currentUser
-          : null;
-      if (currentUser != null && !isLocalOnlyIdosoId(activeId)) {
-        unawaited(
-          ensureSupervisorDocAndSubcollection(currentUser.uid, activeId),
-        );
-      }
-      return activeId;
+      return supervisorActive ?? fallback;
     }
     return fallback;
   }
@@ -256,7 +212,7 @@ class SessionRoleService {
       return false;
     }
 
-    final jsonStr = prefs.getString('idoso_perfil');
+    final jsonStr = await SecureCacheService.instance.readElderlyProfile();
     if (jsonStr != null) {
       try {
         final data = jsonDecode(jsonStr) as Map<String, dynamic>;
@@ -311,7 +267,8 @@ class SessionRoleService {
                 data?['status'] == 'active' &&
                 data?['supervisorId'] != null;
             final prefs = await SharedPreferences.getInstance();
-            final cachedJson = prefs.getString('idoso_perfil');
+            final cachedJson = await SecureCacheService.instance
+                .readElderlyProfile();
             final cachedProfile = <String, dynamic>{};
             if (cachedJson != null) {
               try {
@@ -331,7 +288,9 @@ class SessionRoleService {
               cachedProfile['supervisorId'] = null;
             }
             cachedProfile['status'] = connected ? 'active' : 'pending';
-            await prefs.setString('idoso_perfil', jsonEncode(cachedProfile));
+            await SecureCacheService.instance.writeElderlyProfile(
+              jsonEncode(cachedProfile),
+            );
             await prefs.setBool('elderly_autonomous_mode', !connected);
             if (data != null) {
               await syncVoiceAndListeningSettings(data);

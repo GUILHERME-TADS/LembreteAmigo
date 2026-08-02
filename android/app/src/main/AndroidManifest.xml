@@ -17,7 +17,7 @@
     <application
         android:label="Lembrete Amigo"
         tools:replace="android:label"
-        android:usesCleartextTraffic="true"
+        android:usesCleartextTraffic="false"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <!-- Disable Impeller to fix black screen bug when returning from native Jitsi Meet views -->

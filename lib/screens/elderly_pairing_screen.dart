@@ -1,17 +1,18 @@
 import 'dart:convert';
 import 'dart:async';
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import '../theme/app_theme.dart';
 import '../services/session_role_service.dart';
 import '../services/push_notification_service.dart';
 import '../services/offline_sync_service.dart';
 import '../services/elderly_profile_repository.dart';
 import '../services/tts_service.dart';
+import '../services/secure_cache_service.dart';
 import '../widgets/index.dart';
 import '../utils/firebase_helper.dart';
 
@@ -68,7 +69,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
       await prefs.setBool('elderly_autonomous_mode', true);
       await PushNotificationService.instance.saveCurrentToken();
 
-      final jsonStr = prefs.getString('idoso_perfil');
+      final jsonStr = await SecureCacheService.instance.readElderlyProfile();
       final Map<String, dynamic> localPerfil = jsonStr != null
           ? jsonDecode(jsonStr) as Map<String, dynamic>
           : <String, dynamic>{};
@@ -79,18 +80,28 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
       localPerfil.putIfAbsent('endereco', () => '');
       localPerfil.putIfAbsent('fotoPath', () => null);
       final remotePerfil =
-          ElderlyProfileRepository.instance.sanitize(localPerfil);
-      remotePerfil['supervisorId'] = null;
-      remotePerfil['status'] = 'pending';
+          ElderlyProfileRepository.instance.sanitize(localPerfil)
+            ..remove('supervisorId')
+            ..remove('status')
+            ..remove('pairingCode')
+            ..remove('pairingCodeExpires');
       remotePerfil['updatedAt'] = DateTime.now().toIso8601String();
 
-      localPerfil.addAll(remotePerfil);
+      await FirebaseFirestore.instance
+          .collection('idoso_perfil')
+          .doc(idosoId)
+          .set(remotePerfil, SetOptions(merge: true));
+      await FirebaseFunctions.instance.httpsCallable('unlinkElderly').call({
+        'elderlyId': idosoId,
+      });
 
-      await prefs.setString('idoso_perfil', jsonEncode(localPerfil));
-      await OfflineSyncService.instance.setOrQueue(
-        'idoso_perfil',
-        idosoId,
-        remotePerfil,
+      localPerfil.addAll(remotePerfil);
+      localPerfil['supervisorId'] = null;
+      localPerfil['status'] = 'pending';
+      localPerfil.remove('pairingCode');
+      localPerfil.remove('pairingCodeExpires');
+      await SecureCacheService.instance.writeElderlyProfile(
+        jsonEncode(localPerfil),
       );
 
       if (mounted) {
@@ -129,41 +140,50 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
     }
 
     try {
-      final code = await _generateUniquePairingCode();
-      final prefs = await SharedPreferences.getInstance();
-
-      final jsonStr = prefs.getString('idoso_perfil');
-      final Map<String, dynamic> localPerfil = jsonStr != null
-          ? jsonDecode(jsonStr) as Map<String, dynamic>
-          : <String, dynamic>{};
-
-      final pairingProfile =
-          ElderlyProfileRepository.instance.sanitize(localPerfil);
-      pairingProfile.putIfAbsent('nome', () => 'Minha Conta');
-      pairingProfile.putIfAbsent('dataNascimento', () => '');
-      pairingProfile.putIfAbsent('telefone', () => '');
-      pairingProfile.putIfAbsent('endereco', () => '');
-      pairingProfile.putIfAbsent('fotoPath', () => null);
-      pairingProfile['status'] = 'pending';
-      pairingProfile['pairingCode'] = code;
-      pairingProfile['pairingCodeExpires'] = DateTime.now()
-          .add(const Duration(hours: 2))
-          .toIso8601String();
-
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
-        throw StateError('Entre com Google para gerar o codigo de conexao.');
+        throw StateError('Entre com Google para gerar o código de conexão.');
       }
-      final uid = user.uid;
+
+      final prefs = await SharedPreferences.getInstance();
+      final jsonStr = await SecureCacheService.instance.readElderlyProfile();
+      final Map<String, dynamic> localProfile = jsonStr != null
+          ? jsonDecode(jsonStr) as Map<String, dynamic>
+          : <String, dynamic>{};
+      final safeProfile =
+          ElderlyProfileRepository.instance.sanitize(localProfile)
+            ..remove('supervisorId')
+            ..remove('status')
+            ..remove('pairingCode')
+            ..remove('pairingCodeExpires');
+      safeProfile.putIfAbsent('nome', () => 'Minha Conta');
+      safeProfile['updatedAt'] = DateTime.now().toIso8601String();
 
       await FirebaseFirestore.instance
           .collection('idoso_perfil')
-          .doc(uid)
-          .set(pairingProfile);
+          .doc(user.uid)
+          .set(safeProfile, SetOptions(merge: true));
 
-      await prefs.setString('paired_idoso_id', uid);
+      final result = await FirebaseFunctions.instance
+          .httpsCallable('createPairingCode')
+          .call();
+      final data = Map<String, dynamic>.from(result.data as Map);
+      final code = data['code'] as String? ?? '';
+      if (!RegExp(r'^[0-9]{6}$').hasMatch(code)) {
+        throw StateError('O servidor retornou um código inválido.');
+      }
+
+      localProfile.addAll(safeProfile);
+      localProfile['status'] = 'pending';
+      localProfile['supervisorId'] = null;
+      localProfile.remove('pairingCode');
+      localProfile.remove('pairingCodeExpires');
+
+      await prefs.setString('paired_idoso_id', user.uid);
       await prefs.setBool('elderly_autonomous_mode', true);
-      await prefs.setString('idoso_perfil', jsonEncode(pairingProfile));
+      await SecureCacheService.instance.writeElderlyProfile(
+        jsonEncode(localProfile),
+      );
       await PushNotificationService.instance.saveCurrentToken();
 
       if (!mounted) return;
@@ -172,59 +192,44 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
         _isLoading = false;
       });
 
-      // Iniciar escuta das atualizações do documento no Firestore
       _profileSubscription?.cancel();
       _profileSubscription = FirebaseFirestore.instance
           .collection('idoso_perfil')
-          .doc(uid)
+          .doc(user.uid)
           .snapshots()
           .listen(
             (snapshot) async {
-              if (snapshot.exists && snapshot.data() != null) {
-                final data = snapshot.data()!;
-                if (data['status'] == 'active') {
-                  // Conectado com sucesso pelo supervisor!
-                  _profileSubscription?.cancel();
-                  final prefsInstance = await SharedPreferences.getInstance();
-
-                  // Preserva dados locais existentes, só atualiza conexão do Firestore
-                  final jsonStr = prefsInstance.getString('idoso_perfil');
-                  final Map<String, dynamic> merged = jsonStr != null
-                      ? jsonDecode(jsonStr) as Map<String, dynamic>
-                      : <String, dynamic>{};
-
-                  merged['status'] = data['status'];
-                  if (data['supervisorId'] != null) {
-                    merged['supervisorId'] = data['supervisorId'];
-                  }
-
-                  for (final key in [
-                    'nome',
-                    'dataNascimento',
-                    'telefone',
-                    'endereco',
-                    'fotoPath',
-                  ]) {
-                    merged.putIfAbsent(key, () => data[key]);
-                  }
-
-                  await prefsInstance.setString(
-                    'idoso_perfil',
-                    jsonEncode(merged),
-                  );
-                  await prefsInstance.setString('paired_idoso_id', uid);
-                  await prefsInstance.setBool('elderly_autonomous_mode', false);
-
-                  final fotoPath = data['fotoPath'] as String?;
-                  if (fotoPath != null && fotoPath.isNotEmpty) {
-                    await prefsInstance.setString('idoso_foto_path', fotoPath);
-                  }
-
-                  await SessionRoleService.syncVoiceAndListeningSettings(data);
-
-                  _handleSuccess();
-                }
+              if (!snapshot.exists || snapshot.data() == null) return;
+              final profile = snapshot.data()!;
+              if (profile['status'] != 'active' ||
+                  profile['supervisorId'] == null) {
+                return;
               }
+
+              await _profileSubscription?.cancel();
+              final localPrefs = await SharedPreferences.getInstance();
+              final cachedJson = await SecureCacheService.instance
+                  .readElderlyProfile();
+              final Map<String, dynamic> merged = cachedJson != null
+                  ? jsonDecode(cachedJson) as Map<String, dynamic>
+                  : <String, dynamic>{};
+              merged.addAll(profile);
+              merged.remove('pairingCode');
+              merged.remove('pairingCodeExpires');
+
+              await SecureCacheService.instance.writeElderlyProfile(
+                jsonEncode(merged),
+              );
+              await localPrefs.setString('paired_idoso_id', user.uid);
+              await localPrefs.setBool('elderly_autonomous_mode', false);
+
+              final photoPath = profile['fotoPath'] as String?;
+              if (photoPath != null && photoPath.isNotEmpty) {
+                await localPrefs.setString('idoso_foto_path', photoPath);
+              }
+
+              await SessionRoleService.syncVoiceAndListeningSettings(profile);
+              _handleSuccess();
             },
             onError: (Object error) {
               debugPrint('Erro ao escutar atualizações de pareamento: $error');
@@ -232,22 +237,19 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
           );
 
       TTSService.instance.falar(
-        'Seu código para conectar é: ${code.split('').join(' ')}. Mostre este número para o seu cuidador. O seu cuidador vai digitar esse número no celular dele para conectar os dois aparelhos.',
+        'Seu código para conectar é: ${code.split('').join(' ')}. '
+        'Mostre este número para o seu cuidador.',
         caller: this,
       );
-    } catch (e) {
-      debugPrint('Erro ao gerar código de pareamento: $e');
+    } catch (error) {
+      debugPrint('Erro ao gerar código de pareamento: $error');
+      if (!mounted) return;
       setState(() {
         _errorMessage =
             'Não consegui criar o código. Veja se a internet está ligada e tente de novo.';
         _isLoading = false;
       });
     }
-  }
-
-  Future<String> _generateUniquePairingCode() async {
-    final random = math.Random.secure();
-    return (100000 + random.nextInt(900000)).toString();
   }
 
   void _handleSuccess() async {
@@ -392,7 +394,10 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
                             );
                           },
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 12,
+                            ),
                             decoration: BoxDecoration(
                               color: AppColors.secondaryContainer,
                               borderRadius: BorderRadius.circular(16),
@@ -400,7 +405,11 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
                             child: const Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.volume_up_rounded, color: AppColors.onSecondaryContainer, size: 28),
+                                Icon(
+                                  Icons.volume_up_rounded,
+                                  color: AppColors.onSecondaryContainer,
+                                  size: 28,
+                                ),
                                 SizedBox(width: 10),
                                 Text(
                                   'OUVIR COMO CONECTAR',
@@ -427,7 +436,9 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: List.generate(6, (index) {
                               return Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4.0,
+                                ),
                                 child: Container(
                                   width: 48,
                                   height: 64,

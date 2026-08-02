@@ -4,6 +4,7 @@ import '../models/smart_alert.dart';
 import 'lembrete_service.dart';
 import 'smart_alert_service.dart';
 import 'effectiveness_service.dart';
+import 'session_role_service.dart';
 import '../utils/reminder_state_helper.dart';
 import '../models/lembrete.dart';
 
@@ -54,33 +55,41 @@ class SupervisorAIService {
     return {
       'data': now.toIso8601String().substring(0, 10),
       'lembretes': lembretes
-          .map((l) => {
-                'titulo': l.titulo,
-                'horario': '${l.horarioHour.toString().padLeft(2, '0')}:${l.horarioMinute.toString().padLeft(2, '0')}',
-                'categoria': l.categoria,
-                'concluido': l.concluido,
-                'recorrencia': l.recorrencia,
-                'urgencia': _getUrgencia(l),
-              })
+          .map(
+            (l) => {
+              'titulo': l.titulo,
+              'horario':
+                  '${l.horarioHour.toString().padLeft(2, '0')}:${l.horarioMinute.toString().padLeft(2, '0')}',
+              'categoria': l.categoria,
+              'concluido': l.concluido,
+              'recorrencia': l.recorrencia,
+              'urgencia': _getUrgencia(l),
+            },
+          )
           .toList(),
       'eventos': eventos
           .where((e) => e.registradoEm.isAfter(seteDiasAtras))
-          .map((e) => {
-                'titulo': e.titulo,
-                'categoria': e.categoria,
-                'status': e.status.storageValue,
-                'registradoEm': e.registradoEm.toIso8601String(),
-                'observacao': e.observacao,
-              })
+          .map(
+            (e) => {
+              'titulo': e.titulo,
+              'categoria': e.categoria,
+              'status': e.status.storageValue,
+              'registradoEm': e.registradoEm.toIso8601String(),
+              'observacao': e.observacao,
+            },
+          )
           .toList(),
-      'alertas': alerts.map((a) => {
-            'titulo': a.title,
-            'mensagem': a.message,
-            'severidade': a.severity.name,
-            'criadoEm': a.createdAt.toIso8601String(),
-            'minutosAtraso': a.minutesLate,
-          }).toList(),
-
+      'alertas': alerts
+          .map(
+            (a) => {
+              'titulo': a.title,
+              'mensagem': a.message,
+              'severidade': a.severity.name,
+              'criadoEm': a.createdAt.toIso8601String(),
+              'minutosAtraso': a.minutesLate,
+            },
+          )
+          .toList(),
     };
   }
 
@@ -92,15 +101,16 @@ class SupervisorAIService {
     final total = lembretes.length;
     final concluidos = lembretes.where((l) => l.concluido).toList();
     final alerts = SmartAlertService.instance.alerts;
-    final criticos =
-        alerts.where((a) => a.severity == SmartAlertSeverity.critical).toList();
+    final criticos = alerts
+        .where((a) => a.severity == SmartAlertSeverity.critical)
+        .toList();
 
     final pct = total > 0 ? (concluidos.length / total * 100).round() : 0;
     final summary = pendentes.isEmpty
         ? 'O idoso concluiu todos os $total lembretes de hoje.'
         : 'O idoso concluiu $pct% dos lembretes '
-            '(${concluidos.length} de $total). '
-            'Ainda pendentes: ${pendentes.length}.';
+              '(${concluidos.length} de $total). '
+              'Ainda pendentes: ${pendentes.length}.';
 
     final insights = <String>[];
     if (criticos.isNotEmpty) {
@@ -129,9 +139,14 @@ class SupervisorAIService {
 
   Future<SupervisorInsights> getDailySummary() async {
     try {
+      final elderlyId = await SessionRoleService.getVerifiedActiveIdosoId();
+      if (elderlyId == null) {
+        throw StateError('Vinculo com o idoso nao confirmado.');
+      }
       final functions = FirebaseFunctions.instance;
       final callable = functions.httpsCallable('supervisorChat');
       final result = await callable.call({
+        'elderlyId': elderlyId,
         'elderlyData': _buildElderlyData(),
       });
 
@@ -167,9 +182,14 @@ class SupervisorAIService {
     required int hidratacaoPct,
   }) async {
     try {
+      final elderlyId = await SessionRoleService.getVerifiedActiveIdosoId();
+      if (elderlyId == null) {
+        throw StateError('Vinculo com o idoso nao confirmado.');
+      }
       final functions = FirebaseFunctions.instance;
       final callable = functions.httpsCallable('generateReportInsights');
       final result = await callable.call({
+        'elderlyId': elderlyId,
         'idosoName': idosoName,
         'adesaoGeral': adesaoGeral,
         'totalAtividades': totalAtividades,

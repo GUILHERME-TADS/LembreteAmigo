@@ -7,13 +7,13 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:share_plus/share_plus.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:fl_chart/fl_chart.dart';
 
 import '../services/lembrete_service.dart';
 import '../services/effectiveness_service.dart';
 import '../services/session_role_service.dart';
+import '../services/secure_cache_service.dart';
 import '../theme/app_theme.dart';
 
 import '../widgets/supervisor_bottom_nav.dart';
@@ -64,7 +64,6 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
     if (_loadingData) return;
     _loadingData = true;
     try {
-      final prefs = await SharedPreferences.getInstance();
       final idosoId = await SessionRoleService.getActiveIdosoId();
       try {
         final doc = await FirebaseFirestore.instance
@@ -75,7 +74,8 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
           _idosoName = doc.data()?['nome'] ?? 'Idoso';
         }
       } catch (_) {
-        final profileJson = prefs.getString('idoso_perfil');
+        final profileJson = await SecureCacheService.instance
+            .readElderlyProfile();
         if (profileJson != null) {
           try {
             final profile = jsonDecode(profileJson) as Map<String, dynamic>;
@@ -207,8 +207,12 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
                   pw.Bullet(text: 'Atividades registradas: $_weeklyTotal'),
                   pw.Bullet(text: 'Atividades concluidas: $_weeklyDone'),
                   pw.Bullet(text: 'Atividades nao feitas: $_weeklyMissed'),
-                  pw.Bullet(text: 'Resumo familiar: ${sanitize(_weeklyHumanSummary)}'),
-                  pw.Bullet(text: 'Ponto de atencao: ${sanitize(_weeklyAttention)}'),
+                  pw.Bullet(
+                    text: 'Resumo familiar: ${sanitize(_weeklyHumanSummary)}',
+                  ),
+                  pw.Bullet(
+                    text: 'Ponto de atencao: ${sanitize(_weeklyAttention)}',
+                  ),
                   pw.SizedBox(height: 20),
                   pw.Text(
                     'ADERENCIA POR CATEGORIA',

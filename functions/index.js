@@ -1,10 +1,27 @@
-const {onCall, HttpsError} = require("firebase-functions/v2/https");
+﻿const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {setGlobalOptions} = require("firebase-functions");
+const {defineSecret} = require("firebase-functions/params");
+const crypto = require("node:crypto");
 const admin = require("firebase-admin");
 
 setGlobalOptions({maxInstances: 10});
 
 admin.initializeApp();
+
+const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
+const LIVEKIT_API_KEY = defineSecret("LIVEKIT_API_KEY");
+const LIVEKIT_API_SECRET = defineSecret("LIVEKIT_API_SECRET");
+const LIVEKIT_SERVER_URL = defineSecret("LIVEKIT_SERVER_URL");
+
+const BASE_CALL_OPTIONS = {cors: true, enforceAppCheck: true};
+const GEMINI_CALL_OPTIONS = {
+  ...BASE_CALL_OPTIONS,
+  secrets: [GEMINI_API_KEY],
+};
+const LIVEKIT_CALL_OPTIONS = {
+  ...BASE_CALL_OPTIONS,
+  secrets: [LIVEKIT_API_KEY, LIVEKIT_API_SECRET, LIVEKIT_SERVER_URL],
+};
 
 
 // =============================================================================
@@ -169,6 +186,162 @@ async function canAccessPushTarget(uid, targetUserId, targetRole) {
   return isLinkedSupervisor(uid, targetUserId);
 }
 
+
+/**
+ * Validates a push against the message or call stored in Firestore.
+ * Client-provided notification text is intentionally ignored.
+ * @param {string} uid
+ * @param {string} targetUserId
+ * @param {string} targetRole
+ * @param {Object} payload
+ * @return {Promise<Object>}
+ */
+async function buildVerifiedPushEvent(
+    uid,
+    targetUserId,
+    targetRole,
+    payload,
+) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    throw new HttpsError(
+        "invalid-argument",
+        "Os dados da notificacao sao obrigatorios.",
+    );
+  }
+
+  const type = validateString(payload.type, "data.type", 30);
+  const db = admin.firestore();
+
+  if (type === "app_message") {
+    const messageId =
+      validateFirestoreId(payload.messageId, "data.messageId");
+    const messageSnapshot = await db.collection("mensagens")
+        .doc(messageId)
+        .get();
+    if (!messageSnapshot.exists) {
+      throw new HttpsError("not-found", "Mensagem nao encontrada.");
+    }
+
+    const message = messageSnapshot.data() || {};
+    const elderlyId =
+      validateFirestoreId(message.idosoId, "message.idosoId");
+    const profileSnapshot = await db.collection("idoso_perfil")
+        .doc(elderlyId)
+        .get();
+    const profile = profileSnapshot.data() || {};
+    const supervisorId = profile.status === "active" ?
+      profile.supervisorId :
+      "";
+
+    const sentBySupervisor = message.senderRole === "supervisor";
+    const validRoute = sentBySupervisor ?
+      (
+        uid === supervisorId &&
+        targetRole === "elderly" &&
+        targetUserId === elderlyId
+      ) :
+      (
+        message.senderRole === "elderly" &&
+        uid === elderlyId &&
+        targetRole === "supervisor" &&
+        targetUserId === supervisorId
+      );
+
+    if (!validRoute ||
+        payload.idosoId !== elderlyId ||
+        payload.senderRole !== message.senderRole) {
+      throw new HttpsError(
+          "permission-denied",
+          "A notificacao nao corresponde a esta mensagem.",
+      );
+    }
+
+    const name = String(message.nomeIdoso || "Idoso").slice(0, 80);
+    const title = sentBySupervisor ?
+      "Novo recado do cuidador" :
+      `Novo recado de ${name}`;
+    let body = String(message.texto || "").slice(0, 160);
+    if (message.tipo === "audio") {
+      body = "Voce recebeu um recado de voz.";
+    } else if (message.tipo === "localizacao") {
+      body = "Voce recebeu uma localizacao.";
+    }
+
+    return {
+      title,
+      body,
+      data: {
+        type: "app_message",
+        messageId,
+        idosoId: elderlyId,
+        senderRole: message.senderRole,
+      },
+    };
+  }
+
+  if (type === "video_call") {
+    const callId = validateFirestoreId(payload.callId, "data.callId");
+    const callSnapshot = await db.collection("video_calls")
+        .doc(callId)
+        .get();
+    if (!callSnapshot.exists) {
+      throw new HttpsError("not-found", "Chamada nao encontrada.");
+    }
+
+    const call = callSnapshot.data() || {};
+    if (call.status !== "ringing") {
+      throw new HttpsError(
+          "failed-precondition",
+          "A chamada nao esta mais tocando.",
+      );
+    }
+
+    const sentBySupervisor = call.initiatedBy === "supervisor";
+    const validRoute = sentBySupervisor ?
+      (
+        uid === call.supervisorId &&
+        targetRole === "elderly" &&
+        targetUserId === call.idosoId
+      ) :
+      (
+        uid === call.idosoId &&
+        targetRole === "supervisor" &&
+        targetUserId === call.supervisorId
+      );
+
+    if (!validRoute ||
+        payload.roomName !== call.roomName ||
+        payload.callType !== call.callType ||
+        payload.initiatedBy !== call.initiatedBy) {
+      throw new HttpsError(
+          "permission-denied",
+          "A notificacao nao corresponde a esta chamada.",
+      );
+    }
+
+    const isVoice = call.callType === "voice";
+    return {
+      title: isVoice ? "Chamada de Voz" : "Chamada de Video",
+      body: isVoice ?
+        "Voce esta recebendo uma chamada de voz!" :
+        "Voce esta recebendo uma chamada de video!",
+      data: {
+        type: "video_call",
+        callId,
+        roomName: String(call.roomName),
+        initiatedBy: String(call.initiatedBy),
+        callType: String(call.callType),
+        callerName: String(call.callerName || "").slice(0, 120),
+      },
+    };
+  }
+
+  throw new HttpsError(
+      "invalid-argument",
+      "Tipo de notificacao nao permitido.",
+  );
+}
+
 /**
  * Checks whether a video call can be joined by uid in the requested room.
  * @param {string} uid
@@ -202,9 +375,6 @@ async function assertCanJoinVideoCall(uid, callId, roomName) {
     return;
   }
 
-  if (call.idosoId && await isLinkedSupervisor(call.idosoId, uid)) {
-    return;
-  }
 
   throw new HttpsError(
       "permission-denied",
@@ -212,6 +382,47 @@ async function assertCanJoinVideoCall(uid, callId, roomName) {
   );
 }
 
+
+/**
+ * Requires a verified, non-anonymous account for privileged caregiver actions.
+ * @param {Object} request
+ */
+function requireVerifiedAccount(request) {
+  const token = request.auth?.token || {};
+  const provider = token.firebase?.sign_in_provider || "";
+  if (provider === "anonymous" || token.email_verified !== true) {
+    throw new HttpsError(
+        "permission-denied",
+        "Confirme seu e-mail antes de conectar um idoso.",
+    );
+  }
+}
+
+/**
+ * Creates a non-reversible identifier for a short-lived pairing code.
+ * @param {string} code
+ * @return {string}
+ */
+function pairingCodeHash(code) {
+  return crypto.createHash("sha256").update(code, "utf8").digest("hex");
+}
+
+/**
+ * Ensures that a caregiver profile exists for the authenticated account.
+ * @param {string} uid
+ */
+async function assertSupervisorAccount(uid) {
+  const profile = await admin.firestore()
+      .collection("supervisores")
+      .doc(uid)
+      .get();
+  if (!profile.exists) {
+    throw new HttpsError(
+        "permission-denied",
+        "Cadastre uma conta de cuidador antes de conectar um idoso.",
+    );
+  }
+}
 
 // =============================================================================
 // RATE LIMITING (Firestore-based token bucket)
@@ -229,6 +440,9 @@ const RATE_LIMITS = {
   lookupBarcode: {maxCalls: 20, windowMs: 60000},
   analyzeMedication: {maxCalls: 30, windowMs: 60000},
   queryMedicationFAQ: {maxCalls: 30, windowMs: 60000},
+  createPairingCode: {maxCalls: 5, windowMs: 60000},
+  claimPairingCode: {maxCalls: 10, windowMs: 60000},
+  unlinkElderly: {maxCalls: 5, windowMs: 60000},
 };
 
 /**
@@ -277,9 +491,317 @@ async function checkRateLimit(uid, functionName) {
   } catch (error) {
     if (error instanceof HttpsError) throw error;
     console.error(`Rate limit check error for ${functionName}:`, error);
+    throw new HttpsError(
+        "unavailable",
+        "Nao foi possivel validar o limite de uso. Tente novamente.",
+    );
   }
 }
 
+
+// =============================================================================
+// SERVER-CONTROLLED PAIRING
+// =============================================================================
+
+const PAIRING_TTL_MS = 10 * 60 * 1000;
+
+exports.createPairingCode = onCall(
+    BASE_CALL_OPTIONS,
+    async (request) => {
+      const uid = requireAuth(request);
+      await checkRateLimit(uid, "createPairingCode");
+
+      const db = admin.firestore();
+      const profileRef = db.collection("idoso_perfil").doc(uid);
+      const legacyRef = db.collection("idosos").doc(uid);
+      const stateRef = db.collection("pairing_state").doc(uid);
+
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        const code = crypto.randomInt(100000, 1000000).toString();
+        const codeHash = pairingCodeHash(code);
+        const codeRef = db.collection("pairing_codes").doc(codeHash);
+        const expiresAtMillis = Date.now() + PAIRING_TTL_MS;
+        const expiresAt =
+          admin.firestore.Timestamp.fromMillis(expiresAtMillis);
+
+        try {
+          await db.runTransaction(async (transaction) => {
+            const profileSnapshot = await transaction.get(profileRef);
+            const legacySnapshot = await transaction.get(legacyRef);
+            const stateSnapshot = await transaction.get(stateRef);
+            const codeSnapshot = await transaction.get(codeRef);
+
+            if (codeSnapshot.exists) {
+              throw new Error("PAIRING_CODE_COLLISION");
+            }
+
+            const profile = profileSnapshot.data() || {};
+            if (!profileSnapshot.exists) {
+              throw new HttpsError(
+                  "failed-precondition",
+                  "Cadastre o perfil do idoso antes de gerar um codigo.",
+              );
+            }
+
+            if (profile.status === "active" && profile.supervisorId) {
+              throw new HttpsError(
+                  "failed-precondition",
+                  "Desconecte o cuidador atual antes de gerar outro codigo.",
+              );
+            }
+
+            const oldHash = stateSnapshot.data()?.codeHash;
+            if (typeof oldHash === "string" && oldHash !== codeHash) {
+              transaction.delete(
+                  db.collection("pairing_codes").doc(oldHash),
+              );
+            }
+
+            transaction.set(codeRef, {
+              elderlyId: uid,
+              createdAt: admin.firestore.FieldValue.serverTimestamp(),
+              expiresAt,
+            });
+            transaction.set(stateRef, {
+              codeHash,
+              expiresAt,
+              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+            transaction.set(profileRef, {
+              status: "pending",
+              supervisorId: null,
+              pairingCode: admin.firestore.FieldValue.delete(),
+              pairingCodeExpires: admin.firestore.FieldValue.delete(),
+              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            }, {merge: true});
+
+            if (legacySnapshot.exists) {
+              transaction.set(legacyRef, {
+                status: "pending",
+                supervisorId: null,
+                pairingCode: admin.firestore.FieldValue.delete(),
+                pairingCodeExpires: admin.firestore.FieldValue.delete(),
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+              }, {merge: true});
+            }
+          });
+
+          return {
+            code,
+            expiresAt: new Date(expiresAtMillis).toISOString(),
+          };
+        } catch (error) {
+          if (error?.message === "PAIRING_CODE_COLLISION") {
+            continue;
+          }
+          if (error instanceof HttpsError) throw error;
+          console.error("createPairingCode error:", error);
+          throw new HttpsError(
+              "internal",
+              "Nao foi possivel gerar o codigo de conexao.",
+          );
+        }
+      }
+
+      throw new HttpsError(
+          "resource-exhausted",
+          "Nao foi possivel reservar um codigo. Tente novamente.",
+      );
+    },
+);
+
+exports.claimPairingCode = onCall(
+    BASE_CALL_OPTIONS,
+    async (request) => {
+      const uid = requireAuth(request);
+      requireVerifiedAccount(request);
+      await checkRateLimit(uid, "claimPairingCode");
+      await assertSupervisorAccount(uid);
+
+      const code = validateString(request.data?.code, "code", 6);
+      if (!/^[0-9]{6}$/.test(code)) {
+        throw new HttpsError(
+            "invalid-argument",
+            "O codigo deve ter exatamente seis digitos.",
+        );
+      }
+
+      const db = admin.firestore();
+      const codeHash = pairingCodeHash(code);
+      const codeRef = db.collection("pairing_codes").doc(codeHash);
+
+      try {
+        const elderlyId = await db.runTransaction(async (transaction) => {
+          const codeSnapshot = await transaction.get(codeRef);
+          const codeData = codeSnapshot.data() || {};
+          const linkedElderlyId = codeData.elderlyId;
+
+          if (!codeSnapshot.exists ||
+              typeof linkedElderlyId !== "string" ||
+              !(codeData.expiresAt instanceof admin.firestore.Timestamp) ||
+              codeData.expiresAt.toMillis() <= Date.now()) {
+            throw new HttpsError(
+                "not-found",
+                "Codigo invalido, expirado ou ja utilizado.",
+            );
+          }
+          if (linkedElderlyId === uid) {
+            throw new HttpsError(
+                "failed-precondition",
+                "Uma conta nao pode ser vinculada a ela mesma.",
+            );
+          }
+
+          const profileRef =
+            db.collection("idoso_perfil").doc(linkedElderlyId);
+          const legacyRef = db.collection("idosos").doc(linkedElderlyId);
+          const stateRef =
+            db.collection("pairing_state").doc(linkedElderlyId);
+          const linkRef = db.collection("supervisores")
+              .doc(uid)
+              .collection("idosos")
+              .doc(linkedElderlyId);
+
+          const profileSnapshot = await transaction.get(profileRef);
+          const legacySnapshot = await transaction.get(legacyRef);
+          const stateSnapshot = await transaction.get(stateRef);
+          const profile = profileSnapshot.data() || {};
+
+          if (!profileSnapshot.exists ||
+              profile.status !== "pending" ||
+              profile.supervisorId) {
+            throw new HttpsError(
+                "failed-precondition",
+                "Este idoso nao esta disponivel para conexao.",
+            );
+          }
+          if (stateSnapshot.data()?.codeHash !== codeHash) {
+            throw new HttpsError(
+                "not-found",
+                "Codigo invalido, expirado ou ja utilizado.",
+            );
+          }
+
+          const relationshipUpdate = {
+            supervisorId: uid,
+            status: "active",
+            pairingCode: admin.firestore.FieldValue.delete(),
+            pairingCodeExpires: admin.firestore.FieldValue.delete(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          };
+
+          transaction.set(
+              profileRef,
+              relationshipUpdate,
+              {merge: true},
+          );
+          if (legacySnapshot.exists) {
+            transaction.set(
+                legacyRef,
+                relationshipUpdate,
+                {merge: true},
+            );
+          }
+          transaction.set(linkRef, {
+            elderlyId: linkedElderlyId,
+            linkedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+          transaction.delete(codeRef);
+          transaction.delete(stateRef);
+          return linkedElderlyId;
+        });
+
+        return {elderlyId};
+      } catch (error) {
+        if (error instanceof HttpsError) throw error;
+        console.error("claimPairingCode error:", error);
+        throw new HttpsError(
+            "internal",
+            "Nao foi possivel concluir a conexao.",
+        );
+      }
+    },
+);
+
+exports.unlinkElderly = onCall(
+    BASE_CALL_OPTIONS,
+    async (request) => {
+      const uid = requireAuth(request);
+      await checkRateLimit(uid, "unlinkElderly");
+
+      const requestedId = request.data?.elderlyId;
+      const elderlyId = requestedId == null ?
+        uid :
+        validateFirestoreId(requestedId, "elderlyId");
+
+      const db = admin.firestore();
+      const profileRef = db.collection("idoso_perfil").doc(elderlyId);
+      const legacyRef = db.collection("idosos").doc(elderlyId);
+      const stateRef = db.collection("pairing_state").doc(elderlyId);
+
+      try {
+        await db.runTransaction(async (transaction) => {
+          const profileSnapshot = await transaction.get(profileRef);
+          const legacySnapshot = await transaction.get(legacyRef);
+          const stateSnapshot = await transaction.get(stateRef);
+
+          if (!profileSnapshot.exists) {
+            throw new HttpsError(
+                "not-found",
+                "Perfil do idoso nao encontrado.",
+            );
+          }
+
+          const profile = profileSnapshot.data() || {};
+          const supervisorId = profile.supervisorId;
+          if (uid !== elderlyId && uid !== supervisorId) {
+            throw new HttpsError(
+                "permission-denied",
+                "Voce nao pode desfazer este vinculo.",
+            );
+          }
+
+          const relationshipUpdate = {
+            supervisorId: null,
+            status: "pending",
+            pairingCode: admin.firestore.FieldValue.delete(),
+            pairingCodeExpires: admin.firestore.FieldValue.delete(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          };
+          transaction.set(profileRef, relationshipUpdate, {merge: true});
+          if (legacySnapshot.exists) {
+            transaction.set(legacyRef, relationshipUpdate, {merge: true});
+          }
+
+          if (typeof supervisorId === "string" && supervisorId) {
+            transaction.delete(
+                db.collection("supervisores")
+                    .doc(supervisorId)
+                    .collection("idosos")
+                    .doc(elderlyId),
+            );
+          }
+
+          const oldHash = stateSnapshot.data()?.codeHash;
+          if (typeof oldHash === "string" && oldHash) {
+            transaction.delete(
+                db.collection("pairing_codes").doc(oldHash),
+            );
+          }
+          transaction.delete(stateRef);
+        });
+
+        return {success: true};
+      } catch (error) {
+        if (error instanceof HttpsError) throw error;
+        console.error("unlinkElderly error:", error);
+        throw new HttpsError(
+            "internal",
+            "Nao foi possivel desfazer a conexao.",
+        );
+      }
+    },
+);
 
 // =============================================================================
 // GEMINI HELPER
@@ -293,7 +815,7 @@ async function checkRateLimit(uid, functionName) {
  */
 function createGeminiModel(modelName, config) {
   const {GoogleGenerativeAI} = require("@google/generative-ai");
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = GEMINI_API_KEY.value();
   if (!apiKey) {
     throw new HttpsError(
         "failed-precondition",
@@ -347,7 +869,7 @@ function appendElderlyAudioSafetyNote(text) {
 // =============================================================================
 
 exports.alexChat = onCall(
-    {cors: true},
+    BASE_CALL_OPTIONS,
     async (request) => {
       const uid = requireAuth(request);
       await checkRateLimit(uid, "alexChat");
@@ -367,6 +889,7 @@ exports.alexChat = onCall(
 // SUPERVISOR CHAT (Daily Summary)
 // =============================================================================
 
+/* eslint-disable max-len */
 const supervisorPrompt = `Voce e o assistente virtual especialista em saude geriatrica e analise de rotina para cuidadores.
 Sua funcao e analisar os dados diarios do idoso e entregar um relatorio executivo altamente util, claro e objetivo.
 
@@ -389,12 +912,24 @@ Regras:
 - Nao invente dados. Baseie-se estritamente nos dados fornecidos.
 - Se nao houver dados suficientes, informe educadamente.
 - Seja sempre empatico com o idoso e extremamente funcional para o cuidador.`;
+/* eslint-enable max-len */
 
 exports.supervisorChat = onCall(
-    {cors: true},
+    GEMINI_CALL_OPTIONS,
     async (request) => {
       const uid = requireAuth(request);
       await checkRateLimit(uid, "supervisorChat");
+
+      const elderlyId = validateFirestoreId(
+          request.data?.elderlyId,
+          "elderlyId",
+      );
+      if (!await isLinkedSupervisor(elderlyId, uid)) {
+        throw new HttpsError(
+            "permission-denied",
+            "Voce nao pode analisar dados deste idoso.",
+        );
+      }
 
       const {elderlyData} = request.data;
 
@@ -500,10 +1035,21 @@ const reportSchema = {
 };
 
 exports.generateReportInsights = onCall(
-    {cors: true},
+    GEMINI_CALL_OPTIONS,
     async (request) => {
       const uid = requireAuth(request);
       await checkRateLimit(uid, "generateReportInsights");
+
+      const elderlyId = validateFirestoreId(
+          request.data?.elderlyId,
+          "elderlyId",
+      );
+      if (!await isLinkedSupervisor(elderlyId, uid)) {
+        throw new HttpsError(
+            "permission-denied",
+            "Voce nao pode gerar relatorio deste idoso.",
+        );
+      }
 
       const data = request.data;
 
@@ -591,13 +1137,13 @@ exports.generateReportInsights = onCall(
 // =============================================================================
 
 exports.generateVideoToken = onCall(
-    {cors: true},
+    LIVEKIT_CALL_OPTIONS,
     async (request) => {
       const {AccessToken} = require("livekit-server-sdk");
       const uid = requireAuth(request);
       await checkRateLimit(uid, "generateVideoToken");
 
-      const {callId, roomName, identity, metadata} = request.data;
+      const {callId, roomName, identity} = request.data;
 
       const validatedCallId = validateFirestoreId(callId, "callId");
       const validatedRoom = validateRoomName(roomName);
@@ -614,8 +1160,8 @@ exports.generateVideoToken = onCall(
       try {
         await assertCanJoinVideoCall(uid, validatedCallId, validatedRoom);
 
-        const apiKey = process.env.LIVEKIT_API_KEY;
-        const apiSecret = process.env.LIVEKIT_API_SECRET;
+        const apiKey = LIVEKIT_API_KEY.value();
+        const apiSecret = LIVEKIT_API_SECRET.value();
 
         if (!apiKey || !apiSecret) {
           throw new HttpsError(
@@ -627,9 +1173,8 @@ exports.generateVideoToken = onCall(
 
         const at = new AccessToken(apiKey, apiSecret, {
           identity: validatedIdentity,
-          metadata: typeof metadata === "string" ?
-              metadata.slice(0, 500) : "",
-          ttl: "6h",
+          metadata: JSON.stringify({uid: validatedIdentity}),
+          ttl: "10m",
         });
 
         at.addGrant({
@@ -642,7 +1187,7 @@ exports.generateVideoToken = onCall(
         const token = at.toJwt();
         return {
           token,
-          serverUrl: process.env.LIVEKIT_SERVER_URL || "",
+          serverUrl: LIVEKIT_SERVER_URL.value() || "",
           identity: validatedIdentity,
           room: validatedRoom,
         };
@@ -662,7 +1207,7 @@ exports.generateVideoToken = onCall(
 // =============================================================================
 
 exports.identifyMedication = onCall(
-    {cors: true},
+    GEMINI_CALL_OPTIONS,
     async (request) => {
       const uid = requireAuth(request);
       await checkRateLimit(uid, "identifyMedication");
@@ -906,7 +1451,7 @@ const prescriptionSchema = {
 };
 
 exports.parsePrescription = onCall(
-    {cors: true},
+    GEMINI_CALL_OPTIONS,
     async (request) => {
       const uid = requireAuth(request);
       await checkRateLimit(uid, "parsePrescription");
@@ -1048,7 +1593,7 @@ const voiceReminderPrompt =
     "o titulo (mesmo que simplificado) e um horario.";
 
 exports.parseVoiceReminder = onCall(
-    {cors: true},
+    GEMINI_CALL_OPTIONS,
     async (request) => {
       const uid = requireAuth(request);
       await checkRateLimit(uid, "parseVoiceReminder");
@@ -1146,19 +1691,17 @@ exports.parseVoiceReminder = onCall(
 // PUSH NOTIFICATION
 // =============================================================================
 
-exports.sendPush = onCall({cors: true, secrets: []}, async (request) => {
+exports.sendPush = onCall(BASE_CALL_OPTIONS, async (request) => {
   const uid = requireAuth(request);
   await checkRateLimit(uid, "sendPush");
 
-  const {targetUserId, targetRole, title, body, data} = request.data;
-
+  const input = request.data || {};
   const validatedTargetUserId =
-      validateFirestoreId(targetUserId, "targetUserId");
-  const validatedTitle = validateString(title, "title", 200);
+    validateFirestoreId(input.targetUserId, "targetUserId");
+  const validatedRole =
+    validateString(input.targetRole, "targetRole", 20).toLowerCase();
 
-  const validRoles = ["elderly", "supervisor"];
-  const validatedRole = String(targetRole || "").trim().toLowerCase();
-  if (!validRoles.includes(validatedRole)) {
+  if (!["elderly", "supervisor"].includes(validatedRole)) {
     throw new HttpsError(
         "invalid-argument",
         "targetRole deve ser 'elderly' ou 'supervisor'.",
@@ -1178,36 +1721,35 @@ exports.sendPush = onCall({cors: true, secrets: []}, async (request) => {
       );
     }
 
+    const event = await buildVerifiedPushEvent(
+        uid,
+        validatedTargetUserId,
+        validatedRole,
+        input.data,
+    );
     const docId = `${validatedRole}_${validatedTargetUserId}`;
     const tokenDoc = await admin.firestore()
         .collection("fcm_tokens")
         .doc(docId)
         .get();
 
-    if (!tokenDoc.exists) {
-      return {success: false, reason: "token_nao_encontrado"};
-    }
-    const tokenData = tokenDoc.data();
-    if (!tokenData || !tokenData.token) {
+    const tokenData = tokenDoc.data() || {};
+    if (!tokenDoc.exists ||
+        !tokenData.token ||
+        tokenData.role !== validatedRole ||
+        tokenData.userId !== validatedTargetUserId) {
       return {success: false, reason: "token_nao_encontrado"};
     }
 
-    const token = tokenData.token;
-    const validatedBody = body && typeof body === "string" ?
-        body.slice(0, 500) : "";
-    const validatedData = data && typeof data === "object" ?
-        Object.fromEntries(
-            Object.entries(data)
-                .slice(0, 10)
-                .map(([k, v]) => [
-                  String(k).slice(0, 50),
-                  String(v).slice(0, 500),
-                ]),
-        ) : {};
-
+    const validatedData = Object.fromEntries(
+        Object.entries(event.data).map(([key, value]) => [
+          String(key).slice(0, 50),
+          String(value).slice(0, 500),
+        ]),
+    );
     const isIncomingCall = validatedData.type === "video_call";
     const message = {
-      token,
+      token: tokenData.token,
       data: validatedData,
       android: {
         priority: "high",
@@ -1221,18 +1763,19 @@ exports.sendPush = onCall({cors: true, secrets: []}, async (request) => {
             "badge": 1,
             "content-available": 1,
             "alert": isIncomingCall ? {
-              title: validatedTitle,
-              body: validatedBody,
+              title: event.title,
+              body: event.body,
             } : undefined,
           },
         },
       },
     };
 
-    // No Android, chamadas precisam ser data-only para que o app construa
-    // uma notificacao de categoria CALL com full-screen intent.
     if (!isIncomingCall) {
-      message.notification = {title: validatedTitle, body: validatedBody};
+      message.notification = {
+        title: event.title,
+        body: event.body,
+      };
     }
 
     const response = await admin.messaging().send(message);
@@ -1262,7 +1805,7 @@ const BARCODE_SCHEMA = {
 };
 
 exports.lookupBarcode = onCall(
-    {cors: true},
+    GEMINI_CALL_OPTIONS,
     async (request) => {
       const uid = requireAuth(request);
       await checkRateLimit(uid, "lookupBarcode");
@@ -1414,7 +1957,7 @@ const ANALYSIS_SCHEMA = {
 };
 
 exports.analyzeMedication = onCall(
-    {cors: true},
+    GEMINI_CALL_OPTIONS,
     async (request) => {
       const uid = requireAuth(request);
       await checkRateLimit(uid, "analyzeMedication");
@@ -1552,7 +2095,7 @@ const FAQ_SCHEMA = {
 };
 
 exports.queryMedicationFAQ = onCall(
-    {cors: true},
+    GEMINI_CALL_OPTIONS,
     async (request) => {
       const uid = requireAuth(request);
       await checkRateLimit(uid, "queryMedicationFAQ");

@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/app_message.dart';
 import '../models/offline_write.dart';
@@ -34,11 +33,11 @@ class MessageService {
   List<AppMessage> get messages => List.unmodifiable(_messages);
 
   int get unreadIncomingCount {
-    final currentRole =
-        SessionRoleService.isSupervisor ? 'supervisor' : 'elderly';
+    final currentRole = SessionRoleService.isSupervisor
+        ? 'supervisor'
+        : 'elderly';
     return _messages
-        .where((message) =>
-            message.senderRole != currentRole && !message.lido)
+        .where((message) => message.senderRole != currentRole && !message.lido)
         .length;
   }
 
@@ -53,8 +52,7 @@ class MessageService {
   }
 
   Future<String> getActiveIdosoName() async {
-    final prefs = await SharedPreferences.getInstance();
-    final jsonStr = prefs.getString('idoso_perfil');
+    final jsonStr = await SecureCacheService.instance.readElderlyProfile();
     if (jsonStr != null) {
       try {
         final data = jsonDecode(jsonStr) as Map<String, dynamic>;
@@ -102,54 +100,63 @@ class MessageService {
         .collection('mensagens')
         .where('idosoId', isEqualTo: idosoId)
         .snapshots()
-        .listen((snapshot) async {
-          final pendingWrites = (await OfflineSyncService.instance.loadQueue())
-              .where((write) => write.collection == 'mensagens')
-              .toList();
-          final itemsById = <String, AppMessage>{};
-          await Future.wait(snapshot.docs.map((doc) async {
-            final data = <String, dynamic>{'id': doc.id, ...doc.data()};
-            if (data['tipo'] == 'audio' && data['audioPath'] is String) {
-              data['audioPath'] = await RemoteMediaCacheService.instance
-                  .resolve(data['audioPath'] as String?);
+        .listen(
+          (snapshot) async {
+            final pendingWrites =
+                (await OfflineSyncService.instance.loadQueue())
+                    .where((write) => write.collection == 'mensagens')
+                    .toList();
+            final itemsById = <String, AppMessage>{};
+            await Future.wait(
+              snapshot.docs.map((doc) async {
+                final data = <String, dynamic>{'id': doc.id, ...doc.data()};
+                if (data['tipo'] == 'audio' && data['audioPath'] is String) {
+                  data['audioPath'] = await RemoteMediaCacheService.instance
+                      .resolve(data['audioPath'] as String?);
+                }
+                itemsById[doc.id] = AppMessage.fromJson(data);
+              }),
+            );
+
+            for (final write in pendingWrites) {
+              final data = Map<String, dynamic>.from(write.data);
+              final pendingIdosoId =
+                  data['idosoId'] as String? ??
+                  itemsById[write.docId]?.idosoId ??
+                  idosoId;
+              if (pendingIdosoId != idosoId) continue;
+
+              if (write.action == OfflineWriteAction.set) {
+                itemsById[write.docId] = AppMessage.fromJson(data);
+                continue;
+              }
+
+              final current = itemsById[write.docId];
+              if (current != null &&
+                  write.action == OfflineWriteAction.update) {
+                itemsById[write.docId] = AppMessage.fromJson(
+                  Map<String, dynamic>.from(current.toJson())..addAll(data),
+                );
+              }
             }
-            itemsById[doc.id] = AppMessage.fromJson(data);
-          }));
 
-          for (final write in pendingWrites) {
-            final data = Map<String, dynamic>.from(write.data);
-            final pendingIdosoId = data['idosoId'] as String? ??
-                itemsById[write.docId]?.idosoId ??
-                idosoId;
-            if (pendingIdosoId != idosoId) continue;
-
-            if (write.action == OfflineWriteAction.set) {
-              itemsById[write.docId] = AppMessage.fromJson(data);
-              continue;
+            _messages
+              ..clear()
+              ..addAll(itemsById.values)
+              ..sort((a, b) => b.criadoEm.compareTo(a.criadoEm));
+            await _saveLocal(idosoId);
+            notifier.value = List.from(_messages);
+            await OfflineSyncService.instance.syncPendingWrites();
+          },
+          onError: (Object error, StackTrace stackTrace) {
+            debugPrint('Erro ao escutar mensagens no Firestore: $error');
+            if (error is FirebaseException &&
+                error.code == 'permission-denied') {
+              _messagesSubscription?.cancel();
+              _messagesSubscription = null;
             }
-
-            final current = itemsById[write.docId];
-            if (current != null && write.action == OfflineWriteAction.update) {
-              itemsById[write.docId] = AppMessage.fromJson(
-                Map<String, dynamic>.from(current.toJson())..addAll(data),
-              );
-            }
-          }
-
-          _messages
-            ..clear()
-            ..addAll(itemsById.values)
-            ..sort((a, b) => b.criadoEm.compareTo(a.criadoEm));
-          await _saveLocal(idosoId);
-          notifier.value = List.from(_messages);
-          await OfflineSyncService.instance.syncPendingWrites();
-        }, onError: (Object error, StackTrace stackTrace) {
-          debugPrint('Erro ao escutar mensagens no Firestore: $error');
-          if (error is FirebaseException && error.code == 'permission-denied') {
-            _messagesSubscription?.cancel();
-            _messagesSubscription = null;
-          }
-        });
+          },
+        );
   }
 
   Future<void> reset() async {
@@ -161,7 +168,6 @@ class MessageService {
     _loadedIdosoId = null;
   }
 
-
   Future<bool> _checkConnection() async {
     final canUse = await SessionRoleService.canUseActiveIdoso(
       allowOfflineCache: true,
@@ -170,7 +176,8 @@ class MessageService {
       AppStatusService.instance.report(
         id: 'messages-invalid-session',
         title: 'Mensagens bloqueadas',
-        message: 'Confirme o vinculo entre os aparelhos antes de enviar mensagens.',
+        message:
+            'Confirme o vinculo entre os aparelhos antes de enviar mensagens.',
         severity: AppStatusSeverity.critical,
       );
     }
@@ -248,16 +255,10 @@ class MessageService {
     await _saveOutgoingLocal(message);
     OfflineSyncService.instance.markMessagePending(messageId);
     unawaited(
-      _processAndSendAudioRemote(
-        message,
-        storedAudioPath,
-        idosoId,
-        messageId,
-      ),
+      _processAndSendAudioRemote(message, storedAudioPath, idosoId, messageId),
     );
     return true;
   }
-
 
   Future<String> _uploadAudioIfNeeded({
     required String audioPath,
@@ -296,7 +297,10 @@ class MessageService {
 
     try {
       if (_useFirebase && _canSyncIdosoId(message.idosoId)) {
-        await FirebaseFirestore.instance.collection('mensagens').doc(id).delete();
+        await FirebaseFirestore.instance
+            .collection('mensagens')
+            .doc(id)
+            .delete();
       }
     } catch (e) {
       debugPrint('Erro ao apagar mensagem no Firestore: $e');
@@ -391,9 +395,10 @@ class MessageService {
       final body = switch (message.tipo) {
         'audio' => 'Você recebeu um recado de voz.',
         'localizacao' => 'Você recebeu uma localização.',
-        _ => message.texto.length > 160
-            ? '${message.texto.substring(0, 157)}...'
-            : message.texto,
+        _ =>
+          message.texto.length > 160
+              ? '${message.texto.substring(0, 157)}...'
+              : message.texto,
       };
 
       await FirebaseFunctions.instance.httpsCallable('sendPush').call({
@@ -429,8 +434,9 @@ class MessageService {
 
   Future<void> markIncomingMessagesRead() async {
     if (_isMarkingIncomingRead) return;
-    final currentRole =
-        SessionRoleService.isSupervisor ? 'supervisor' : 'elderly';
+    final currentRole = SessionRoleService.isSupervisor
+        ? 'supervisor'
+        : 'elderly';
     final unreadIndexes = <int>[];
     for (var i = 0; i < _messages.length; i++) {
       final message = _messages[i];
@@ -467,9 +473,7 @@ class MessageService {
 
   String _cacheKeyFor(String idosoId) => '$_cachePrefix$idosoId';
 
-  Future<List<dynamic>?> _readListCache(
-    List<String> keys,
-  ) async {
+  Future<List<dynamic>?> _readListCache(List<String> keys) async {
     for (final key in keys) {
       final raw = await SecureCacheService.instance.read(key);
       if (raw == null || raw.isEmpty) continue;
@@ -487,10 +491,7 @@ class MessageService {
 
   Future<void> _loadLocal(String idosoId) async {
     if (SessionRoleService.isSupervisor) return;
-    final list = await _readListCache([
-      _cacheKeyFor(idosoId),
-      _legacyCacheKey,
-    ]);
+    final list = await _readListCache([_cacheKeyFor(idosoId), _legacyCacheKey]);
     if (list != null) {
       final messages = <AppMessage>[];
       for (final item in list) {

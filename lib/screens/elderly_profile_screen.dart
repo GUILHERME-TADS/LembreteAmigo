@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/services.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
@@ -14,6 +15,7 @@ import '../services/lembrete_service.dart';
 import '../services/session_role_service.dart';
 import '../services/offline_sync_service.dart';
 import '../services/durable_media_service.dart';
+import '../services/secure_cache_service.dart';
 import '../widgets/index.dart';
 import '../widgets/custom_time_picker.dart';
 import '../models/lembrete.dart';
@@ -35,7 +37,6 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
   String? _fotoPath;
   bool _isLoading = true;
   bool _isConnectionActive = false;
-
 
   bool get _useFirebase => FirebaseHelper.isInitialized;
 
@@ -62,7 +63,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
       final prefs = await SharedPreferences.getInstance();
 
       String status = 'pending';
-      final jsonStr = prefs.getString('idoso_perfil');
+      final jsonStr = await SecureCacheService.instance.readElderlyProfile();
       if (jsonStr != null) {
         try {
           final data = jsonDecode(jsonStr) as Map<String, dynamic>;
@@ -173,13 +174,16 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
               final firestoreSupervisorId = data['supervisorId'] as String?;
 
               // Save updated connection fields to cache
-              final jsonStr = prefs.getString('idoso_perfil');
+              final jsonStr = await SecureCacheService.instance
+                  .readElderlyProfile();
               if (jsonStr != null) {
                 try {
                   final localData = jsonDecode(jsonStr) as Map<String, dynamic>;
                   localData['status'] = firestoreStatus;
                   localData['supervisorId'] = firestoreSupervisorId;
-                  await prefs.setString('idoso_perfil', jsonEncode(localData));
+                  await SecureCacheService.instance.writeElderlyProfile(
+                    jsonEncode(localData),
+                  );
                 } catch (_) {}
               }
 
@@ -188,7 +192,8 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                   _isConnectionActive = firestoreStatus == 'active';
                 });
               }
-              if (firestoreStatus == 'active' && firestoreSupervisorId != null) {
+              if (firestoreStatus == 'active' &&
+                  firestoreSupervisorId != null) {
                 await prefs.setBool('elderly_autonomous_mode', false);
               }
             }
@@ -197,7 +202,8 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
               // Smart local-first photo path sync
               bool isLocalFile =
                   localFoto != null && !localFoto.startsWith('avatar_');
-              bool localFileExists = isLocalFile && File(localFoto).existsSync();
+              bool localFileExists =
+                  isLocalFile && File(localFoto).existsSync();
 
               if (!localFileExists) {
                 String? firestoreFoto;
@@ -247,14 +253,15 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
     }
   }
 
-
-
   Future<void> _desvincularAjudante(BuildContext context) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Desconectar Cuidador?', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.error)),
+        title: const Text(
+          'Desconectar Cuidador?',
+          style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.error),
+        ),
         content: const Text(
           'Deseja mesmo desconectar o celular do seu cuidador? Depois disso, você usará o aplicativo sozinho.',
           style: TextStyle(fontSize: 16),
@@ -262,11 +269,20 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('NÃO', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text(
+              'NÃO',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('SIM, DESCONECTAR', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.error)),
+            child: const Text(
+              'SIM, DESCONECTAR',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: AppColors.error,
+              ),
+            ),
           ),
         ],
       ),
@@ -280,46 +296,26 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
       final prefs = await SharedPreferences.getInstance();
       final docId = prefs.getString('paired_idoso_id');
       Object? syncError;
-      if (!SessionRoleService.isLocalOnlyIdosoId(docId)) {
-        if (_useFirebase) {
-          try {
-            final batch = FirebaseFirestore.instance.batch();
-            batch.set(
-              FirebaseFirestore.instance.collection('idoso_perfil').doc(docId),
-              {
-                'supervisorId': null,
-                'status': 'pending',
-                'pairingCode': null,
-                'pairingCodeExpires': null,
-              },
-              SetOptions(merge: true),
-            );
-            batch.set(
-              FirebaseFirestore.instance.collection('idosos').doc(docId),
-              {
-                'supervisorId': null,
-                'status': 'pending',
-                'pairingCode': null,
-                'pairingCodeExpires': null,
-              },
-              SetOptions(merge: true),
-            );
-            await batch.commit();
-          } catch (e) {
-            syncError = e;
-            debugPrint('Erro ao sincronizar desvinculo na nuvem: $e');
-          }
+      if (!SessionRoleService.isLocalOnlyIdosoId(docId) && _useFirebase) {
+        try {
+          await FirebaseFunctions.instance.httpsCallable('unlinkElderly').call({
+            'elderlyId': docId,
+          });
+        } catch (error) {
+          syncError = error;
+          debugPrint('Erro ao sincronizar desvínculo na nuvem: $error');
         }
       }
       await SessionRoleService.ensureStableElderlyId();
       await prefs.setBool('elderly_autonomous_mode', true);
 
-      final jsonStr = prefs.getString('idoso_perfil');
+      final jsonStr = await SecureCacheService.instance.readElderlyProfile();
       if (jsonStr != null) {
-        final Map<String, dynamic> data = jsonDecode(jsonStr) as Map<String, dynamic>;
+        final Map<String, dynamic> data =
+            jsonDecode(jsonStr) as Map<String, dynamic>;
         data['status'] = 'pending';
         data['supervisorId'] = null;
-        await prefs.setString('idoso_perfil', jsonEncode(data));
+        await SecureCacheService.instance.writeElderlyProfile(jsonEncode(data));
       }
 
       if (!context.mounted) return;
@@ -327,24 +323,24 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
       final message = syncError == null
           ? 'Pronto. O cuidador foi desconectado.'
           : 'O cuidador foi desconectado neste celular. Quando a internet voltar, vou terminar de avisar o outro celular.';
-      messenger.showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+      messenger.showSnackBar(SnackBar(content: Text(message)));
       await TTSService.instance.falar(message, caller: this);
       await _loadProfile();
     } catch (e) {
       debugPrint('Erro ao desvincular: $e');
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Não consegui desconectar o cuidador. Tente de novo.')),
+          const SnackBar(
+            content: Text(
+              'Não consegui desconectar o cuidador. Tente de novo.',
+            ),
+          ),
         );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
-
-
 
   Future<void> _showEditDeleteDialog(Lembrete lembrete) async {
     TTSService.instance.parar(caller: this);
@@ -549,7 +545,8 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
   Future<void> _editTitle(Lembrete lembrete) async {
     final result = await showDialog<String>(
       context: context,
-      builder: (context) => ElderlyEditTitleDialog(initialValue: lembrete.titulo),
+      builder: (context) =>
+          ElderlyEditTitleDialog(initialValue: lembrete.titulo),
     );
 
     if (result == null || result.isEmpty || result == lembrete.titulo) return;
@@ -577,9 +574,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
   Widget _buildTopBar() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-      ),
+      decoration: const BoxDecoration(color: AppColors.surface),
       child: Row(
         children: [
           IconButton(
@@ -608,7 +603,9 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
             ],
           ),
           const Spacer(),
-          const SizedBox(width: 48), // Mantém o equilíbrio visual com o botão de voltar no lado oposto
+          const SizedBox(
+            width: 48,
+          ), // Mantém o equilíbrio visual com o botão de voltar no lado oposto
         ],
       ),
     );
@@ -627,7 +624,8 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       floatingActionButton: const AlexFloatingHelpButton(
-        textoExplicacao: 'Olá! Esta é a tela com os seus dados. Aqui você vê seu nome, telefone, medicações e lembretes. Para mudar seus dados, aperte o botão amarelo. Para arrumar a minha voz, aperte o botão laranja.',
+        textoExplicacao:
+            'Olá! Esta é a tela com os seus dados. Aqui você vê seu nome, telefone, medicações e lembretes. Para mudar seus dados, aperte o botão amarelo. Para arrumar a minha voz, aperte o botão laranja.',
       ),
       body: SafeArea(
         child: Column(
@@ -841,19 +839,13 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                           const SizedBox(height: 32),
                           _sectionTitle('Telefone e Endereço'),
                           const SizedBox(height: 12),
-                          _infoRow(
-                            Icons.phone,
-                            'Meu telefone',
-                            _telefone,
-                          ),
+                          _infoRow(Icons.phone, 'Meu telefone', _telefone),
                           _infoRow(
                             Icons.location_on,
                             'Meu endereço',
                             _endereco,
                           ),
-                          _sectionTitle(
-                            'Meus Remédios',
-                          ),
+                          _sectionTitle('Meus Remédios'),
                           const SizedBox(height: 12),
                           if (medicamentosReais.isEmpty)
                             _buildEmptyState(
@@ -937,17 +929,28 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                                     width: double.infinity,
                                     height: 64,
                                     child: ElevatedButton.icon(
-                                      onPressed: () => _desvincularAjudante(context),
-                                      icon: const Icon(Icons.link_off, size: 28, color: Colors.white),
+                                      onPressed: () =>
+                                          _desvincularAjudante(context),
+                                      icon: const Icon(
+                                        Icons.link_off,
+                                        size: 28,
+                                        color: Colors.white,
+                                      ),
                                       label: const Text(
                                         'DESCONECTAR CUIDADOR',
-                                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
                                       ),
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: AppColors.error,
                                         foregroundColor: Colors.white,
                                         shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(12),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -1047,20 +1050,44 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                                       final confirm = await showDialog<bool>(
                                         context: context,
                                         builder: (ctx) => AlertDialog(
-                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                          title: const Text('Sair do Modo Idoso?', style: TextStyle(fontWeight: FontWeight.bold)),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              16,
+                                            ),
+                                          ),
+                                          title: const Text(
+                                            'Sair do Modo Idoso?',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
                                           content: const Text(
                                             'Deseja voltar para a tela de entrada? Seus dados e lembretes continuarão salvos.',
                                             style: TextStyle(fontSize: 18),
                                           ),
                                           actions: [
                                             TextButton(
-                                              onPressed: () => Navigator.pop(ctx, false),
-                                              child: const Text('NÃO', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                              onPressed: () =>
+                                                  Navigator.pop(ctx, false),
+                                              child: const Text(
+                                                'NÃO',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 16,
+                                                ),
+                                              ),
                                             ),
                                             TextButton(
-                                              onPressed: () => Navigator.pop(ctx, true),
-                                              child: const Text('SIM, SAIR', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.error)),
+                                              onPressed: () =>
+                                                  Navigator.pop(ctx, true),
+                                              child: const Text(
+                                                'SIM, SAIR',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 16,
+                                                  color: AppColors.error,
+                                                ),
+                                              ),
                                             ),
                                           ],
                                         ),
@@ -1069,19 +1096,27 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                                         await SessionRoleService.exitElderlyModeOnly();
                                         await LembreteService.instance.reset();
                                         if (context.mounted) {
-                                          Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+                                          Navigator.pushNamedAndRemoveUntil(
+                                            context,
+                                            '/',
+                                            (route) => false,
+                                          );
                                         }
                                       }
                                     },
                                     style: OutlinedButton.styleFrom(
                                       foregroundColor: AppColors.onSurface,
-                                      side: const BorderSide(color: AppColors.outlineVariant, width: 2),
+                                      side: const BorderSide(
+                                        color: AppColors.outlineVariant,
+                                        width: 2,
+                                      ),
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                     ),
                                     child: const Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
                                       children: [
                                         Icon(Icons.swap_horiz, size: 28),
                                         SizedBox(width: 12),
@@ -1197,11 +1232,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        Icons.volume_up,
-                        size: 18,
-                        color: Colors.white,
-                      ),
+                      Icon(Icons.volume_up, size: 18, color: Colors.white),
                       SizedBox(width: 4),
                       Text(
                         'Ouvir',
@@ -1298,9 +1329,10 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                           ),
                           GestureDetector(
                             onTap: () {
-                              final spoken = PeriodHelper.getSpokenTimeWithPrepositionFromStr(
-                                med.horarioFormatado,
-                              );
+                              final spoken =
+                                  PeriodHelper.getSpokenTimeWithPrepositionFromStr(
+                                    med.horarioFormatado,
+                                  );
                               TTSService.instance.falar(
                                 'Remédio: ${med.titulo} $spoken',
                                 caller: this,
@@ -1454,9 +1486,10 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                           ),
                           GestureDetector(
                             onTap: () {
-                              final spoken = PeriodHelper.getSpokenTimeWithPrepositionFromStr(
-                                lembrete.horarioFormatado,
-                              );
+                              final spoken =
+                                  PeriodHelper.getSpokenTimeWithPrepositionFromStr(
+                                    lembrete.horarioFormatado,
+                                  );
                               TTSService.instance.falar(
                                 'Lembrete de $catName: ${lembrete.titulo} $spoken',
                                 caller: this,
@@ -1655,16 +1688,12 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
         final idosoId = await SessionRoleService.getActiveIdosoId();
 
         // Atualiza Firestore para remover a referência da foto
-        await OfflineSyncService.instance.setOrQueue(
-          'idosos',
-          idosoId,
-          {'fotoPath': null},
-        );
-        await OfflineSyncService.instance.setOrQueue(
-          'idoso_perfil',
-          idosoId,
-          {'fotoPath': null},
-        );
+        await OfflineSyncService.instance.setOrQueue('idosos', idosoId, {
+          'fotoPath': null,
+        });
+        await OfflineSyncService.instance.setOrQueue('idoso_perfil', idosoId, {
+          'fotoPath': null,
+        });
 
         // Tenta deletar a foto do Firebase Storage
         try {
@@ -1683,9 +1712,9 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Sua foto foi apagada.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Sua foto foi apagada.')));
       }
     } catch (e) {
       debugPrint('Erro ao remover foto de perfil: $e');
@@ -1733,11 +1762,9 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
         if (_useFirebase) {
           final idosoId = await SessionRoleService.getActiveIdosoId();
 
-          await OfflineSyncService.instance.setOrQueue(
-            'idosos',
-            idosoId,
-            {'fotoPath': durablePath},
-          );
+          await OfflineSyncService.instance.setOrQueue('idosos', idosoId, {
+            'fotoPath': durablePath,
+          });
           await OfflineSyncService.instance.setOrQueue(
             'idoso_perfil',
             idosoId,
@@ -1827,16 +1854,12 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
 
     if (_useFirebase) {
       final idosoId = await SessionRoleService.getActiveIdosoId();
-      await OfflineSyncService.instance.setOrQueue(
-        'idosos',
-        idosoId,
-        {'fotoPath': avatarName},
-      );
-      await OfflineSyncService.instance.setOrQueue(
-        'idoso_perfil',
-        idosoId,
-        {'fotoPath': avatarName},
-      );
+      await OfflineSyncService.instance.setOrQueue('idosos', idosoId, {
+        'fotoPath': avatarName,
+      });
+      await OfflineSyncService.instance.setOrQueue('idoso_perfil', idosoId, {
+        'fotoPath': avatarName,
+      });
     }
 
     _loadProfile(reloadPhoto: false);
@@ -1905,7 +1928,9 @@ class _ElderlyEditTitleDialogState extends State<ElderlyEditTitleDialog> {
       if (!available) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Não consegui ouvir sua voz neste celular.')),
+            const SnackBar(
+              content: Text('Não consegui ouvir sua voz neste celular.'),
+            ),
           );
         }
         return;
@@ -1954,7 +1979,11 @@ class _ElderlyEditTitleDialogState extends State<ElderlyEditTitleDialog> {
       title: const Text(
         'Mudar nome do lembrete',
         textAlign: TextAlign.center,
-        style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primary),
+        style: TextStyle(
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+          color: AppColors.primary,
+        ),
       ),
       content: SingleChildScrollView(
         child: Column(
@@ -1982,7 +2011,10 @@ class _ElderlyEditTitleDialogState extends State<ElderlyEditTitleDialog> {
             _speech.stop();
             Navigator.pop(context);
           },
-          child: const Text('VOLTAR', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          child: const Text(
+            'VOLTAR',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
         ),
         ElevatedButton(
           onPressed: () {
@@ -1994,9 +2026,14 @@ class _ElderlyEditTitleDialogState extends State<ElderlyEditTitleDialog> {
             backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
-          child: const Text('SALVAR', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          child: const Text(
+            'SALVAR',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
         ),
       ],
     );
@@ -2009,10 +2046,12 @@ class ElderlyDeleteReminderDialog extends StatefulWidget {
   const ElderlyDeleteReminderDialog({super.key, required this.lembrete});
 
   @override
-  State<ElderlyDeleteReminderDialog> createState() => _ElderlyDeleteReminderDialogState();
+  State<ElderlyDeleteReminderDialog> createState() =>
+      _ElderlyDeleteReminderDialogState();
 }
 
-class _ElderlyDeleteReminderDialogState extends State<ElderlyDeleteReminderDialog> {
+class _ElderlyDeleteReminderDialogState
+    extends State<ElderlyDeleteReminderDialog> {
   @override
   void initState() {
     super.initState();
@@ -2111,10 +2150,7 @@ class _ElderlyDeleteReminderDialogState extends State<ElderlyDeleteReminderDialo
           },
           child: const Text(
             'VOLTAR',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
         ),
         ElevatedButton(
@@ -2132,10 +2168,7 @@ class _ElderlyDeleteReminderDialogState extends State<ElderlyDeleteReminderDialo
           ),
           child: const Text(
             'APAGAR',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
         ),
       ],

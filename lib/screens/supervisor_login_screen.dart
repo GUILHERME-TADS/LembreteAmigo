@@ -56,6 +56,12 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
           password: password,
         );
         final user = FirebaseAuth.instance.currentUser;
+        if (user != null && !user.emailVerified) {
+          await user.sendEmailVerification();
+          await FirebaseAuth.instance.signOut();
+          _showError('Confirme o e-mail que enviamos antes de entrar.');
+          return;
+        }
         if (user != null) {
           await FirebaseFirestore.instance
               .collection('supervisores')
@@ -104,7 +110,9 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
       if (user == null) {
         throw StateError('O Google nao retornou uma conta valida.');
       }
-      final docRef = FirebaseFirestore.instance.collection('supervisores').doc(user.uid);
+      final docRef = FirebaseFirestore.instance
+          .collection('supervisores')
+          .doc(user.uid);
       final doc = await docRef.get();
       final Map<String, dynamic> updateData = {
         'nome': user.displayName ?? 'Cuidador',
@@ -112,7 +120,8 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
         'updatedAt': DateTime.now().toIso8601String(),
       };
 
-      if (!doc.exists || (doc.data()?['fotoPath'] == null && user.photoURL != null)) {
+      if (!doc.exists ||
+          (doc.data()?['fotoPath'] == null && user.photoURL != null)) {
         updateData['fotoPath'] = user.photoURL;
       }
 
@@ -388,6 +397,4 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
       ),
     );
   }
-
-
 }

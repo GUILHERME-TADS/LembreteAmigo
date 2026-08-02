@@ -46,6 +46,12 @@ migrate_working_dir/
 /test-execution-output.txt
 /*.pptx.inspect.ndjson
 /*.incomplete
+
+# Local Firebase configuration and credentials
+**/.env
+**/.env.*
+**/*.secret.local
+!**/.env.example
 /functions/node_modules/
 /android/.kotlin/
 

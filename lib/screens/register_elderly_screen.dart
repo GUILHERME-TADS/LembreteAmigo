@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -6,11 +5,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import '../theme/app_theme.dart';
 import '../utils/firebase_helper.dart';
 import '../services/lembrete_service.dart';
 import '../services/message_service.dart';
 import '../services/session_role_service.dart';
+import '../services/secure_cache_service.dart';
 
 class RegisterElderlyScreen extends StatefulWidget {
   const RegisterElderlyScreen({super.key});
@@ -165,35 +166,10 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
       await MessageService.instance.reset();
       await SessionRoleService.stopWatchingElderlyConnection();
 
-      if (_pairedIdosoId != null) {
-        if (_useFirebase) {
-          final batch = FirebaseFirestore.instance.batch();
-          batch.set(
-            FirebaseFirestore.instance
-                .collection('idoso_perfil')
-                .doc(_pairedIdosoId!),
-            {
-              'supervisorId': null,
-              'status': 'pending',
-              'pairingCode': null,
-              'pairingCodeExpires': null,
-            },
-            SetOptions(merge: true),
-          );
-          batch.set(
-            FirebaseFirestore.instance
-                .collection('idosos')
-                .doc(_pairedIdosoId!),
-            {
-              'supervisorId': null,
-              'status': 'pending',
-              'pairingCode': null,
-              'pairingCodeExpires': null,
-            },
-            SetOptions(merge: true),
-          );
-          await batch.commit();
-        }
+      if (_pairedIdosoId != null && _useFirebase) {
+        await FirebaseFunctions.instance.httpsCallable('unlinkElderly').call({
+          'elderlyId': _pairedIdosoId,
+        });
       }
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('selected_idoso_id');
@@ -238,8 +214,7 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('selected_idoso_id', 'idoso_simulado');
       if (FirebaseHelper.isDemoRecording) {
-        await prefs.setString(
-          'idoso_perfil',
+        await SecureCacheService.instance.writeElderlyProfile(
           jsonEncode({
             'nome': 'Dona Maria',
             'endereco': 'Residência cadastrada',
@@ -308,87 +283,17 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final query = await FirebaseFirestore.instance
-          .collection('idoso_perfil')
-          .where('pairingCode', isEqualTo: code)
-          .where('status', isEqualTo: 'pending')
-          .limit(1)
-          .get();
-
-      if (!mounted) return;
-
-      if (query.docs.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Código inválido ou já utilizado. Verifique no celular do idoso.',
-            ),
-          ),
-        );
-        setState(() => _isLoading = false);
-        return;
+      final result = await FirebaseFunctions.instance
+          .httpsCallable('claimPairingCode')
+          .call({'code': code});
+      final response = Map<String, dynamic>.from(result.data as Map);
+      final docId = response['elderlyId'] as String? ?? '';
+      if (docId.isEmpty) {
+        throw StateError('O servidor não confirmou o dispositivo conectado.');
       }
-
-      final doc = query.docs.first;
-      final docId = doc.id;
-
-      final data = doc.data();
-      final expiresStr = data['pairingCodeExpires'] as String?;
-      if (expiresStr != null) {
-        final expires = DateTime.parse(expiresStr);
-        if (DateTime.now().isAfter(expires)) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Este código expirou. Gere um novo código no celular do idoso.',
-              ),
-            ),
-          );
-          setState(() => _isLoading = false);
-          return;
-        }
-      }
-
-      await FirebaseFirestore.instance.runTransaction((transaction) async {
-        final latest = await transaction.get(doc.reference);
-        final latestData = latest.data();
-        if (!latest.exists || latestData == null) {
-          throw StateError('Codigo nao encontrado.');
-        }
-        if (latestData['status'] != 'pending') {
-          throw StateError('Codigo ja utilizado.');
-        }
-        if (latestData['pairingCode'] != code) {
-          throw StateError('Codigo alterado. Gere um novo codigo.');
-        }
-
-        final latestExpiresStr = latestData['pairingCodeExpires'] as String?;
-        final latestExpires = latestExpiresStr == null
-            ? null
-            : DateTime.tryParse(latestExpiresStr);
-        if (latestExpires != null && DateTime.now().isAfter(latestExpires)) {
-          throw StateError('Codigo expirado.');
-        }
-
-        final updateData = {
-          'supervisorId': currentUser.uid,
-          'status': 'active',
-          'pairingCode': null,
-          'pairingCodeExpires': null,
-        };
-
-        transaction.update(doc.reference, updateData);
-      });
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('selected_idoso_id', docId);
-      unawaited(
-        SessionRoleService.ensureSupervisorDocAndSubcollection(
-          currentUser.uid,
-          docId,
-        ),
-      );
-
       await _loadPairedIdoso();
 
       if (!mounted) return;

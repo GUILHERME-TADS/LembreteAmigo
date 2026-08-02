@@ -16,6 +16,7 @@ import '../services/offline_sync_service.dart';
 import '../services/presence_service.dart';
 import '../services/session_role_service.dart';
 import '../services/elderly_profile_repository.dart';
+import '../services/secure_cache_service.dart';
 import '../services/tts_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/index.dart';
@@ -63,8 +64,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
     String? supervisorId = localProfile?['supervisorId'] as String?;
 
     if (Firebase.apps.isNotEmpty) {
-      final profile =
-          await ElderlyProfileRepository.instance.getData(idosoId);
+      final profile = await ElderlyProfileRepository.instance.getData(idosoId);
       supervisorId = profile?['supervisorId'] as String? ?? supervisorId;
 
       if (supervisorId != null && supervisorId.isNotEmpty) {
@@ -102,7 +102,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
       final idosoId = await SessionRoleService.getActiveIdosoId();
       _nomeSupervisor = prefs.getString('caregiver_name');
       Map<String, dynamic>? localProfile;
-      final jsonStr = prefs.getString('idoso_perfil');
+      final jsonStr = await SecureCacheService.instance.readElderlyProfile();
       if (jsonStr != null) {
         final decoded = jsonDecode(jsonStr);
         if (decoded is Map) {
@@ -120,8 +120,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
       bool loadedFromFirebase = false;
       if (Firebase.apps.isNotEmpty) {
-        final data =
-            await ElderlyProfileRepository.instance.getData(idosoId);
+        final data = await ElderlyProfileRepository.instance.getData(idosoId);
         if (data != null) {
           if (mounted) {
             setState(() {
@@ -166,7 +165,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
       if (_isSupervisor) {
         _targetUserId = idosoId;
       } else {
-        _targetUserId = (supervisorData?['uid'] as String?) ??
+        _targetUserId =
+            (supervisorData?['uid'] as String?) ??
             (localProfile?['supervisorId'] as String?);
       }
     } catch (e) {
@@ -504,7 +504,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
                     decoration: BoxDecoration(
                       color: Colors.greenAccent.shade400,
                       shape: BoxShape.circle,
-                      border: Border.all(color: const Color(0xFF008069), width: 2),
+                      border: Border.all(
+                        color: const Color(0xFF008069),
+                        width: 2,
+                      ),
                     ),
                   );
                 },
@@ -540,7 +543,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 12,
-                        fontWeight: isOnline ? FontWeight.bold : FontWeight.normal,
+                        fontWeight: isOnline
+                            ? FontWeight.bold
+                            : FontWeight.normal,
                         color: isOnline
                             ? Colors.greenAccent.shade100
                             : Colors.white.withValues(alpha: 0.85),
@@ -735,10 +740,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
                       color: Color(0xFF008069),
                       size: 36,
                     ),
-                    onPressed: () => TTSService.instance.falar(
-                      message.texto,
-                      caller: this,
-                    ),
+                    onPressed: () =>
+                        TTSService.instance.falar(message.texto, caller: this),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),
@@ -755,7 +758,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
                 if (sentByMe) ...[
                   const SizedBox(width: 4),
                   ValueListenableBuilder<Set<String>>(
-                    valueListenable: OfflineSyncService.instance.pendingMessageIds,
+                    valueListenable:
+                        OfflineSyncService.instance.pendingMessageIds,
                     builder: (context, pendingIds, child) {
                       final pending = pendingIds.contains(message.id);
                       return Icon(

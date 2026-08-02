@@ -1,12 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
 
-
-
 import '../utils/firebase_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/device_barrier.dart';
@@ -19,6 +16,7 @@ import '../services/supervisor_ai_service.dart';
 import '../services/lembrete_service.dart';
 import '../services/session_role_service.dart';
 import '../services/elderly_profile_repository.dart';
+import '../services/secure_cache_service.dart';
 import '../services/smart_alert_service.dart';
 import '../services/message_service.dart';
 import '../services/video_call_service.dart';
@@ -269,13 +267,12 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       eventos: LembreteService.instance.eventos,
     );
     try {
-      final prefs = await SharedPreferences.getInstance();
       final idosoId = await SessionRoleService.getActiveIdosoId();
 
       String nome = 'Idoso';
       String endereco = '';
       var localProfile = <String, dynamic>{};
-      final jsonStr = prefs.getString('idoso_perfil');
+      final jsonStr = await SecureCacheService.instance.readElderlyProfile();
       if (jsonStr != null) {
         try {
           final data = jsonDecode(jsonStr) as Map<String, dynamic>;
@@ -293,8 +290,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
               .timeout(const Duration(seconds: 6));
           nome = data['nome'] as String? ?? nome;
           endereco = data['endereco'] as String? ?? endereco;
-          await prefs.setString(
-            'idoso_perfil',
+          await SecureCacheService.instance.writeElderlyProfile(
             jsonEncode({...localProfile, 'nome': nome, 'endereco': endereco}),
           );
         } catch (error) {
@@ -383,7 +379,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     if (_refortIsLoading) return;
     setState(() => _refortIsLoading = true);
     try {
-      final periodo = PeriodHelper.getPeriodLabel(lembrete.horarioHour).toUpperCase();
+      final periodo = PeriodHelper.getPeriodLabel(
+        lembrete.horarioHour,
+      ).toUpperCase();
       final horaStr =
           '${lembrete.horarioHour.toString().padLeft(2, '0')}:${lembrete.horarioMinute.toString().padLeft(2, '0')} DA $periodo';
       final sent = await MessageService.instance.sendText(
@@ -1579,7 +1577,6 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                     ),
                   ],
                 ),
-
               ],
             ),
           ),
@@ -1668,38 +1665,57 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
             child: Row(
               children: [
                 ElevatedButton.icon(
-                  onPressed: _callIsLoading ? null : () => _initiateCall('video'),
+                  onPressed: _callIsLoading
+                      ? null
+                      : () => _initiateCall('video'),
                   icon: const Icon(Icons.videocam, size: 20),
                   label: const Text('Chamada de Vídeo'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF1E88E5),
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton.icon(
-                  onPressed: () => Navigator.pushNamed(context, '/supervisor-messages'),
+                  onPressed: () =>
+                      Navigator.pushNamed(context, '/supervisor-messages'),
                   icon: const Icon(Icons.mic, size: 20),
                   label: const Text('Recado de Voz'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF43A047),
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton.icon(
-                  onPressed: () => Navigator.pushNamed(context, '/new-reminder'),
+                  onPressed: () =>
+                      Navigator.pushNamed(context, '/new-reminder'),
                   icon: const Icon(Icons.add_alarm, size: 20),
                   label: const Text('Novo Lembrete'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFFB8C00),
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -1710,8 +1726,13 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.secondary,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
               ],
@@ -1737,17 +1758,32 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                 _showChartsAccordion = !_showChartsAccordion;
               });
             },
-            leading: const Icon(Icons.analytics_outlined, color: AppColors.primary, size: 28),
+            leading: const Icon(
+              Icons.analytics_outlined,
+              color: AppColors.primary,
+              size: 28,
+            ),
             title: const Text(
               'Análises e Gráficos Detalhados',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.onSurface),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.onSurface,
+              ),
             ),
             subtitle: Text(
-              _showChartsAccordion ? 'Toque para recolher os gráficos' : 'Toque para ver adesão, comparação e categorias',
-              style: const TextStyle(fontSize: 13, color: AppColors.onSurfaceVariant),
+              _showChartsAccordion
+                  ? 'Toque para recolher os gráficos'
+                  : 'Toque para ver adesão, comparação e categorias',
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.onSurfaceVariant,
+              ),
             ),
             trailing: Icon(
-              _showChartsAccordion ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+              _showChartsAccordion
+                  ? Icons.keyboard_arrow_up
+                  : Icons.keyboard_arrow_down,
               color: AppColors.primary,
               size: 28,
             ),
@@ -1778,11 +1814,16 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     int countConcluidos = 0;
     for (final l in allReminders) {
       final st = reminderVisualStatusFromLembrete(l);
-      if (st == ReminderStatus.late || st == ReminderStatus.missed || st == ReminderStatus.needsHelp) {
+      if (st == ReminderStatus.late ||
+          st == ReminderStatus.missed ||
+          st == ReminderStatus.needsHelp) {
         countAtrasados++;
-      } else if (st == ReminderStatus.scheduled || st == ReminderStatus.postponed) {
+      } else if (st == ReminderStatus.scheduled ||
+          st == ReminderStatus.postponed) {
         countPendentes++;
-      } else if (st == ReminderStatus.done || st == ReminderStatus.doneWithPhoto || st == ReminderStatus.caregiverConfirmed) {
+      } else if (st == ReminderStatus.done ||
+          st == ReminderStatus.doneWithPhoto ||
+          st == ReminderStatus.caregiverConfirmed) {
         countConcluidos++;
       }
     }
@@ -1813,10 +1854,10 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
               selectedColor: item['key'] == 'Atrasados'
                   ? AppColors.error
                   : item['key'] == 'Pendentes'
-                      ? const Color(0xFFF59E0B)
-                      : item['key'] == 'Concluídos'
-                          ? Colors.green
-                          : AppColors.primary,
+                  ? const Color(0xFFF59E0B)
+                  : item['key'] == 'Concluídos'
+                  ? Colors.green
+                  : AppColors.primary,
               backgroundColor: AppColors.surfaceContainerLowest,
               onSelected: (selected) {
                 setState(() {
@@ -1839,9 +1880,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: AppColors.primary,
-            ),
+            colorScheme: const ColorScheme.light(primary: AppColors.primary),
           ),
           child: child!,
         );
@@ -1891,8 +1930,10 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   }
 
   Widget _buildTodayReminders(BuildContext context) {
-    final targetDate = _dateFilterMode == 'hoje' ? DateTime.now() : _selectedDate;
-    
+    final targetDate = _dateFilterMode == 'hoje'
+        ? DateTime.now()
+        : _selectedDate;
+
     var rawList = _dateFilterMode == 'todos'
         ? LembreteService.instance.lembretes.toList()
         : ReminderStateHelper.activeTodaySorted(
@@ -1916,7 +1957,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     if (_selectedStatusFilter == 'Atrasados') {
       filteredList = filteredList.where((l) {
         final st = reminderVisualStatusFromLembrete(l);
-        return st == ReminderStatus.late || st == ReminderStatus.missed || st == ReminderStatus.needsHelp;
+        return st == ReminderStatus.late ||
+            st == ReminderStatus.missed ||
+            st == ReminderStatus.needsHelp;
       }).toList();
     } else if (_selectedStatusFilter == 'Pendentes') {
       filteredList = filteredList.where((l) {
@@ -1926,7 +1969,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     } else if (_selectedStatusFilter == 'Concluídos') {
       filteredList = filteredList.where((l) {
         final st = reminderVisualStatusFromLembrete(l);
-        return st == ReminderStatus.done || st == ReminderStatus.doneWithPhoto || st == ReminderStatus.caregiverConfirmed;
+        return st == ReminderStatus.done ||
+            st == ReminderStatus.doneWithPhoto ||
+            st == ReminderStatus.caregiverConfirmed;
       }).toList();
     }
 
@@ -1949,10 +1994,10 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
               _buildDateModeChip('Hoje', 'hoje', Icons.today),
               const SizedBox(width: 8),
               _buildDateModeChip(
-                _dateFilterMode == 'data' 
-                  ? 'Dia ${targetDate.day.toString().padLeft(2, '0')}/${targetDate.month.toString().padLeft(2, '0')}' 
-                  : 'Outra Data', 
-                'data', 
+                _dateFilterMode == 'data'
+                    ? 'Dia ${targetDate.day.toString().padLeft(2, '0')}/${targetDate.month.toString().padLeft(2, '0')}'
+                    : 'Outra Data',
+                'data',
                 Icons.calendar_month,
               ),
               const SizedBox(width: 8),
@@ -2057,7 +2102,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   color: AppColors.surfaceContainerLowest,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: Colors.transparent, // Borda oculta para não duplicar com a borda vermelha interna do ReminderWithAudio
+                    color: Colors
+                        .transparent, // Borda oculta para não duplicar com a borda vermelha interna do ReminderWithAudio
                     width: needsAttention ? 2 : 1,
                   ),
                 ),

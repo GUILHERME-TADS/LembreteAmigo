@@ -163,7 +163,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                 if (previousId != null &&
                                     previousId != user.uid) {
                                   // Clear old account preferences and profile data
-                                  await prefs.remove('idoso_perfil');
+                                  await SecureCacheService.instance
+                                      .deleteElderlyProfile();
                                   await prefs.remove('idoso_foto_path');
                                   await prefs.remove('alex_voice_rate');
                                   await prefs.remove('alex_voice_pitch');

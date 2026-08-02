@@ -4,10 +4,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/session_role_service.dart';
 import '../services/elderly_profile_repository.dart';
+import '../services/secure_cache_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/firebase_helper.dart';
 
@@ -69,8 +69,7 @@ class _SupervisorEditElderlyProfileScreenState
 
     _idosoId = idosoId;
     final data = <String, dynamic>{};
-    final prefs = await SharedPreferences.getInstance();
-    final localJson = prefs.getString('idoso_perfil');
+    final localJson = await SecureCacheService.instance.readElderlyProfile();
     if (localJson != null) {
       try {
         data.addAll(jsonDecode(localJson) as Map<String, dynamic>);
@@ -131,9 +130,8 @@ class _SupervisorEditElderlyProfileScreenState
 
     setState(() => _isSaving = true);
     try {
-      final prefs = await SharedPreferences.getInstance();
       final profile = <String, dynamic>{};
-      final localJson = prefs.getString('idoso_perfil');
+      final localJson = await SecureCacheService.instance.readElderlyProfile();
       if (localJson != null) {
         try {
           profile.addAll(jsonDecode(localJson) as Map<String, dynamic>);
@@ -155,7 +153,9 @@ class _SupervisorEditElderlyProfileScreenState
         ..['ambulancia_telefone'] = ambulancia
         ..['endereco'] = endereco;
 
-      await prefs.setString('idoso_perfil', jsonEncode(sanitized));
+      await SecureCacheService.instance.writeElderlyProfile(
+        jsonEncode(sanitized),
+      );
 
       if (_useFirebase) {
         await FirebaseFirestore.instance
@@ -190,9 +190,7 @@ class _SupervisorEditElderlyProfileScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Dados do Idoso'),
-      ),
+      appBar: AppBar(title: const Text('Dados do Idoso')),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(

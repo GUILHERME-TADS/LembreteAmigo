@@ -19,7 +19,9 @@ class MediaUploadService {
       try {
         final bytes = await fetchBlobBytes(localPath);
         if (bytes == null) {
-          throw StateError('Não foi possível obter bytes do blob no navegador.');
+          throw StateError(
+            'Não foi possível obter bytes do blob no navegador.',
+          );
         }
         final snapshot = await ref.putData(
           bytes,
@@ -52,10 +54,13 @@ class MediaUploadService {
   static Future<void> _ensureAuthBeforeUpload() async {
     try {
       if (FirebaseAuth.instance.currentUser == null) {
-        await FirebaseAuth.instance.signInAnonymously();
+        throw StateError(
+          'Authentication is required before uploading private media.',
+        );
       }
     } catch (e) {
       debugPrint('Erro ao verificar autenticação antes do upload: $e');
+      rethrow;
     }
   }
 }

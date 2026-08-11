@@ -221,16 +221,16 @@ class DeviceBarrierService {
     String? batteryState,
   }) async {
     final prefs = await SharedPreferences.getInstance();
+    final previous = await loadLocalDiagnostics();
     final diagnostics = DeviceDiagnostics(
       barriers: barriers,
       batteryLevel: batteryLevel,
       batteryState: batteryState,
       updatedAt: DateTime.now(),
+      lastAlarmTestAt: previous.lastAlarmTestAt,
+      lastAlarmTestSuccessful: previous.lastAlarmTestSuccessful,
     );
-    await prefs.setString(
-      _lastSnapshotKey,
-      jsonEncode(diagnostics.toJson()),
-    );
+    await prefs.setString(_lastSnapshotKey, jsonEncode(diagnostics.toJson()));
   }
 
   Future<List<DeviceBarrier>> loadLocalSnapshot() async {
@@ -241,7 +241,9 @@ class DeviceBarrierService {
   Future<DeviceDiagnostics> loadLocalDiagnostics() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_lastSnapshotKey);
-    if (raw == null || raw.isEmpty) return const DeviceDiagnostics(barriers: []);
+    if (raw == null || raw.isEmpty) {
+      return const DeviceDiagnostics(barriers: []);
+    }
     try {
       final decoded = jsonDecode(raw);
       if (decoded is Map) {
@@ -250,7 +252,9 @@ class DeviceBarrierService {
         final list = decoded;
         final barriers = list
             .whereType<Map>()
-            .map((item) => DeviceBarrier.fromJson(Map<String, dynamic>.from(item)))
+            .map(
+              (item) => DeviceBarrier.fromJson(Map<String, dynamic>.from(item)),
+            )
             .toList();
         return DeviceDiagnostics(barriers: barriers);
       }
@@ -307,14 +311,14 @@ class DeviceBarrierService {
           final updatedAt = DateTime.tryParse(
             data['updatedAt'] as String? ?? '',
           );
-          final rawBarriers =
-              data['barriers'] is List ? data['barriers'] as List : const [];
+          final rawBarriers = data['barriers'] is List
+              ? data['barriers'] as List
+              : const [];
           final barriers = rawBarriers
               .whereType<Map>()
               .map(
-                (item) => DeviceBarrier.fromJson(
-                  Map<String, dynamic>.from(item),
-                ),
+                (item) =>
+                    DeviceBarrier.fromJson(Map<String, dynamic>.from(item)),
               )
               .toList();
 
@@ -337,6 +341,10 @@ class DeviceBarrierService {
             batteryLevel: batteryLevel,
             batteryState: batteryState,
             updatedAt: updatedAt,
+            lastAlarmTestAt: DateTime.tryParse(
+              data['lastAlarmTestAt'] as String? ?? '',
+            ),
+            lastAlarmTestSuccessful: data['lastAlarmTestSuccessful'] as bool?,
           );
         });
   }
@@ -392,6 +400,35 @@ class DeviceBarrierService {
     } catch (e) {
       debugPrint('Erro ao publicar diagnostico do aparelho: $e');
     }
+  }
+
+  Future<void> recordAlarmTest({required bool successful}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final previous = await loadLocalDiagnostics();
+    final testedAt = DateTime.now();
+    final diagnostics = DeviceDiagnostics(
+      barriers: previous.barriers,
+      batteryLevel: previous.batteryLevel,
+      batteryState: previous.batteryState,
+      updatedAt: previous.updatedAt,
+      lastAlarmTestAt: testedAt,
+      lastAlarmTestSuccessful: successful,
+    );
+    await prefs.setString(_lastSnapshotKey, jsonEncode(diagnostics.toJson()));
+    if (!_useFirebase || !SessionRoleService.isElderly) return;
+    if (!await SessionRoleService.canSyncElderlyPrivateData()) return;
+    final user = await SessionRoleService.ensureElderlyAuthSession();
+    final idosoId = await SessionRoleService.getActiveIdosoId();
+    if (user == null || user.uid != idosoId) return;
+    await FirebaseFirestore.instance
+        .collection('device_diagnostics')
+        .doc(idosoId)
+        .set({
+          'lastAlarmTestAt': testedAt.toIso8601String(),
+          'lastAlarmTestSuccessful': successful,
+          'updatedAt': testedAt.toIso8601String(),
+        }, SetOptions(merge: true))
+        .timeout(_publishTimeout);
   }
 
   String _formatDuration(Duration duration) {

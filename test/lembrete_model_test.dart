@@ -251,6 +251,7 @@ void main() {
       horarioHour: 7,
       horarioMinute: 7,
       categoria: 'medicacao',
+      prioridade: LembretePrioridade.critica,
     );
 
     final alerts = service.detectarAlertas([normal, critico], now: now);

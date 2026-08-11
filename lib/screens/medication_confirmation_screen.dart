@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../models/reminder_completion_result.dart';
+import '../services/lembrete_service.dart';
 import '../services/tts_service.dart';
 import '../widgets/index.dart';
 
@@ -18,6 +22,12 @@ class _MedicationConfirmationScreenState
   late Animation<double> _pulseAnimation;
 
   String? _message;
+  String? _reminderId;
+  DateTime? _registeredAt;
+  bool _duplicate = false;
+  bool _undoing = false;
+  int _undoSeconds = 0;
+  Timer? _undoTimer;
   bool _hasSpokenInitial = false;
 
   @override
@@ -37,7 +47,16 @@ class _MedicationConfirmationScreenState
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _message = ModalRoute.of(context)?.settings.arguments as String?;
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is Map) {
+      _message = args['message'] as String?;
+      _reminderId = args['reminderId'] as String?;
+      _registeredAt = DateTime.tryParse(args['registeredAt'] as String? ?? '');
+      _duplicate = args['duplicate'] == true;
+      _startUndoWindow();
+    } else if (args is String) {
+      _message = args;
+    }
 
     if (!_hasSpokenInitial) {
       _hasSpokenInitial = true;
@@ -51,9 +70,56 @@ class _MedicationConfirmationScreenState
 
   @override
   void dispose() {
+    _undoTimer?.cancel();
     _controller.dispose();
     TTSService.instance.parar(caller: this);
     super.dispose();
+  }
+
+  void _startUndoWindow() {
+    if (_undoTimer != null || _reminderId == null || _registeredAt == null) {
+      return;
+    }
+    void refresh() {
+      final elapsed = DateTime.now().difference(_registeredAt!).inSeconds;
+      if (!mounted) return;
+      setState(() => _undoSeconds = (30 - elapsed).clamp(0, 30));
+      if (_undoSeconds == 0) _undoTimer?.cancel();
+    }
+
+    refresh();
+    if (_undoSeconds > 0) {
+      _undoTimer = Timer.periodic(const Duration(seconds: 1), (_) => refresh());
+    }
+  }
+
+  Future<void> _undoConfirmation() async {
+    final reminderId = _reminderId;
+    if (reminderId == null || _undoing || _undoSeconds == 0) return;
+    setState(() => _undoing = true);
+    final result = await LembreteService.instance.desfazerConfirmacao(
+      reminderId,
+    );
+    if (!mounted) return;
+    setState(() => _undoing = false);
+    if (result.outcome == ReminderCompletionOutcome.undone) {
+      _undoTimer?.cancel();
+      await TTSService.instance.falar(
+        'Tudo bem. A confirmacao foi desfeita.',
+        caller: this,
+      );
+      if (!mounted) return;
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        '/active-reminder',
+        (route) => false,
+        arguments: reminderId,
+      );
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(result.message), backgroundColor: AppColors.error),
+    );
   }
 
   _ConfirmationConfig get _config {
@@ -238,6 +304,66 @@ class _MedicationConfirmationScreenState
                               ),
 
                               const SizedBox(height: 24),
+
+                              if (_duplicate)
+                                Container(
+                                  width: double.infinity,
+                                  margin: const EdgeInsets.only(bottom: 16),
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.secondaryContainer,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Text(
+                                    'Esta atividade ja estava confirmada. Nenhum registro ou estoque foi duplicado.',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+
+                              if (_reminderId != null && _undoSeconds > 0) ...[
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 64,
+                                  child: OutlinedButton.icon(
+                                    onPressed: _undoing
+                                        ? null
+                                        : _undoConfirmation,
+                                    icon: _undoing
+                                        ? const SizedBox(
+                                            width: 24,
+                                            height: 24,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2.5,
+                                            ),
+                                          )
+                                        : const Icon(Icons.undo, size: 30),
+                                    label: Text(
+                                      _undoing
+                                          ? 'DESFAZENDO...'
+                                          : 'DESFAZER ($_undoSeconds s)',
+                                      style: const TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: AppColors.primary,
+                                      side: const BorderSide(
+                                        color: AppColors.primary,
+                                        width: 2,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                              ],
 
                               // VOLTAR PARA O INÍCIO button
                               SizedBox(

@@ -25,11 +25,45 @@ enum LembreteStatus {
   }
 }
 
+enum LembretePrioridade {
+  normal('normal'),
+  importante('importante'),
+  critica('critica');
+
+  final String storageValue;
+  const LembretePrioridade(this.storageValue);
+
+  static LembretePrioridade fromStorage(String? value) {
+    return LembretePrioridade.values.firstWhere(
+      (priority) => priority.storageValue == value,
+      orElse: () => LembretePrioridade.normal,
+    );
+  }
+}
+
+enum LembreteModoConfirmacao {
+  simples('simples'),
+  vozOuBotao('voz_ou_botao'),
+  foto('foto'),
+  cuidador('cuidador');
+
+  final String storageValue;
+  const LembreteModoConfirmacao(this.storageValue);
+
+  static LembreteModoConfirmacao fromStorage(String? value) {
+    return LembreteModoConfirmacao.values.firstWhere(
+      (mode) => mode.storageValue == value,
+      orElse: () => LembreteModoConfirmacao.simples,
+    );
+  }
+}
+
 class LembreteCategoria {
   static const medicacao = 'medicacao';
   static const refeicoes = 'refeicoes';
   static const exercicio = 'exercicio';
   static const hidratacao = 'hidratacao';
+  static const consulta = 'consulta';
   static const personalizado = 'personalizado';
 
   static String normalizar(String? value) {
@@ -57,12 +91,21 @@ class LembreteCategoria {
       case 'hidratacao':
       case 'hidratação':
         return hidratacao;
+      case 'consulta':
+      case 'consultas':
+      case 'exame':
+      case 'exames':
+      case 'compromisso':
+        return consulta;
       default:
         return personalizado;
     }
   }
 
   static String nome(String? value) {
+    if (normalizar(value) == consulta) {
+      return 'Consulta ou exame';
+    }
     switch (normalizar(value)) {
       case medicacao:
         return 'Medicação';
@@ -107,6 +150,19 @@ class Lembrete {
   final bool isUsoContinuo;
   final String? medicamentoInstrucoes;
   final String? medicamentoAudioTexto;
+  final LembretePrioridade prioridade;
+  final int toleranciaMinutos;
+  final int intervaloRepeticaoMinutos;
+  final int maximoRepeticoes;
+  final bool avisarCuidador;
+  final String? medicamentoDose;
+  final String? medicamentoUnidade;
+  final int? medicamentoEstoque;
+  final int? medicamentoEstoqueMinimo;
+  final double? medicamentoUnidadesPorDose;
+  final LembreteModoConfirmacao modoConfirmacao;
+  final List<int> opcoesAdiamentoMinutos;
+  final int maximoAdiamentos;
 
   Lembrete({
     required this.id,
@@ -122,6 +178,19 @@ class Lembrete {
     this.audioPath,
     this.medicamentoInstrucoes,
     this.medicamentoAudioTexto,
+    LembretePrioridade? prioridade,
+    int? toleranciaMinutos,
+    this.intervaloRepeticaoMinutos = 5,
+    this.maximoRepeticoes = 2,
+    this.avisarCuidador = true,
+    this.medicamentoDose,
+    this.medicamentoUnidade,
+    this.medicamentoEstoque,
+    this.medicamentoEstoqueMinimo,
+    this.medicamentoUnidadesPorDose,
+    LembreteModoConfirmacao? modoConfirmacao,
+    List<int>? opcoesAdiamentoMinutos,
+    this.maximoAdiamentos = 2,
     bool concluido = false,
     bool concluidoComFoto = false,
     DateTime? criadoEm,
@@ -140,6 +209,32 @@ class Lembrete {
   }) : criadoEm = criadoEm ?? DateTime.now(),
        originalHorarioHour = originalHorarioHour ?? horarioHour,
        originalHorarioMinute = originalHorarioMinute ?? horarioMinute,
+       prioridade =
+           prioridade ??
+           (LembreteCategoria.normalizar(categoria) ==
+                   LembreteCategoria.medicacao
+               ? LembretePrioridade.importante
+               : LembretePrioridade.normal),
+       toleranciaMinutos =
+           toleranciaMinutos ??
+           (LembreteCategoria.normalizar(categoria) ==
+                   LembreteCategoria.medicacao
+               ? 15
+               : 30),
+       modoConfirmacao =
+           modoConfirmacao ??
+           (LembreteCategoria.normalizar(categoria) ==
+                   LembreteCategoria.medicacao
+               ? LembreteModoConfirmacao.foto
+               : LembreteModoConfirmacao.simples),
+       opcoesAdiamentoMinutos = List<int>.unmodifiable(
+         ((opcoesAdiamentoMinutos == null || opcoesAdiamentoMinutos.isEmpty)
+                 ? const [5, 10, 15]
+                 : opcoesAdiamentoMinutos)
+             .where((value) => value >= 1 && value <= 120)
+             .toSet()
+             .take(4),
+       ),
        status =
            status ??
            (concluidoComFoto
@@ -189,6 +284,19 @@ class Lembrete {
     bool? isUsoContinuo,
     String? medicamentoInstrucoes,
     String? medicamentoAudioTexto,
+    LembretePrioridade? prioridade,
+    int? toleranciaMinutos,
+    int? intervaloRepeticaoMinutos,
+    int? maximoRepeticoes,
+    bool? avisarCuidador,
+    String? medicamentoDose,
+    String? medicamentoUnidade,
+    int? medicamentoEstoque,
+    int? medicamentoEstoqueMinimo,
+    double? medicamentoUnidadesPorDose,
+    LembreteModoConfirmacao? modoConfirmacao,
+    List<int>? opcoesAdiamentoMinutos,
+    int? maximoAdiamentos,
   }) {
     final newStatus =
         status ??
@@ -232,6 +340,23 @@ class Lembrete {
           medicamentoInstrucoes ?? this.medicamentoInstrucoes,
       medicamentoAudioTexto:
           medicamentoAudioTexto ?? this.medicamentoAudioTexto,
+      prioridade: prioridade ?? this.prioridade,
+      toleranciaMinutos: toleranciaMinutos ?? this.toleranciaMinutos,
+      intervaloRepeticaoMinutos:
+          intervaloRepeticaoMinutos ?? this.intervaloRepeticaoMinutos,
+      maximoRepeticoes: maximoRepeticoes ?? this.maximoRepeticoes,
+      avisarCuidador: avisarCuidador ?? this.avisarCuidador,
+      medicamentoDose: medicamentoDose ?? this.medicamentoDose,
+      medicamentoUnidade: medicamentoUnidade ?? this.medicamentoUnidade,
+      medicamentoEstoque: medicamentoEstoque ?? this.medicamentoEstoque,
+      medicamentoEstoqueMinimo:
+          medicamentoEstoqueMinimo ?? this.medicamentoEstoqueMinimo,
+      medicamentoUnidadesPorDose:
+          medicamentoUnidadesPorDose ?? this.medicamentoUnidadesPorDose,
+      modoConfirmacao: modoConfirmacao ?? this.modoConfirmacao,
+      opcoesAdiamentoMinutos:
+          opcoesAdiamentoMinutos ?? this.opcoesAdiamentoMinutos,
+      maximoAdiamentos: maximoAdiamentos ?? this.maximoAdiamentos,
     );
   }
 
@@ -316,6 +441,19 @@ class Lembrete {
     'isUsoContinuo': isUsoContinuo,
     'medicamentoInstrucoes': medicamentoInstrucoes,
     'medicamentoAudioTexto': medicamentoAudioTexto,
+    'prioridade': prioridade.storageValue,
+    'toleranciaMinutos': toleranciaMinutos,
+    'intervaloRepeticaoMinutos': intervaloRepeticaoMinutos,
+    'maximoRepeticoes': maximoRepeticoes,
+    'avisarCuidador': avisarCuidador,
+    'medicamentoDose': medicamentoDose,
+    'medicamentoUnidade': medicamentoUnidade,
+    'medicamentoEstoque': medicamentoEstoque,
+    'medicamentoEstoqueMinimo': medicamentoEstoqueMinimo,
+    'medicamentoUnidadesPorDose': medicamentoUnidadesPorDose,
+    'modoConfirmacao': modoConfirmacao.storageValue,
+    'opcoesAdiamentoMinutos': opcoesAdiamentoMinutos,
+    'maximoAdiamentos': maximoAdiamentos,
   };
 
   factory Lembrete.fromJson(Map<String, dynamic> json) {
@@ -370,6 +508,31 @@ class Lembrete {
       isUsoContinuo: json['isUsoContinuo'] as bool? ?? true,
       medicamentoInstrucoes: json['medicamentoInstrucoes'] as String?,
       medicamentoAudioTexto: json['medicamentoAudioTexto'] as String?,
+      prioridade: json['prioridade'] != null
+          ? LembretePrioridade.fromStorage(json['prioridade'] as String?)
+          : null,
+      toleranciaMinutos: (json['toleranciaMinutos'] as num?)?.toInt(),
+      intervaloRepeticaoMinutos:
+          (json['intervaloRepeticaoMinutos'] as num?)?.toInt() ?? 5,
+      maximoRepeticoes: (json['maximoRepeticoes'] as num?)?.toInt() ?? 2,
+      avisarCuidador: json['avisarCuidador'] as bool? ?? true,
+      medicamentoDose: json['medicamentoDose'] as String?,
+      medicamentoUnidade: json['medicamentoUnidade'] as String?,
+      medicamentoEstoque: (json['medicamentoEstoque'] as num?)?.toInt(),
+      medicamentoEstoqueMinimo: (json['medicamentoEstoqueMinimo'] as num?)
+          ?.toInt(),
+      medicamentoUnidadesPorDose: (json['medicamentoUnidadesPorDose'] as num?)
+          ?.toDouble(),
+      modoConfirmacao: json['modoConfirmacao'] != null
+          ? LembreteModoConfirmacao.fromStorage(
+              json['modoConfirmacao'] as String?,
+            )
+          : null,
+      opcoesAdiamentoMinutos: (json['opcoesAdiamentoMinutos'] as List?)
+          ?.whereType<num>()
+          .map((value) => value.toInt())
+          .toList(),
+      maximoAdiamentos: (json['maximoAdiamentos'] as num?)?.toInt() ?? 2,
     );
   }
 }

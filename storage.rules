@@ -21,22 +21,80 @@ service firebase.storage {
       ).data;
     }
 
+    function profileHasCaregiver(data, caregiverId) {
+      return data.get('supervisorId', null) == caregiverId ||
+        data.get('caregiverRoles', {}).get(caregiverId, null) in [
+          'primary',
+          'backup',
+          'family',
+          'viewer'
+        ];
+    }
+
+    function hasRelationshipIndex(elderlyId, caregiverId) {
+      return firestore.exists(
+        /databases/(default)/documents/supervisores/$(caregiverId)/idosos/$(elderlyId)
+      );
+    }
+
+    function profileCanManage(data, caregiverId) {
+      return data.get('supervisorId', null) == caregiverId ||
+        data.get('caregiverRoles', {}).get(caregiverId, null) in [
+          'primary',
+          'backup',
+          'family'
+        ];
+    }
+
+    function relationshipCanManage(elderlyId, caregiverId) {
+      return hasRelationshipIndex(elderlyId, caregiverId) &&
+        firestore.get(
+          /databases/(default)/documents/supervisores/$(caregiverId)/idosos/$(elderlyId)
+        ).data.get('role', null) in ['primary', 'backup', 'family'];
+    }
+
     function isLinkedSupervisor(elderlyId) {
       return isAuth() &&
         hasCanonicalProfile(elderlyId) &&
         canonicalProfile(elderlyId).status == 'active' &&
-        canonicalProfile(elderlyId).supervisorId == request.auth.uid;
+        (
+          profileHasCaregiver(
+            canonicalProfile(elderlyId),
+            request.auth.uid
+          ) ||
+          hasRelationshipIndex(elderlyId, request.auth.uid)
+        );
+    }
+
+    function isManagingSupervisor(elderlyId) {
+      return isAuth() &&
+        hasCanonicalProfile(elderlyId) &&
+        canonicalProfile(elderlyId).status == 'active' &&
+        (
+          profileCanManage(
+            canonicalProfile(elderlyId),
+            request.auth.uid
+          ) ||
+          relationshipCanManage(elderlyId, request.auth.uid)
+        );
     }
 
     function isLinkedElderly(supervisorId) {
       return isAuth() &&
         hasCanonicalProfile(request.auth.uid) &&
         canonicalProfile(request.auth.uid).status == 'active' &&
-        canonicalProfile(request.auth.uid).supervisorId == supervisorId;
+        profileHasCaregiver(
+          canonicalProfile(request.auth.uid),
+          supervisorId
+        );
     }
 
     function canAccessElderly(elderlyId) {
       return isOwner(elderlyId) || isLinkedSupervisor(elderlyId);
+    }
+
+    function canManageElderly(elderlyId) {
+      return isOwner(elderlyId) || isManagingSupervisor(elderlyId);
     }
 
     function validAudio(fileName, maxBytes) {
@@ -63,37 +121,37 @@ service firebase.storage {
 
     match /reminder_audio/{elderlyId}/{fileName} {
       allow read: if canAccessElderly(elderlyId);
-      allow create, update: if canAccessElderly(elderlyId) &&
+      allow create, update: if canManageElderly(elderlyId) &&
         validAudio(fileName, 10 * 1024 * 1024);
-      allow delete: if canAccessElderly(elderlyId);
+      allow delete: if canManageElderly(elderlyId);
     }
 
     match /reminder_photos/{elderlyId}/{fileName} {
       allow read: if canAccessElderly(elderlyId);
-      allow create, update: if canAccessElderly(elderlyId) &&
+      allow create, update: if canManageElderly(elderlyId) &&
         validImage(fileName, 5 * 1024 * 1024);
-      allow delete: if canAccessElderly(elderlyId);
+      allow delete: if canManageElderly(elderlyId);
     }
 
     match /confirmation_photos/{elderlyId}/{fileName} {
       allow read: if canAccessElderly(elderlyId);
-      allow create, update: if canAccessElderly(elderlyId) &&
+      allow create, update: if canManageElderly(elderlyId) &&
         validImage(fileName, 5 * 1024 * 1024);
-      allow delete: if canAccessElderly(elderlyId);
+      allow delete: if canManageElderly(elderlyId);
     }
 
     match /message_audio/{elderlyId}/{fileName} {
       allow read: if canAccessElderly(elderlyId);
-      allow create, update: if canAccessElderly(elderlyId) &&
+      allow create, update: if canManageElderly(elderlyId) &&
         validAudio(fileName, 10 * 1024 * 1024);
-      allow delete: if canAccessElderly(elderlyId);
+      allow delete: if canManageElderly(elderlyId);
     }
 
     match /perfis/{elderlyId}/{fileName} {
       allow read: if canAccessElderly(elderlyId);
-      allow create, update: if canAccessElderly(elderlyId) &&
+      allow create, update: if canManageElderly(elderlyId) &&
         validImage(fileName, 5 * 1024 * 1024);
-      allow delete: if canAccessElderly(elderlyId);
+      allow delete: if canManageElderly(elderlyId);
     }
 
     match /perfis_supervisor/{supervisorId}/{fileName} {

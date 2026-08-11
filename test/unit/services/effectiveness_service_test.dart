@@ -9,7 +9,8 @@ void main() {
     late List<LembreteEvento> eventos;
 
     setUp(() {
-      final now = DateTime.now();
+      final current = DateTime.now();
+      final now = DateTime(current.year, current.month, current.day, 12);
       eventos = [
         LembreteEvento(
           id: '1',
@@ -63,10 +64,7 @@ void main() {
     });
 
     test('compute retorna métricas corretas', () {
-      final result = EffectivenessService.instance.compute(
-        eventos,
-        days: 7,
-      );
+      final result = EffectivenessService.instance.compute(eventos, days: 7);
 
       expect(result, isA<EffectivenessMetrics>());
       expect(result.totalDaysAnalyzed, 7);
@@ -75,20 +73,14 @@ void main() {
     });
 
     test('compute calcula score geral ponderado', () {
-      final result = EffectivenessService.instance.compute(
-        eventos,
-        days: 7,
-      );
+      final result = EffectivenessService.instance.compute(eventos, days: 7);
 
       expect(result.overallScore, greaterThan(0));
       expect(result.overallScore, lessThanOrEqualTo(100));
     });
 
     test('compute retorna scores por categoria', () {
-      final result = EffectivenessService.instance.compute(
-        eventos,
-        days: 7,
-      );
+      final result = EffectivenessService.instance.compute(eventos, days: 7);
 
       expect(result.categoryScores, containsPair('medicacao', 100.0));
       expect(result.categoryScores, containsPair('hidratacao', 0.0));
@@ -96,10 +88,7 @@ void main() {
     });
 
     test('compute retorna categoryBreakdown ordenado', () {
-      final result = EffectivenessService.instance.compute(
-        eventos,
-        days: 7,
-      );
+      final result = EffectivenessService.instance.compute(eventos, days: 7);
 
       expect(result.categoryBreakdown.length, greaterThanOrEqualTo(1));
       for (int i = 0; i < result.categoryBreakdown.length - 1; i++) {
@@ -111,57 +100,39 @@ void main() {
     });
 
     test('compute retorna dailyTrend', () {
-      final result = EffectivenessService.instance.compute(
-        eventos,
-        days: 7,
-      );
+      final result = EffectivenessService.instance.compute(eventos, days: 7);
 
       expect(result.dailyTrend.length, 7);
       expect(result.dailyTrend[0], isA<DailyEffectiveness>());
     });
 
     test('trend é stable quando não há dados suficientes', () {
-      final result = EffectivenessService.instance.compute(
-        eventos,
-        days: 7,
-      );
+      final result = EffectivenessService.instance.compute(eventos, days: 7);
 
       expect(['improving', 'declining', 'stable'], contains(result.trend));
     });
 
     test('currentStreak conta dias consecutivos com >= 80%', () {
-      final result = EffectivenessService.instance.compute(
-        eventos,
-        days: 7,
-      );
+      final result = EffectivenessService.instance.compute(eventos, days: 7);
 
       expect(result.currentStreak, greaterThanOrEqualTo(0));
     });
 
     test('bestStreak é maior ou igual a currentStreak', () {
-      final result = EffectivenessService.instance.compute(
-        eventos,
-        days: 7,
-      );
+      final result = EffectivenessService.instance.compute(eventos, days: 7);
 
       expect(result.bestStreak, greaterThanOrEqualTo(result.currentStreak));
     });
 
     test('bestDayOfWeek e worstDayOfWeek são retornados', () {
-      final result = EffectivenessService.instance.compute(
-        eventos,
-        days: 7,
-      );
+      final result = EffectivenessService.instance.compute(eventos, days: 7);
 
       expect(result.bestDayOfWeek, isNotEmpty);
       expect(result.worstDayOfWeek, isNotEmpty);
     });
 
     test('recommendations são geradas', () {
-      final result = EffectivenessService.instance.compute(
-        eventos,
-        days: 7,
-      );
+      final result = EffectivenessService.instance.compute(eventos, days: 7);
 
       expect(result.recommendations, isNotEmpty);
     });
@@ -177,19 +148,28 @@ void main() {
       expect(result.recommendations, isNotEmpty);
     });
 
-    test('retorna completionRate igual a overallScore para dados uniformes', () {
-      final now = DateTime.now();
-      final completos = List.generate(10, (i) => LembreteEvento(
-        id: 'c$i',
-        lembreteId: 'l$i',
-        titulo: 'Evento $i',
-        categoria: 'medicacao',
-        status: LembreteStatus.concluido,
-        registradoEm: now.subtract(Duration(days: i ~/ 2)),
-      ));
+    test(
+      'retorna completionRate igual a overallScore para dados uniformes',
+      () {
+        final now = DateTime.now();
+        final completos = List.generate(
+          10,
+          (i) => LembreteEvento(
+            id: 'c$i',
+            lembreteId: 'l$i',
+            titulo: 'Evento $i',
+            categoria: 'medicacao',
+            status: LembreteStatus.concluido,
+            registradoEm: now.subtract(Duration(days: i ~/ 2)),
+          ),
+        );
 
-      final result = EffectivenessService.instance.compute(completos, days: 7);
-      expect(result.completionRate, greaterThan(0));
-    });
+        final result = EffectivenessService.instance.compute(
+          completos,
+          days: 7,
+        );
+        expect(result.completionRate, greaterThan(0));
+      },
+    );
   });
 }

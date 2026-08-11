@@ -12,6 +12,7 @@ import '../services/session_role_service.dart';
 import '../services/durable_media_service.dart';
 import '../services/offline_sync_service.dart';
 import '../models/lembrete.dart';
+import '../models/reminder_completion_result.dart';
 import '../widgets/index.dart';
 
 class TakePhotoConfirmationScreen extends StatefulWidget {
@@ -180,7 +181,6 @@ class _TakePhotoConfirmationScreenState
         'A foto foi tirada! Se ela ficou boa e nítida, aperte o botão verde com o dedão para cima. Se ficou escura ou embaçada, aperte o botão vermelho com o dedão para baixo para tirar outra.',
         caller: this,
       );
-
     } catch (e) {
       debugPrint('Erro ao tirar foto: $e');
     } finally {
@@ -238,7 +238,8 @@ class _TakePhotoConfirmationScreenState
                             else
                               _buildPhotoPreview(),
 
-                            if (!_isCaptured) _buildSilhouetteOverlay(lembreteId),
+                            if (!_isCaptured)
+                              _buildSilhouetteOverlay(lembreteId),
 
                             if (_isFlashActive) Container(color: Colors.white),
                           ],
@@ -550,14 +551,20 @@ class _TakePhotoConfirmationScreenState
                           setState(() => _isUploading = true);
                           try {
                             final navigator = Navigator.of(context);
-                            final scaffoldMessenger = ScaffoldMessenger.of(context);
+                            final scaffoldMessenger = ScaffoldMessenger.of(
+                              context,
+                            );
                             TTSService.instance.parar(caller: this);
-                            if (_isProfilePhoto || lembreteId == 'profile_photo') {
-                              final prefs = await SharedPreferences.getInstance();
-                              final durablePath = await DurableMediaService.instance.preserve(
-                                _capturedFile!.path,
-                                prefix: 'profile_photo',
-                              );
+                            if (_isProfilePhoto ||
+                                lembreteId == 'profile_photo') {
+                              final prefs =
+                                  await SharedPreferences.getInstance();
+                              final durablePath = await DurableMediaService
+                                  .instance
+                                  .preserve(
+                                    _capturedFile!.path,
+                                    prefix: 'profile_photo',
+                                  );
                               await prefs.setString(
                                 'idoso_foto_path',
                                 durablePath,
@@ -566,19 +573,19 @@ class _TakePhotoConfirmationScreenState
                                   await SessionRoleService.getActiveIdosoId();
 
                               if (_useFirebase &&
-                                  await SessionRoleService
-                                      .canSyncElderlyPrivateData()) {
-                                final profileSynced = await OfflineSyncService.instance.setOrQueue(
-                                  'idoso_perfil',
-                                  idosoId,
-                                  {'fotoPath': durablePath},
-                                );
-                                final idososSynced = await OfflineSyncService.instance.setOrQueue(
-                                  'idosos',
-                                  idosoId,
-                                  {'fotoPath': durablePath},
-                                );
-                                if ((!profileSynced || !idososSynced) && mounted) {
+                                  await SessionRoleService.canSyncElderlyPrivateData()) {
+                                final profileSynced = await OfflineSyncService
+                                    .instance
+                                    .setOrQueue('idoso_perfil', idosoId, {
+                                      'fotoPath': durablePath,
+                                    });
+                                final idososSynced = await OfflineSyncService
+                                    .instance
+                                    .setOrQueue('idosos', idosoId, {
+                                      'fotoPath': durablePath,
+                                    });
+                                if ((!profileSynced || !idososSynced) &&
+                                    mounted) {
                                   scaffoldMessenger.showSnackBar(
                                     const SnackBar(
                                       content: Text(
@@ -594,41 +601,56 @@ class _TakePhotoConfirmationScreenState
                               navigator.pop(durablePath);
                               return;
                             } else if (lembreteId != null) {
-                              await LembreteService.instance.concluirComFoto(
-                                lembreteId,
-                                _capturedFile!.path,
-                              );
+                              final result = await LembreteService.instance
+                                  .concluirComFoto(
+                                    lembreteId,
+                                    _capturedFile!.path,
+                                  );
+                              if (!result.succeeded) {
+                                scaffoldMessenger.showSnackBar(
+                                  SnackBar(
+                                    content: Text(result.message),
+                                    backgroundColor: AppColors.error,
+                                  ),
+                                );
+                                return;
+                              }
                               SystemSound.play(SystemSoundType.click);
                               HapticFeedback.vibrate();
-                              Lembrete? target;
-                              final targetId = lembreteId;
-                              final idx = LembreteService.instance.lembretes.indexWhere(
-                                (l) => l.id == targetId,
-                              );
-                              if (idx != -1) {
-                                target = LembreteService.instance.lembretes[idx];
-                              }
                               navigator.pushNamedAndRemoveUntil(
                                 '/medication-confirmation',
                                 (route) => false,
-                                arguments: target?.titulo ?? 'remédio',
+                                arguments: {
+                                  'message': 'Você tomou seu remédio.',
+                                  'reminderId': lembreteId,
+                                  'registeredAt': result.registeredAt
+                                      ?.toIso8601String(),
+                                  'duplicate':
+                                      result.outcome ==
+                                      ReminderCompletionOutcome
+                                          .alreadyCompleted,
+                                },
                               );
                             } else {
                               scaffoldMessenger.showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Não consegui achar este lembrete. Volte e abra de novo.',
-                                    ),
-                                    backgroundColor: AppColors.error,
+                                const SnackBar(
+                                  content: Text(
+                                    'Não consegui achar este lembrete. Volte e abra de novo.',
                                   ),
+                                  backgroundColor: AppColors.error,
+                                ),
                               );
                             }
                           } catch (e) {
-                            debugPrint('Erro ao processar confirmacao de foto: $e');
+                            debugPrint(
+                              'Erro ao processar confirmacao de foto: $e',
+                            );
                             if (context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content: Text('Não consegui salvar a foto. Tente de novo.'),
+                                  content: Text(
+                                    'Não consegui salvar a foto. Tente de novo.',
+                                  ),
                                   backgroundColor: AppColors.error,
                                 ),
                               );
@@ -643,12 +665,18 @@ class _TakePhotoConfirmationScreenState
                       ? const SizedBox(
                           width: 24,
                           height: 24,
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2.5,
+                          ),
                         )
                       : const Icon(Icons.thumb_up_alt_rounded, size: 36),
                   label: Text(
                     _isUploading ? 'SALVANDO...' : 'FICOU BOA 👍',
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF2E7D32),

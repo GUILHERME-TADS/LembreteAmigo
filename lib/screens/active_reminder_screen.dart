@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
 import '../models/lembrete.dart';
+import '../models/reminder_completion_result.dart';
 import '../services/lembrete_service.dart';
 import '../services/tts_service.dart';
 import '../services/notification_service.dart';
@@ -59,8 +60,6 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
     LembreteService.instance.notifier.addListener(_onLembretesChanged);
     _loadPairedStatus();
   }
-
-
 
   Future<void> _loadPairedStatus() async {
     final connected = await SessionRoleService.isElderlyConnectedToSupervisor();
@@ -147,8 +146,9 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
   Future<void> _startReminderLoop(Lembrete l) async {
     if (_isSpeakingLoopActive) return;
     _isSpeakingLoopActive = true;
-    
-    final isResumed = WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
+
+    final isResumed =
+        WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
     _isLoopPaused = !isResumed;
 
     if (isResumed) {
@@ -229,7 +229,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
   }
 
   Duration _noResponseLimit(Lembrete l) {
-    return const Duration(minutes: 5);
+    return Duration(minutes: l.toleranciaMinutos.clamp(1, 120));
   }
 
   Future<void> _playFamilyAudioIfAvailable(Lembrete l) async {
@@ -264,6 +264,183 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
       debugPrint('Erro ao tocar voz familiar: $e');
     } finally {
       await sub?.cancel();
+    }
+  }
+
+  String _feedbackMessage(Lembrete reminder) {
+    if (reminder.categoria == 'medicacao') {
+      return 'Voce tomou seu remedio.';
+    }
+    if (reminder.categoria == 'hidratacao') return 'Voce bebeu sua agua.';
+    if (reminder.categoria == 'refeicoes') return 'Voce comeu.';
+    if (reminder.categoria == 'exercicio') {
+      return 'Voce fez seu exercicio.';
+    }
+    return 'Voce concluiu sua atividade.';
+  }
+
+  void _stopReminderFeedback() {
+    _isLoopPaused = true;
+    VibrationService.stopVibration();
+    AudioManager.stopAll();
+    _noResponseTimer?.cancel();
+    _urgencyReinforcementTimer?.cancel();
+    _runInBackground(_familyAudioPlayer.stop(), 'parar audio');
+    _runInBackground(TTSService.instance.parar(caller: this), 'parar tts');
+  }
+
+  Future<void> _handleConfirmation() async {
+    final reminder = lembrete;
+    if (reminder == null || !_tryStartAction()) return;
+    try {
+      final navigator = Navigator.of(context);
+      _stopReminderFeedback();
+      _runInBackground(
+        NotificationService.instance.cancelar(reminder.id),
+        'cancelar notificacao',
+      );
+
+      if (reminder.modoConfirmacao == LembreteModoConfirmacao.foto) {
+        await navigator.pushNamed(
+          '/take-photo-confirmation',
+          arguments: reminder.id,
+        );
+        if (mounted) _isLoopPaused = false;
+        return;
+      }
+
+      final result = await LembreteService.instance.confirmarOcorrencia(
+        reminder.id,
+        method: 'botao',
+      );
+      if (!mounted) return;
+      if (result.outcome == ReminderCompletionOutcome.requiresCaregiver) {
+        await LembreteService.instance.registrarDificuldade(
+          reminder.id,
+          'Esta atividade exige confirmacao do cuidador.',
+        );
+        if (!mounted) return;
+        navigator.pushNamedAndRemoveUntil(
+          '/reinforcement-alert',
+          (route) => false,
+          arguments: {'categoria': reminder.categoria, 'tipo': 'dificuldade'},
+        );
+        return;
+      }
+      if (!result.succeeded) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result.message),
+            backgroundColor: AppColors.error,
+          ),
+        );
+        _isLoopPaused = false;
+        return;
+      }
+
+      _isSpeakingLoopActive = false;
+      navigator.pushNamedAndRemoveUntil(
+        '/medication-confirmation',
+        (route) => false,
+        arguments: {
+          'message': _feedbackMessage(reminder),
+          'reminderId': reminder.id,
+          'registeredAt': result.registeredAt?.toIso8601String(),
+          'duplicate':
+              result.outcome == ReminderCompletionOutcome.alreadyCompleted,
+        },
+      );
+    } catch (error) {
+      debugPrint('Erro ao concluir lembrete: $error');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Nao consegui marcar como feito. Tente de novo.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+        _isLoopPaused = false;
+      }
+    } finally {
+      if (mounted) setState(() => _isProcessingAction = false);
+    }
+  }
+
+  Future<int?> _chooseSnooze(Lembrete reminder) {
+    return showModalBottomSheet<int>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Quando devo lembrar de novo?',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 16),
+              for (final minutes in reminder.opcoesAdiamentoMinutos)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context, minutes),
+                    child: Text(
+                      '$minutes minutos',
+                      style: const TextStyle(fontSize: 20),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleSnooze() async {
+    final reminder = lembrete;
+    if (reminder == null || !_tryStartAction()) return;
+    try {
+      if (!LembreteService.instance.podeAdiar(reminder.id)) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'O limite de adiamentos acabou. Conclua ou peca ajuda.',
+              ),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+        return;
+      }
+      final minutes = await _chooseSnooze(reminder);
+      if (minutes == null || !mounted) return;
+      _isSpeakingLoopActive = false;
+      _isLoopPaused = false;
+      _stopReminderFeedback();
+      final ok = await LembreteService.instance.adiar(reminder.id, minutes);
+      if (!mounted) return;
+      if (!ok) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Nao consegui adiar este lembrete.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+        return;
+      }
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        '/reinforcement-alert',
+        (route) => false,
+        arguments: {'categoria': reminder.categoria, 'minutos': minutes},
+      );
+    } finally {
+      if (mounted) setState(() => _isProcessingAction = false);
     }
   }
 
@@ -329,8 +506,6 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
       VibrationService.stopVibration();
     }
   }
-
-
 
   @override
   void dispose() {
@@ -433,10 +608,8 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
     final String subtitleText;
     final IconData categoryIcon;
     final Color iconColor;
-    final bool requiresPhoto;
     final String confirmButtonText;
 
-    requiresPhoto = lembrete!.categoria == 'medicacao';
     categoryIcon = lembrete!.categoria == 'medicacao'
         ? Icons.medication
         : lembrete!.categoria == 'refeicoes'
@@ -641,8 +814,6 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                               const SizedBox(height: 24),
                             ],
 
-
-
                             // BOTAO CONFIRMAR (ENTENDI)
                             SizedBox(
                               width: double.infinity,
@@ -650,108 +821,18 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                               child: ElevatedButton.icon(
                                 onPressed: _isProcessingAction
                                     ? null
-                                    : () async {
-                                        if (!_tryStartAction()) return;
-                                        try {
-                                          final navigator = Navigator.of(context);
-                                          _isLoopPaused = true;
-                                          VibrationService.stopVibration();
-                                          AudioManager.stopAll();
-                                          _noResponseTimer?.cancel();
-                                          _runInBackground(_familyAudioPlayer.stop(), 'parar audio');
-                                          _runInBackground(TTSService.instance.parar(caller: this), 'parar tts');
-                                          if (lembrete != null) {
-                                            _runInBackground(
-                                              NotificationService.instance
-                                                  .cancelar(lembrete!.id),
-                                              'cancelar notificacao',
-                                            );
-                                          }
-                                          if (requiresPhoto) {
-                                            final id = lembrete?.id;
-                                            if (id == null || id.isEmpty) {
-                                              if (context.mounted) {
-                                                setState(
-                                                  () => _notFound = true,
-                                                );
-                                              }
-                                              return;
-                                            }
-                                            AudioManager.stopAll();
-                                            _runInBackground(TTSService.instance.parar(caller: this), 'parar tts');
-                                            await navigator.pushNamed(
-                                              '/take-photo-confirmation',
-                                              arguments: id,
-                                            );
-                                            if (context.mounted) {
-                                              _isLoopPaused = false;
-                                            }
-                                          } else {
-                                            if (lembrete != null) {
-                                              try {
-                                                final ok = await LembreteService
-                                                    .instance
-                                                    .alternarConclusao(
-                                                      lembrete!.id,
-                                                    );
-                                                if (!ok) return;
-                                                _isSpeakingLoopActive = false;
-                                                final feedbackMsg =
-                                                    lembrete?.categoria ==
-                                                        'hidratacao'
-                                                    ? 'Você bebeu sua água.'
-                                                    : lembrete?.categoria ==
-                                                          'refeicoes'
-                                                    ? 'Você comeu.'
-                                                    : lembrete?.categoria ==
-                                                          'exercicio'
-                                                    ? 'Você fez seu exercício.'
-                                                    : 'Você concluiu sua atividade.';
-                                                navigator
-                                                    .pushNamedAndRemoveUntil(
-                                                      '/medication-confirmation',
-                                                      (route) => false,
-                                                      arguments: feedbackMsg,
-                                                    );
-                                              } catch (e) {
-                                                debugPrint(
-                                                  'Erro ao concluir lembrete: $e',
-                                                );
-                                                if (context.mounted) {
-                                                  ScaffoldMessenger.of(
-                                                    context,
-                                                  ).showSnackBar(
-                                                    SnackBar(
-                                                      content: Text(
-                                                        'Não consegui marcar como feito. Tente de novo.',
-                                                      ),
-                                                      backgroundColor:
-                                                          AppColors.error,
-                                                    ),
-                                                  );
-                                                }
-                                              }
-                                            }
-                                          }
-                                        } finally {
-                                          if (context.mounted) {
-                                            setState(
-                                              () => _isProcessingAction = false,
-                                            );
-                                          }
-                                        }
-                                      },
-                                  icon: _isProcessingAction
-                                      ? const SizedBox(
-                                          width: 36,
-                                          height: 36,
-                                          child: CircularProgressIndicator(
-                                            color: Colors.white,
-                                            strokeWidth: 3,
-                                          ),
-                                        )
-                                      : const Icon(Icons.check_circle, size: 36),
-                                  label: FittedBox(
+                                    : _handleConfirmation,
+                                icon: _isProcessingAction
+                                    ? const SizedBox(
+                                        width: 36,
+                                        height: 36,
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 3,
+                                        ),
+                                      )
+                                    : const Icon(Icons.check_circle, size: 36),
+                                label: FittedBox(
                                   fit: BoxFit.scaleDown,
                                   child: Text(
                                     confirmButtonText,
@@ -787,75 +868,25 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                               width: double.infinity,
                               height: 80,
                               child: ElevatedButton.icon(
-                                onPressed: _isProcessingAction
+                                onPressed:
+                                    _isProcessingAction ||
+                                        lembrete!.maximoAdiamentos == 0
                                     ? null
-                                    : () async {
-                                        if (!_tryStartAction()) return;
-                                        try {
-                                          _isSpeakingLoopActive = false;
-                                          _isLoopPaused = false;
-                                          VibrationService.stopVibration();
-                                          _noResponseTimer?.cancel();
-                                          _runInBackground(_familyAudioPlayer.stop(), 'parar audio');
-                                          _runInBackground(TTSService.instance.parar(caller: this), 'parar tts');
-                                          final navigator = Navigator.of(
-                                            context,
-                                          );
-                                          final categoria = lembrete?.categoria;
-                                          if (lembrete != null) {
-                                            try {
-                                              final ok = await LembreteService
-                                                  .instance
-                                                  .adiar(lembrete!.id, 10);
-                                              if (!ok) return;
-                                              navigator.pushNamedAndRemoveUntil(
-                                                '/reinforcement-alert',
-                                                (route) => false,
-                                                arguments: {
-                                                  'categoria': categoria,
-                                                },
-                                              );
-                                            } catch (e) {
-                                              debugPrint(
-                                                'Erro ao adiar lembrete: $e',
-                                              );
-                                              if (context.mounted) {
-                                                ScaffoldMessenger.of(
-                                                  context,
-                                                ).showSnackBar(
-                                                  SnackBar(
-                                                    content: Text(
-                                                      'Não consegui lembrar depois. Tente de novo.',
-                                                    ),
-                                                    backgroundColor:
-                                                        AppColors.error,
-                                                  ),
-                                                );
-                                              }
-                                            }
-                                          }
-                                        } finally {
-                                          if (context.mounted) {
-                                            setState(
-                                              () => _isProcessingAction = false,
-                                            );
-                                          }
-                                        }
-                                      },
-                                  icon: _isProcessingAction
-                                      ? const SizedBox(
-                                          width: 30,
-                                          height: 30,
-                                          child: CircularProgressIndicator(
-                                            color: Colors.black54,
-                                            strokeWidth: 3,
-                                          ),
-                                        )
-                                      : const Icon(Icons.access_time, size: 30),
-                                  label: const FittedBox(
+                                    : _handleSnooze,
+                                icon: _isProcessingAction
+                                    ? const SizedBox(
+                                        width: 30,
+                                        height: 30,
+                                        child: CircularProgressIndicator(
+                                          color: Colors.black54,
+                                          strokeWidth: 3,
+                                        ),
+                                      )
+                                    : const Icon(Icons.access_time, size: 30),
+                                label: const FittedBox(
                                   fit: BoxFit.scaleDown,
                                   child: Text(
-                                    'DAQUI A POUCO (10 MINUTOS)',
+                                    'LEMBRAR MAIS TARDE',
                                     maxLines: 1,
                                     style: TextStyle(
                                       fontSize: 20,
@@ -899,8 +930,16 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                           _isSpeakingLoopActive = false;
                                           _isLoopPaused = false;
                                           VibrationService.stopVibration();
-                                          _runInBackground(_familyAudioPlayer.stop(), 'parar audio');
-                                          _runInBackground(TTSService.instance.parar(caller: this), 'parar tts');
+                                          _runInBackground(
+                                            _familyAudioPlayer.stop(),
+                                            'parar audio',
+                                          );
+                                          _runInBackground(
+                                            TTSService.instance.parar(
+                                              caller: this,
+                                            ),
+                                            'parar tts',
+                                          );
                                           if (lembrete != null) {
                                             _runInBackground(
                                               NotificationService.instance

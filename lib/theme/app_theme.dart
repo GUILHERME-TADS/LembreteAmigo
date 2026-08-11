@@ -63,7 +63,7 @@ class AppColors {
 }
 
 class AppTypography {
-  static const fontFamily = 'Atkinson Hyperlegible Next';
+  static const fontFamily = 'Roboto';
   static const fontFallback = <String>['Roboto', 'sans-serif'];
 
   static const headlineLg = TextStyle(
@@ -162,10 +162,8 @@ class AppTheme {
     displaySmall: TextStyle(fontWeight: FontWeight.bold),
   );
 
-  static IconThemeData get _boldIconTheme => const IconThemeData(
-    weight: 900.0,
-    fill: 1.0,
-  );
+  static IconThemeData get _boldIconTheme =>
+      const IconThemeData(weight: 900.0, fill: 1.0);
 
   static ThemeData get theme => ThemeData(
     useMaterial3: true,

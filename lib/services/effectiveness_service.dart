@@ -23,15 +23,32 @@ class EffectivenessService {
   };
 
   static const List<String> _dayNames = [
-    'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo',
+    'Segunda',
+    'Terça',
+    'Quarta',
+    'Quinta',
+    'Sexta',
+    'Sábado',
+    'Domingo',
   ];
 
   List<LembreteEvento> collapseOccurrences(Iterable<LembreteEvento> events) {
+    final eventList = events.toList();
+    final correctedEventIds = eventList
+        .map((event) => event.corrigeEventoId)
+        .whereType<String>()
+        .toSet();
     final occurrences = <String, LembreteEvento>{};
-    for (final event in events) {
+    for (final event in eventList) {
       if (event.categoria == 'bem_estar') continue;
+      if (event.corrigeEventoId != null ||
+          correctedEventIds.contains(event.id)) {
+        continue;
+      }
       final date = event.registradoEm;
-      final key = '${event.lembreteId}_${date.year}-${date.month}-${date.day}';
+      final key =
+          event.ocorrenciaChave ??
+          '${event.lembreteId}_${date.year}-${date.month}-${date.day}';
       final current = occurrences[key];
       if (current == null ||
           _statusPriority(event.status) > _statusPriority(current.status) ||
@@ -52,18 +69,21 @@ class EffectivenessService {
     return 1;
   }
 
-  EffectivenessMetrics compute(
-    List<LembreteEvento> eventos, {
-    int days = 14,
-  }) {
+  EffectivenessMetrics compute(List<LembreteEvento> eventos, {int days = 14}) {
     final now = DateTime.now();
     final startDate = DateTime(now.year, now.month, now.day - days + 1);
     final endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
 
-    final periodEvents = collapseOccurrences(eventos.where((e) =>
-        e.registradoEm.isAfter(startDate.subtract(const Duration(seconds: 1))) &&
-        e.registradoEm.isBefore(endDate) &&
-        e.categoria != 'bem_estar'));
+    final periodEvents = collapseOccurrences(
+      eventos.where(
+        (e) =>
+            e.registradoEm.isAfter(
+              startDate.subtract(const Duration(seconds: 1)),
+            ) &&
+            e.registradoEm.isBefore(endDate) &&
+            e.categoria != 'bem_estar',
+      ),
+    );
 
     final dailyTrend = _computeDailyTrend(periodEvents, days, startDate);
 
@@ -76,7 +96,9 @@ class EffectivenessService {
 
     final overallScore = _computeOverallScore(categoryBreakdown);
 
-    final completedEvents = periodEvents.where((e) => e.status.isConcluido).length;
+    final completedEvents = periodEvents
+        .where((e) => e.status.isConcluido)
+        .length;
     final totalEvents = periodEvents.length;
 
     final collapsedEvents = collapseOccurrences(eventos);
@@ -126,18 +148,22 @@ class EffectivenessService {
     for (int i = 0; i < days; i++) {
       final day = DateTime(startDate.year, startDate.month, startDate.day + i);
       final dayEnd = DateTime(day.year, day.month, day.day, 23, 59, 59);
-      final dayEvents = eventos.where((e) =>
-          e.registradoEm.isAfter(day.subtract(const Duration(seconds: 1))) &&
-          e.registradoEm.isBefore(dayEnd));
+      final dayEvents = eventos.where(
+        (e) =>
+            e.registradoEm.isAfter(day.subtract(const Duration(seconds: 1))) &&
+            e.registradoEm.isBefore(dayEnd),
+      );
       final total = dayEvents.length;
       final completed = dayEvents.where((e) => e.status.isConcluido).length;
       final score = total > 0 ? (completed / total) * 100.0 : -1.0;
-      trend.add(DailyEffectiveness(
-        date: day,
-        score: score,
-        total: total,
-        completed: completed,
-      ));
+      trend.add(
+        DailyEffectiveness(
+          date: day,
+          score: score,
+          total: total,
+          completed: completed,
+        ),
+      );
     }
     return trend;
   }
@@ -160,8 +186,7 @@ class EffectivenessService {
         completed: completed,
         label: _categoryLabels[entry.key] ?? entry.key,
       );
-    }).toList()
-      ..sort((a, b) => b.score.compareTo(a.score));
+    }).toList()..sort((a, b) => b.score.compareTo(a.score));
   }
 
   double _computeOverallScore(List<CategoryEffectiveness> breakdown) {
@@ -182,9 +207,13 @@ class EffectivenessService {
       final day = DateTime(now.year, now.month, now.day - i);
       final dayStart = DateTime(day.year, day.month, day.day);
       final dayEnd = DateTime(day.year, day.month, day.day, 23, 59, 59);
-      final dayEvents = eventos.where((e) =>
-          e.registradoEm.isAfter(dayStart.subtract(const Duration(seconds: 1))) &&
-          e.registradoEm.isBefore(dayEnd));
+      final dayEvents = eventos.where(
+        (e) =>
+            e.registradoEm.isAfter(
+              dayStart.subtract(const Duration(seconds: 1)),
+            ) &&
+            e.registradoEm.isBefore(dayEnd),
+      );
       final total = dayEvents.length;
       if (total == 0) {
         if (i == 0) continue;
@@ -204,21 +233,30 @@ class EffectivenessService {
   int _computeBestStreak(List<LembreteEvento> eventos) {
     int bestStreak = 0;
     int currentStreak = 0;
-    final dates = eventos
-        .map((e) => DateTime(e.registradoEm.year, e.registradoEm.month, e.registradoEm.day))
-        .toSet()
-        .toList()
-      ..sort();
+    final dates =
+        eventos
+            .map(
+              (e) => DateTime(
+                e.registradoEm.year,
+                e.registradoEm.month,
+                e.registradoEm.day,
+              ),
+            )
+            .toSet()
+            .toList()
+          ..sort();
     DateTime? previousDate;
     for (int i = 0; i < dates.length; i++) {
       if (previousDate != null &&
           dates[i].difference(previousDate).inDays != 1) {
         currentStreak = 0;
       }
-      final dateEvents = eventos.where((e) =>
-          e.registradoEm.year == dates[i].year &&
-          e.registradoEm.month == dates[i].month &&
-          e.registradoEm.day == dates[i].day);
+      final dateEvents = eventos.where(
+        (e) =>
+            e.registradoEm.year == dates[i].year &&
+            e.registradoEm.month == dates[i].month &&
+            e.registradoEm.day == dates[i].day,
+      );
       final total = dateEvents.length;
       final completed = dateEvents.where((e) => e.status.isConcluido).length;
       if (total > 0 && (completed / total) >= 0.8) {
@@ -301,7 +339,11 @@ class EffectivenessService {
     return recs;
   }
 
-  double _zipSum(List<double> a, List<double> b, double Function(double, double) fn) {
+  double _zipSum(
+    List<double> a,
+    List<double> b,
+    double Function(double, double) fn,
+  ) {
     double result = 0;
     for (int i = 0; i < a.length && i < b.length; i++) {
       result += fn(a[i], b[i]);

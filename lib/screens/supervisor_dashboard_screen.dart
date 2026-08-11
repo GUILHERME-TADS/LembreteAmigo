@@ -27,6 +27,7 @@ import '../widgets/skeleton_loading.dart';
 import '../widgets/message_unread_badge.dart';
 import '../widgets/missed_calls_badge.dart';
 import '../widgets/reminder_with_audio.dart';
+import '../widgets/attention_center.dart';
 import '../widgets/supervisor_bottom_nav.dart';
 import '../widgets/supervisor_drawer.dart';
 import 'photo_gallery_screen.dart';
@@ -461,12 +462,27 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                             const SizedBox(height: 20),
                             _buildAISummarySection(),
                             const SizedBox(height: 24),
-                            _buildSmartAlertsSection(),
-                            if (_smartAlerts.isNotEmpty)
-                              const SizedBox(height: 24),
-                            _buildDeviceBarrierSection(),
-                            if (_deviceBarriers.isNotEmpty)
-                              const SizedBox(height: 24),
+                            AttentionCenter(
+                              alerts: _smartAlerts,
+                              barriers: _deviceBarriers,
+                              batteryLevel: _batteryLevel,
+                              diagnosticsStale: _deviceDiagnosticsStale,
+                              onCall: () => _initiateCall('voice'),
+                              onMessage: () => Navigator.pushNamed(
+                                context,
+                                '/messages',
+                              ),
+                              onOpenHistory: () => Navigator.pushNamed(
+                                context,
+                                '/care-center',
+                              ),
+                              onOpenDeviceReadiness: () => Navigator.pushNamed(
+                                context,
+                                '/device-readiness',
+                              ),
+                              onRefresh: _refreshDashboard,
+                            ),
+                            const SizedBox(height: 24),
                             _buildMessagesShortcut(),
                             const SizedBox(height: 24),
                             _buildOverviewSection(),
@@ -828,6 +844,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     );
   }
 
+  // Mantido para compatibilidade visual com telas derivadas deste painel.
+  // ignore: unused_element
   Widget _buildSmartAlertsSection() {
     if (_smartAlerts.isEmpty) return const SizedBox.shrink();
 
@@ -854,6 +872,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     );
   }
 
+  // ignore: unused_element
   Widget _buildDeviceBarrierSection() {
     if (_deviceBarriers.isEmpty) return const SizedBox.shrink();
 

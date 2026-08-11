@@ -79,6 +79,9 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
       '/effectiveness-feedback',
       '/activity-history',
       '/supervisor-edit-elderly-profile',
+      '/care-center',
+      '/medication-stock',
+      '/supervisor-wellbeing',
     ];
 
     if (protectedRoutes.contains(routeName) && !_isConnected) {
@@ -155,6 +158,51 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   onTap: () => _navigateTo(context, '/supervisor-dashboard'),
+                ),
+                Opacity(
+                  opacity: _isConnected ? 1.0 : 0.4,
+                  child: ListTile(
+                    leading: const Icon(
+                      Icons.task_alt,
+                      color: AppColors.primary,
+                    ),
+                    title: const Text(
+                      'Central de Pendências',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    onTap: () => _navigateTo(context, '/care-center'),
+                  ),
+                ),
+                Opacity(
+                  opacity: _isConnected ? 1.0 : 0.4,
+                  child: ListTile(
+                    leading: const Icon(
+                      Icons.inventory_2_outlined,
+                      color: AppColors.primary,
+                    ),
+                    title: const Text(
+                      'Estoque de Medicamentos',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    onTap: () => _navigateTo(context, '/medication-stock'),
+                  ),
+                ),
+                Opacity(
+                  opacity: _isConnected ? 1.0 : 0.4,
+                  child: ListTile(
+                    leading: const Icon(
+                      Icons.mood_outlined,
+                      color: AppColors.primary,
+                    ),
+                    title: const Text(
+                      'Diário de Bem-estar',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    onTap: () => _navigateTo(
+                      context,
+                      '/supervisor-wellbeing',
+                    ),
+                  ),
                 ),
                 ListTile(
                   leading: const Icon(

@@ -23,6 +23,12 @@ import 'screens/elderly_onboarding_screen.dart';
 import 'screens/elderly_pairing_screen.dart';
 import 'screens/elderly_profile_screen.dart';
 import 'screens/emergency_alert_screen.dart';
+import 'screens/device_readiness_screen.dart';
+import 'screens/caregiver_network_screen.dart';
+import 'screens/care_center_screen.dart';
+import 'screens/emergency_card_screen.dart';
+import 'screens/medication_stock_screen.dart';
+import 'screens/wellbeing_screen.dart';
 import 'screens/identify_medication_screen.dart';
 import 'screens/reminder_detail_screen.dart';
 import 'screens/incoming_video_call_screen.dart';
@@ -128,6 +134,10 @@ bool isElderlyOnlyRoute(String routeName) {
     '/edit-profile',
     '/recording-audio',
     '/voice-settings',
+    '/device-readiness',
+    '/caregiver-network',
+    '/wellbeing',
+    '/emergency-card',
   };
 
   return elderlyRoutes.contains(routeName);
@@ -148,6 +158,9 @@ bool isSupervisorProtectedRoute(String routeName) {
     '/medication-bulk-confirmation',
     '/barcode-scanner',
     '/supervisor-reminder-detail',
+    '/care-center',
+    '/medication-stock',
+    '/supervisor-wellbeing',
   };
 
   return supervisorRoutes.contains(routeName);
@@ -880,6 +893,19 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
           case '/elderly-help':
             page = const ElderlyHelpScreen();
             break;
+          case '/device-readiness':
+            page = const DeviceReadinessScreen();
+            break;
+          case '/caregiver-network':
+            page = const CaregiverNetworkScreen();
+            break;
+          case '/wellbeing':
+          case '/supervisor-wellbeing':
+            page = const WellbeingScreen();
+            break;
+          case '/emergency-card':
+            page = const EmergencyCardScreen();
+            break;
           case '/elderly-radio':
             page = const ElderlyRadioScreen();
             break;
@@ -977,6 +1003,12 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
             break;
           case '/activity-history':
             page = const ActivityHistoryScreen();
+            break;
+          case '/care-center':
+            page = const CareCenterScreen();
+            break;
+          case '/medication-stock':
+            page = const MedicationStockScreen();
             break;
           case '/forgot-password':
             page = const ForgotPasswordScreen();

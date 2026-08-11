@@ -1315,10 +1315,83 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     );
   }
 
+  Future<void> _openFocusedReminder(Lembrete lembrete) async {
+    if (_isProcessingAction) return;
+    setState(() => _isProcessingAction = true);
+    try {
+      _stopAllAudioAndTts();
+      await Navigator.pushNamed(
+        context,
+        '/active-reminder',
+        arguments: lembrete.id,
+      );
+    } finally {
+      if (mounted) setState(() => _isProcessingAction = false);
+    }
+  }
+
+  Future<void> _postponeFocusedReminder(Lembrete lembrete) async {
+    if (_isProcessingAction) return;
+    setState(() => _isProcessingAction = true);
+    try {
+      if (!LembreteService.instance.podeAdiar(lembrete.id)) {
+        const message =
+            'O limite de adiamentos acabou. Conclua a atividade ou peca ajuda.';
+        await TTSService.instance.falar(message, caller: this);
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text(message)));
+        return;
+      }
+      final minutes = lembrete.opcoesAdiamentoMinutos.contains(10)
+          ? 10
+          : lembrete.opcoesAdiamentoMinutos.first;
+      final changed = await LembreteService.instance.adiar(
+        lembrete.id,
+        minutes,
+      );
+      if (!mounted) return;
+      final message = changed
+          ? 'Tudo bem. Vou lembrar novamente daqui a $minutes minutos.'
+          : 'Não consegui adiar agora. Tente novamente.';
+      await TTSService.instance.falar(message, caller: this);
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } finally {
+      if (mounted) setState(() => _isProcessingAction = false);
+    }
+  }
+
+  Future<void> _requestFocusedHelp(Lembrete lembrete) async {
+    if (_isProcessingAction) return;
+    setState(() => _isProcessingAction = true);
+    try {
+      final changed = await LembreteService.instance.registrarDificuldade(
+        lembrete.id,
+        'Pedido de ajuda pela tela principal',
+      );
+      if (!mounted) return;
+      final message = changed
+          ? 'Pronto. Avisei que você precisa de ajuda.'
+          : 'Não consegui enviar o pedido agora. Tente novamente.';
+      await TTSService.instance.falar(message, caller: this);
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } finally {
+      if (mounted) setState(() => _isProcessingAction = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     const bgColor = AppColors.background;
-    final isHighContrast = Theme.of(context).colorScheme.primary == Colors.black;
+    final isHighContrast =
+        Theme.of(context).colorScheme.primary == Colors.black;
 
     return Stack(
       children: [
@@ -1357,30 +1430,46 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                             );
                           },
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 18,
+                              vertical: 14,
+                            ),
                             decoration: BoxDecoration(
-                              color: isHighContrast ? Colors.yellow : AppColors.secondaryContainer,
+                              color: isHighContrast
+                                  ? Colors.yellow
+                                  : AppColors.secondaryContainer,
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
-                                color: isHighContrast ? Colors.black : AppColors.primary,
+                                color: isHighContrast
+                                    ? Colors.black
+                                    : AppColors.primary,
                                 width: 2.5,
                               ),
                             ),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.volume_up_rounded, size: 30, color: isHighContrast ? Colors.black : AppColors.primary),
+                                Icon(
+                                  Icons.volume_up_rounded,
+                                  size: 30,
+                                  color: isHighContrast
+                                      ? Colors.black
+                                      : AppColors.primary,
+                                ),
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         'OUVIR ORIENTAÇÕES DA TELA',
                                         style: TextStyle(
                                           fontSize: 18,
                                           fontWeight: FontWeight.w900,
-                                          color: isHighContrast ? Colors.black : AppColors.primary,
+                                          color: isHighContrast
+                                              ? Colors.black
+                                              : AppColors.primary,
                                         ),
                                       ),
                                       const SizedBox(height: 2),
@@ -1389,7 +1478,9 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                         style: TextStyle(
                                           fontSize: 14,
                                           fontWeight: FontWeight.w600,
-                                          color: isHighContrast ? Colors.black87 : AppColors.onSecondaryContainer,
+                                          color: isHighContrast
+                                              ? Colors.black87
+                                              : AppColors.onSecondaryContainer,
                                         ),
                                       ),
                                     ],
@@ -1405,6 +1496,8 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                         _buildRotinaToggle(),
                         const SizedBox(height: 24),
                         _buildTimeline(_lembretes),
+                        const SizedBox(height: 24),
+                        _buildMoreOptions(),
                         const SizedBox(height: 24),
                       ],
                     ),
@@ -1473,52 +1566,59 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
   Widget _buildActionButtons() {
     final isHighContrast =
         Theme.of(context).colorScheme.primary == Colors.black;
-    
+
     return Center(
-      child: GestureDetector(
-        onTap: _abrirGravacao,
-        child: Container(
-          width: 172,
-          height: 172,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: isHighContrast ? Colors.yellow : AppColors.secondaryContainer,
-            border: Border.all(
-              color: isHighContrast ? Colors.black : Colors.white,
-              width: 6,
-            ),
-            boxShadow: isHighContrast
-                ? null
-                : const [
-                    BoxShadow(
-                      color: Colors.black26,
-                      blurRadius: 16,
-                      offset: Offset(0, 8),
-                    ),
-                  ],
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.mic,
-                size: 64,
-                color: isHighContrast
-                    ? Colors.black
-                    : AppColors.onSecondaryContainer,
+      child: Semantics(
+        button: true,
+        label: 'Falar com o assistente Alex',
+        hint: 'Toque duas vezes para iniciar a conversa',
+        child: GestureDetector(
+          onTap: _abrirGravacao,
+          child: Container(
+            width: 172,
+            height: 172,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isHighContrast
+                  ? Colors.yellow
+                  : AppColors.secondaryContainer,
+              border: Border.all(
+                color: isHighContrast ? Colors.black : Colors.white,
+                width: 6,
               ),
-              const SizedBox(height: 4),
-              Text(
-                'Falar',
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w800,
+              boxShadow: isHighContrast
+                  ? null
+                  : const [
+                      BoxShadow(
+                        color: Colors.black26,
+                        blurRadius: 16,
+                        offset: Offset(0, 8),
+                      ),
+                    ],
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.mic,
+                  size: 64,
                   color: isHighContrast
                       ? Colors.black
                       : AppColors.onSecondaryContainer,
                 ),
-              ),
-            ],
+                const SizedBox(height: 4),
+                Text(
+                  'Falar',
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                    color: isHighContrast
+                        ? Colors.black
+                        : AppColors.onSecondaryContainer,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1573,6 +1673,129 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildDeviceReadinessShortcut() {
+    return ListTile(
+      minVerticalPadding: 14,
+      onTap: () => Navigator.pushNamed(context, '/device-readiness'),
+      leading: const Icon(Icons.health_and_safety_outlined, size: 30),
+      title: const Text(
+        'Verificar se o celular está pronto',
+        style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+      ),
+      trailing: const Icon(Icons.chevron_right),
+    );
+  }
+
+  Widget _buildCaregiverNetworkShortcut() {
+    return ListTile(
+      minVerticalPadding: 14,
+      onTap: () => Navigator.pushNamed(context, '/caregiver-network'),
+      leading: const Icon(Icons.groups_2_outlined, size: 30),
+      title: const Text(
+        'Minha rede de cuidado',
+        style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+      ),
+      trailing: const Icon(Icons.chevron_right),
+    );
+  }
+
+  Widget _buildMoreOptions() {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: AppColors.outlineVariant),
+      ),
+      child: ExpansionTile(
+        leading: const Icon(Icons.more_horiz, size: 30),
+        title: const Text(
+          'Outras opções',
+          style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
+        ),
+        subtitle: const Text('Celular e rede de cuidado'),
+        children: [
+          _buildDeviceReadinessShortcut(),
+          _buildCaregiverNetworkShortcut(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFocusActions(Lembrete lembrete, {required bool highContrast}) {
+    ButtonStyle style(Color background, Color foreground) =>
+        FilledButton.styleFrom(
+          minimumSize: const Size(0, 68),
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          backgroundColor: background,
+          foregroundColor: foreground,
+          side: highContrast
+              ? const BorderSide(color: Colors.black, width: 2)
+              : null,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        );
+
+    return Row(
+      children: [
+        Expanded(
+          child: FilledButton(
+            onPressed: () => _openFocusedReminder(lembrete),
+            style: style(
+              highContrast ? Colors.black : AppColors.success,
+              Colors.white,
+            ),
+            child: const Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.check_circle_outline, size: 28),
+                Text('Fazer', style: TextStyle(fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: FilledButton(
+            onPressed: () => _postponeFocusedReminder(lembrete),
+            style: style(
+              highContrast ? Colors.yellow : AppColors.secondaryContainer,
+              highContrast ? Colors.black : AppColors.onSecondaryContainer,
+            ),
+            child: const Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.snooze, size: 28),
+                Text(
+                  'Mais tarde',
+                  maxLines: 1,
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: FilledButton(
+            onPressed: () => _requestFocusedHelp(lembrete),
+            style: style(
+              highContrast ? Colors.red : AppColors.error,
+              Colors.white,
+            ),
+            child: const Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.support_agent, size: 28),
+                Text('Ajuda', style: TextStyle(fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1937,6 +2160,11 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                 ),
                               ],
                             ],
+                          ),
+                          const SizedBox(height: 16),
+                          _buildFocusActions(
+                            lembrete,
+                            highContrast: isHighContrast,
                           ),
                         ],
                       ),

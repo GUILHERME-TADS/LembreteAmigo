@@ -242,10 +242,12 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
       final file = File('${output.path}/relatorio_familiar_$_idosoName.pdf');
       await file.writeAsBytes(await pdf.save());
 
-      await Share.shareXFiles(
-        [XFile(file.path)],
-        text: 'Relatorio familiar de saude e rotina de $_idosoName',
-        subject: 'Relatorio Familiar - Lembrete Amigo',
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path)],
+          text: 'Relatorio familiar de saude e rotina de $_idosoName',
+          subject: 'Relatorio Familiar - Lembrete Amigo',
+        ),
       );
     } catch (e) {
       debugPrint('Erro ao exportar PDF: $e');

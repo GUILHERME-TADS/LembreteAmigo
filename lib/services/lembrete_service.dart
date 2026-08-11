@@ -9,8 +9,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/lembrete.dart';
 import '../models/lembrete_evento.dart';
 import '../models/offline_write.dart';
+import '../models/reminder_completion_result.dart';
 import '../utils/audio_path_helper.dart';
 import '../utils/firebase_helper.dart';
+import '../utils/reminder_occurrence_helper.dart';
 import 'media_upload_service.dart';
 import 'notification_service.dart';
 import 'offline_sync_service.dart';
@@ -189,6 +191,7 @@ class LembreteService {
             await Future.wait(
               snapshot.docs.map((doc) async {
                 final data = Map<String, dynamic>.from(doc.data());
+                if (data['arquivado'] == true) return;
                 if (data['audioPath'] is String &&
                     data['audioPath'] != 'ia_generated') {
                   data['audioPath'] = await RemoteMediaCacheService.instance
@@ -220,6 +223,10 @@ class LembreteService {
               }
 
               final data = Map<String, dynamic>.from(write.data);
+              if (data['arquivado'] == true) {
+                itemsById.remove(write.docId);
+                continue;
+              }
               final pendingIdosoId =
                   data['idosoId'] as String? ??
                   itemsById[write.docId]?.idosoId ??
@@ -818,7 +825,9 @@ class LembreteService {
           .get()
           .timeout(const Duration(seconds: 5));
       if (!doc.exists || doc.data() == null) return null;
-      return Lembrete.fromJson(doc.data()!);
+      final data = doc.data()!;
+      if (data['arquivado'] == true) return null;
+      return Lembrete.fromJson(data);
     } on FirebaseException catch (e) {
       if (e.code != 'permission-denied') {
         debugPrint('Não foi possível buscar o lembrete remoto $id: ${e.code}');
@@ -842,35 +851,9 @@ class LembreteService {
     return lembrete;
   }
 
-  Future<void> _registrarEvento(
-    Lembrete lembrete,
-    LembreteStatus status, {
-    String? observacao,
-  }) async {
-    final source = lembrete.idosoId == null
-        ? lembrete.copyWith(idosoId: await _getActiveIdosoId())
-        : lembrete;
-    final evento = LembreteEvento.fromLembrete(
-      source,
-      status: status,
-      observacao: observacao,
-    );
-
-    _eventos.insert(0, evento);
-    await _salvarEventosLocais();
-
-    if (_canSyncIdosoId(source.idosoId)) {
-      await OfflineSyncService.instance.setOrQueue(
-        'lembrete_eventos',
-        evento.id,
-        evento.toJson(),
-      );
-    }
-  }
-
   bool _bloqueiaConclusaoSemFoto(Lembrete lembrete, LembreteStatus status) {
     if (SessionRoleService.isSupervisor) return false;
-    return lembrete.categoria == 'medicacao' &&
+    return lembrete.modoConfirmacao == LembreteModoConfirmacao.foto &&
         status.isConcluido &&
         status != LembreteStatus.concluidoComFoto;
   }
@@ -892,11 +875,443 @@ class LembreteService {
     if (lembrete == null) return null;
     if (_bloqueiaConclusaoSemFoto(lembrete, status)) return null;
 
-    final atualizado = lembrete.copyWith(status: status);
+    final base = !lembrete.status.isConcluido && status.isConcluido
+        ? _consumeMedicationStock(lembrete)
+        : lembrete;
+    final atualizado = base.copyWith(status: status);
     _upsertLocal(atualizado);
     await _salvar();
     await _registrarEventoLocal(atualizado, status, observacao: observacao);
     return atualizado;
+  }
+
+  Lembrete _consumeMedicationStock(Lembrete lembrete) {
+    if (lembrete.categoria != LembreteCategoria.medicacao ||
+        lembrete.medicamentoEstoque == null ||
+        lembrete.medicamentoUnidadesPorDose == null) {
+      return lembrete;
+    }
+    final consumed = lembrete.medicamentoUnidadesPorDose!.ceil();
+    final remaining = (lembrete.medicamentoEstoque! - consumed).clamp(
+      0,
+      1000000,
+    );
+    return lembrete.copyWith(medicamentoEstoque: remaining);
+  }
+
+  LembreteEvento? _completionForOccurrence(
+    String reminderId,
+    String occurrenceKey,
+  ) {
+    final correctedIds = _eventos
+        .map((event) => event.corrigeEventoId)
+        .whereType<String>()
+        .toSet();
+    try {
+      return _eventos.firstWhere(
+        (event) =>
+            event.lembreteId == reminderId &&
+            event.status.isConcluido &&
+            !correctedIds.contains(event.id) &&
+            (event.ocorrenciaChave == occurrenceKey ||
+                (event.ocorrenciaChave == null &&
+                    ReminderOccurrenceHelper.dateKey(event.registradoEm) ==
+                        ReminderOccurrenceHelper.dateKeyFromOccurrence(
+                          occurrenceKey,
+                        ))),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void _upsertEventLocal(LembreteEvento event) {
+    final index = _eventos.indexWhere((item) => item.id == event.id);
+    if (index == -1) {
+      _eventos.insert(0, event);
+    } else {
+      _eventos[index] = event;
+    }
+    _eventos.sort((a, b) => b.registradoEm.compareTo(a.registradoEm));
+  }
+
+  LembreteStatus _completionStatusForMethod(String method) {
+    if (method == 'foto') return LembreteStatus.concluidoComFoto;
+    if (method == 'cuidador') {
+      return LembreteStatus.confirmadoPeloCuidador;
+    }
+    return LembreteStatus.concluido;
+  }
+
+  bool _methodAllowed(Lembrete reminder, String method) {
+    switch (reminder.modoConfirmacao) {
+      case LembreteModoConfirmacao.foto:
+        return method == 'foto';
+      case LembreteModoConfirmacao.cuidador:
+        return method == 'cuidador' && SessionRoleService.isSupervisor;
+      case LembreteModoConfirmacao.vozOuBotao:
+        return method == 'voz' || method == 'botao';
+      case LembreteModoConfirmacao.simples:
+        return method == 'botao' ||
+            method == 'voz' ||
+            (method == 'cuidador' && SessionRoleService.isSupervisor);
+    }
+  }
+
+  Future<ReminderCompletionResult> confirmarOcorrencia(
+    String id, {
+    String method = 'botao',
+    String? photoPath,
+    DateTime? now,
+  }) async {
+    if (!await _checkConnection()) {
+      return const ReminderCompletionResult(
+        outcome: ReminderCompletionOutcome.failed,
+        message: 'O vínculo com a pessoa idosa precisa ser confirmado.',
+      );
+    }
+    final reminder = await _findLocalOrRemote(id);
+    if (reminder == null) {
+      return const ReminderCompletionResult(
+        outcome: ReminderCompletionOutcome.failed,
+        message: 'Não encontrei este lembrete.',
+      );
+    }
+    if (reminder.modoConfirmacao == LembreteModoConfirmacao.foto &&
+        method != 'foto') {
+      return const ReminderCompletionResult(
+        outcome: ReminderCompletionOutcome.requiresPhoto,
+        message: 'Este lembrete precisa de uma foto para ser confirmado.',
+      );
+    }
+    if (reminder.modoConfirmacao == LembreteModoConfirmacao.cuidador &&
+        !SessionRoleService.isSupervisor) {
+      return const ReminderCompletionResult(
+        outcome: ReminderCompletionOutcome.requiresCaregiver,
+        message: 'O cuidador precisa confirmar esta atividade.',
+      );
+    }
+    if (!_methodAllowed(reminder, method)) {
+      return const ReminderCompletionResult(
+        outcome: ReminderCompletionOutcome.failed,
+        message: 'Este tipo de confirmação não está permitido.',
+      );
+    }
+
+    final current = now ?? DateTime.now();
+    final occurrenceKey = ReminderOccurrenceHelper.key(reminder, now: current);
+    final existing = _completionForOccurrence(id, occurrenceKey);
+    if (existing != null) {
+      return ReminderCompletionResult(
+        outcome: ReminderCompletionOutcome.alreadyCompleted,
+        message:
+            'Esta atividade já foi confirmada às '
+            '${existing.registradoEm.hour.toString().padLeft(2, '0')}:'
+            '${existing.registradoEm.minute.toString().padLeft(2, '0')}.',
+        eventId: existing.id,
+        registeredAt: existing.registradoEm,
+      );
+    }
+
+    String? finalPhotoPath = photoPath;
+    if (method == 'foto') {
+      if (photoPath == null || photoPath.isEmpty) {
+        return const ReminderCompletionResult(
+          outcome: ReminderCompletionOutcome.requiresPhoto,
+          message: 'Tire uma foto antes de confirmar.',
+        );
+      }
+      final idosoId = reminder.idosoId ?? await _getActiveIdosoId();
+      finalPhotoPath = await DurableMediaService.instance.preserve(
+        photoPath,
+        prefix: 'confirmation_$id',
+      );
+      if (_canSyncIdosoId(idosoId) &&
+          await SessionRoleService.canSyncElderlyPrivateData()) {
+        try {
+          finalPhotoPath = await MediaUploadService.upload(
+            localPath: finalPhotoPath,
+            destinationPath:
+                'confirmation_photos/$idosoId/${ReminderOccurrenceHelper.completionEventId(occurrenceKey)}.jpg',
+            contentType: 'image/jpeg',
+          );
+        } catch (error) {
+          debugPrint('Foto de confirmação aguardando sincronização: $error');
+        }
+      }
+    }
+
+    final canUseRemoteTransaction =
+        _canSyncIdosoId(reminder.idosoId) &&
+        (method != 'foto' ||
+            (finalPhotoPath != null && isRemotePath(finalPhotoPath)));
+    if (canUseRemoteTransaction) {
+      try {
+        final callable = FirebaseFunctions.instance.httpsCallable(
+          'confirmReminderOccurrence',
+        );
+        final response = await callable.call(<String, dynamic>{
+          'reminderId': reminder.id,
+          'occurrenceKey': occurrenceKey,
+          'method': method,
+          if (finalPhotoPath != null) 'photoPath': finalPhotoPath,
+        });
+        final data = Map<String, dynamic>.from(response.data as Map);
+        final registeredAt =
+            DateTime.tryParse(data['registeredAt'] as String? ?? '') ?? current;
+        final status = LembreteStatus.fromStorage(data['status'] as String?);
+        final remainingStock = (data['remainingStock'] as num?)?.toInt();
+        final updated = reminder.copyWith(
+          status: status,
+          medicamentoEstoque: remainingStock ?? reminder.medicamentoEstoque,
+        );
+        _upsertLocal(updated);
+        final event = LembreteEvento(
+          id:
+              data['eventId'] as String? ??
+              ReminderOccurrenceHelper.completionEventId(occurrenceKey),
+          lembreteId: reminder.id,
+          titulo: reminder.titulo,
+          categoria: reminder.categoria,
+          status: status,
+          registradoEm: registeredAt,
+          idosoId: reminder.idosoId,
+          observacao: 'Confirmação registrada com segurança.',
+          ocorrenciaChave: occurrenceKey,
+          metodoConfirmacao: method,
+          atorPapel: SessionRoleService.isSupervisor ? 'supervisor' : 'elderly',
+          estoqueAnterior: reminder.medicamentoEstoque,
+          unidadesConsumidas: reminder.medicamentoUnidadesPorDose,
+          estoqueRestante: remainingStock,
+          fotoConfirmacaoPath: finalPhotoPath,
+        );
+        _upsertEventLocal(event);
+        await _salvarLembretesLocais();
+        await _salvarEventosLocais();
+        await _publicarLembretes();
+        return ReminderCompletionResult(
+          outcome: data['duplicate'] == true
+              ? ReminderCompletionOutcome.alreadyCompleted
+              : ReminderCompletionOutcome.completed,
+          message: data['duplicate'] == true
+              ? 'Esta atividade já estava confirmada.'
+              : 'Atividade confirmada.',
+          eventId: event.id,
+          registeredAt: registeredAt,
+        );
+      } on FirebaseFunctionsException catch (error) {
+        if (![
+          'unavailable',
+          'deadline-exceeded',
+          'internal',
+        ].contains(error.code)) {
+          return ReminderCompletionResult(
+            outcome: ReminderCompletionOutcome.failed,
+            message: error.message ?? 'Não consegui confirmar a atividade.',
+          );
+        }
+      } catch (error) {
+        debugPrint(
+          'Confirmação remota indisponível; usando fila local: $error',
+        );
+      }
+    }
+
+    return _completeOccurrenceLocally(
+      reminder,
+      occurrenceKey: occurrenceKey,
+      method: method,
+      photoPath: finalPhotoPath,
+      registeredAt: current,
+    );
+  }
+
+  Future<ReminderCompletionResult> _completeOccurrenceLocally(
+    Lembrete reminder, {
+    required String occurrenceKey,
+    required String method,
+    required DateTime registeredAt,
+    String? photoPath,
+  }) async {
+    final status = _completionStatusForMethod(method);
+    final updated = _consumeMedicationStock(reminder).copyWith(status: status);
+    final event = LembreteEvento(
+      id: ReminderOccurrenceHelper.completionEventId(occurrenceKey),
+      lembreteId: reminder.id,
+      titulo: reminder.titulo,
+      categoria: reminder.categoria,
+      status: status,
+      registradoEm: registeredAt,
+      idosoId: reminder.idosoId,
+      observacao: 'Confirmação salva no aparelho; sincronização pendente.',
+      ocorrenciaChave: occurrenceKey,
+      metodoConfirmacao: method,
+      atorPapel: SessionRoleService.isSupervisor ? 'supervisor' : 'elderly',
+      estoqueAnterior: reminder.medicamentoEstoque,
+      unidadesConsumidas: reminder.medicamentoUnidadesPorDose,
+      estoqueRestante: updated.medicamentoEstoque,
+      fotoConfirmacaoPath: photoPath,
+    );
+    _upsertLocal(updated);
+    _upsertEventLocal(event);
+    await _salvarLembretesLocais();
+    await _salvarEventosLocais();
+    await _publicarLembretes();
+
+    if (_canSyncIdosoId(updated.idosoId)) {
+      await OfflineSyncService.instance.updateOrQueue('lembretes', updated.id, {
+        'status': status.storageValue,
+        'concluido': true,
+        'concluidoComFoto': status == LembreteStatus.concluidoComFoto,
+        if (updated.medicamentoEstoque != null)
+          'medicamentoEstoque': updated.medicamentoEstoque,
+      });
+      await OfflineSyncService.instance.setOrQueue(
+        'lembrete_eventos',
+        event.id,
+        event.toJson(),
+      );
+    }
+    return ReminderCompletionResult(
+      outcome: ReminderCompletionOutcome.completed,
+      message: 'Atividade confirmada. Vou sincronizar quando houver conexão.',
+      eventId: event.id,
+      registeredAt: registeredAt,
+    );
+  }
+
+  Future<ReminderCompletionResult> desfazerConfirmacao(
+    String id, {
+    DateTime? now,
+  }) async {
+    final reminder = await _findLocalOrRemote(id);
+    if (reminder == null) {
+      return const ReminderCompletionResult(
+        outcome: ReminderCompletionOutcome.failed,
+        message: 'Não encontrei este lembrete.',
+      );
+    }
+    final current = now ?? DateTime.now();
+    final occurrenceKey = ReminderOccurrenceHelper.key(reminder, now: current);
+    final completion = _completionForOccurrence(id, occurrenceKey);
+    if (completion == null) {
+      return const ReminderCompletionResult(
+        outcome: ReminderCompletionOutcome.failed,
+        message: 'Não existe uma confirmação para desfazer.',
+      );
+    }
+    if (current.difference(completion.registradoEm) >
+        const Duration(seconds: 30)) {
+      return const ReminderCompletionResult(
+        outcome: ReminderCompletionOutcome.undoExpired,
+        message: 'O tempo para desfazer terminou. Peça ajuda ao cuidador.',
+      );
+    }
+
+    if (_canSyncIdosoId(reminder.idosoId)) {
+      try {
+        final response = await FirebaseFunctions.instance
+            .httpsCallable('undoReminderConfirmation')
+            .call(<String, dynamic>{
+              'reminderId': reminder.id,
+              'occurrenceKey': occurrenceKey,
+            });
+        final data = Map<String, dynamic>.from(response.data as Map);
+        return _applyLocalUndo(
+          reminder,
+          completion,
+          occurrenceKey: occurrenceKey,
+          correctionEventId:
+              data['eventId'] as String? ??
+              ReminderOccurrenceHelper.undoEventId(occurrenceKey),
+          registeredAt:
+              DateTime.tryParse(data['registeredAt'] as String? ?? '') ??
+              current,
+          restoredStock: (data['restoredStock'] as num?)?.toInt(),
+          queueRemote: false,
+        );
+      } on FirebaseFunctionsException catch (error) {
+        if (![
+          'unavailable',
+          'deadline-exceeded',
+          'internal',
+        ].contains(error.code)) {
+          return ReminderCompletionResult(
+            outcome: error.code == 'failed-precondition'
+                ? ReminderCompletionOutcome.undoExpired
+                : ReminderCompletionOutcome.failed,
+            message: error.message ?? 'Não consegui desfazer a confirmação.',
+          );
+        }
+      } catch (error) {
+        debugPrint('Desfazer remoto indisponível; usando fila local: $error');
+      }
+    }
+
+    return _applyLocalUndo(
+      reminder,
+      completion,
+      occurrenceKey: occurrenceKey,
+      correctionEventId: ReminderOccurrenceHelper.undoEventId(occurrenceKey),
+      registeredAt: current,
+      restoredStock: completion.estoqueAnterior,
+      queueRemote: true,
+    );
+  }
+
+  Future<ReminderCompletionResult> _applyLocalUndo(
+    Lembrete reminder,
+    LembreteEvento completion, {
+    required String occurrenceKey,
+    required String correctionEventId,
+    required DateTime registeredAt,
+    required bool queueRemote,
+    int? restoredStock,
+  }) async {
+    final updated = reminder.copyWith(
+      status: LembreteStatus.pendente,
+      medicamentoEstoque: restoredStock ?? reminder.medicamentoEstoque,
+    );
+    final correction = LembreteEvento(
+      id: correctionEventId,
+      lembreteId: reminder.id,
+      titulo: reminder.titulo,
+      categoria: reminder.categoria,
+      status: LembreteStatus.pendente,
+      registradoEm: registeredAt,
+      idosoId: reminder.idosoId,
+      observacao: 'Confirmação desfeita dentro da janela de segurança.',
+      ocorrenciaChave: occurrenceKey,
+      corrigeEventoId: completion.id,
+      metodoConfirmacao: 'sistema',
+      atorPapel: SessionRoleService.isSupervisor ? 'supervisor' : 'elderly',
+      estoqueRestaurado: restoredStock,
+    );
+    _upsertLocal(updated);
+    _upsertEventLocal(correction);
+    await _salvarLembretesLocais();
+    await _salvarEventosLocais();
+    await _publicarLembretes();
+
+    if (queueRemote && _canSyncIdosoId(updated.idosoId)) {
+      await OfflineSyncService.instance.updateOrQueue('lembretes', updated.id, {
+        'status': LembreteStatus.pendente.storageValue,
+        'concluido': false,
+        'concluidoComFoto': false,
+        if (restoredStock != null) 'medicamentoEstoque': restoredStock,
+      });
+      await OfflineSyncService.instance.setOrQueue(
+        'lembrete_eventos',
+        correction.id,
+        correction.toJson(),
+      );
+    }
+    return ReminderCompletionResult(
+      outcome: ReminderCompletionOutcome.undone,
+      message: 'Confirmação desfeita. O lembrete voltou a ficar pendente.',
+      eventId: correction.id,
+      registeredAt: registeredAt,
+    );
   }
 
   Future<void> _registrarEventoLocal(
@@ -957,28 +1372,70 @@ class LembreteService {
             'status': status.storageValue,
             'concluido': status.isConcluido,
             'concluidoComFoto': status == LembreteStatus.concluidoComFoto,
+            if (lembrete.medicamentoEstoque != null)
+              'medicamentoEstoque': lembrete.medicamentoEstoque,
           });
     }
     await _sincronizarEvento(lembrete, status, observacao: observacao);
   }
 
+  int adiamentosNaOcorrencia(String id, {DateTime? now}) {
+    final matches = _lembretes.where((item) => item.id == id);
+    if (matches.isEmpty) return 0;
+    final reminder = matches.first;
+    final occurrenceKey = ReminderOccurrenceHelper.key(
+      reminder,
+      now: now ?? DateTime.now(),
+    );
+    final occurrenceDate = ReminderOccurrenceHelper.dateKeyFromOccurrence(
+      occurrenceKey,
+    );
+    return _eventos.where((event) {
+      if (event.lembreteId != id || event.status != LembreteStatus.adiado) {
+        return false;
+      }
+      return event.ocorrenciaChave == occurrenceKey ||
+          (event.ocorrenciaChave == null &&
+              ReminderOccurrenceHelper.dateKey(event.registradoEm) ==
+                  occurrenceDate);
+    }).length;
+  }
+
+  bool podeAdiar(String id, {DateTime? now}) {
+    final matches = _lembretes.where((item) => item.id == id);
+    if (matches.isEmpty || matches.first.maximoAdiamentos <= 0) return false;
+    return adiamentosNaOcorrencia(id, now: now) <
+        matches.first.maximoAdiamentos;
+  }
+
   Future<Lembrete?> _adiarLocal(String id, int minutos) async {
-    final now = DateTime.now().add(Duration(minutes: minutos));
+    final current = DateTime.now();
+    final nextTime = current.add(Duration(minutes: minutos));
     final lembrete = await _findLocalOrRemote(id);
     if (lembrete == null) return null;
+    if (!lembrete.opcoesAdiamentoMinutos.contains(minutos) ||
+        !podeAdiar(id, now: current)) {
+      return null;
+    }
+    final occurrenceKey = ReminderOccurrenceHelper.key(lembrete, now: current);
 
     final atualizado = lembrete.copyWith(
-      horarioHour: now.hour,
-      horarioMinute: now.minute,
+      horarioHour: nextTime.hour,
+      horarioMinute: nextTime.minute,
       status: LembreteStatus.adiado,
     );
     _upsertLocal(atualizado);
     await _salvar();
-    await _registrarEventoLocal(
-      atualizado,
-      LembreteStatus.adiado,
+    final event = LembreteEvento.fromLembrete(
+      atualizado.idosoId == null
+          ? atualizado.copyWith(idosoId: await _getActiveIdosoId())
+          : atualizado,
+      status: LembreteStatus.adiado,
       observacao: 'Adiado por $minutos minutos',
+      ocorrenciaChave: occurrenceKey,
     );
+    _upsertEventLocal(event);
+    await _salvarEventosLocais();
     return atualizado;
   }
 
@@ -1168,69 +1625,16 @@ class LembreteService {
   }
 
   Future<bool> concluir(String id) async {
-    if (!await _checkConnection()) return false;
-    final atualizado = await _atualizarStatusLocal(
-      id,
-      LembreteStatus.concluido,
-    );
-    if (atualizado == null) return false;
-    _syncInBackground(
-      _sincronizarStatus(atualizado, LembreteStatus.concluido),
-      'conclusao do lembrete',
-    );
-    return true;
+    final result = await confirmarOcorrencia(id);
+    return result.outcome == ReminderCompletionOutcome.completed ||
+        result.outcome == ReminderCompletionOutcome.alreadyCompleted;
   }
 
-  Future<void> concluirComFoto(String id, String localPhotoPath) async {
-    if (!await _checkConnection()) return;
-
-    final idosoId = await _getActiveIdosoId();
-    String finalPath = await DurableMediaService.instance.preserve(
-      localPhotoPath,
-      prefix: 'confirmation_$id',
-    );
-
-    if (_canSyncIdosoId(idosoId) &&
-        await SessionRoleService.canSyncElderlyPrivateData()) {
-      try {
-        finalPath = await MediaUploadService.upload(
-          localPath: finalPath,
-          destinationPath: 'confirmation_photos/$idosoId/$id.jpg',
-          contentType: 'image/jpeg',
-        );
-      } catch (e) {
-        debugPrint('Erro ao fazer upload da foto de confirmacao: $e');
-        AppStatusService.instance.report(
-          id: 'confirmation-photo-pending',
-          title: 'Confirmacao com foto pendente',
-          message: 'A foto foi guardada localmente e precisa ser sincronizada.',
-          severity: AppStatusSeverity.critical,
-        );
-      }
-    }
-
-    await _atualizarLocalERemoto(
-      id,
-      (lembrete) => lembrete.copyWith(
-        status: LembreteStatus.concluidoComFoto,
-        medicamentoFotoPath: finalPath,
-      ),
-      {
-        'status': LembreteStatus.concluidoComFoto.storageValue,
-        'concluido': true,
-        'concluidoComFoto': true,
-        'medicamentoFotoPath': finalPath,
-      },
-    );
-
-    final updated = _findLocal(id);
-    if (updated != null) {
-      await _registrarEvento(
-        updated,
-        LembreteStatus.concluidoComFoto,
-        observacao: 'Medicação confirmada com foto.',
-      );
-    }
+  Future<ReminderCompletionResult> concluirComFoto(
+    String id,
+    String localPhotoPath,
+  ) {
+    return confirmarOcorrencia(id, method: 'foto', photoPath: localPhotoPath);
   }
 
   Future<bool> alternarConclusao(String id) async {
@@ -1238,9 +1642,13 @@ class LembreteService {
     final lembrete = await _findLocalOrRemote(id);
     if (lembrete == null) return false;
 
-    final novoStatus = lembrete.concluido
-        ? LembreteStatus.pendente
-        : LembreteStatus.concluido;
+    if (!lembrete.concluido) {
+      final result = await confirmarOcorrencia(id);
+      return result.outcome == ReminderCompletionOutcome.completed ||
+          result.outcome == ReminderCompletionOutcome.alreadyCompleted;
+    }
+
+    const novoStatus = LembreteStatus.pendente;
     final atualizado = await _atualizarStatusLocal(id, novoStatus);
     if (atualizado == null) return false;
     _syncInBackground(
@@ -1256,20 +1664,13 @@ class LembreteService {
     await NotificationService.instance.cancelar(id);
     _lembretes.removeWhere((item) => item.id == id);
 
-    final relatedEvents = _eventos.where((e) => e.lembreteId == id).toList();
-    _eventos.removeWhere((e) => e.lembreteId == id);
-
     await _salvar();
-    await _salvarEventosLocais();
 
     if (_canSyncIdosoId(lembrete?.idosoId)) {
-      await OfflineSyncService.instance.deleteOrQueue('lembretes', id);
-      for (final event in relatedEvents) {
-        await OfflineSyncService.instance.deleteOrQueue(
-          'lembrete_eventos',
-          event.id,
-        );
-      }
+      await OfflineSyncService.instance.updateOrQueue('lembretes', id, {
+        'arquivado': true,
+        'arquivadoEm': DateTime.now().toIso8601String(),
+      });
     }
   }
 

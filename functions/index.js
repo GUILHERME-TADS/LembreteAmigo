@@ -1,4 +1,4 @@
-﻿const {onCall, HttpsError} = require("firebase-functions/v2/https");
+const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {setGlobalOptions} = require("firebase-functions");
 const {defineSecret} = require("firebase-functions/params");
 const crypto = require("node:crypto");
@@ -9,20 +9,12 @@ setGlobalOptions({maxInstances: 10});
 admin.initializeApp();
 
 const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
-const LIVEKIT_API_KEY = defineSecret("LIVEKIT_API_KEY");
-const LIVEKIT_API_SECRET = defineSecret("LIVEKIT_API_SECRET");
-const LIVEKIT_SERVER_URL = defineSecret("LIVEKIT_SERVER_URL");
 
 const BASE_CALL_OPTIONS = {cors: true, enforceAppCheck: true};
 const GEMINI_CALL_OPTIONS = {
   ...BASE_CALL_OPTIONS,
   secrets: [GEMINI_API_KEY],
 };
-const LIVEKIT_CALL_OPTIONS = {
-  ...BASE_CALL_OPTIONS,
-  secrets: [LIVEKIT_API_KEY, LIVEKIT_API_SECRET, LIVEKIT_SERVER_URL],
-};
-
 
 // =============================================================================
 // JSON PARSING HELPER
@@ -79,10 +71,7 @@ function validateString(value, name, maxLength = 1000) {
   }
   const trimmed = value.trim();
   if (trimmed.length === 0) {
-    throw new HttpsError(
-        "invalid-argument",
-        `${name} não pode estar vazio.`,
-    );
+    throw new HttpsError("invalid-argument", `${name} não pode estar vazio.`);
   }
   if (trimmed.length > maxLength) {
     throw new HttpsError(
@@ -114,29 +103,9 @@ function validateBase64(value, name) {
   }
   const cleaned = value.replace(/\s/g, "");
   if (!/^[A-Za-z0-9+/=]+$/.test(cleaned)) {
-    throw new HttpsError(
-        "invalid-argument",
-        `${name} não é um base64 válido.`,
-    );
+    throw new HttpsError("invalid-argument", `${name} não é um base64 válido.`);
   }
   return cleaned;
-}
-
-/**
- * Validates a room name (alphanumeric, hyphens, underscores).
- * @param {*} value
- * @return {string} The validated room name.
- */
-function validateRoomName(value) {
-  const name = validateString(value, "roomName", 64);
-  if (!/^[a-zA-Z0-9_-]+$/.test(name)) {
-    throw new HttpsError(
-        "invalid-argument",
-        "roomName deve conter apenas letras, números, hífens e " +
-        "underscores.",
-    );
-  }
-  return name;
 }
 
 /**
@@ -157,18 +126,39 @@ function validateFirestoreId(value, name) {
 }
 
 /**
- * Checks if an elderly profile is linked to a supervisor.
+ * Returns the caregivers explicitly linked to an elderly profile.
+ * @param {object} profile
+ * @return {string[]}
+ */
+function caregiverIdsForProfile(profile) {
+  const ids = Array.isArray(profile?.caregiverIds) ?
+    profile.caregiverIds.filter((id) => typeof id === "string" && id) :
+    [];
+  if (typeof profile?.supervisorId === "string" && profile.supervisorId) {
+    ids.push(profile.supervisorId);
+  }
+  return [...new Set(ids)].slice(0, 8);
+}
+
+/**
+ * Checks whether a caregiver is linked to an active elderly profile.
  * @param {string} elderlyId
  * @param {string} supervisorId
  * @return {Promise<boolean>}
  */
 async function isLinkedSupervisor(elderlyId, supervisorId) {
   if (!elderlyId || !supervisorId) return false;
-  const doc = await admin.firestore()
+  const doc = await admin
+      .firestore()
       .collection("idoso_perfil")
       .doc(elderlyId)
       .get();
-  return doc.exists && doc.data()?.supervisorId === supervisorId;
+  if (!doc.exists) return false;
+  const profile = doc.data() || {};
+  return (
+    profile.status === "active" &&
+    caregiverIdsForProfile(profile).includes(supervisorId)
+  );
 }
 
 /**
@@ -186,7 +176,6 @@ async function canAccessPushTarget(uid, targetUserId, targetRole) {
   return isLinkedSupervisor(uid, targetUserId);
 }
 
-
 /**
  * Validates a push against the message or call stored in Firestore.
  * Client-provided notification text is intentionally ignored.
@@ -196,12 +185,7 @@ async function canAccessPushTarget(uid, targetUserId, targetRole) {
  * @param {Object} payload
  * @return {Promise<Object>}
  */
-async function buildVerifiedPushEvent(
-    uid,
-    targetUserId,
-    targetRole,
-    payload,
-) {
+async function buildVerifiedPushEvent(uid, targetUserId, targetRole, payload) {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
     throw new HttpsError(
         "invalid-argument",
@@ -213,9 +197,9 @@ async function buildVerifiedPushEvent(
   const db = admin.firestore();
 
   if (type === "app_message") {
-    const messageId =
-      validateFirestoreId(payload.messageId, "data.messageId");
-    const messageSnapshot = await db.collection("mensagens")
+    const messageId = validateFirestoreId(payload.messageId, "data.messageId");
+    const messageSnapshot = await db
+        .collection("mensagens")
         .doc(messageId)
         .get();
     if (!messageSnapshot.exists) {
@@ -223,33 +207,30 @@ async function buildVerifiedPushEvent(
     }
 
     const message = messageSnapshot.data() || {};
-    const elderlyId =
-      validateFirestoreId(message.idosoId, "message.idosoId");
-    const profileSnapshot = await db.collection("idoso_perfil")
+    const elderlyId = validateFirestoreId(message.idosoId, "message.idosoId");
+    const profileSnapshot = await db
+        .collection("idoso_perfil")
         .doc(elderlyId)
         .get();
     const profile = profileSnapshot.data() || {};
-    const supervisorId = profile.status === "active" ?
-      profile.supervisorId :
-      "";
+    const caregiverIds =
+      profile.status === "active" ? caregiverIdsForProfile(profile) : [];
 
     const sentBySupervisor = message.senderRole === "supervisor";
     const validRoute = sentBySupervisor ?
-      (
-        uid === supervisorId &&
+      caregiverIds.includes(uid) &&
         targetRole === "elderly" &&
-        targetUserId === elderlyId
-      ) :
-      (
-        message.senderRole === "elderly" &&
+        targetUserId === elderlyId :
+      message.senderRole === "elderly" &&
         uid === elderlyId &&
         targetRole === "supervisor" &&
-        targetUserId === supervisorId
-      );
+        caregiverIds.includes(targetUserId);
 
-    if (!validRoute ||
-        payload.idosoId !== elderlyId ||
-        payload.senderRole !== message.senderRole) {
+    if (
+      !validRoute ||
+      payload.idosoId !== elderlyId ||
+      payload.senderRole !== message.senderRole
+    ) {
       throw new HttpsError(
           "permission-denied",
           "A notificacao nao corresponde a esta mensagem.",
@@ -281,9 +262,7 @@ async function buildVerifiedPushEvent(
 
   if (type === "video_call") {
     const callId = validateFirestoreId(payload.callId, "data.callId");
-    const callSnapshot = await db.collection("video_calls")
-        .doc(callId)
-        .get();
+    const callSnapshot = await db.collection("video_calls").doc(callId).get();
     if (!callSnapshot.exists) {
       throw new HttpsError("not-found", "Chamada nao encontrada.");
     }
@@ -298,21 +277,19 @@ async function buildVerifiedPushEvent(
 
     const sentBySupervisor = call.initiatedBy === "supervisor";
     const validRoute = sentBySupervisor ?
-      (
-        uid === call.supervisorId &&
+      uid === call.supervisorId &&
         targetRole === "elderly" &&
-        targetUserId === call.idosoId
-      ) :
-      (
-        uid === call.idosoId &&
+        targetUserId === call.idosoId :
+      uid === call.idosoId &&
         targetRole === "supervisor" &&
-        targetUserId === call.supervisorId
-      );
+        targetUserId === call.supervisorId;
 
-    if (!validRoute ||
-        payload.roomName !== call.roomName ||
-        payload.callType !== call.callType ||
-        payload.initiatedBy !== call.initiatedBy) {
+    if (
+      !validRoute ||
+      payload.roomName !== call.roomName ||
+      payload.callType !== call.callType ||
+      payload.initiatedBy !== call.initiatedBy
+    ) {
       throw new HttpsError(
           "permission-denied",
           "A notificacao nao corresponde a esta chamada.",
@@ -343,47 +320,6 @@ async function buildVerifiedPushEvent(
 }
 
 /**
- * Checks whether a video call can be joined by uid in the requested room.
- * @param {string} uid
- * @param {string} callId
- * @param {string} roomName
- * @return {Promise<void>}
- */
-async function assertCanJoinVideoCall(uid, callId, roomName) {
-  const callDoc = await admin.firestore()
-      .collection("video_calls")
-      .doc(callId)
-      .get();
-
-  if (!callDoc.exists) {
-    throw new HttpsError("not-found", "Chamada nao encontrada.");
-  }
-
-  const call = callDoc.data() || {};
-  if (call.roomName !== roomName) {
-    throw new HttpsError("permission-denied", "Sala de chamada invalida.");
-  }
-
-  if (!["ringing", "connected"].includes(call.status)) {
-    throw new HttpsError(
-        "failed-precondition",
-        "Esta chamada nao esta mais ativa.",
-    );
-  }
-
-  if (call.idosoId === uid || call.supervisorId === uid) {
-    return;
-  }
-
-
-  throw new HttpsError(
-      "permission-denied",
-      "Voce nao pode entrar nesta chamada.",
-  );
-}
-
-
-/**
  * Requires a verified, non-anonymous account for privileged caregiver actions.
  * @param {Object} request
  */
@@ -412,7 +348,8 @@ function pairingCodeHash(code) {
  * @param {string} uid
  */
 async function assertSupervisorAccount(uid) {
-  const profile = await admin.firestore()
+  const profile = await admin
+      .firestore()
       .collection("supervisores")
       .doc(uid)
       .get();
@@ -434,7 +371,6 @@ const RATE_LIMITS = {
   identifyMedication: {maxCalls: 10, windowMs: 60000},
   parsePrescription: {maxCalls: 10, windowMs: 60000},
   parseVoiceReminder: {maxCalls: 20, windowMs: 60000},
-  generateVideoToken: {maxCalls: 5, windowMs: 60000},
   sendPush: {maxCalls: 30, windowMs: 60000},
   generateReportInsights: {maxCalls: 5, windowMs: 60000},
   lookupBarcode: {maxCalls: 20, windowMs: 60000},
@@ -443,6 +379,8 @@ const RATE_LIMITS = {
   createPairingCode: {maxCalls: 5, windowMs: 60000},
   claimPairingCode: {maxCalls: 10, windowMs: 60000},
   unlinkElderly: {maxCalls: 5, windowMs: 60000},
+  confirmReminderOccurrence: {maxCalls: 20, windowMs: 60000},
+  undoReminderConfirmation: {maxCalls: 10, windowMs: 60000},
 };
 
 /**
@@ -455,7 +393,8 @@ async function checkRateLimit(uid, functionName) {
   if (!limit) return;
 
   const now = Date.now();
-  const docRef = admin.firestore()
+  const docRef = admin
+      .firestore()
       .collection("_rate_limits")
       .doc(`${functionName}_${uid}`);
 
@@ -483,10 +422,9 @@ async function checkRateLimit(uid, functionName) {
         );
       }
 
-      transaction.update(
-          docRef,
-          {count: admin.firestore.FieldValue.increment(1)},
-      );
+      transaction.update(docRef, {
+        count: admin.firestore.FieldValue.increment(1),
+      });
     });
   } catch (error) {
     if (error instanceof HttpsError) throw error;
@@ -498,310 +436,364 @@ async function checkRateLimit(uid, functionName) {
   }
 }
 
-
 // =============================================================================
 // SERVER-CONTROLLED PAIRING
 // =============================================================================
 
 const PAIRING_TTL_MS = 10 * 60 * 1000;
 
-exports.createPairingCode = onCall(
-    BASE_CALL_OPTIONS,
-    async (request) => {
-      const uid = requireAuth(request);
-      await checkRateLimit(uid, "createPairingCode");
+exports.createPairingCode = onCall(BASE_CALL_OPTIONS, async (request) => {
+  const uid = requireAuth(request);
+  await checkRateLimit(uid, "createPairingCode");
 
-      const db = admin.firestore();
-      const profileRef = db.collection("idoso_perfil").doc(uid);
-      const legacyRef = db.collection("idosos").doc(uid);
-      const stateRef = db.collection("pairing_state").doc(uid);
+  const db = admin.firestore();
+  const profileRef = db.collection("idoso_perfil").doc(uid);
+  const legacyRef = db.collection("idosos").doc(uid);
+  const stateRef = db.collection("pairing_state").doc(uid);
 
-      for (let attempt = 0; attempt < 5; attempt += 1) {
-        const code = crypto.randomInt(100000, 1000000).toString();
-        const codeHash = pairingCodeHash(code);
-        const codeRef = db.collection("pairing_codes").doc(codeHash);
-        const expiresAtMillis = Date.now() + PAIRING_TTL_MS;
-        const expiresAt =
-          admin.firestore.Timestamp.fromMillis(expiresAtMillis);
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const code = crypto.randomInt(100000, 1000000).toString();
+    const codeHash = pairingCodeHash(code);
+    const codeRef = db.collection("pairing_codes").doc(codeHash);
+    const expiresAtMillis = Date.now() + PAIRING_TTL_MS;
+    const expiresAt = admin.firestore.Timestamp.fromMillis(expiresAtMillis);
 
-        try {
-          await db.runTransaction(async (transaction) => {
-            const profileSnapshot = await transaction.get(profileRef);
-            const legacySnapshot = await transaction.get(legacyRef);
-            const stateSnapshot = await transaction.get(stateRef);
-            const codeSnapshot = await transaction.get(codeRef);
+    try {
+      await db.runTransaction(async (transaction) => {
+        const profileSnapshot = await transaction.get(profileRef);
+        const legacySnapshot = await transaction.get(legacyRef);
+        const stateSnapshot = await transaction.get(stateRef);
+        const codeSnapshot = await transaction.get(codeRef);
 
-            if (codeSnapshot.exists) {
-              throw new Error("PAIRING_CODE_COLLISION");
-            }
+        if (codeSnapshot.exists) {
+          throw new Error("PAIRING_CODE_COLLISION");
+        }
 
-            const profile = profileSnapshot.data() || {};
-            if (!profileSnapshot.exists) {
-              throw new HttpsError(
-                  "failed-precondition",
-                  "Cadastre o perfil do idoso antes de gerar um codigo.",
-              );
-            }
+        const profile = profileSnapshot.data() || {};
+        if (!profileSnapshot.exists) {
+          throw new HttpsError(
+              "failed-precondition",
+              "Cadastre o perfil do idoso antes de gerar um codigo.",
+          );
+        }
 
-            if (profile.status === "active" && profile.supervisorId) {
-              throw new HttpsError(
-                  "failed-precondition",
-                  "Desconecte o cuidador atual antes de gerar outro codigo.",
-              );
-            }
+        const caregiverIds = caregiverIdsForProfile(profile);
+        if (caregiverIds.length >= 8) {
+          throw new HttpsError(
+              "resource-exhausted",
+              "A rede de cuidado ja possui o limite de 8 pessoas.",
+          );
+        }
 
-            const oldHash = stateSnapshot.data()?.codeHash;
-            if (typeof oldHash === "string" && oldHash !== codeHash) {
-              transaction.delete(
-                  db.collection("pairing_codes").doc(oldHash),
-              );
-            }
+        const oldHash = stateSnapshot.data()?.codeHash;
+        if (typeof oldHash === "string" && oldHash !== codeHash) {
+          transaction.delete(db.collection("pairing_codes").doc(oldHash));
+        }
 
-            transaction.set(codeRef, {
-              elderlyId: uid,
-              createdAt: admin.firestore.FieldValue.serverTimestamp(),
-              expiresAt,
-            });
-            transaction.set(stateRef, {
-              codeHash,
-              expiresAt,
-              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            });
-            transaction.set(profileRef, {
+        transaction.set(codeRef, {
+          elderlyId: uid,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          expiresAt,
+        });
+        transaction.set(stateRef, {
+          codeHash,
+          expiresAt,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        const relationshipState =
+          caregiverIds.length > 0 ?
+            {status: "active"} :
+            {
               status: "pending",
               supervisorId: null,
-              pairingCode: admin.firestore.FieldValue.delete(),
-              pairingCodeExpires: admin.firestore.FieldValue.delete(),
-              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            }, {merge: true});
+              caregiverIds: [],
+              caregiverRoles: {},
+            };
+        const pairingUpdate = {
+          ...relationshipState,
+          pairingCode: admin.firestore.FieldValue.delete(),
+          pairingCodeExpires: admin.firestore.FieldValue.delete(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
+        transaction.set(profileRef, pairingUpdate, {merge: true});
 
-            if (legacySnapshot.exists) {
-              transaction.set(legacyRef, {
-                status: "pending",
-                supervisorId: null,
-                pairingCode: admin.firestore.FieldValue.delete(),
-                pairingCodeExpires: admin.firestore.FieldValue.delete(),
-                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-              }, {merge: true});
-            }
-          });
+        if (legacySnapshot.exists) {
+          transaction.set(legacyRef, pairingUpdate, {merge: true});
+        }
+      });
 
-          return {
-            code,
-            expiresAt: new Date(expiresAtMillis).toISOString(),
-          };
-        } catch (error) {
-          if (error?.message === "PAIRING_CODE_COLLISION") {
-            continue;
-          }
-          if (error instanceof HttpsError) throw error;
-          console.error("createPairingCode error:", error);
-          throw new HttpsError(
-              "internal",
-              "Nao foi possivel gerar o codigo de conexao.",
+      return {
+        code,
+        expiresAt: new Date(expiresAtMillis).toISOString(),
+      };
+    } catch (error) {
+      if (error?.message === "PAIRING_CODE_COLLISION") {
+        continue;
+      }
+      if (error instanceof HttpsError) throw error;
+      console.error("createPairingCode error:", error);
+      throw new HttpsError(
+          "internal",
+          "Nao foi possivel gerar o codigo de conexao.",
+      );
+    }
+  }
+
+  throw new HttpsError(
+      "resource-exhausted",
+      "Nao foi possivel reservar um codigo. Tente novamente.",
+  );
+});
+
+exports.claimPairingCode = onCall(BASE_CALL_OPTIONS, async (request) => {
+  const uid = requireAuth(request);
+  requireVerifiedAccount(request);
+  await checkRateLimit(uid, "claimPairingCode");
+  await assertSupervisorAccount(uid);
+
+  const code = validateString(request.data?.code, "code", 6);
+  if (!/^[0-9]{6}$/.test(code)) {
+    throw new HttpsError(
+        "invalid-argument",
+        "O codigo deve ter exatamente seis digitos.",
+    );
+  }
+
+  const db = admin.firestore();
+  const codeHash = pairingCodeHash(code);
+  const codeRef = db.collection("pairing_codes").doc(codeHash);
+
+  try {
+    const elderlyId = await db.runTransaction(async (transaction) => {
+      const codeSnapshot = await transaction.get(codeRef);
+      const codeData = codeSnapshot.data() || {};
+      const linkedElderlyId = codeData.elderlyId;
+
+      if (
+        !codeSnapshot.exists ||
+        typeof linkedElderlyId !== "string" ||
+        !(codeData.expiresAt instanceof admin.firestore.Timestamp) ||
+        codeData.expiresAt.toMillis() <= Date.now()
+      ) {
+        throw new HttpsError(
+            "not-found",
+            "Codigo invalido, expirado ou ja utilizado.",
+        );
+      }
+      if (linkedElderlyId === uid) {
+        throw new HttpsError(
+            "failed-precondition",
+            "Uma conta nao pode ser vinculada a ela mesma.",
+        );
+      }
+
+      const profileRef = db.collection("idoso_perfil").doc(linkedElderlyId);
+      const legacyRef = db.collection("idosos").doc(linkedElderlyId);
+      const stateRef = db.collection("pairing_state").doc(linkedElderlyId);
+      const linkRef = db
+          .collection("supervisores")
+          .doc(uid)
+          .collection("idosos")
+          .doc(linkedElderlyId);
+
+      const profileSnapshot = await transaction.get(profileRef);
+      const legacySnapshot = await transaction.get(legacyRef);
+      const stateSnapshot = await transaction.get(stateRef);
+      const profile = profileSnapshot.data() || {};
+
+      const caregiverIds = caregiverIdsForProfile(profile);
+      if (
+        !profileSnapshot.exists ||
+        !["pending", "active"].includes(profile.status) ||
+        caregiverIds.includes(uid) ||
+        caregiverIds.length >= 8
+      ) {
+        throw new HttpsError(
+            "failed-precondition",
+            "Este convite nao esta disponivel para esta conta.",
+        );
+      }
+      if (stateSnapshot.data()?.codeHash !== codeHash) {
+        throw new HttpsError(
+            "not-found",
+            "Codigo invalido, expirado ou ja utilizado.",
+        );
+      }
+
+      const firstCaregiver = caregiverIds.length === 0;
+      const primaryId = firstCaregiver ?
+        uid :
+        profile.supervisorId || caregiverIds[0];
+      const nextCaregiverIds = [...caregiverIds, uid];
+      const existingRoles =
+        profile.caregiverRoles &&
+        typeof profile.caregiverRoles === "object" &&
+        !Array.isArray(profile.caregiverRoles) ?
+          profile.caregiverRoles :
+          {};
+      const caregiverRoles = {
+        ...existingRoles,
+        [primaryId]: "primary",
+        [uid]: firstCaregiver ? "primary" : "backup",
+      };
+      const relationshipUpdate = {
+        supervisorId: primaryId,
+        caregiverIds: nextCaregiverIds,
+        caregiverRoles,
+        status: "active",
+        pairingCode: admin.firestore.FieldValue.delete(),
+        pairingCodeExpires: admin.firestore.FieldValue.delete(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+
+      transaction.set(profileRef, relationshipUpdate, {merge: true});
+      if (legacySnapshot.exists) {
+        transaction.set(legacyRef, relationshipUpdate, {merge: true});
+      }
+      transaction.set(linkRef, {
+        elderlyId: linkedElderlyId,
+        role: firstCaregiver ? "primary" : "backup",
+        linkedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      transaction.delete(codeRef);
+      transaction.delete(stateRef);
+      return linkedElderlyId;
+    });
+
+    return {elderlyId};
+  } catch (error) {
+    if (error instanceof HttpsError) throw error;
+    console.error("claimPairingCode error:", error);
+    throw new HttpsError("internal", "Nao foi possivel concluir a conexao.");
+  }
+});
+
+exports.unlinkElderly = onCall(BASE_CALL_OPTIONS, async (request) => {
+  const uid = requireAuth(request);
+  await checkRateLimit(uid, "unlinkElderly");
+
+  const requestedId = request.data?.elderlyId;
+  const elderlyId =
+    requestedId == null ? uid : validateFirestoreId(requestedId, "elderlyId");
+
+  const db = admin.firestore();
+  const profileRef = db.collection("idoso_perfil").doc(elderlyId);
+  const legacyRef = db.collection("idosos").doc(elderlyId);
+  const stateRef = db.collection("pairing_state").doc(elderlyId);
+
+  try {
+    await db.runTransaction(async (transaction) => {
+      const profileSnapshot = await transaction.get(profileRef);
+      const legacySnapshot = await transaction.get(legacyRef);
+      const stateSnapshot = await transaction.get(stateRef);
+
+      if (!profileSnapshot.exists) {
+        throw new HttpsError("not-found", "Perfil do idoso nao encontrado.");
+      }
+
+      const profile = profileSnapshot.data() || {};
+      const caregiverIds = caregiverIdsForProfile(profile);
+      const requestedCaregiverId =
+        request.data?.caregiverId == null ?
+          null :
+          validateFirestoreId(request.data.caregiverId, "caregiverId");
+      const caregiverToRemove = uid === elderlyId ? requestedCaregiverId : uid;
+      if (uid !== elderlyId && !caregiverIds.includes(uid)) {
+        throw new HttpsError(
+            "permission-denied",
+            "Voce nao pode desfazer este vinculo.",
+        );
+      }
+      if (
+        caregiverToRemove != null &&
+        !caregiverIds.includes(caregiverToRemove)
+      ) {
+        throw new HttpsError(
+            "not-found",
+            "Cuidador nao encontrado nesta rede.",
+        );
+      }
+
+      const removingAll = uid === elderlyId && caregiverToRemove == null;
+      const nextCaregiverIds = removingAll ?
+        [] :
+        caregiverIds.filter((id) => id !== caregiverToRemove);
+      const oldRoles =
+        profile.caregiverRoles &&
+        typeof profile.caregiverRoles === "object" &&
+        !Array.isArray(profile.caregiverRoles) ?
+          profile.caregiverRoles :
+          {};
+      const caregiverRoles = {};
+      for (const id of nextCaregiverIds) {
+        caregiverRoles[id] = oldRoles[id] || "backup";
+      }
+      const nextPrimary = nextCaregiverIds.includes(profile.supervisorId) ?
+        profile.supervisorId :
+        nextCaregiverIds[0] || null;
+      if (nextPrimary) caregiverRoles[nextPrimary] = "primary";
+
+      const relationshipUpdate = {
+        supervisorId: nextPrimary,
+        caregiverIds: nextCaregiverIds,
+        caregiverRoles,
+        status: nextCaregiverIds.length > 0 ? "active" : "pending",
+        pairingCode: admin.firestore.FieldValue.delete(),
+        pairingCodeExpires: admin.firestore.FieldValue.delete(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+      transaction.set(profileRef, relationshipUpdate, {merge: true});
+      if (legacySnapshot.exists) {
+        transaction.set(legacyRef, relationshipUpdate, {merge: true});
+      }
+
+      const removedIds = removingAll ? caregiverIds : [caregiverToRemove];
+      for (const caregiverId of removedIds) {
+        if (typeof caregiverId === "string" && caregiverId) {
+          transaction.delete(
+              db
+                  .collection("supervisores")
+                  .doc(caregiverId)
+                  .collection("idosos")
+                  .doc(elderlyId),
           );
         }
       }
 
-      throw new HttpsError(
-          "resource-exhausted",
-          "Nao foi possivel reservar um codigo. Tente novamente.",
-      );
-    },
-);
-
-exports.claimPairingCode = onCall(
-    BASE_CALL_OPTIONS,
-    async (request) => {
-      const uid = requireAuth(request);
-      requireVerifiedAccount(request);
-      await checkRateLimit(uid, "claimPairingCode");
-      await assertSupervisorAccount(uid);
-
-      const code = validateString(request.data?.code, "code", 6);
-      if (!/^[0-9]{6}$/.test(code)) {
-        throw new HttpsError(
-            "invalid-argument",
-            "O codigo deve ter exatamente seis digitos.",
-        );
+      const oldHash = stateSnapshot.data()?.codeHash;
+      if (typeof oldHash === "string" && oldHash) {
+        transaction.delete(db.collection("pairing_codes").doc(oldHash));
       }
+      transaction.delete(stateRef);
+    });
 
-      const db = admin.firestore();
-      const codeHash = pairingCodeHash(code);
-      const codeRef = db.collection("pairing_codes").doc(codeHash);
+    return {success: true};
+  } catch (error) {
+    if (error instanceof HttpsError) throw error;
+    console.error("unlinkElderly error:", error);
+    throw new HttpsError("internal", "Nao foi possivel desfazer a conexao.");
+  }
+});
 
-      try {
-        const elderlyId = await db.runTransaction(async (transaction) => {
-          const codeSnapshot = await transaction.get(codeRef);
-          const codeData = codeSnapshot.data() || {};
-          const linkedElderlyId = codeData.elderlyId;
+const reminderConfirmation = require("./reminder-confirmation");
+exports.confirmReminderOccurrence =
+  reminderConfirmation.confirmReminderOccurrence;
+exports.undoReminderConfirmation =
+  reminderConfirmation.undoReminderConfirmation;
 
-          if (!codeSnapshot.exists ||
-              typeof linkedElderlyId !== "string" ||
-              !(codeData.expiresAt instanceof admin.firestore.Timestamp) ||
-              codeData.expiresAt.toMillis() <= Date.now()) {
-            throw new HttpsError(
-                "not-found",
-                "Codigo invalido, expirado ou ja utilizado.",
-            );
-          }
-          if (linkedElderlyId === uid) {
-            throw new HttpsError(
-                "failed-precondition",
-                "Uma conta nao pode ser vinculada a ela mesma.",
-            );
-          }
+const caregiverRouting = require("./caregiver-routing");
+exports.updateCaregiverRouting = caregiverRouting.updateCaregiverRouting;
 
-          const profileRef =
-            db.collection("idoso_perfil").doc(linkedElderlyId);
-          const legacyRef = db.collection("idosos").doc(linkedElderlyId);
-          const stateRef =
-            db.collection("pairing_state").doc(linkedElderlyId);
-          const linkRef = db.collection("supervisores")
-              .doc(uid)
-              .collection("idosos")
-              .doc(linkedElderlyId);
+const caregiverEscalation = require("./caregiver-escalation");
+exports.escalateMissedReminders = caregiverEscalation.escalateMissedReminders;
 
-          const profileSnapshot = await transaction.get(profileRef);
-          const legacySnapshot = await transaction.get(legacyRef);
-          const stateSnapshot = await transaction.get(stateRef);
-          const profile = profileSnapshot.data() || {};
+const careFeatures = require("./care-features");
+exports.acknowledgeCareAlert = careFeatures.acknowledgeCareAlert;
+exports.resolveCareAlert = careFeatures.resolveCareAlert;
+exports.replenishMedicationStock = careFeatures.replenishMedicationStock;
 
-          if (!profileSnapshot.exists ||
-              profile.status !== "pending" ||
-              profile.supervisorId) {
-            throw new HttpsError(
-                "failed-precondition",
-                "Este idoso nao esta disponivel para conexao.",
-            );
-          }
-          if (stateSnapshot.data()?.codeHash !== codeHash) {
-            throw new HttpsError(
-                "not-found",
-                "Codigo invalido, expirado ou ja utilizado.",
-            );
-          }
-
-          const relationshipUpdate = {
-            supervisorId: uid,
-            status: "active",
-            pairingCode: admin.firestore.FieldValue.delete(),
-            pairingCodeExpires: admin.firestore.FieldValue.delete(),
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          };
-
-          transaction.set(
-              profileRef,
-              relationshipUpdate,
-              {merge: true},
-          );
-          if (legacySnapshot.exists) {
-            transaction.set(
-                legacyRef,
-                relationshipUpdate,
-                {merge: true},
-            );
-          }
-          transaction.set(linkRef, {
-            elderlyId: linkedElderlyId,
-            linkedAt: admin.firestore.FieldValue.serverTimestamp(),
-          });
-          transaction.delete(codeRef);
-          transaction.delete(stateRef);
-          return linkedElderlyId;
-        });
-
-        return {elderlyId};
-      } catch (error) {
-        if (error instanceof HttpsError) throw error;
-        console.error("claimPairingCode error:", error);
-        throw new HttpsError(
-            "internal",
-            "Nao foi possivel concluir a conexao.",
-        );
-      }
-    },
-);
-
-exports.unlinkElderly = onCall(
-    BASE_CALL_OPTIONS,
-    async (request) => {
-      const uid = requireAuth(request);
-      await checkRateLimit(uid, "unlinkElderly");
-
-      const requestedId = request.data?.elderlyId;
-      const elderlyId = requestedId == null ?
-        uid :
-        validateFirestoreId(requestedId, "elderlyId");
-
-      const db = admin.firestore();
-      const profileRef = db.collection("idoso_perfil").doc(elderlyId);
-      const legacyRef = db.collection("idosos").doc(elderlyId);
-      const stateRef = db.collection("pairing_state").doc(elderlyId);
-
-      try {
-        await db.runTransaction(async (transaction) => {
-          const profileSnapshot = await transaction.get(profileRef);
-          const legacySnapshot = await transaction.get(legacyRef);
-          const stateSnapshot = await transaction.get(stateRef);
-
-          if (!profileSnapshot.exists) {
-            throw new HttpsError(
-                "not-found",
-                "Perfil do idoso nao encontrado.",
-            );
-          }
-
-          const profile = profileSnapshot.data() || {};
-          const supervisorId = profile.supervisorId;
-          if (uid !== elderlyId && uid !== supervisorId) {
-            throw new HttpsError(
-                "permission-denied",
-                "Voce nao pode desfazer este vinculo.",
-            );
-          }
-
-          const relationshipUpdate = {
-            supervisorId: null,
-            status: "pending",
-            pairingCode: admin.firestore.FieldValue.delete(),
-            pairingCodeExpires: admin.firestore.FieldValue.delete(),
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          };
-          transaction.set(profileRef, relationshipUpdate, {merge: true});
-          if (legacySnapshot.exists) {
-            transaction.set(legacyRef, relationshipUpdate, {merge: true});
-          }
-
-          if (typeof supervisorId === "string" && supervisorId) {
-            transaction.delete(
-                db.collection("supervisores")
-                    .doc(supervisorId)
-                    .collection("idosos")
-                    .doc(elderlyId),
-            );
-          }
-
-          const oldHash = stateSnapshot.data()?.codeHash;
-          if (typeof oldHash === "string" && oldHash) {
-            transaction.delete(
-                db.collection("pairing_codes").doc(oldHash),
-            );
-          }
-          transaction.delete(stateRef);
-        });
-
-        return {success: true};
-      } catch (error) {
-        if (error instanceof HttpsError) throw error;
-        console.error("unlinkElderly error:", error);
-        throw new HttpsError(
-            "internal",
-            "Nao foi possivel desfazer a conexao.",
-        );
-      }
-    },
-);
+const wellbeingAlert = require("./wellbeing-alert");
+exports.createWellbeingHelpAlert = wellbeingAlert.createWellbeingHelpAlert;
 
 // =============================================================================
 // GEMINI HELPER
@@ -817,10 +809,7 @@ function createGeminiModel(modelName, config) {
   const {GoogleGenerativeAI} = require("@google/generative-ai");
   const apiKey = GEMINI_API_KEY.value();
   if (!apiKey) {
-    throw new HttpsError(
-        "failed-precondition",
-        "Gemini API não configurada.",
-    );
+    throw new HttpsError("failed-precondition", "Gemini API não configurada.");
   }
   const genAI = new GoogleGenerativeAI(apiKey);
   return genAI.getGenerativeModel({
@@ -863,27 +852,22 @@ function appendElderlyAudioSafetyNote(text) {
   return `${safeText}${note}`;
 }
 
-
 // =============================================================================
 // ALEX CHAT (Elderly Assistant)
 // =============================================================================
 
-exports.alexChat = onCall(
-    BASE_CALL_OPTIONS,
-    async (request) => {
-      const uid = requireAuth(request);
-      await checkRateLimit(uid, "alexChat");
+exports.alexChat = onCall(GEMINI_CALL_OPTIONS, async (request) => {
+  const uid = requireAuth(request);
+  await checkRateLimit(uid, "alexChat");
 
-      validateString(request.data?.message, "message", 2000);
+  validateString(request.data?.message, "message", 2000);
 
-      return {
-        reply: "Desculpe, ainda nao sei responder a essa pergunta.",
-        emotion: "informativo",
-        action: {type: "general", confidence: 0},
-      };
-    },
-);
-
+  return {
+    reply: "Desculpe, ainda nao sei responder a essa pergunta.",
+    emotion: "informativo",
+    action: {type: "general", confidence: 0},
+  };
+});
 
 // =============================================================================
 // SUPERVISOR CHAT (Daily Summary)
@@ -914,110 +898,103 @@ Regras:
 - Seja sempre empatico com o idoso e extremamente funcional para o cuidador.`;
 /* eslint-enable max-len */
 
-exports.supervisorChat = onCall(
-    GEMINI_CALL_OPTIONS,
-    async (request) => {
-      const uid = requireAuth(request);
-      await checkRateLimit(uid, "supervisorChat");
+exports.supervisorChat = onCall(GEMINI_CALL_OPTIONS, async (request) => {
+  const uid = requireAuth(request);
+  await checkRateLimit(uid, "supervisorChat");
 
-      const elderlyId = validateFirestoreId(
-          request.data?.elderlyId,
-          "elderlyId",
-      );
-      if (!await isLinkedSupervisor(elderlyId, uid)) {
-        throw new HttpsError(
-            "permission-denied",
-            "Voce nao pode analisar dados deste idoso.",
-        );
-      }
+  const elderlyId = validateFirestoreId(request.data?.elderlyId, "elderlyId");
+  if (!(await isLinkedSupervisor(elderlyId, uid))) {
+    throw new HttpsError(
+        "permission-denied",
+        "Voce nao pode analisar dados deste idoso.",
+    );
+  }
 
-      const {elderlyData} = request.data;
+  const {elderlyData} = request.data;
 
-      if (!elderlyData || typeof elderlyData !== "object") {
-        return {
-          summary: "Sem dados do idoso para analisar.",
-          insights: [],
-          suggestions: [],
-          attentionPoints: [],
-        };
-      }
+  if (!elderlyData || typeof elderlyData !== "object") {
+    return {
+      summary: "Sem dados do idoso para analisar.",
+      insights: [],
+      suggestions: [],
+      attentionPoints: [],
+    };
+  }
 
-      try {
-        const model = createGeminiModel("gemini-flash-lite-latest", {
-          generationConfig: {
-            temperature: 0.5,
-            topP: 0.9,
-            maxOutputTokens: 2048,
-          },
-        });
+  try {
+    const model = createGeminiModel("gemini-flash-lite-latest", {
+      generationConfig: {
+        temperature: 0.5,
+        topP: 0.9,
+        maxOutputTokens: 2048,
+      },
+    });
 
-        const serialized =
-            JSON.stringify(elderlyData, null, 2).slice(0, 50000);
+    const serialized = JSON.stringify(elderlyData, null, 2).slice(0, 50000);
 
-        const chat = model.startChat({
-          systemInstruction: {
-            role: "system",
-            parts: [{text: supervisorPrompt}],
-          },
-        });
+    const chat = model.startChat({
+      systemInstruction: {
+        role: "system",
+        parts: [{text: supervisorPrompt}],
+      },
+    });
 
-        const result = await chat.sendMessage(
-            `Dados do idoso para analisar:\n${serialized}`,
-        );
-        const responseText = result.response.text();
+    const result = await chat.sendMessage(
+        `Dados do idoso para analisar:\n${serialized}`,
+    );
+    const responseText = result.response.text();
 
-        const cleaned = cleanJsonResponse(responseText);
+    const cleaned = cleanJsonResponse(responseText);
 
-        let parsed;
-        try {
-          parsed = JSON.parse(cleaned);
-        } catch (e) {
-          return {
-            summary: responseText ||
-              "Nao foi possivel gerar resumo agora.",
-            insights: [],
-            suggestions: [],
-            attentionPoints: [],
-          };
-        }
+    let parsed;
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch (e) {
+      return {
+        summary: responseText || "Nao foi possivel gerar resumo agora.",
+        insights: [],
+        suggestions: [],
+        attentionPoints: [],
+      };
+    }
 
-        return {
-          summary: String(parsed.summary || "Resumo nao disponivel.")
-              .slice(0, 2000),
-          insights: Array.isArray(parsed.insights) ?
-              parsed.insights.slice(0, 10).map(String) : [],
-          suggestions: Array.isArray(parsed.suggestions) ?
-              parsed.suggestions.slice(0, 10).map(String) : [],
-          attentionPoints: Array.isArray(parsed.attentionPoints) ?
-              parsed.attentionPoints.slice(0, 10).map(String) : [],
-        };
-      } catch (error) {
-        console.error("supervisorChat error:", error);
-        throw new HttpsError(
-            "internal",
-            "Erro ao analisar dados do idoso.",
-        );
-      }
-    },
-);
-
+    return {
+      summary: String(parsed.summary || "Resumo nao disponivel.").slice(
+          0,
+          2000,
+      ),
+      insights: Array.isArray(parsed.insights) ?
+        parsed.insights.slice(0, 10).map(String) :
+        [],
+      suggestions: Array.isArray(parsed.suggestions) ?
+        parsed.suggestions.slice(0, 10).map(String) :
+        [],
+      attentionPoints: Array.isArray(parsed.attentionPoints) ?
+        parsed.attentionPoints.slice(0, 10).map(String) :
+        [],
+    };
+  } catch (error) {
+    console.error("supervisorChat error:", error);
+    throw new HttpsError("internal", "Erro ao analisar dados do idoso.");
+  }
+});
 
 // =============================================================================
 // REPORT INSIGHTS GENERATOR
 // =============================================================================
 
 const reportPrompt =
-    "Voce e um especialista em geriatria e analise de saude digital.\n" +
-    "Analise os dados semanais de saude e rotina de um idoso fornecidos " +
-    "no input e gere duas analises clinicas em portugues brasileiro:\n" +
-    "1. resumoFamiliar: Um paragrafo curto (ate 3 frases) focado nos " +
-    "familiares, explicando de forma empatica como foi a rotina do idoso " +
-    "esta semana, destacando os pontos fortes e observando a " +
-    "estabilidade.\n" +
-    "2. pontoAtencao: Um paragrafo curto clinico, indicando fatores a " +
-    "serem monitorados ou sugestoes praticas para o cuidador caso haja " +
-    "atividades perdidas. Se tudo estiver normal, indique que a rotina " +
-    "segue estavel.";
+  "Voce e um especialista em geriatria e analise de saude digital.\n" +
+  "Analise os dados semanais de saude e rotina de um idoso fornecidos " +
+  "no input e gere duas analises clinicas em portugues brasileiro:\n" +
+  "1. resumoFamiliar: Um paragrafo curto (ate 3 frases) focado nos " +
+  "familiares, explicando de forma empatica como foi a rotina do idoso " +
+  "esta semana, destacando os pontos fortes e observando a " +
+  "estabilidade.\n" +
+  "2. pontoAtencao: Um paragrafo curto clinico, indicando fatores a " +
+  "serem monitorados ou sugestoes praticas para o cuidador caso haja " +
+  "atividades perdidas. Se tudo estiver normal, indique que a rotina " +
+  "segue estavel.";
 
 const reportSchema = {
   type: "object",
@@ -1044,7 +1021,7 @@ exports.generateReportInsights = onCall(
           request.data?.elderlyId,
           "elderlyId",
       );
-      if (!await isLinkedSupervisor(elderlyId, uid)) {
+      if (!(await isLinkedSupervisor(elderlyId, uid))) {
         throw new HttpsError(
             "permission-denied",
             "Voce nao pode gerar relatorio deste idoso.",
@@ -1053,25 +1030,43 @@ exports.generateReportInsights = onCall(
 
       const data = request.data;
 
-      const idosoName = data && typeof data.idosoName === "string" ?
-          data.idosoName.trim().slice(0, 100) : "Idoso";
+      const idosoName =
+      data && typeof data.idosoName === "string" ?
+        data.idosoName.trim().slice(0, 100) :
+        "Idoso";
 
-      const adesaoGeral = typeof data.adesaoGeral === "number" ?
-          Math.min(100, Math.max(0, data.adesaoGeral)) : 0;
-      const totalAtividades = typeof data.totalAtividades === "number" ?
-          Math.max(0, Math.min(1000, data.totalAtividades)) : 0;
-      const concluidas = typeof data.concluidas === "number" ?
-          Math.max(0, Math.min(1000, data.concluidas)) : 0;
-      const naoFeitas = typeof data.naoFeitas === "number" ?
-          Math.max(0, Math.min(1000, data.naoFeitas)) : 0;
-      const medicacaoPct = typeof data.medicacaoPct === "number" ?
-          Math.min(100, Math.max(0, data.medicacaoPct)) : 0;
-      const refeicoesPct = typeof data.refeicoesPct === "number" ?
-          Math.min(100, Math.max(0, data.refeicoesPct)) : 0;
-      const exercicioPct = typeof data.exercicioPct === "number" ?
-          Math.min(100, Math.max(0, data.exercicioPct)) : 0;
-      const hidratacaoPct = typeof data.hidratacaoPct === "number" ?
-          Math.min(100, Math.max(0, data.hidratacaoPct)) : 0;
+      const adesaoGeral =
+      typeof data.adesaoGeral === "number" ?
+        Math.min(100, Math.max(0, data.adesaoGeral)) :
+        0;
+      const totalAtividades =
+      typeof data.totalAtividades === "number" ?
+        Math.max(0, Math.min(1000, data.totalAtividades)) :
+        0;
+      const concluidas =
+      typeof data.concluidas === "number" ?
+        Math.max(0, Math.min(1000, data.concluidas)) :
+        0;
+      const naoFeitas =
+      typeof data.naoFeitas === "number" ?
+        Math.max(0, Math.min(1000, data.naoFeitas)) :
+        0;
+      const medicacaoPct =
+      typeof data.medicacaoPct === "number" ?
+        Math.min(100, Math.max(0, data.medicacaoPct)) :
+        0;
+      const refeicoesPct =
+      typeof data.refeicoesPct === "number" ?
+        Math.min(100, Math.max(0, data.refeicoesPct)) :
+        0;
+      const exercicioPct =
+      typeof data.exercicioPct === "number" ?
+        Math.min(100, Math.max(0, data.exercicioPct)) :
+        0;
+      const hidratacaoPct =
+      typeof data.hidratacaoPct === "number" ?
+        Math.min(100, Math.max(0, data.hidratacaoPct)) :
+        0;
 
       try {
         const model = createGeminiModel("gemini-flash-lite-latest", {
@@ -1084,15 +1079,15 @@ exports.generateReportInsights = onCall(
         });
 
         const context =
-            `Idoso: ${idosoName}\n` +
-            `Adesao Geral: ${adesaoGeral}%\n` +
-            `Total de Lembretes: ${totalAtividades}\n` +
-            `Concluidos: ${concluidas}\n` +
-            `Nao Feitos: ${naoFeitas}\n` +
-            `Adesao Medicamento: ${medicacaoPct}%\n` +
-            `Adesao Refeicoes: ${refeicoesPct}%\n` +
-            `Adesao Exercicios: ${exercicioPct}%\n` +
-            `Adesao Hidratacao: ${hidratacaoPct}%\n`;
+        `Idoso: ${idosoName}\n` +
+        `Adesao Geral: ${adesaoGeral}%\n` +
+        `Total de Lembretes: ${totalAtividades}\n` +
+        `Concluidos: ${concluidas}\n` +
+        `Nao Feitos: ${naoFeitas}\n` +
+        `Adesao Medicamento: ${medicacaoPct}%\n` +
+        `Adesao Refeicoes: ${refeicoesPct}%\n` +
+        `Adesao Exercicios: ${exercicioPct}%\n` +
+        `Adesao Hidratacao: ${hidratacaoPct}%\n`;
 
         const result = await model.generateContent([
           {text: reportPrompt},
@@ -1104,9 +1099,7 @@ exports.generateReportInsights = onCall(
         try {
           parsed = JSON.parse(cleanJsonResponse(responseText));
         } catch (e) {
-          console.error(
-              "Erro ao analisar JSON de relatorio:", e, responseText,
-          );
+          console.error("Erro ao analisar JSON de relatorio:", e, responseText);
           return {
             resumoFamiliar: "Falha ao gerar resumo da semana com IA.",
             pontoAtencao: "Falha ao gerar ponto de atencao com IA.",
@@ -1114,297 +1107,213 @@ exports.generateReportInsights = onCall(
         }
 
         return {
-          resumoFamiliar:
-              String(parsed.resumoFamiliar || "").slice(0, 2000),
-          pontoAtencao:
-              String(parsed.pontoAtencao || "").slice(0, 2000),
+          resumoFamiliar: String(parsed.resumoFamiliar || "").slice(0, 2000),
+          pontoAtencao: String(parsed.pontoAtencao || "").slice(0, 2000),
         };
       } catch (error) {
         console.error("generateReportInsights error:", error);
         return {
-          resumoFamiliar:
-              "Nao foi possivel carregar o resumo semanal com IA.",
-          pontoAtencao:
-              "Nao foi possivel carregar o ponto de atencao com IA.",
+          resumoFamiliar: "Nao foi possivel carregar o resumo semanal com IA.",
+          pontoAtencao: "Nao foi possivel carregar o ponto de atencao com IA.",
         };
       }
     },
 );
-
-
-// =============================================================================
-// VIDEO CALL TOKEN GENERATOR
-// =============================================================================
-
-exports.generateVideoToken = onCall(
-    LIVEKIT_CALL_OPTIONS,
-    async (request) => {
-      const {AccessToken} = require("livekit-server-sdk");
-      const uid = requireAuth(request);
-      await checkRateLimit(uid, "generateVideoToken");
-
-      const {callId, roomName, identity} = request.data;
-
-      const validatedCallId = validateFirestoreId(callId, "callId");
-      const validatedRoom = validateRoomName(roomName);
-      const validatedIdentity =
-          validateFirestoreId(identity, "identity");
-
-      if (uid !== validatedIdentity) {
-        throw new HttpsError(
-            "permission-denied",
-            "Você só pode gerar token para sua própria identidade.",
-        );
-      }
-
-      try {
-        await assertCanJoinVideoCall(uid, validatedCallId, validatedRoom);
-
-        const apiKey = LIVEKIT_API_KEY.value();
-        const apiSecret = LIVEKIT_API_SECRET.value();
-
-        if (!apiKey || !apiSecret) {
-          throw new HttpsError(
-              "failed-precondition",
-              "LiveKit nao configurado. " +
-              "Defina LIVEKIT_API_KEY e LIVEKIT_API_SECRET.",
-          );
-        }
-
-        const at = new AccessToken(apiKey, apiSecret, {
-          identity: validatedIdentity,
-          metadata: JSON.stringify({uid: validatedIdentity}),
-          ttl: "10m",
-        });
-
-        at.addGrant({
-          roomJoin: true,
-          room: validatedRoom,
-          canPublish: true,
-          canSubscribe: true,
-        });
-
-        const token = at.toJwt();
-        return {
-          token,
-          serverUrl: LIVEKIT_SERVER_URL.value() || "",
-          identity: validatedIdentity,
-          room: validatedRoom,
-        };
-      } catch (error) {
-        console.error("generateVideoToken error:", error);
-        if (error instanceof HttpsError) {
-          throw error;
-        }
-        throw new HttpsError("internal", "Erro ao gerar token de video.");
-      }
-    },
-);
-
 
 // =============================================================================
 // MEDICATION IDENTIFIER (Gemini Vision)
 // =============================================================================
 
-exports.identifyMedication = onCall(
-    GEMINI_CALL_OPTIONS,
-    async (request) => {
-      const uid = requireAuth(request);
-      await checkRateLimit(uid, "identifyMedication");
+exports.identifyMedication = onCall(GEMINI_CALL_OPTIONS, async (request) => {
+  const uid = requireAuth(request);
+  await checkRateLimit(uid, "identifyMedication");
 
-      const {imageBase64} = request.data;
-      const validatedImage = validateBase64(imageBase64, "imageBase64");
+  const {imageBase64} = request.data;
+  const validatedImage = validateBase64(imageBase64, "imageBase64");
 
-      const generationConfig = {
-        temperature: 0.2,
-        maxOutputTokens: 2048,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: "object",
-          properties: {
-            nome: {type: "string"},
-            dosagem: {type: "string"},
-            forma: {type: "string"},
-            cor: {type: "string"},
-            intervaloSugerido: {type: "string"},
-            observacoes: {type: "string"},
-          },
-          required: [
-            "nome",
-            "dosagem",
-            "forma",
-            "cor",
-            "intervaloSugerido",
-            "observacoes",
-          ],
-        },
-      };
+  const generationConfig = {
+    temperature: 0.2,
+    maxOutputTokens: 2048,
+    responseMimeType: "application/json",
+    responseSchema: {
+      type: "object",
+      properties: {
+        nome: {type: "string"},
+        dosagem: {type: "string"},
+        forma: {type: "string"},
+        cor: {type: "string"},
+        intervaloSugerido: {type: "string"},
+        observacoes: {type: "string"},
+      },
+      required: [
+        "nome",
+        "dosagem",
+        "forma",
+        "cor",
+        "intervaloSugerido",
+        "observacoes",
+      ],
+    },
+  };
 
-      const prompt =
-          "Você é um farmacêutico clínico especialista em triagem visual de " +
-          "embalagens de medicamentos no Brasil.\n" +
-          "Analise esta imagem de medicamento (caixa, cartela ou frasco) e " +
-          "extraia as informações em formato JSON estrito.\n" +
-          "REGRAS CLÍNICAS E DE SEGURANÇA:\n" +
-          "1. Priorize Princípio Ativo e Dosagem na face principal.\n" +
-          "2. Ignore slogans publicitários, marcas de farmácia e lote/data.\n" +
-          "3. Se houver reflexo ou desfoque na dosagem, indique incerteza " +
-          "no campo 'observacoes'. Nunca adivinhe números.\n" +
-          "MUITO IMPORTANTE: Se a imagem não contiver um medicamento " +
-          "legível, deixe o campo 'nome' completamente vazio (\"\").\n\n" +
-          "EXEMPLOS DE ORIENTAÇÃO (FEW-SHOT):\n" +
-          "1. Se a imagem mostrar 'Losartana Potássica 50mg, 30 comp':\n" +
-          "   - nome: \"Losartana Potássica\"\n" +
-          "   - dosagem: \"50mg\"\n" +
-          "   - forma: \"Comprimido revestido\"\n" +
-          "   - cor: \"Branca\"\n" +
-          "   - intervaloSugerido: \"Conforme orientação médica ou bula\"\n" +
-          "   - observacoes: \"Embalagem com 30 comprimidos revestidos.\"\n\n" +
-          "2. Se a imagem mostrar frasco 'Novalgina Gotas 500mg/mL 20mL':\n" +
-          "   - nome: \"Novalgina\"\n" +
-          "   - dosagem: \"500mg/mL\"\n" +
-          "   - forma: \"Gotas / Solução oral\"\n" +
-          "   - cor: \"Líquido / Embalagem escura\"\n" +
-          "   - intervaloSugerido: \"Conforme prescrição ou bula\"\n" +
-          "   - observacoes: \"Frasco com 20mL em gotas.\"\n\n" +
-          "3. Se a imagem não for um medicamento legível:\n" +
-          "   - nome: \"\"\n" +
-          "   - dosagem: \"\"\n" +
-          "   - forma: \"\"\n" +
-          "   - cor: \"\"\n" +
-          "   - intervaloSugerido: \"\"\n" +
-          "   - observacoes: \"Nenhum medicamento reconhecido na imagem.\"";
+  const prompt =
+    "Você é um farmacêutico clínico especialista em triagem visual de " +
+    "embalagens de medicamentos no Brasil.\n" +
+    "Analise esta imagem de medicamento (caixa, cartela ou frasco) e " +
+    "extraia as informações em formato JSON estrito.\n" +
+    "REGRAS CLÍNICAS E DE SEGURANÇA:\n" +
+    "1. Priorize Princípio Ativo e Dosagem na face principal.\n" +
+    "2. Ignore slogans publicitários, marcas de farmácia e lote/data.\n" +
+    "3. Se houver reflexo ou desfoque na dosagem, indique incerteza " +
+    "no campo 'observacoes'. Nunca adivinhe números.\n" +
+    "MUITO IMPORTANTE: Se a imagem não contiver um medicamento " +
+    "legível, deixe o campo 'nome' completamente vazio (\"\").\n\n" +
+    "EXEMPLOS DE ORIENTAÇÃO (FEW-SHOT):\n" +
+    "1. Se a imagem mostrar 'Losartana Potássica 50mg, 30 comp':\n" +
+    "   - nome: \"Losartana Potássica\"\n" +
+    "   - dosagem: \"50mg\"\n" +
+    "   - forma: \"Comprimido revestido\"\n" +
+    "   - cor: \"Branca\"\n" +
+    "   - intervaloSugerido: \"Conforme orientação médica ou bula\"\n" +
+    "   - observacoes: \"Embalagem com 30 comprimidos revestidos.\"\n\n" +
+    "2. Se a imagem mostrar frasco 'Novalgina Gotas 500mg/mL 20mL':\n" +
+    "   - nome: \"Novalgina\"\n" +
+    "   - dosagem: \"500mg/mL\"\n" +
+    "   - forma: \"Gotas / Solução oral\"\n" +
+    "   - cor: \"Líquido / Embalagem escura\"\n" +
+    "   - intervaloSugerido: \"Conforme prescrição ou bula\"\n" +
+    "   - observacoes: \"Frasco com 20mL em gotas.\"\n\n" +
+    "3. Se a imagem não for um medicamento legível:\n" +
+    "   - nome: \"\"\n" +
+    "   - dosagem: \"\"\n" +
+    "   - forma: \"\"\n" +
+    "   - cor: \"\"\n" +
+    "   - intervaloSugerido: \"\"\n" +
+    "   - observacoes: \"Nenhum medicamento reconhecido na imagem.\"";
 
-      const imageParts = [
-        {text: prompt},
-        {
-          inlineData: {
-            mimeType: "image/jpeg",
-            data: validatedImage,
-          },
-        },
-      ];
+  const imageParts = [
+    {text: prompt},
+    {
+      inlineData: {
+        mimeType: "image/jpeg",
+        data: validatedImage,
+      },
+    },
+  ];
 
+  try {
+    // Tentativa 1: gemini-flash-lite-latest (95% dos casos)
+    const model = createGeminiModel("gemini-flash-lite-latest", {
+      generationConfig,
+    });
+
+    let responseText = "";
+    let parsed = null;
+
+    try {
+      const result = await model.generateContent(imageParts);
+      responseText = result.response.text();
+      parsed = JSON.parse(cleanJsonResponse(responseText));
+    } catch (liteError) {
+      console.warn(
+          "Falha ao processar com gemini-flash-lite-latest:",
+          liteError,
+      );
+    }
+
+    // Fallback Inteligente: Aciona se falhou ou retornou nome vazio
+    if (!parsed || !String(parsed.nome || "").trim()) {
+      console.log(
+          "[Smart Fallback] identifyMedication: " +
+          "gemini-flash-lite-latest retornou vazio ou falhou. " +
+          "Acionando resgate com gemini-2.5-flash...",
+      );
       try {
-        // Tentativa 1: gemini-flash-lite-latest (95% dos casos)
-        const model = createGeminiModel("gemini-flash-lite-latest", {
+        const fallbackModel = createGeminiModel("gemini-2.5-flash", {
           generationConfig,
         });
-
-        let responseText = "";
-        let parsed = null;
-
-        try {
-          const result = await model.generateContent(imageParts);
-          responseText = result.response.text();
-          parsed = JSON.parse(cleanJsonResponse(responseText));
-        } catch (liteError) {
-          console.warn(
-              "Falha ao processar com gemini-flash-lite-latest:",
-              liteError,
-          );
-        }
-
-        // Fallback Inteligente: Aciona se falhou ou retornou nome vazio
-        if (!parsed || !String(parsed.nome || "").trim()) {
-          console.log(
-              "[Smart Fallback] identifyMedication: " +
-              "gemini-flash-lite-latest retornou vazio ou falhou. " +
-              "Acionando resgate com gemini-2.5-flash...",
-          );
-          try {
-            const fallbackModel = createGeminiModel("gemini-2.5-flash", {
-              generationConfig,
-            });
-            const fallbackResult =
-                await fallbackModel.generateContent(imageParts);
-            responseText = fallbackResult.response.text();
-            parsed = JSON.parse(cleanJsonResponse(responseText));
-          } catch (fallbackError) {
-            console.error(
-                "Erro no fallback do identifyMedication:",
-                fallbackError,
-            );
-          }
-        }
-
-        if (!parsed || !String(parsed.nome || "").trim()) {
-          return {
-            nome: "",
-            dosagem: "",
-            forma: "",
-            cor: "",
-            intervaloSugerido: "",
-            observacoes: "",
-            erro: "Não foi possível interpretar a imagem como " +
-                  "um medicamento. Tente tirar outra foto com mais " +
-                  "iluminação e foco.",
-          };
-        }
-
-        return {
-          nome: String(parsed.nome || "").slice(0, 200),
-          dosagem: String(parsed.dosagem || "").slice(0, 100),
-          forma: String(parsed.forma || "").slice(0, 100),
-          cor: String(parsed.cor || "").slice(0, 100),
-          intervaloSugerido:
-              String(parsed.intervaloSugerido || "").slice(0, 500),
-          observacoes:
-              String(parsed.observacoes || "").slice(0, 1000),
-          erro: "",
-        };
-      } catch (error) {
-        console.error("identifyMedication error:", error);
-        return {
-          nome: "",
-          dosagem: "",
-          forma: "",
-          cor: "",
-          intervaloSugerido: "",
-          observacoes: "",
-          erro: "Erro ao identificar medicamento. Tente novamente.",
-        };
+        const fallbackResult = await fallbackModel.generateContent(imageParts);
+        responseText = fallbackResult.response.text();
+        parsed = JSON.parse(cleanJsonResponse(responseText));
+      } catch (fallbackError) {
+        console.error("Erro no fallback do identifyMedication:", fallbackError);
       }
-    },
-);
+    }
 
+    if (!parsed || !String(parsed.nome || "").trim()) {
+      return {
+        nome: "",
+        dosagem: "",
+        forma: "",
+        cor: "",
+        intervaloSugerido: "",
+        observacoes: "",
+        erro:
+          "Não foi possível interpretar a imagem como " +
+          "um medicamento. Tente tirar outra foto com mais " +
+          "iluminação e foco.",
+      };
+    }
+
+    return {
+      nome: String(parsed.nome || "").slice(0, 200),
+      dosagem: String(parsed.dosagem || "").slice(0, 100),
+      forma: String(parsed.forma || "").slice(0, 100),
+      cor: String(parsed.cor || "").slice(0, 100),
+      intervaloSugerido: String(parsed.intervaloSugerido || "").slice(0, 500),
+      observacoes: String(parsed.observacoes || "").slice(0, 1000),
+      erro: "",
+    };
+  } catch (error) {
+    console.error("identifyMedication error:", error);
+    return {
+      nome: "",
+      dosagem: "",
+      forma: "",
+      cor: "",
+      intervaloSugerido: "",
+      observacoes: "",
+      erro: "Erro ao identificar medicamento. Tente novamente.",
+    };
+  }
+});
 
 // =============================================================================
 // PRESCRIPTION PARSER (Gemini Vision)
 // =============================================================================
 
 const prescriptionPrompt =
-    "Você é um assistente médico especialista em decifrar receitas " +
-    "médicas brasileiras (impressas, manuscritas e cursivas).\n" +
-    "Analise a imagem da receita e extraia os medicamentos para criar " +
-    "os agendamentos iniciais de lembrete em JSON.\n" +
-    "REGRAS DE OCR PARA RECEITAS E MANUSCRITO:\n" +
-    "1. Atenção especial a letra cursiva de médico e abreviações comuns " +
-    "(ex: '1 cp 12/12h' = 1 comprimido de 12 em 12h; 'VO' = via oral; " +
-    "'SN' = se necessário; 'AC' = antes das refeições).\n" +
-    "2. Se a receita descrever múltiplas doses no dia, crie o lembrete " +
-    "apenas para a PRIMEIRA dose e detalhe o intervalo nas observações.\n" +
-    "3. Se o nome estiver legível mas a dosagem ou horário borrados, " +
-    "avise em 'observacoes': 'Atenção: confirme a dosagem ilegível'.\n" +
-    "MUITO IMPORTANTE: Se não for uma receita ou não houver medicamentos " +
-    "legíveis, retorne um array 'lembretes' vazio [].\n\n" +
-    "EXEMPLOS DE ORIENTAÇÃO (FEW-SHOT):\n" +
-    "1. Se disser: 'Amoxicilina 500mg - 1 cp 8/8h por 7d (início 08h)':\n" +
-    "   - titulo: \"Amoxicilina\"\n" +
-    "   - dosagem: \"500mg - 1 cápsula\"\n" +
-    "   - horarioHour: 8\n" +
-    "   - horarioMinute: 0\n" +
-    "   - categoria: \"medicacao\"\n" +
-    "   - observacoes: \"Tomar 1 cápsula de 8 em 8 horas por 7 dias.\"\n\n" +
-    "2. Se disser: 'Dipirona Gotas 500mg/mL - 35 gotas 6/6h SN (14:30)':\n" +
-    "   - titulo: \"Dipirona Gotas\"\n" +
-    "   - dosagem: \"500mg/mL (35 gotas)\"\n" +
-    "   - horarioHour: 14\n" +
-    "   - horarioMinute: 30\n" +
-    "   - categoria: \"medicacao\"\n" +
-    "   - observacoes: \"Tomar 35 gotas de 6/6h se febre ou dor forte.\"\n\n" +
-    "3. Se a imagem estiver ilegível ou for sem medicamentos:\n" +
-    "   - lembretes: []";
+  "Você é um assistente médico especialista em decifrar receitas " +
+  "médicas brasileiras (impressas, manuscritas e cursivas).\n" +
+  "Analise a imagem da receita e extraia os medicamentos para criar " +
+  "os agendamentos iniciais de lembrete em JSON.\n" +
+  "REGRAS DE OCR PARA RECEITAS E MANUSCRITO:\n" +
+  "1. Atenção especial a letra cursiva de médico e abreviações comuns " +
+  "(ex: '1 cp 12/12h' = 1 comprimido de 12 em 12h; 'VO' = via oral; " +
+  "'SN' = se necessário; 'AC' = antes das refeições).\n" +
+  "2. Se a receita descrever múltiplas doses no dia, crie o lembrete " +
+  "apenas para a PRIMEIRA dose e detalhe o intervalo nas observações.\n" +
+  "3. Se o nome estiver legível mas a dosagem ou horário borrados, " +
+  "avise em 'observacoes': 'Atenção: confirme a dosagem ilegível'.\n" +
+  "MUITO IMPORTANTE: Se não for uma receita ou não houver medicamentos " +
+  "legíveis, retorne um array 'lembretes' vazio [].\n\n" +
+  "EXEMPLOS DE ORIENTAÇÃO (FEW-SHOT):\n" +
+  "1. Se disser: 'Amoxicilina 500mg - 1 cp 8/8h por 7d (início 08h)':\n" +
+  "   - titulo: \"Amoxicilina\"\n" +
+  "   - dosagem: \"500mg - 1 cápsula\"\n" +
+  "   - horarioHour: 8\n" +
+  "   - horarioMinute: 0\n" +
+  "   - categoria: \"medicacao\"\n" +
+  "   - observacoes: \"Tomar 1 cápsula de 8 em 8 horas por 7 dias.\"\n\n" +
+  "2. Se disser: 'Dipirona Gotas 500mg/mL - 35 gotas 6/6h SN (14:30)':\n" +
+  "   - titulo: \"Dipirona Gotas\"\n" +
+  "   - dosagem: \"500mg/mL (35 gotas)\"\n" +
+  "   - horarioHour: 14\n" +
+  "   - horarioMinute: 30\n" +
+  "   - categoria: \"medicacao\"\n" +
+  "   - observacoes: \"Tomar 35 gotas de 6/6h se febre ou dor forte.\"\n\n" +
+  "3. Se a imagem estiver ilegível ou for sem medicamentos:\n" +
+  "   - lembretes: []";
 
 const prescriptionSchema = {
   type: "object",
@@ -1450,242 +1359,237 @@ const prescriptionSchema = {
   required: ["lembretes"],
 };
 
-exports.parsePrescription = onCall(
-    GEMINI_CALL_OPTIONS,
-    async (request) => {
-      const uid = requireAuth(request);
-      await checkRateLimit(uid, "parsePrescription");
+exports.parsePrescription = onCall(GEMINI_CALL_OPTIONS, async (request) => {
+  const uid = requireAuth(request);
+  await checkRateLimit(uid, "parsePrescription");
 
-      const {imageBase64} = request.data;
-      const validatedImage = validateBase64(imageBase64, "imageBase64");
+  const {imageBase64} = request.data;
+  const validatedImage = validateBase64(imageBase64, "imageBase64");
 
-      const generationConfig = {
-        temperature: 0.15,
-        maxOutputTokens: 2048,
-        responseMimeType: "application/json",
-        responseSchema: prescriptionSchema,
-      };
+  const generationConfig = {
+    temperature: 0.15,
+    maxOutputTokens: 2048,
+    responseMimeType: "application/json",
+    responseSchema: prescriptionSchema,
+  };
 
-      const imageParts = [
-        {text: "Analise esta receita medica:"},
-        {
-          inlineData: {
-            mimeType: "image/jpeg",
-            data: validatedImage,
-          },
-        },
-      ];
+  const imageParts = [
+    {text: "Analise esta receita medica:"},
+    {
+      inlineData: {
+        mimeType: "image/jpeg",
+        data: validatedImage,
+      },
+    },
+  ];
 
+  try {
+    // Tentativa 1: gemini-flash-lite-latest (95% dos casos)
+    const model = createGeminiModel("gemini-flash-lite-latest", {
+      generationConfig,
+    });
+
+    let responseText = "";
+    let parsed = null;
+
+    try {
+      const result = await model.generateContent([
+        {text: prescriptionPrompt},
+        ...imageParts,
+      ]);
+      responseText = result.response.text();
+      parsed = JSON.parse(cleanJsonResponse(responseText));
+    } catch (liteError) {
+      console.warn("Falha com gemini-flash-lite-latest em receita:", liteError);
+    }
+
+    // Fallback Inteligente: Aciona se falhou ou retornou 0 lembretes
+    if (!parsed || !parsed.lembretes || parsed.lembretes.length === 0) {
+      console.log(
+          "[Smart Fallback] parsePrescription: " +
+          "gemini-flash-lite-latest não identificou medicamentos. " +
+          "Acionando resgate com gemini-2.5-flash...",
+      );
       try {
-        // Tentativa 1: gemini-flash-lite-latest (95% dos casos)
-        const model = createGeminiModel("gemini-flash-lite-latest", {
+        const fallbackModel = createGeminiModel("gemini-2.5-flash", {
           generationConfig,
         });
-
-        let responseText = "";
-        let parsed = null;
-
-        try {
-          const result = await model.generateContent([
-            {text: prescriptionPrompt},
-            ...imageParts,
-          ]);
-          responseText = result.response.text();
-          parsed = JSON.parse(cleanJsonResponse(responseText));
-        } catch (liteError) {
-          console.warn(
-              "Falha com gemini-flash-lite-latest em receita:",
-              liteError,
-          );
-        }
-
-        // Fallback Inteligente: Aciona se falhou ou retornou 0 lembretes
-        if (!parsed || !parsed.lembretes || parsed.lembretes.length === 0) {
-          console.log(
-              "[Smart Fallback] parsePrescription: " +
-              "gemini-flash-lite-latest não identificou medicamentos. " +
-              "Acionando resgate com gemini-2.5-flash...",
-          );
-          try {
-            const fallbackModel = createGeminiModel("gemini-2.5-flash", {
-              generationConfig,
-            });
-            const fallbackResult = await fallbackModel.generateContent([
-              {text: prescriptionPrompt},
-              ...imageParts,
-            ]);
-            responseText = fallbackResult.response.text();
-            parsed = JSON.parse(cleanJsonResponse(responseText));
-          } catch (fallbackError) {
-            console.error(
-                "Erro no fallback de parsePrescription:",
-                fallbackError,
-            );
-          }
-        }
-
-        if (!parsed || !parsed.lembretes) {
-          return {
-            lembretes: [],
-            erro: "Não foi possível estruturar os dados da receita " +
-                  "médica. Verifique a nitidez da foto e tente novamente.",
-          };
-        }
-
-        const sanitizedLembretes = (parsed.lembretes || [])
-            .slice(0, 20)
-            .map((l) => ({
-              titulo: String(l.titulo || "").slice(0, 200),
-              horarioHour: typeof l.horarioHour === "number" ?
-                  Math.min(23, Math.max(0, l.horarioHour)) : 0,
-              horarioMinute: typeof l.horarioMinute === "number" ?
-                  Math.min(59, Math.max(0, l.horarioMinute)) : 0,
-              categoria: "medicacao",
-              observacoes: String(l.observacoes || "").slice(0, 500),
-              dosagem: String(l.dosagem || "").slice(0, 100),
-            }));
-
-        return {
-          lembretes: sanitizedLembretes,
-          erro: "",
-        };
-      } catch (error) {
-        console.error("parsePrescription error:", error);
-        return {
-          lembretes: [],
-          erro: "Erro ao processar receita médica. Tente novamente.",
-        };
+        const fallbackResult = await fallbackModel.generateContent([
+          {text: prescriptionPrompt},
+          ...imageParts,
+        ]);
+        responseText = fallbackResult.response.text();
+        parsed = JSON.parse(cleanJsonResponse(responseText));
+      } catch (fallbackError) {
+        console.error("Erro no fallback de parsePrescription:", fallbackError);
       }
-    },
-);
+    }
 
+    if (!parsed || !parsed.lembretes) {
+      return {
+        lembretes: [],
+        erro:
+          "Não foi possível estruturar os dados da receita " +
+          "médica. Verifique a nitidez da foto e tente novamente.",
+      };
+    }
+
+    const sanitizedLembretes = (parsed.lembretes || [])
+        .slice(0, 20)
+        .map((l) => ({
+          titulo: String(l.titulo || "").slice(0, 200),
+          horarioHour:
+          typeof l.horarioHour === "number" ?
+            Math.min(23, Math.max(0, l.horarioHour)) :
+            0,
+          horarioMinute:
+          typeof l.horarioMinute === "number" ?
+            Math.min(59, Math.max(0, l.horarioMinute)) :
+            0,
+          categoria: "medicacao",
+          observacoes: String(l.observacoes || "").slice(0, 500),
+          dosagem: String(l.dosagem || "").slice(0, 100),
+        }));
+
+    return {
+      lembretes: sanitizedLembretes,
+      erro: "",
+    };
+  } catch (error) {
+    console.error("parsePrescription error:", error);
+    return {
+      lembretes: [],
+      erro: "Erro ao processar receita médica. Tente novamente.",
+    };
+  }
+});
 
 // =============================================================================
 // VOICE REMINDER PARSER
 // =============================================================================
 
 const voiceReminderPrompt =
-    "Voce e um assistente especializado em extrair lembretes a partir " +
-    "de transcricoes de fala em portugues brasileiro.\n" +
-    "Analise a transcricao fornecida e identifique o titulo do lembrete, " +
-    "o horario (hora e minuto) e a categoria correspondente.\n\n" +
-    "Categorias disponiveis:\n" +
-    "- \"medicacao\": para remedios, comprimidos, injecoes, colirios, " +
-    "etc.\n" +
-    "- \"refeicoes\": para cafe da manha, almoco, jantar, lanche, " +
-    "comer, etc.\n" +
-    "- \"exercicio\": para caminhada, alongamento, ginastica, " +
-    "pilates, etc.\n" +
-    "- \"hidratacao\": para beber agua, hidratacao, etc.\n" +
-    "- \"personalizado\": qualquer outro tipo de tarefa.\n\n" +
-    "Regras importantes:\n" +
-    "1. Extraia o horario. Se nao for mencionado nenhum horario ou " +
-    "periodo que permita deduzir o horario, retorne \"sucesso\": false.\n" +
-    "2. Limpe o titulo: remova preposicoes de tempo (como \"as\", " +
-    "\"as X horas\", \"da manha\", \"da noite\", \"da tarde\") e " +
-    "verbos auxiliares de forma que o titulo fique direto e claro " +
-    "(ex: de \"lembrar de tomar o remedio\" para \"Tomar o remedio\").\n" +
-    "3. Detecte periodos: se disser \"tarde\" ou \"noite\", ajuste a " +
-    "hora para o formato 24h (ex: \"8 da noite\" -> hora: 20, " +
-    "minuto: 0; \"meio-dia\" -> hora: 12, minuto: 0; " +
-    "\"meia-noite\" -> hora: 0, minuto: 0).\n" +
-    "4. Retorne \"sucesso\": true apenas se conseguir identificar " +
-    "o titulo (mesmo que simplificado) e um horario.";
+  "Voce e um assistente especializado em extrair lembretes a partir " +
+  "de transcricoes de fala em portugues brasileiro.\n" +
+  "Analise a transcricao fornecida e identifique o titulo do lembrete, " +
+  "o horario (hora e minuto) e a categoria correspondente.\n\n" +
+  "Categorias disponiveis:\n" +
+  "- \"medicacao\": para remedios, comprimidos, injecoes, colirios, " +
+  "etc.\n" +
+  "- \"refeicoes\": para cafe da manha, almoco, jantar, lanche, " +
+  "comer, etc.\n" +
+  "- \"exercicio\": para caminhada, alongamento, ginastica, " +
+  "pilates, etc.\n" +
+  "- \"hidratacao\": para beber agua, hidratacao, etc.\n" +
+  "- \"personalizado\": qualquer outro tipo de tarefa.\n\n" +
+  "Regras importantes:\n" +
+  "1. Extraia o horario. Se nao for mencionado nenhum horario ou " +
+  "periodo que permita deduzir o horario, retorne \"sucesso\": false.\n" +
+  "2. Limpe o titulo: remova preposicoes de tempo (como \"as\", " +
+  "\"as X horas\", \"da manha\", \"da noite\", \"da tarde\") e " +
+  "verbos auxiliares de forma que o titulo fique direto e claro " +
+  "(ex: de \"lembrar de tomar o remedio\" para \"Tomar o remedio\").\n" +
+  "3. Detecte periodos: se disser \"tarde\" ou \"noite\", ajuste a " +
+  "hora para o formato 24h (ex: \"8 da noite\" -> hora: 20, " +
+  "minuto: 0; \"meio-dia\" -> hora: 12, minuto: 0; " +
+  "\"meia-noite\" -> hora: 0, minuto: 0).\n" +
+  "4. Retorne \"sucesso\": true apenas se conseguir identificar " +
+  "o titulo (mesmo que simplificado) e um horario.";
 
-exports.parseVoiceReminder = onCall(
-    GEMINI_CALL_OPTIONS,
-    async (request) => {
-      const uid = requireAuth(request);
-      await checkRateLimit(uid, "parseVoiceReminder");
+exports.parseVoiceReminder = onCall(GEMINI_CALL_OPTIONS, async (request) => {
+  const uid = requireAuth(request);
+  await checkRateLimit(uid, "parseVoiceReminder");
 
-      const {text} = request.data;
-      const validatedText = validateString(text, "text", 2000);
+  const {text} = request.data;
+  const validatedText = validateString(text, "text", 2000);
 
-      try {
-        const model = createGeminiModel("gemini-flash-lite-latest", {
-          generationConfig: {
-            temperature: 0.1,
-            maxOutputTokens: 1024,
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: "object",
-              properties: {
-                titulo: {type: "string"},
-                horarioHour: {type: "integer"},
-                horarioMinute: {type: "integer"},
-                categoria: {
-                  type: "string",
-                  enum: [
-                    "medicacao",
-                    "refeicoes",
-                    "exercicio",
-                    "hidratacao",
-                    "personalizado",
-                  ],
-                },
-                sucesso: {type: "boolean"},
-              },
-              required: [
-                "titulo",
-                "horarioHour",
-                "horarioMinute",
-                "categoria",
-                "sucesso",
+  try {
+    const model = createGeminiModel("gemini-flash-lite-latest", {
+      generationConfig: {
+        temperature: 0.1,
+        maxOutputTokens: 1024,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "object",
+          properties: {
+            titulo: {type: "string"},
+            horarioHour: {type: "integer"},
+            horarioMinute: {type: "integer"},
+            categoria: {
+              type: "string",
+              enum: [
+                "medicacao",
+                "refeicoes",
+                "exercicio",
+                "hidratacao",
+                "personalizado",
               ],
             },
+            sucesso: {type: "boolean"},
           },
-        });
+          required: [
+            "titulo",
+            "horarioHour",
+            "horarioMinute",
+            "categoria",
+            "sucesso",
+          ],
+        },
+      },
+    });
 
-        const result = await model.generateContent([
-          {text: voiceReminderPrompt},
-          {text: `Analise a transcricao a seguir:\n"${validatedText}"`},
-        ]);
-        const responseText = result.response.text();
+    const result = await model.generateContent([
+      {text: voiceReminderPrompt},
+      {text: `Analise a transcricao a seguir:\n"${validatedText}"`},
+    ]);
+    const responseText = result.response.text();
 
-        let parsed;
-        try {
-          parsed = JSON.parse(cleanJsonResponse(responseText));
-        } catch (e) {
-          console.error(
-              "Erro ao analisar JSON retornado:",
-              e,
-              "Resposta:",
-              responseText,
-          );
-          return {
-            titulo: "",
-            horarioHour: 0,
-            horarioMinute: 0,
-            categoria: "personalizado",
-            sucesso: false,
-            erro: "Falha ao processar resposta do modelo.",
-          };
-        }
+    let parsed;
+    try {
+      parsed = JSON.parse(cleanJsonResponse(responseText));
+    } catch (e) {
+      console.error(
+          "Erro ao analisar JSON retornado:",
+          e,
+          "Resposta:",
+          responseText,
+      );
+      return {
+        titulo: "",
+        horarioHour: 0,
+        horarioMinute: 0,
+        categoria: "personalizado",
+        sucesso: false,
+        erro: "Falha ao processar resposta do modelo.",
+      };
+    }
 
-        return {
-          titulo: String(parsed.titulo || "").slice(0, 200),
-          horarioHour: typeof parsed.horarioHour === "number" ?
-              Math.min(23, Math.max(0, parsed.horarioHour)) : 0,
-          horarioMinute: typeof parsed.horarioMinute === "number" ?
-              Math.min(59, Math.max(0, parsed.horarioMinute)) : 0,
-          categoria: parsed.categoria || "personalizado",
-          sucesso: !!parsed.sucesso,
-          erro: "",
-        };
-      } catch (error) {
-        console.error("parseVoiceReminder error:", error);
-        return {
-          titulo: "",
-          horarioHour: 0,
-          horarioMinute: 0,
-          categoria: "personalizado",
-          sucesso: false,
-          erro: "Erro ao processar voz com o assistente.",
-        };
-      }
-    },
-);
-
+    return {
+      titulo: String(parsed.titulo || "").slice(0, 200),
+      horarioHour:
+        typeof parsed.horarioHour === "number" ?
+          Math.min(23, Math.max(0, parsed.horarioHour)) :
+          0,
+      horarioMinute:
+        typeof parsed.horarioMinute === "number" ?
+          Math.min(59, Math.max(0, parsed.horarioMinute)) :
+          0,
+      categoria: parsed.categoria || "personalizado",
+      sucesso: !!parsed.sucesso,
+      erro: "",
+    };
+  } catch (error) {
+    console.error("parseVoiceReminder error:", error);
+    return {
+      titulo: "",
+      horarioHour: 0,
+      horarioMinute: 0,
+      categoria: "personalizado",
+      sucesso: false,
+      erro: "Erro ao processar voz com o assistente.",
+    };
+  }
+});
 
 // =============================================================================
 // PUSH NOTIFICATION
@@ -1696,10 +1600,15 @@ exports.sendPush = onCall(BASE_CALL_OPTIONS, async (request) => {
   await checkRateLimit(uid, "sendPush");
 
   const input = request.data || {};
-  const validatedTargetUserId =
-    validateFirestoreId(input.targetUserId, "targetUserId");
-  const validatedRole =
-    validateString(input.targetRole, "targetRole", 20).toLowerCase();
+  const validatedTargetUserId = validateFirestoreId(
+      input.targetUserId,
+      "targetUserId",
+  );
+  const validatedRole = validateString(
+      input.targetRole,
+      "targetRole",
+      20,
+  ).toLowerCase();
 
   if (!["elderly", "supervisor"].includes(validatedRole)) {
     throw new HttpsError(
@@ -1728,16 +1637,19 @@ exports.sendPush = onCall(BASE_CALL_OPTIONS, async (request) => {
         input.data,
     );
     const docId = `${validatedRole}_${validatedTargetUserId}`;
-    const tokenDoc = await admin.firestore()
+    const tokenDoc = await admin
+        .firestore()
         .collection("fcm_tokens")
         .doc(docId)
         .get();
 
     const tokenData = tokenDoc.data() || {};
-    if (!tokenDoc.exists ||
-        !tokenData.token ||
-        tokenData.role !== validatedRole ||
-        tokenData.userId !== validatedTargetUserId) {
+    if (
+      !tokenDoc.exists ||
+      !tokenData.token ||
+      tokenData.role !== validatedRole ||
+      tokenData.userId !== validatedTargetUserId
+    ) {
       return {success: false, reason: "token_nao_encontrado"};
     }
 
@@ -1762,10 +1674,12 @@ exports.sendPush = onCall(BASE_CALL_OPTIONS, async (request) => {
             "sound": "default",
             "badge": 1,
             "content-available": 1,
-            "alert": isIncomingCall ? {
-              title: event.title,
-              body: event.body,
-            } : undefined,
+            "alert": isIncomingCall ?
+              {
+                title: event.title,
+                body: event.body,
+              } :
+              undefined,
           },
         },
       },
@@ -1804,137 +1718,154 @@ const BARCODE_SCHEMA = {
   required: ["nome", "dosagem", "forma", "cor"],
 };
 
-exports.lookupBarcode = onCall(
-    GEMINI_CALL_OPTIONS,
-    async (request) => {
-      const uid = requireAuth(request);
-      await checkRateLimit(uid, "lookupBarcode");
+exports.lookupBarcode = onCall(GEMINI_CALL_OPTIONS, async (request) => {
+  const uid = requireAuth(request);
+  await checkRateLimit(uid, "lookupBarcode");
 
-      const {barcode} = request.data;
-      if (!barcode ||
-          typeof barcode !== "string" ||
-          barcode.trim().length === 0) {
-        return {
-          nome: "", dosagem: "", forma: "", cor: "",
-          erro: "Código de barras inválido.",
-        };
-      }
+  const {barcode} = request.data;
+  if (!barcode || typeof barcode !== "string" || barcode.trim().length === 0) {
+    return {
+      nome: "",
+      dosagem: "",
+      forma: "",
+      cor: "",
+      erro: "Código de barras inválido.",
+    };
+  }
 
-      const cleanBarcode = barcode.trim();
+  const cleanBarcode = barcode.trim();
 
-      // 1. Try Firestore cache first
-      try {
-        const cached = await admin.firestore()
-            .collection("medicamentos_barcode")
-            .doc(cleanBarcode)
-            .get();
-        if (cached.exists) {
-          const data = cached.data();
-          return {
-            nome: String(data.nome || "").slice(0, 200),
-            dosagem: String(data.dosagem || "").slice(0, 100),
-            forma: String(data.forma || "").slice(0, 100),
-            cor: String(data.cor || "").slice(0, 100),
-            erro: "",
-          };
-        }
-      } catch (e) {
-        console.error("Firestore lookup error:", e);
-      }
+  // 1. Try Firestore cache first
+  try {
+    const cached = await admin
+        .firestore()
+        .collection("medicamentos_barcode")
+        .doc(cleanBarcode)
+        .get();
+    if (cached.exists) {
+      const data = cached.data();
+      return {
+        nome: String(data.nome || "").slice(0, 200),
+        dosagem: String(data.dosagem || "").slice(0, 100),
+        forma: String(data.forma || "").slice(0, 100),
+        cor: String(data.cor || "").slice(0, 100),
+        erro: "",
+      };
+    }
+  } catch (e) {
+    console.error("Firestore lookup error:", e);
+  }
 
-      // 2. Try Gemini to identify by barcode using Google Search grounding
-      try {
-        const searchModel = createGeminiModel("gemini-flash-lite-latest", {
-          tools: [{googleSearch: {}}],
-        });
+  // 2. Try Gemini to identify by barcode using Google Search grounding
+  try {
+    const searchModel = createGeminiModel("gemini-flash-lite-latest", {
+      tools: [{googleSearch: {}}],
+    });
 
-        const searchPrompt =
-          "Pesquise no Google qual é o medicamento ou produto de saúde " +
-          "registrado no Brasil para o código de barras EAN-13 " +
-          "'" + cleanBarcode + "'. Priorize sites como ANVISA, bulas " +
-          "e farmácias confiáveis. Retorne nome, dosagem, forma e cor.";
+    const searchPrompt =
+      "Pesquise no Google qual é o medicamento ou produto de saúde " +
+      "registrado no Brasil para o código de barras EAN-13 " +
+      "'" +
+      cleanBarcode +
+      "'. Priorize sites como ANVISA, bulas " +
+      "e farmácias confiáveis. Retorne nome, dosagem, forma e cor.";
 
-        const searchResult =
-            await searchModel.generateContent([{text: searchPrompt}]);
-        const searchText = searchResult.response.text();
+    const searchResult = await searchModel.generateContent([
+      {text: searchPrompt},
+    ]);
+    const searchText = searchResult.response.text();
 
-        const parserModel = createGeminiModel("gemini-flash-lite-latest", {
-          generationConfig: {
-            temperature: 0.1,
-            responseMimeType: "application/json",
-            responseSchema: BARCODE_SCHEMA,
-          },
-        });
+    const parserModel = createGeminiModel("gemini-flash-lite-latest", {
+      generationConfig: {
+        temperature: 0.1,
+        responseMimeType: "application/json",
+        responseSchema: BARCODE_SCHEMA,
+      },
+    });
 
-        const parsePrompt =
-          "Extraia os dados clínicos e farmacêuticos do texto abaixo " +
-          "sobre o produto do código de barras " + cleanBarcode + ":\n\n" +
-          searchText + "\n\n" +
-          "REGRAS: Ignore totalmente preços, valores R$, promoções, " +
-          "frete grátis, descontos e nomes de lojas. Responda em JSON.";
+    const parsePrompt =
+      "Extraia os dados clínicos e farmacêuticos do texto abaixo " +
+      "sobre o produto do código de barras " +
+      cleanBarcode +
+      ":\n\n" +
+      searchText +
+      "\n\n" +
+      "REGRAS: Ignore totalmente preços, valores R$, promoções, " +
+      "frete grátis, descontos e nomes de lojas. Responda em JSON.";
 
-        const result = await parserModel.generateContent([{text: parsePrompt}]);
-        const responseText = result.response.text();
+    const result = await parserModel.generateContent([{text: parsePrompt}]);
+    const responseText = result.response.text();
 
-        let parsed;
-        try {
-          parsed = JSON.parse(cleanJsonResponse(responseText));
-        } catch (e) {
-          console.error(
-              "Erro ao analisar JSON de barcode:", e,
-              "Resposta:", responseText,
-          );
-          return {
-            nome: "", dosagem: "", forma: "", cor: "",
-            erro: "Código de barras não reconhecido.",
-          };
-        }
+    let parsed;
+    try {
+      parsed = JSON.parse(cleanJsonResponse(responseText));
+    } catch (e) {
+      console.error(
+          "Erro ao analisar JSON de barcode:",
+          e,
+          "Resposta:",
+          responseText,
+      );
+      return {
+        nome: "",
+        dosagem: "",
+        forma: "",
+        cor: "",
+        erro: "Código de barras não reconhecido.",
+      };
+    }
 
-        const nome = String(parsed.nome || "").trim();
-        if (!nome) {
-          return {
-            nome: "", dosagem: "", forma: "", cor: "",
-            erro: "Medicamento não encontrado para este código de barras.",
-          };
-        }
+    const nome = String(parsed.nome || "").trim();
+    if (!nome) {
+      return {
+        nome: "",
+        dosagem: "",
+        forma: "",
+        cor: "",
+        erro: "Medicamento não encontrado para este código de barras.",
+      };
+    }
 
-        const dosagem = String(parsed.dosagem || "").trim();
-        const forma = String(parsed.forma || "").trim();
-        const cor = String(parsed.cor || "").trim();
+    const dosagem = String(parsed.dosagem || "").trim();
+    const forma = String(parsed.forma || "").trim();
+    const cor = String(parsed.cor || "").trim();
 
-        // Cache in Firestore for future lookups
-        try {
-          await admin.firestore()
-              .collection("medicamentos_barcode")
-              .doc(cleanBarcode)
-              .set({
-                nome,
-                dosagem,
-                forma,
-                cor,
-                consultadoEm: admin.firestore.FieldValue.serverTimestamp(),
-                consultadoPor: uid,
-              });
-        } catch (e) {
-          console.error("Erro ao salvar cache de barcode:", e);
-        }
+    // Cache in Firestore for future lookups
+    try {
+      await admin
+          .firestore()
+          .collection("medicamentos_barcode")
+          .doc(cleanBarcode)
+          .set({
+            nome,
+            dosagem,
+            forma,
+            cor,
+            consultadoEm: admin.firestore.FieldValue.serverTimestamp(),
+            consultadoPor: uid,
+          });
+    } catch (e) {
+      console.error("Erro ao salvar cache de barcode:", e);
+    }
 
-        return {
-          nome: nome.slice(0, 200),
-          dosagem: dosagem.slice(0, 100),
-          forma: forma.slice(0, 100),
-          cor: cor.slice(0, 100),
-          erro: "",
-        };
-      } catch (error) {
-        console.error("lookupBarcode error:", error);
-        return {
-          nome: "", dosagem: "", forma: "", cor: "",
-          erro: "Erro ao consultar código de barras.",
-        };
-      }
-    },
-);
+    return {
+      nome: nome.slice(0, 200),
+      dosagem: dosagem.slice(0, 100),
+      forma: forma.slice(0, 100),
+      cor: cor.slice(0, 100),
+      erro: "",
+    };
+  } catch (error) {
+    console.error("lookupBarcode error:", error);
+    return {
+      nome: "",
+      dosagem: "",
+      forma: "",
+      cor: "",
+      erro: "Erro ao consultar código de barras.",
+    };
+  }
+});
 
 const ANALYSIS_SCHEMA = {
   type: "object",
@@ -1956,135 +1887,144 @@ const ANALYSIS_SCHEMA = {
   ],
 };
 
-exports.analyzeMedication = onCall(
-    GEMINI_CALL_OPTIONS,
-    async (request) => {
-      const uid = requireAuth(request);
-      await checkRateLimit(uid, "analyzeMedication");
+exports.analyzeMedication = onCall(GEMINI_CALL_OPTIONS, async (request) => {
+  const uid = requireAuth(request);
+  await checkRateLimit(uid, "analyzeMedication");
 
-      const {
-        newMedication,
-        newMedicationTime,
-        existingMedications,
-      } = request.data;
+  const {newMedication, newMedicationTime, existingMedications} =
+    request.data;
 
-      if (!newMedication) {
-        return {
-          guidelines: "",
-          suggestedAudioText: "",
-          hasInteraction: false,
-          severity: "none",
-          interactionWarning: "",
-          schedulingConflictWarning: "",
-        };
-      }
+  if (!newMedication) {
+    return {
+      guidelines: "",
+      suggestedAudioText: "",
+      hasInteraction: false,
+      severity: "none",
+      interactionWarning: "",
+      schedulingConflictWarning: "",
+    };
+  }
 
-      const cleanNew = String(newMedication).trim().slice(0, 200);
-      const cleanTime = String(newMedicationTime || "").trim().slice(0, 10);
-      const cleanExisting = Array.isArray(existingMedications) ?
-          existingMedications.slice(0, 30).map((m) => ({
-            titulo: String(m.titulo || "").trim().slice(0, 200),
-            horario: String(m.horario || "").trim().slice(0, 10),
-          })).filter((m) => m.titulo.length > 0) : [];
+  const cleanNew = String(newMedication).trim().slice(0, 200);
+  const cleanTime = String(newMedicationTime || "")
+      .trim()
+      .slice(0, 10);
+  const cleanExisting = Array.isArray(existingMedications) ?
+    existingMedications
+        .slice(0, 30)
+        .map((m) => ({
+          titulo: String(m.titulo || "")
+              .trim()
+              .slice(0, 200),
+          horario: String(m.horario || "")
+              .trim()
+              .slice(0, 10),
+        }))
+        .filter((m) => m.titulo.length > 0) :
+    [];
 
-      try {
-        const model = createGeminiModel("gemini-flash-lite-latest", {
-          generationConfig: {
-            temperature: 0.2,
-            responseMimeType: "application/json",
-            responseSchema: ANALYSIS_SCHEMA,
-          },
-        });
+  try {
+    const model = createGeminiModel("gemini-flash-lite-latest", {
+      generationConfig: {
+        temperature: 0.2,
+        responseMimeType: "application/json",
+        responseSchema: ANALYSIS_SCHEMA,
+      },
+    });
 
-        let prompt =
-          "Você é um farmacologista clínico especializado em geriatria " +
-          "brasileira.\n" +
-          "Analise o novo medicamento '" + cleanNew + "' agendado para às " +
-          cleanTime + ".\n\n";
+    let prompt =
+      "Você é um farmacologista clínico especializado em geriatria " +
+      "brasileira.\n" +
+      "Analise o novo medicamento '" +
+      cleanNew +
+      "' agendado para às " +
+      cleanTime +
+      ".\n\n";
 
-        if (cleanExisting.length > 0) {
-          prompt += "O paciente já toma os seguintes medicamentos:\n" +
-            cleanExisting.map((e) => `- ${e.titulo} às ${e.horario}`)
-                .join("\n") + "\n\n";
-        } else {
-          prompt += "O paciente não toma outros medicamentos cadastrados " +
-            "no momento.\n\n";
-        }
+    if (cleanExisting.length > 0) {
+      prompt +=
+        "O paciente já toma os seguintes medicamentos:\n" +
+        cleanExisting.map((e) => `- ${e.titulo} às ${e.horario}`).join("\n") +
+        "\n\n";
+    } else {
+      prompt +=
+        "O paciente não toma outros medicamentos cadastrados " +
+        "no momento.\n\n";
+    }
 
-        prompt +=
-          "Por favor, realize a seguinte análise clínica e preencha o " +
-          "JSON de resposta:\n" +
-          "1. 'guidelines': Forneça instruções de administração curtas e " +
-          "diretas em português (ex: 'Tomar em jejum com água', 'Não tomar " +
-          "com leite').\n" +
-          "2. 'suggestedAudioText': Crie uma fala curta e acolhedora em " +
-          "português voltada para o idoso tomar o remédio (ex: 'Olá! Está " +
-          "na hora de tomar seu Paracetamol. Beba um copo de água.'). Use " +
-          "frases curtas, palavras simples e sem termos técnicos. Não fale " +
-          "bula, interação, orientação informativa, médico ou farmacêutico " +
-          "nesse áudio; se houver dúvida, diga para pedir ajuda ao " +
-          "ajudante.\n" +
-          "3. 'hasInteraction' e 'severity' ('none', 'moderate', 'severe') " +
-          "e 'interactionWarning': Analise se há interações graves ou " +
-          "moderadas entre o novo medicamento e os existentes.\n" +
-          "4. 'schedulingConflictWarning': Analise se agendar o novo " +
-          "medicamento às " + cleanTime + " causa polimedicação excessiva " +
-          "(ex: mais de 3 medicamentos no mesmo horário) ou se há " +
-          "interações/recomendações sobre tomar esses remédios juntos " +
-          "na mesma hora, sugerindo espaçamento de horários se " +
-          "necessário (caso contrário, deixe em branco).";
+    prompt +=
+      "Por favor, realize a seguinte análise clínica e preencha o " +
+      "JSON de resposta:\n" +
+      "1. 'guidelines': Forneça instruções de administração curtas e " +
+      "diretas em português (ex: 'Tomar em jejum com água', 'Não tomar " +
+      "com leite').\n" +
+      "2. 'suggestedAudioText': Crie uma fala curta e acolhedora em " +
+      "português voltada para o idoso tomar o remédio (ex: 'Olá! Está " +
+      "na hora de tomar seu Paracetamol. Beba um copo de água.'). Use " +
+      "frases curtas, palavras simples e sem termos técnicos. Não fale " +
+      "bula, interação, orientação informativa, médico ou farmacêutico " +
+      "nesse áudio; se houver dúvida, diga para pedir ajuda ao " +
+      "ajudante.\n" +
+      "3. 'hasInteraction' e 'severity' ('none', 'moderate', 'severe') " +
+      "e 'interactionWarning': Analise se há interações graves ou " +
+      "moderadas entre o novo medicamento e os existentes.\n" +
+      "4. 'schedulingConflictWarning': Analise se agendar o novo " +
+      "medicamento às " +
+      cleanTime +
+      " causa polimedicação excessiva " +
+      "(ex: mais de 3 medicamentos no mesmo horário) ou se há " +
+      "interações/recomendações sobre tomar esses remédios juntos " +
+      "na mesma hora, sugerindo espaçamento de horários se " +
+      "necessário (caso contrário, deixe em branco).";
 
-        const result = await model.generateContent([{text: prompt}]);
-        const responseText = result.response.text();
+    const result = await model.generateContent([{text: prompt}]);
+    const responseText = result.response.text();
 
-        let parsed;
-        try {
-          parsed = JSON.parse(cleanJsonResponse(responseText));
-        } catch (e) {
-          console.error("Erro ao analisar JSON de analise:", e);
-          return {
-            guidelines: "",
-            suggestedAudioText: "",
-            hasInteraction: false,
-            severity: "none",
-            interactionWarning: "",
-            schedulingConflictWarning: "",
-          };
-        }
+    let parsed;
+    try {
+      parsed = JSON.parse(cleanJsonResponse(responseText));
+    } catch (e) {
+      console.error("Erro ao analisar JSON de analise:", e);
+      return {
+        guidelines: "",
+        suggestedAudioText: "",
+        hasInteraction: false,
+        severity: "none",
+        interactionWarning: "",
+        schedulingConflictWarning: "",
+      };
+    }
 
-        const audioTxt = String(parsed.suggestedAudioText || "")
-            .slice(0, 1000);
-        const interactWarn = String(parsed.interactionWarning || "")
-            .slice(0, 1000);
+    const audioTxt = String(parsed.suggestedAudioText || "").slice(0, 1000);
+    const interactWarn = String(parsed.interactionWarning || "").slice(0, 1000);
 
-        return {
-          guidelines: appendMedicalDisclaimer(parsed.guidelines).slice(0, 900),
-          suggestedAudioText:
-              appendElderlyAudioSafetyNote(audioTxt).slice(0, 800),
-          hasInteraction: !!parsed.hasInteraction,
-          severity: String(parsed.severity || "none").slice(0, 50),
-          interactionWarning: parsed.hasInteraction ?
-              appendMedicalDisclaimer(interactWarn).slice(0, 1400) :
-              interactWarn,
-          schedulingConflictWarning:
-              parsed.schedulingConflictWarning ?
-                  appendMedicalDisclaimer(parsed.schedulingConflictWarning)
-                      .slice(0, 1400) :
-                  "",
-        };
-      } catch (error) {
-        console.error("analyzeMedication error:", error);
-        return {
-          guidelines: "",
-          suggestedAudioText: "",
-          hasInteraction: false,
-          severity: "none",
-          interactionWarning: "",
-          schedulingConflictWarning: "",
-        };
-      }
-    },
-);
+    return {
+      guidelines: appendMedicalDisclaimer(parsed.guidelines).slice(0, 900),
+      suggestedAudioText: appendElderlyAudioSafetyNote(audioTxt).slice(0, 800),
+      hasInteraction: !!parsed.hasInteraction,
+      severity: String(parsed.severity || "none").slice(0, 50),
+      interactionWarning: parsed.hasInteraction ?
+        appendMedicalDisclaimer(interactWarn).slice(0, 1400) :
+        interactWarn,
+      schedulingConflictWarning: parsed.schedulingConflictWarning ?
+        appendMedicalDisclaimer(parsed.schedulingConflictWarning).slice(
+            0,
+            1400,
+        ) :
+        "",
+    };
+  } catch (error) {
+    console.error("analyzeMedication error:", error);
+    return {
+      guidelines: "",
+      suggestedAudioText: "",
+      hasInteraction: false,
+      severity: "none",
+      interactionWarning: "",
+      schedulingConflictWarning: "",
+    };
+  }
+});
 
 const FAQ_SCHEMA = {
   type: "object",
@@ -2094,59 +2034,59 @@ const FAQ_SCHEMA = {
   required: ["answer"],
 };
 
-exports.queryMedicationFAQ = onCall(
-    GEMINI_CALL_OPTIONS,
-    async (request) => {
-      const uid = requireAuth(request);
-      await checkRateLimit(uid, "queryMedicationFAQ");
+exports.queryMedicationFAQ = onCall(GEMINI_CALL_OPTIONS, async (request) => {
+  const uid = requireAuth(request);
+  await checkRateLimit(uid, "queryMedicationFAQ");
 
-      const {medicationName, question} = request.data;
-      if (!medicationName || !question) {
-        return {answer: "Nome do remédio e pergunta são obrigatórios."};
-      }
+  const {medicationName, question} = request.data;
+  if (!medicationName || !question) {
+    return {answer: "Nome do remédio e pergunta são obrigatórios."};
+  }
 
-      const cleanName = String(medicationName).trim().slice(0, 200);
-      const cleanQuestion = String(question).trim().slice(0, 500);
+  const cleanName = String(medicationName).trim().slice(0, 200);
+  const cleanQuestion = String(question).trim().slice(0, 500);
 
-      try {
-        const model = createGeminiModel("gemini-flash-lite-latest", {
-          generationConfig: {
-            temperature: 0.3,
-            responseMimeType: "application/json",
-            responseSchema: FAQ_SCHEMA,
-          },
-        });
+  try {
+    const model = createGeminiModel("gemini-flash-lite-latest", {
+      generationConfig: {
+        temperature: 0.3,
+        responseMimeType: "application/json",
+        responseSchema: FAQ_SCHEMA,
+      },
+    });
 
-        const prompt =
-          "Você é um farmacêutico clínico especialista em bulas de " +
-          "medicamentos do mercado brasileiro.\n" +
-          "Responda à seguinte dúvida sobre o medicamento '" + cleanName +
-          "':\n" +
-          "Dúvida: '" + cleanQuestion + "'\n\n" +
-          "Instruções:\n" +
-          "1. Forneça uma resposta precisa, segura, acolhedora e baseada na " +
-          "bula oficial do medicamento.\n" +
-          "2. Seja claro e direto, ideal para leigos e cuidadores.\n" +
-          "3. Sempre adicione um aviso ao final de que a resposta não " +
-          "substitui a consulta ao médico ou farmacêutico.";
+    const prompt =
+      "Você é um farmacêutico clínico especialista em bulas de " +
+      "medicamentos do mercado brasileiro.\n" +
+      "Responda à seguinte dúvida sobre o medicamento '" +
+      cleanName +
+      "':\n" +
+      "Dúvida: '" +
+      cleanQuestion +
+      "'\n\n" +
+      "Instruções:\n" +
+      "1. Forneça uma resposta precisa, segura, acolhedora e baseada na " +
+      "bula oficial do medicamento.\n" +
+      "2. Seja claro e direto, ideal para leigos e cuidadores.\n" +
+      "3. Sempre adicione um aviso ao final de que a resposta não " +
+      "substitui a consulta ao médico ou farmacêutico.";
 
-        const result = await model.generateContent([{text: prompt}]);
-        const responseText = result.response.text();
+    const result = await model.generateContent([{text: prompt}]);
+    const responseText = result.response.text();
 
-        let parsed;
-        try {
-          parsed = JSON.parse(cleanJsonResponse(responseText));
-        } catch (e) {
-          console.error("Erro ao analisar JSON de FAQ:", e);
-          return {answer: "Não foi possível obter a resposta no momento."};
-        }
+    let parsed;
+    try {
+      parsed = JSON.parse(cleanJsonResponse(responseText));
+    } catch (e) {
+      console.error("Erro ao analisar JSON de FAQ:", e);
+      return {answer: "Não foi possível obter a resposta no momento."};
+    }
 
-        return {
-          answer: appendMedicalDisclaimer(parsed.answer).slice(0, 2400),
-        };
-      } catch (error) {
-        console.error("queryMedicationFAQ error:", error);
-        return {answer: "Erro ao consultar a bula digital."};
-      }
-    },
-);
+    return {
+      answer: appendMedicalDisclaimer(parsed.answer).slice(0, 2400),
+    };
+  } catch (error) {
+    console.error("queryMedicationFAQ error:", error);
+    return {answer: "Erro ao consultar a bula digital."};
+  }
+});

@@ -1004,6 +1004,66 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                                 SizedBox(
                                   width: double.infinity,
                                   height: 64,
+                                  child: ElevatedButton.icon(
+                                    onPressed: () {
+                                      TTSService.instance.parar(caller: this);
+                                      Navigator.pushNamed(context, '/wellbeing');
+                                    },
+                                    icon: const Icon(Icons.mood, size: 28),
+                                    label: const Text(
+                                      'COMO ESTOU HOJE',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFFD9F3E4),
+                                      foregroundColor: const Color(0xFF145A32),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 64,
+                                  child: ElevatedButton.icon(
+                                    onPressed: () {
+                                      TTSService.instance.parar(caller: this);
+                                      Navigator.pushNamed(
+                                        context,
+                                        '/emergency-card',
+                                      );
+                                    },
+                                    icon: const Icon(
+                                      Icons.health_and_safety,
+                                      size: 28,
+                                    ),
+                                    label: const Text(
+                                      'CARTÃO DE EMERGÊNCIA',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFFFFE0DC),
+                                      foregroundColor: const Color(0xFF8C1D18),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 64,
                                   child: ElevatedButton(
                                     onPressed: () async {
                                       TTSService.instance.parar(caller: this);

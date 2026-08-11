@@ -36,6 +36,26 @@ class SessionRoleService {
       idosoId == 'idoso_local' ||
       idosoId == 'idoso_simulado';
 
+  static List<String> caregiverIdsFromProfile(Map<String, dynamic>? data) {
+    if (data == null) return const [];
+    final ids = <String>{
+      ...((data['caregiverIds'] as List?) ?? const [])
+          .whereType<String>()
+          .where((id) => id.isNotEmpty),
+      if (data['supervisorId'] is String &&
+          (data['supervisorId'] as String).isNotEmpty)
+        data['supervisorId'] as String,
+    };
+    return ids.take(8).toList();
+  }
+
+  static bool isCaregiverInProfile(
+    Map<String, dynamic>? data,
+    String caregiverId,
+  ) =>
+      data?['status'] == 'active' &&
+      caregiverIdsFromProfile(data).contains(caregiverId);
+
   static Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();
     _activeRole = prefs.getString(_roleKey);
@@ -61,19 +81,27 @@ class SessionRoleService {
             .timeout(const Duration(seconds: 4));
         final cachedData = cachedDoc.data();
         if (cachedDoc.exists &&
-            cachedData?['supervisorId'] == currentUser.uid &&
-            cachedData?['status'] == 'active') {
+            isCaregiverInProfile(cachedData, currentUser.uid)) {
           return true;
         }
         await prefs.remove('selected_idoso_id');
       }
 
-      final snapshot = await FirebaseFirestore.instance
+      var snapshot = await FirebaseFirestore.instance
           .collection('idoso_perfil')
           .where('supervisorId', isEqualTo: currentUser.uid)
           .where('status', isEqualTo: 'active')
           .get()
           .timeout(const Duration(seconds: 5));
+
+      if (snapshot.docs.isEmpty) {
+        snapshot = await FirebaseFirestore.instance
+            .collection('idoso_perfil')
+            .where('caregiverIds', arrayContains: currentUser.uid)
+            .where('status', isEqualTo: 'active')
+            .get()
+            .timeout(const Duration(seconds: 5));
+      }
 
       if (snapshot.docs.isEmpty) return false;
 
@@ -164,9 +192,7 @@ class SessionRoleService {
             .timeout(const Duration(seconds: 4));
         final data = doc.data();
         if (!doc.exists || data == null) return null;
-        final linked =
-            data['supervisorId'] == currentUser.uid &&
-            data['status'] == 'active';
+        final linked = isCaregiverInProfile(data, currentUser.uid);
         return linked ? idosoId : null;
       } catch (e) {
         _lastVerificationFailedByError = true;
@@ -217,7 +243,7 @@ class SessionRoleService {
       try {
         final data = jsonDecode(jsonStr) as Map<String, dynamic>;
         final status = data['status'] as String?;
-        if (status == 'active' && data['supervisorId'] != null) {
+        if (status == 'active' && caregiverIdsFromProfile(data).isNotEmpty) {
           await prefs.setBool('elderly_autonomous_mode', false);
           return true;
         }
@@ -265,7 +291,7 @@ class SessionRoleService {
             final connected =
                 snapshot.exists &&
                 data?['status'] == 'active' &&
-                data?['supervisorId'] != null;
+                caregiverIdsFromProfile(data).isNotEmpty;
             final prefs = await SharedPreferences.getInstance();
             final cachedJson = await SecureCacheService.instance
                 .readElderlyProfile();
@@ -286,6 +312,8 @@ class SessionRoleService {
             }
             if (!connected) {
               cachedProfile['supervisorId'] = null;
+              cachedProfile['caregiverIds'] = <String>[];
+              cachedProfile['caregiverRoles'] = <String, String>{};
             }
             cachedProfile['status'] = connected ? 'active' : 'pending';
             await SecureCacheService.instance.writeElderlyProfile(
@@ -388,9 +416,7 @@ class SessionRoleService {
       final data = doc.data();
       if (data == null) return false;
 
-      final isConnected =
-          data['supervisorId'] == currentUser.uid && data['status'] == 'active';
-      return isConnected;
+      return isCaregiverInProfile(data, currentUser.uid);
     } catch (e) {
       debugPrint('Erro ao verificar conexao do supervisor no Firestore: $e');
       return false;

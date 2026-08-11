@@ -31,8 +31,11 @@ class SmartAlertService {
       await _notifyNewAlerts(detected);
     } catch (e, s) {
       debugPrint('[SmartAlert] Erro ao atualizar alertas: $e');
-      CrashlyticsService.instance.recordError(e, s,
-          reason: 'SmartAlertService.atualizar');
+      CrashlyticsService.instance.recordError(
+        e,
+        s,
+        reason: 'SmartAlertService.atualizar',
+      );
     }
   }
 
@@ -49,6 +52,28 @@ class SmartAlertService {
     for (final lembrete in lembretes) {
       try {
         if (!_isReminderActiveToday(lembrete, now)) continue;
+        final stock = lembrete.medicamentoEstoque;
+        final minimumStock = lembrete.medicamentoEstoqueMinimo;
+        if (lembrete.categoria == LembreteCategoria.medicacao &&
+            stock != null &&
+            minimumStock != null &&
+            stock <= minimumStock) {
+          alerts.add(
+            SmartAlert(
+              key: '${lembrete.id}:stock:$stock',
+              lembreteId: lembrete.id,
+              title: stock == 0 ? 'Medicamento acabou' : 'Estoque baixo',
+              message: stock == 0
+                  ? '${lembrete.titulo} está sem estoque informado.'
+                  : 'Restam $stock unidades de ${lembrete.titulo}.',
+              severity: stock == 0
+                  ? SmartAlertSeverity.critical
+                  : SmartAlertSeverity.warning,
+              createdAt: now,
+              minutesLate: 0,
+            ),
+          );
+        }
         if (lembrete.status.isConcluido) continue;
 
         final scheduled = DateTime(
@@ -83,7 +108,8 @@ class SmartAlertService {
               key: 'needs_help_${lembrete.id}',
               lembreteId: lembrete.id,
               title: 'Idoso pediu ajuda',
-              message: 'O idoso informou que precisa de ajuda com "${lembrete.titulo}".',
+              message:
+                  'O idoso informou que precisa de ajuda com "${lembrete.titulo}".',
               severity: SmartAlertSeverity.critical,
               createdAt: now,
               minutesLate: minutesLate,
@@ -93,7 +119,7 @@ class SmartAlertService {
         }
 
         final threshold = _lateThresholdMinutes(lembrete);
-        if (minutesLate >= threshold) {
+        if (lembrete.avisarCuidador && minutesLate >= threshold) {
           alerts.add(
             _buildLateAlert(lembrete, now: now, minutesLate: minutesLate),
           );
@@ -104,7 +130,9 @@ class SmartAlertService {
           }
         }
       } catch (e) {
-        debugPrint('[SmartAlert] Erro ao processar lembrete ${lembrete.id}: $e');
+        debugPrint(
+          '[SmartAlert] Erro ao processar lembrete ${lembrete.id}: $e',
+        );
       }
     }
 
@@ -117,8 +145,6 @@ class SmartAlertService {
       );
       if (routineAlert != null) alerts.add(routineAlert);
 
-
-
       alerts.sort((a, b) {
         final severityCompare = b.severity.index.compareTo(a.severity.index);
         if (severityCompare != 0) return severityCompare;
@@ -126,8 +152,11 @@ class SmartAlertService {
       });
     } catch (e, s) {
       debugPrint('[SmartAlert] Erro ao construir alertas agregados: $e');
-      CrashlyticsService.instance.recordError(e, s,
-          reason: 'SmartAlertService.detectarAlertas');
+      CrashlyticsService.instance.recordError(
+        e,
+        s,
+        reason: 'SmartAlertService.detectarAlertas',
+      );
     }
 
     return alerts;
@@ -178,8 +207,6 @@ class SmartAlertService {
     return null;
   }
 
-
-
   SmartAlert _buildLateAlert(
     Lembrete lembrete, {
     required DateTime now,
@@ -220,22 +247,17 @@ class SmartAlertService {
     );
   }
 
-  int _lateThresholdMinutes(Lembrete lembrete) {
-    final title = lembrete.titulo.toLowerCase();
-    if (title.contains('insulina')) return 2;
-    if (lembrete.categoria == 'medicacao') return 15;
-    return 30;
-  }
+  int _lateThresholdMinutes(Lembrete lembrete) => lembrete.toleranciaMinutos;
 
   SmartAlertSeverity _severityFor(Lembrete lembrete) {
-    final title = lembrete.titulo.toLowerCase();
-    if (title.contains('insulina')) {
-      return SmartAlertSeverity.critical;
+    switch (lembrete.prioridade) {
+      case LembretePrioridade.critica:
+        return SmartAlertSeverity.critical;
+      case LembretePrioridade.importante:
+        return SmartAlertSeverity.warning;
+      case LembretePrioridade.normal:
+        return SmartAlertSeverity.info;
     }
-    if (lembrete.categoria == 'medicacao') {
-      return SmartAlertSeverity.warning;
-    }
-    return SmartAlertSeverity.info;
   }
 
   bool _isReminderActiveToday(Lembrete lembrete, DateTime now) =>
@@ -270,8 +292,11 @@ class SmartAlertService {
       }
     } catch (e, s) {
       debugPrint('[SmartAlert] Erro ao persistir alertas notificados: $e');
-      CrashlyticsService.instance.recordError(e, s,
-          reason: 'SmartAlertService._notifyNewAlerts');
+      CrashlyticsService.instance.recordError(
+        e,
+        s,
+        reason: 'SmartAlertService._notifyNewAlerts',
+      );
     }
   }
 
@@ -285,6 +310,8 @@ class SmartAlertService {
         return 'Hidratação';
       case 'exercicio':
         return 'Exercício';
+      case 'consulta':
+        return 'Consulta ou exame';
       default:
         return 'Lembrete';
     }

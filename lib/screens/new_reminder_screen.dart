@@ -23,6 +23,19 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
   int _activeStep = 1;
   String? _selectedCategory;
   final _titleController = TextEditingController();
+  final _medicationDoseController = TextEditingController();
+  final _medicationUnitController = TextEditingController();
+  final _medicationStockController = TextEditingController();
+  final _medicationLowStockController = TextEditingController();
+  final _medicationUnitsPerDoseController = TextEditingController();
+  LembretePrioridade _priority = LembretePrioridade.normal;
+  int _toleranceMinutes = 30;
+  int _repeatIntervalMinutes = 5;
+  int _maxReminderRepeats = 2;
+  bool _escalateToCaregiver = true;
+  LembreteModoConfirmacao _confirmationMode = LembreteModoConfirmacao.simples;
+  List<int> _snoozeOptions = [5, 10, 15];
+  int _maxSnoozes = 2;
 
   bool _validateStep1() {
     if (_selectedCategory == null) {
@@ -64,6 +77,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
       }
     }
   }
+
   TimeOfDay? _selectedTime;
   String? _audioPath;
   String? _fotoPath;
@@ -99,6 +113,21 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
       _fotoPath = l.medicamentoFotoPath;
       _medicamentoInstrucoes = l.medicamentoInstrucoes;
       _medicamentoAudioTexto = l.medicamentoAudioTexto;
+      _priority = l.prioridade;
+      _toleranceMinutes = l.toleranciaMinutos;
+      _repeatIntervalMinutes = l.intervaloRepeticaoMinutos;
+      _maxReminderRepeats = l.maximoRepeticoes;
+      _escalateToCaregiver = l.avisarCuidador;
+      _confirmationMode = l.modoConfirmacao;
+      _snoozeOptions = List<int>.from(l.opcoesAdiamentoMinutos);
+      _maxSnoozes = l.maximoAdiamentos;
+      _medicationDoseController.text = l.medicamentoDose ?? '';
+      _medicationUnitController.text = l.medicamentoUnidade ?? '';
+      _medicationStockController.text = l.medicamentoEstoque?.toString() ?? '';
+      _medicationLowStockController.text =
+          l.medicamentoEstoqueMinimo?.toString() ?? '';
+      _medicationUnitsPerDoseController.text =
+          l.medicamentoUnidadesPorDose?.toString() ?? '';
       _gerarAudioIA = l.audioPath == null
           ? null
           : l.audioPath == 'ia_generated';
@@ -108,6 +137,11 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
   @override
   void dispose() {
     _titleController.dispose();
+    _medicationDoseController.dispose();
+    _medicationUnitController.dispose();
+    _medicationStockController.dispose();
+    _medicationLowStockController.dispose();
+    _medicationUnitsPerDoseController.dispose();
     super.dispose();
   }
 
@@ -135,16 +169,30 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
               ),
               const SizedBox(height: 16),
               ListTile(
-                leading: const Icon(Icons.photo_camera, color: AppColors.primary, size: 28),
-                title: const Text('Tirar Foto com a Câmera', style: TextStyle(fontWeight: FontWeight.bold)),
+                leading: const Icon(
+                  Icons.photo_camera,
+                  color: AppColors.primary,
+                  size: 28,
+                ),
+                title: const Text(
+                  'Tirar Foto com a Câmera',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
                 onTap: () {
                   Navigator.pop(ctx);
                   _pickFotoRemedio(ImageSource.camera);
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.photo_library, color: AppColors.primary, size: 28),
-                title: const Text('Escolher da Galeria', style: TextStyle(fontWeight: FontWeight.bold)),
+                leading: const Icon(
+                  Icons.photo_library,
+                  color: AppColors.primary,
+                  size: 28,
+                ),
+                title: const Text(
+                  'Escolher da Galeria',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
                 onTap: () {
                   Navigator.pop(ctx);
                   _pickFotoRemedio(ImageSource.gallery);
@@ -192,7 +240,8 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
 
   Widget _buildMedicationPhotoPreview() {
     final path = _fotoPath!;
-    final image = kIsWeb || path.startsWith('http://') || path.startsWith('https://')
+    final image =
+        kIsWeb || path.startsWith('http://') || path.startsWith('https://')
         ? Image.network(
             path,
             width: 72,
@@ -215,26 +264,31 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
               size: 36,
             ),
           );
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
-      child: image,
-    );
+    return ClipRRect(borderRadius: BorderRadius.circular(8), child: image);
   }
 
   String _getRecurrenceDescription() {
     if (_selectedTime == null) {
       return 'Selecione o horário e os dias.';
     }
-    final timeStr = '${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}';
+    final timeStr =
+        '${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}';
 
     if (_selectedSingleDate != null) {
-      final dateStr = '${_selectedSingleDate!.day.toString().padLeft(2, '0')}/${_selectedSingleDate!.month.toString().padLeft(2, '0')}/${_selectedSingleDate!.year}';
+      final dateStr =
+          '${_selectedSingleDate!.day.toString().padLeft(2, '0')}/${_selectedSingleDate!.month.toString().padLeft(2, '0')}/${_selectedSingleDate!.year}';
       return 'Toca uma única vez em $dateStr às $timeStr.';
     }
 
     if (_selectedDiasSemana.isEmpty) {
       final now = DateTime.now();
-      final reminderTime = DateTime(now.year, now.month, now.day, _selectedTime!.hour, _selectedTime!.minute);
+      final reminderTime = DateTime(
+        now.year,
+        now.month,
+        now.day,
+        _selectedTime!.hour,
+        _selectedTime!.minute,
+      );
       if (reminderTime.isAfter(now)) {
         return 'Toca uma única vez hoje às $timeStr.';
       } else {
@@ -271,6 +325,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
       'refeicoes': 'Refeições',
       'exercicio': 'Exercício',
       'hidratacao': 'Hidratação',
+      'consulta': 'Consulta ou exame',
       'personalizado': 'Personalizado',
     };
     return 'Categoria: ${names[_selectedCategory] ?? _selectedCategory}';
@@ -281,7 +336,8 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
     if (_selectedTime == null) {
       return titulo.isEmpty ? 'Nenhum horário selecionado' : titulo;
     }
-    final timeStr = '${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}';
+    final timeStr =
+        '${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}';
     if (titulo.isEmpty) return 'Horário: $timeStr';
     return '$titulo às $timeStr';
   }
@@ -296,6 +352,8 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
         return 'Ex: Fazer caminhada';
       case 'hidratacao':
         return 'Ex: Beber 2 copos de água';
+      case 'consulta':
+        return 'Ex: Consulta com cardiologista';
       case 'personalizado':
       default:
         return 'Ex: Medir a pressão';
@@ -306,11 +364,13 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      drawer: SessionRoleService.isSupervisor 
-          ? const SupervisorDrawer(currentRoute: '/new-reminder') 
+      drawer: SessionRoleService.isSupervisor
+          ? const SupervisorDrawer(currentRoute: '/new-reminder')
           : null,
       bottomNavigationBar: SessionRoleService.isSupervisor
-          ? const SupervisorBottomNav(selected: SupervisorNavDestination.newReminder)
+          ? const SupervisorBottomNav(
+              selected: SupervisorNavDestination.newReminder,
+            )
           : null,
       body: SafeArea(
         child: Column(
@@ -374,7 +434,10 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                             ),
                             const SizedBox(width: 8),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: AppColors.error.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(4),
@@ -407,7 +470,10 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                               hintText: _getPlaceholder(),
                               border: InputBorder.none,
                               counterText: '',
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
                             ),
                           ),
                         ),
@@ -425,7 +491,10 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                             ),
                             const SizedBox(width: 8),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: AppColors.error.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(4),
@@ -446,7 +515,9 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                           onTap: () async {
                             final time = await showCustomTimePicker(
                               context: context,
-                              initialTime: _selectedTime ?? const TimeOfDay(hour: 8, minute: 0),
+                              initialTime:
+                                  _selectedTime ??
+                                  const TimeOfDay(hour: 8, minute: 0),
                             );
                             if (time != null) {
                               if (!mounted) return;
@@ -458,7 +529,9 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                             decoration: BoxDecoration(
                               color: AppColors.surfaceContainerLowest,
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: AppColors.outlineVariant),
+                              border: Border.all(
+                                color: AppColors.outlineVariant,
+                              ),
                             ),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
@@ -496,6 +569,12 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                         _buildAudioSection(),
                         const SizedBox(height: 24),
                         _buildRecurrenceSection(),
+                        const SizedBox(height: 24),
+                        _buildSafetySection(),
+                        if (_selectedCategory == 'medicacao') ...[
+                          const SizedBox(height: 24),
+                          _buildMedicationSafetySection(),
+                        ],
                         if (_selectedCategory == 'medicacao') ...[
                           const SizedBox(height: 24),
                           _buildDurationSection(),
@@ -528,7 +607,9 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
       child: Container(
         margin: const EdgeInsets.only(bottom: 20),
         decoration: BoxDecoration(
-          color: isActive ? AppColors.surfaceContainerLow : AppColors.surfaceContainerLowest,
+          color: isActive
+              ? AppColors.surfaceContainerLow
+              : AppColors.surfaceContainerLowest,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isActive ? AppColors.primary : AppColors.outlineVariant,
@@ -540,7 +621,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                     color: AppColors.primary.withValues(alpha: 0.08),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
-                  )
+                  ),
                 ]
               : null,
         ),
@@ -579,7 +660,9 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
-                          color: isActive ? AppColors.primary : AppColors.onSurfaceVariant,
+                          color: isActive
+                              ? AppColors.primary
+                              : AppColors.onSurfaceVariant,
                           letterSpacing: 0.5,
                         ),
                       ),
@@ -617,7 +700,9 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                         onPressed: () => _goToStep(stepNumber + 1),
                         icon: const Icon(Icons.arrow_forward),
                         label: Text(
-                          stepNumber == 1 ? 'Avançar para Etapa 2' : 'Avançar para Etapa 3',
+                          stepNumber == 1
+                              ? 'Avançar para Etapa 2'
+                              : 'Avançar para Etapa 3',
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                         style: ElevatedButton.styleFrom(
@@ -646,14 +731,16 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
         return Container(
           height: 64,
           padding: const EdgeInsets.symmetric(horizontal: 20),
-          decoration: const BoxDecoration(
-            color: AppColors.surface,
-          ),
+          decoration: const BoxDecoration(color: AppColors.surface),
           child: Row(
             children: [
               IconButton(
                 onPressed: () => Scaffold.of(context).openDrawer(),
-                icon: const Icon(Icons.menu, color: AppColors.primary, size: 32),
+                icon: const Icon(
+                  Icons.menu,
+                  color: AppColors.primary,
+                  size: 32,
+                ),
               ),
               const Expanded(
                 child: Text(
@@ -728,10 +815,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
           const SizedBox(height: 8),
           const Text(
             'Tem uma receita médica ou caixinha de remédio? Toque abaixo para a Inteligência Artificial ler e preencher o formulário automaticamente para você.',
-            style: TextStyle(
-              fontSize: 14,
-              color: AppColors.onSurfaceVariant,
-            ),
+            style: TextStyle(fontSize: 14, color: AppColors.onSurfaceVariant),
           ),
           const SizedBox(height: 16),
           Column(
@@ -753,20 +837,28 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                             data['titulo'].toString().isNotEmpty) {
                           final title = data['titulo'] as String;
                           final dosage = data['dosagem'] as String? ?? '';
-                          _titleController.text = dosage.isNotEmpty ? '$title ($dosage)' : title;
+                          _titleController.text = dosage.isNotEmpty
+                              ? '$title ($dosage)'
+                              : title;
                         }
                         if (data['fotoPath'] != null) {
                           _fotoPath = data['fotoPath'] as String;
                         }
-                        if (data['observacoes'] != null && data['observacoes'].toString().isNotEmpty) {
-                          _medicamentoInstrucoes = data['observacoes'] as String;
+                        if (data['observacoes'] != null &&
+                            data['observacoes'].toString().isNotEmpty) {
+                          _medicamentoInstrucoes =
+                              data['observacoes'] as String;
                         }
-                        if (data['intervaloSugerido'] != null && data['intervaloSugerido'].toString().isNotEmpty) {
+                        if (data['intervaloSugerido'] != null &&
+                            data['intervaloSugerido'].toString().isNotEmpty) {
                           final interval = data['intervaloSugerido'] as String;
-                          if (_medicamentoInstrucoes != null && _medicamentoInstrucoes!.isNotEmpty) {
-                            _medicamentoInstrucoes = '$_medicamentoInstrucoes (Sugestão de intervalo: $interval)';
+                          if (_medicamentoInstrucoes != null &&
+                              _medicamentoInstrucoes!.isNotEmpty) {
+                            _medicamentoInstrucoes =
+                                '$_medicamentoInstrucoes (Sugestão de intervalo: $interval)';
                           } else {
-                            _medicamentoInstrucoes = 'Sugestão de intervalo: $interval';
+                            _medicamentoInstrucoes =
+                                'Sugestão de intervalo: $interval';
                           }
                         }
                       });
@@ -781,10 +873,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                   icon: const Icon(Icons.photo_camera, size: 20),
                   label: const Text(
                     'Escanear Receita ou Caixa',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
@@ -817,7 +906,9 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                       });
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Medicamento identificado por código de barras!'),
+                          content: Text(
+                            'Medicamento identificado por código de barras!',
+                          ),
                           backgroundColor: AppColors.tertiaryFixedDim,
                         ),
                       );
@@ -826,17 +917,11 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                   icon: const Icon(Icons.qr_code_scanner, size: 20),
                   label: const Text(
                     'Escanear Código de Barras',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.primary,
-                    side: const BorderSide(
-                      color: AppColors.primary,
-                      width: 2,
-                    ),
+                    side: const BorderSide(color: AppColors.primary, width: 2),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -861,7 +946,18 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
       onTap: () {
         setState(() {
           _selectedCategory = cat['key'] as String;
+          if (_selectedCategory == 'medicacao' &&
+              _priority == LembretePrioridade.normal) {
+            _priority = LembretePrioridade.importante;
+            _toleranceMinutes = 15;
+            if (widget.lembrete == null) {
+              _confirmationMode = LembreteModoConfirmacao.foto;
+            }
+          }
           if (_selectedCategory != 'medicacao') {
+            if (widget.lembrete == null) {
+              _confirmationMode = LembreteModoConfirmacao.simples;
+            }
             if (_gerarAudioIA == true) {
               _gerarAudioIA = null;
             }
@@ -888,11 +984,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              color: isSelected ? color : AppColors.outline,
-              size: 26,
-            ),
+            Icon(icon, color: isSelected ? color : AppColors.outline, size: 26),
             const SizedBox(width: 8),
             Text(
               label,
@@ -933,6 +1025,12 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
         'label': 'Hidratação',
         'key': 'hidratacao',
         'color': AppColors.voiceFeedbackBlue,
+      },
+      {
+        'icon': Icons.event_available,
+        'label': 'Consulta',
+        'key': 'consulta',
+        'color': AppColors.primary,
       },
       {
         'icon': Icons.notifications,
@@ -993,9 +1091,12 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
               ],
             ),
             const SizedBox(height: 10),
-            SizedBox(
-              width: double.infinity,
-              child: _buildCategoryCard(categories[4]),
+            Row(
+              children: [
+                Expanded(child: _buildCategoryCard(categories[4])),
+                const SizedBox(width: 10),
+                Expanded(child: _buildCategoryCard(categories[5])),
+              ],
             ),
           ],
         ),
@@ -1215,7 +1316,10 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                 Text(
                   'O app gerará uma fala acolhedora e explicativa do remédio para ler ao idoso.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 13, color: AppColors.onSurfaceVariant),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -1265,7 +1369,10 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
               child: Text(
                 'Grave uma frase familiar. Ela será tocada automaticamente no horário.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: AppColors.onSurfaceVariant),
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppColors.onSurfaceVariant,
+                ),
               ),
             ),
             const SizedBox(height: 12),
@@ -1322,7 +1429,10 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                 Text(
                   'O lembrete usará a voz de leitura padrão do sistema (opcional).',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 13, color: AppColors.onSurfaceVariant),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -1333,9 +1443,15 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
   }
 
   Widget _buildRecurrenceSection() {
-    final bool isDiario = _selectedSingleDate == null && _selectedDiasSemana.length == 7;
-    final bool isDataUnica = _selectedSingleDate != null || (_selectedSingleDate == null && _selectedDiasSemana.isEmpty);
-    final bool isSemanal = _selectedSingleDate == null && _selectedDiasSemana.isNotEmpty && _selectedDiasSemana.length < 7;
+    final bool isDiario =
+        _selectedSingleDate == null && _selectedDiasSemana.length == 7;
+    final bool isDataUnica =
+        _selectedSingleDate != null ||
+        (_selectedSingleDate == null && _selectedDiasSemana.isEmpty);
+    final bool isSemanal =
+        _selectedSingleDate == null &&
+        _selectedDiasSemana.isNotEmpty &&
+        _selectedDiasSemana.length < 7;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1361,7 +1477,10 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
           runSpacing: 8,
           children: [
             ChoiceChip(
-              label: const Text('Todos os Dias', style: TextStyle(fontWeight: FontWeight.bold)),
+              label: const Text(
+                'Todos os Dias',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               selected: isDiario,
               onSelected: (_) {
                 setState(() {
@@ -1371,19 +1490,26 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
               },
             ),
             ChoiceChip(
-              label: const Text('Dias da Semana', style: TextStyle(fontWeight: FontWeight.bold)),
+              label: const Text(
+                'Dias da Semana',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               selected: isSemanal,
               onSelected: (_) {
                 setState(() {
                   _selectedSingleDate = null;
-                  if (_selectedDiasSemana.isEmpty || _selectedDiasSemana.length == 7) {
+                  if (_selectedDiasSemana.isEmpty ||
+                      _selectedDiasSemana.length == 7) {
                     _selectedDiasSemana = [1, 2, 3, 4, 5];
                   }
                 });
               },
             ),
             ChoiceChip(
-              label: const Text('Data Única', style: TextStyle(fontWeight: FontWeight.bold)),
+              label: const Text(
+                'Data Única',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               selected: isDataUnica,
               onSelected: (_) {
                 setState(() {
@@ -1402,7 +1528,9 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
             decoration: BoxDecoration(
               color: AppColors.surfaceContainerLowest,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.3),
+              ),
             ),
             child: Row(
               children: const [
@@ -1423,7 +1551,11 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
             children: [
               const Text(
                 'Toque nos dias em que o lembrete deve tocar:',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.onSurfaceVariant),
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.onSurfaceVariant,
+                ),
               ),
               const SizedBox(height: 12),
               Row(
@@ -1449,14 +1581,26 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: isSelected ? AppColors.primary : AppColors.surfaceContainerLowest,
+                        color: isSelected
+                            ? AppColors.primary
+                            : AppColors.surfaceContainerLowest,
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: isSelected ? AppColors.primary : AppColors.outlineVariant,
+                          color: isSelected
+                              ? AppColors.primary
+                              : AppColors.outlineVariant,
                           width: 1.5,
                         ),
                         boxShadow: isSelected
-                            ? [BoxShadow(color: AppColors.primary.withValues(alpha: 0.3), blurRadius: 4, offset: const Offset(0, 2))]
+                            ? [
+                                BoxShadow(
+                                  color: AppColors.primary.withValues(
+                                    alpha: 0.3,
+                                  ),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ]
                             : null,
                       ),
                       child: Center(
@@ -1465,7 +1609,9 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.bold,
-                            color: isSelected ? Colors.white : AppColors.onSurface,
+                            color: isSelected
+                                ? Colors.white
+                                : AppColors.onSurface,
                           ),
                         ),
                       ),
@@ -1483,8 +1629,14 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                       });
                     },
                     icon: const Icon(Icons.work_outline, size: 16),
-                    label: const Text('Seg a Sex', style: TextStyle(fontSize: 12)),
-                    style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8), minimumSize: Size.zero),
+                    label: const Text(
+                      'Seg a Sex',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      minimumSize: Size.zero,
+                    ),
                   ),
                   const SizedBox(width: 16),
                   TextButton.icon(
@@ -1494,8 +1646,14 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                       });
                     },
                     icon: const Icon(Icons.weekend_outlined, size: 16),
-                    label: const Text('Fim de Semana', style: TextStyle(fontSize: 12)),
-                    style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8), minimumSize: Size.zero),
+                    label: const Text(
+                      'Fim de Semana',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      minimumSize: Size.zero,
+                    ),
                   ),
                 ],
               ),
@@ -1511,7 +1669,11 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
             ),
             child: Row(
               children: [
-                const Icon(Icons.calendar_month, color: AppColors.primary, size: 28),
+                const Icon(
+                  Icons.calendar_month,
+                  color: AppColors.primary,
+                  size: 28,
+                ),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
@@ -1519,14 +1681,20 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                     children: [
                       const Text(
                         'Data do Lembrete',
-                        style: TextStyle(fontSize: 12, color: AppColors.onSurfaceVariant),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.onSurfaceVariant,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         _selectedSingleDate != null
                             ? '${_selectedSingleDate!.day.toString().padLeft(2, '0')}/${_selectedSingleDate!.month.toString().padLeft(2, '0')}/${_selectedSingleDate!.year}'
                             : 'Selecione uma data',
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),
@@ -1577,17 +1745,11 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
           decoration: BoxDecoration(
             color: AppColors.surfaceContainerLowest,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: AppColors.outlineVariant,
-              width: 1.5,
-            ),
+            border: Border.all(color: AppColors.outlineVariant, width: 1.5),
           ),
           child: Row(
             children: [
-              const Icon(
-                Icons.info_outline,
-                color: AppColors.primary,
-              ),
+              const Icon(Icons.info_outline, color: AppColors.primary),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -1716,7 +1878,9 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                   onTap: () async {
                     final picked = await showDatePicker(
                       context: context,
-                      initialDate: _dataFim ?? DateTime.now().add(const Duration(days: 7)),
+                      initialDate:
+                          _dataFim ??
+                          DateTime.now().add(const Duration(days: 7)),
                       firstDate: DateTime(2000),
                       lastDate: DateTime(2100),
                     );
@@ -1763,6 +1927,284 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
     );
   }
 
+  Widget _buildSafetySection() {
+    const labels = {
+      LembretePrioridade.normal: 'Normal',
+      LembretePrioridade.importante: 'Importante',
+      LembretePrioridade.critica: 'Crítica',
+    };
+    const confirmationLabels = {
+      LembreteModoConfirmacao.simples: 'Um toque',
+      LembreteModoConfirmacao.vozOuBotao: 'Voz ou botao',
+      LembreteModoConfirmacao.foto: 'Foto',
+      LembreteModoConfirmacao.cuidador: 'Somente cuidador',
+    };
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'ATENÇÃO E ESCALONAMENTO',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w800,
+            color: AppColors.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Defina quando o cuidador deve ser avisado se não houver resposta.',
+          style: TextStyle(fontSize: 14, color: AppColors.onSurfaceVariant),
+        ),
+        const SizedBox(height: 16),
+        DropdownButtonFormField<LembreteModoConfirmacao>(
+          initialValue: _confirmationMode,
+          decoration: const InputDecoration(
+            labelText: 'Como confirmar',
+            helperText: 'Medicamentos ficam mais seguros com foto.',
+            border: OutlineInputBorder(),
+            prefixIcon: Icon(Icons.verified_user_outlined),
+          ),
+          items: LembreteModoConfirmacao.values
+              .map(
+                (value) => DropdownMenuItem(
+                  value: value,
+                  child: Text(confirmationLabels[value]!),
+                ),
+              )
+              .toList(),
+          onChanged: (value) {
+            if (value != null) setState(() => _confirmationMode = value);
+          },
+        ),
+        const SizedBox(height: 16),
+        const Text(
+          'Opcoes para lembrar depois',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 4),
+        const Text(
+          'A pessoa escolhe um destes tempos quando o aviso aparecer.',
+          style: TextStyle(fontSize: 14, color: AppColors.onSurfaceVariant),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: const [5, 10, 15, 30].map((minutes) {
+            final selected = _snoozeOptions.contains(minutes);
+            return FilterChip(
+              selected: selected,
+              label: Text('$minutes min'),
+              onSelected: (enabled) {
+                setState(() {
+                  if (enabled) {
+                    _snoozeOptions = {..._snoozeOptions, minutes}.toList()
+                      ..sort();
+                  } else if (_snoozeOptions.length > 1) {
+                    _snoozeOptions = _snoozeOptions
+                        .where((value) => value != minutes)
+                        .toList();
+                  }
+                });
+              },
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 12),
+        _buildIntDropdown(
+          label: 'Maximo de adiamentos',
+          value: _maxSnoozes,
+          values: const [0, 1, 2, 3, 5],
+          onChanged: (value) => setState(() => _maxSnoozes = value),
+        ),
+        const SizedBox(height: 20),
+        DropdownButtonFormField<LembretePrioridade>(
+          initialValue: _priority,
+          decoration: const InputDecoration(
+            labelText: 'Nível de atenção',
+            border: OutlineInputBorder(),
+            prefixIcon: Icon(Icons.priority_high),
+          ),
+          items: LembretePrioridade.values
+              .map(
+                (value) =>
+                    DropdownMenuItem(value: value, child: Text(labels[value]!)),
+              )
+              .toList(),
+          onChanged: (value) {
+            if (value == null) return;
+            setState(() {
+              _priority = value;
+              if (value == LembretePrioridade.critica &&
+                  _toleranceMinutes > 10) {
+                _toleranceMinutes = 10;
+              }
+            });
+          },
+        ),
+        const SizedBox(height: 12),
+        _buildIntDropdown(
+          label: 'Tempo sem resposta',
+          value: _toleranceMinutes,
+          values: const [5, 10, 15, 30, 60, 120],
+          suffix: 'minutos',
+          onChanged: (value) => setState(() => _toleranceMinutes = value),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildIntDropdown(
+                label: 'Repetições',
+                value: _maxReminderRepeats,
+                values: const [0, 1, 2, 3, 5],
+                onChanged: (value) =>
+                    setState(() => _maxReminderRepeats = value),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildIntDropdown(
+                label: 'Intervalo',
+                value: _repeatIntervalMinutes,
+                values: const [2, 5, 10, 15, 30],
+                suffix: 'min',
+                onChanged: (value) =>
+                    setState(() => _repeatIntervalMinutes = value),
+              ),
+            ),
+          ],
+        ),
+        SwitchListTile.adaptive(
+          contentPadding: EdgeInsets.zero,
+          value: _escalateToCaregiver,
+          onChanged: (value) => setState(() => _escalateToCaregiver = value),
+          title: const Text(
+            'Avisar cuidador',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          subtitle: const Text(
+            'Envia um alerta quando terminar o tempo sem resposta.',
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildIntDropdown({
+    required String label,
+    required int value,
+    required List<int> values,
+    required ValueChanged<int> onChanged,
+    String? suffix,
+  }) {
+    return DropdownButtonFormField<int>(
+      initialValue: value,
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+      ),
+      items: values
+          .map(
+            (item) => DropdownMenuItem(
+              value: item,
+              child: Text(suffix == null ? '$item' : '$item $suffix'),
+            ),
+          )
+          .toList(),
+      onChanged: (item) {
+        if (item != null) onChanged(item);
+      },
+    );
+  }
+
+  Widget _buildMedicationSafetySection() {
+    InputDecoration decoration(String label, {String? hint}) => InputDecoration(
+      labelText: label,
+      hintText: hint,
+      border: const OutlineInputBorder(),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'DADOS DO MEDICAMENTO',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w800,
+            color: AppColors.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Ajuda a evitar enganos e a avisar quando o medicamento estiver acabando.',
+          style: TextStyle(fontSize: 14, color: AppColors.onSurfaceVariant),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _medicationDoseController,
+                maxLength: 40,
+                decoration: decoration('Dose', hint: 'Ex: 1'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: TextField(
+                controller: _medicationUnitController,
+                maxLength: 30,
+                decoration: decoration('Unidade', hint: 'comprimido'),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _medicationStockController,
+                keyboardType: TextInputType.number,
+                decoration: decoration('Estoque atual', hint: '30'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: TextField(
+                controller: _medicationLowStockController,
+                keyboardType: TextInputType.number,
+                decoration: decoration('Avisar quando restarem', hint: '5'),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _medicationUnitsPerDoseController,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: decoration(
+            'Quantidade consumida por confirmação',
+            hint: 'Ex: 1',
+          ),
+        ),
+      ],
+    );
+  }
+
+  int? _optionalInt(TextEditingController controller) {
+    final value = controller.text.trim();
+    return value.isEmpty ? null : int.tryParse(value);
+  }
+
+  double? _optionalDouble(TextEditingController controller) {
+    final value = controller.text.trim().replaceAll(',', '.');
+    return value.isEmpty ? null : double.tryParse(value);
+  }
+
   Widget _buildBottomBar() {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -1803,8 +2245,6 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
       ),
     );
   }
-
-
 
   void _salvarLembrete() async {
     if (_isSaving) return;
@@ -1847,21 +2287,51 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
       return;
     }
 
+    final medicationStock = _optionalInt(_medicationStockController);
+    final medicationLowStock = _optionalInt(_medicationLowStockController);
+    final medicationUnitsPerDose = _optionalDouble(
+      _medicationUnitsPerDoseController,
+    );
+    if (_selectedCategory == 'medicacao' &&
+        ((medicationStock != null && medicationStock < 0) ||
+            (medicationLowStock != null && medicationLowStock < 0) ||
+            (medicationUnitsPerDose != null && medicationUnitsPerDose <= 0))) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Confira os números de estoque e consumo do medicamento.',
+          ),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
     DateTime targetDate;
     if (_selectedSingleDate != null) {
       targetDate = _selectedSingleDate!;
     } else if (_selectedDiasSemana.isEmpty) {
       if (widget.lembrete != null && widget.lembrete!.dataInicio != null) {
-        // Na edição, mantemos a data de início original para lembretes de dia único, 
+        // Na edição, mantemos a data de início original para lembretes de dia único,
         // em vez de jogá-los para amanhã, a menos que o usuário mude a data explicitamente.
         targetDate = _dataInicio;
       } else {
         final now = DateTime.now();
-        final reminderTime = DateTime(now.year, now.month, now.day, _selectedTime!.hour, _selectedTime!.minute);
+        final reminderTime = DateTime(
+          now.year,
+          now.month,
+          now.day,
+          _selectedTime!.hour,
+          _selectedTime!.minute,
+        );
         if (reminderTime.isAfter(now)) {
           targetDate = DateTime(now.year, now.month, now.day);
         } else {
-          targetDate = DateTime(now.year, now.month, now.day).add(const Duration(days: 1));
+          targetDate = DateTime(
+            now.year,
+            now.month,
+            now.day,
+          ).add(const Duration(days: 1));
         }
       }
     } else {
@@ -1886,18 +2356,26 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
       if (_dataFim == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Por favor, selecione a data de término do tratamento.'),
+            content: Text(
+              'Por favor, selecione a data de término do tratamento.',
+            ),
             backgroundColor: AppColors.error,
           ),
         );
         return;
       }
-      final startDay = DateTime(_dataInicio.year, _dataInicio.month, _dataInicio.day);
+      final startDay = DateTime(
+        _dataInicio.year,
+        _dataInicio.month,
+        _dataInicio.day,
+      );
       final endDay = DateTime(_dataFim!.year, _dataFim!.month, _dataFim!.day);
       if (endDay.isBefore(startDay)) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('A data de término deve ser posterior ou igual à data de início.'),
+            content: Text(
+              'A data de término deve ser posterior ou igual à data de início.',
+            ),
             backgroundColor: AppColors.error,
           ),
         );
@@ -1909,8 +2387,10 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
       setState(() => _isSaving = true);
     }
 
-    final bool isMedicationChanged = widget.lembrete == null ||
-        widget.lembrete!.titulo.trim().toLowerCase() != titulo.trim().toLowerCase() ||
+    final bool isMedicationChanged =
+        widget.lembrete == null ||
+        widget.lembrete!.titulo.trim().toLowerCase() !=
+            titulo.trim().toLowerCase() ||
         widget.lembrete!.horarioHour != _selectedTime!.hour ||
         widget.lembrete!.horarioMinute != _selectedTime!.minute;
 
@@ -1940,7 +2420,8 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
         ),
       );
 
-      final newTimeStr = '${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}';
+      final newTimeStr =
+          '${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}';
       Map<String, dynamic>? analysis;
       try {
         analysis = await LembreteService.instance.analyzeMedication(
@@ -1957,14 +2438,18 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
 
       if (analysis != null) {
         _medicamentoInstrucoes = analysis['guidelines'] as String? ?? '';
-        _medicamentoAudioTexto = analysis['suggestedAudioText'] as String? ?? '';
+        _medicamentoAudioTexto =
+            analysis['suggestedAudioText'] as String? ?? '';
 
         final hasInteraction = analysis['hasInteraction'] == true;
         final severity = analysis['severity'].toString().toLowerCase();
-        final interactionWarning = analysis['interactionWarning'] as String? ?? '';
-        final schedulingConflictWarning = analysis['schedulingConflictWarning'] as String? ?? '';
+        final interactionWarning =
+            analysis['interactionWarning'] as String? ?? '';
+        final schedulingConflictWarning =
+            analysis['schedulingConflictWarning'] as String? ?? '';
 
-        final bool showInteraction = hasInteraction && (severity == 'moderate' || severity == 'severe');
+        final bool showInteraction =
+            hasInteraction && (severity == 'moderate' || severity == 'severe');
         final bool showConflict = schedulingConflictWarning.isNotEmpty;
 
         if (showInteraction || showConflict) {
@@ -1990,7 +2475,11 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                       if (showInteraction) ...[
                         const Text(
                           'Interação Medicamentosa:',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.red),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: Colors.red,
+                          ),
                         ),
                         const SizedBox(height: 4),
                         Text(
@@ -2002,7 +2491,11 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                       if (showConflict) ...[
                         const Text(
                           'Conflito de Horário / Polimedicação:',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.orange),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: Colors.orange,
+                          ),
                         ),
                         const SizedBox(height: 4),
                         Text(
@@ -2022,7 +2515,9 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                 ElevatedButton(
                   onPressed: () => Navigator.pop(context, true),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: severity == 'severe' ? Colors.red : AppColors.primary,
+                    backgroundColor: severity == 'severe'
+                        ? Colors.red
+                        : AppColors.primary,
                     foregroundColor: Colors.white,
                   ),
                   child: const Text('Ignorar e Salvar'),
@@ -2040,7 +2535,8 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
     }
 
     final now = DateTime.now();
-    final reminderId = widget.lembrete?.id ?? now.millisecondsSinceEpoch.toString();
+    final reminderId =
+        widget.lembrete?.id ?? now.millisecondsSinceEpoch.toString();
 
     final lembrete = Lembrete(
       id: reminderId,
@@ -2048,22 +2544,64 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
       horarioHour: _selectedTime!.hour,
       horarioMinute: _selectedTime!.minute,
       categoria: _selectedCategory ?? 'personalizado',
+      prioridade: _priority,
+      toleranciaMinutos: _toleranceMinutes,
+      intervaloRepeticaoMinutos: _repeatIntervalMinutes,
+      maximoRepeticoes: _maxReminderRepeats,
+      avisarCuidador: _escalateToCaregiver,
+      modoConfirmacao: _confirmationMode,
+      opcoesAdiamentoMinutos: _snoozeOptions,
+      maximoAdiamentos: _maxSnoozes,
+      medicamentoDose: _selectedCategory == 'medicacao'
+          ? _medicationDoseController.text.trim()
+          : null,
+      medicamentoUnidade: _selectedCategory == 'medicacao'
+          ? _medicationUnitController.text.trim()
+          : null,
+      medicamentoEstoque: _selectedCategory == 'medicacao'
+          ? medicationStock
+          : null,
+      medicamentoEstoqueMinimo: _selectedCategory == 'medicacao'
+          ? medicationLowStock
+          : null,
+      medicamentoUnidadesPorDose: _selectedCategory == 'medicacao'
+          ? medicationUnitsPerDose
+          : null,
       audioPath: _gerarAudioIA == true ? 'ia_generated' : _audioPath,
       medicamentoFotoPath: _selectedCategory == 'medicacao' ? _fotoPath : null,
-      medicamentoInstrucoes: _selectedCategory == 'medicacao' ? _medicamentoInstrucoes : null,
-      medicamentoAudioTexto: _gerarAudioIA == true && _selectedCategory == 'medicacao' ? _medicamentoAudioTexto : null,
-      recorrencia: (_selectedSingleDate != null || _selectedDiasSemana.isEmpty) ? 'unico' : (_selectedDiasSemana.length == 7 ? 'diario' : 'semanal'),
+      medicamentoInstrucoes: _selectedCategory == 'medicacao'
+          ? _medicamentoInstrucoes
+          : null,
+      medicamentoAudioTexto:
+          _gerarAudioIA == true && _selectedCategory == 'medicacao'
+          ? _medicamentoAudioTexto
+          : null,
+      recorrencia: (_selectedSingleDate != null || _selectedDiasSemana.isEmpty)
+          ? 'unico'
+          : (_selectedDiasSemana.length == 7 ? 'diario' : 'semanal'),
       repeteTodosOsDias: _selectedDiasSemana.length == 7,
-      recorrenciaSemanal: _selectedDiasSemana.length < 7 && _selectedDiasSemana.isNotEmpty && _selectedSingleDate == null,
+      recorrenciaSemanal:
+          _selectedDiasSemana.length < 7 &&
+          _selectedDiasSemana.isNotEmpty &&
+          _selectedSingleDate == null,
       recorrenciaMensal: false,
       recorrenciaIntervalo: false,
       lembreteUnico: _selectedSingleDate != null || _selectedDiasSemana.isEmpty,
       diasSemana: _selectedDiasSemana,
       diaMes: null,
       intervaloHoras: null,
-      dataInicio: (_selectedSingleDate != null || _selectedDiasSemana.isEmpty) ? targetDate : _dataInicio,
-      dataFim: (_selectedSingleDate != null || _selectedDiasSemana.isEmpty) ? targetDate : ((_isUsoContinuo || _selectedCategory != 'medicacao') ? null : _dataFim),
-      isUsoContinuo: (_selectedSingleDate != null || _selectedDiasSemana.isEmpty) ? false : (_selectedCategory != 'medicacao' ? true : _isUsoContinuo),
+      dataInicio: (_selectedSingleDate != null || _selectedDiasSemana.isEmpty)
+          ? targetDate
+          : _dataInicio,
+      dataFim: (_selectedSingleDate != null || _selectedDiasSemana.isEmpty)
+          ? targetDate
+          : ((_isUsoContinuo || _selectedCategory != 'medicacao')
+                ? null
+                : _dataFim),
+      isUsoContinuo:
+          (_selectedSingleDate != null || _selectedDiasSemana.isEmpty)
+          ? false
+          : (_selectedCategory != 'medicacao' ? true : _isUsoContinuo),
       concluido: widget.lembrete?.concluido ?? false,
       concluidoComFoto: widget.lembrete?.concluidoComFoto ?? false,
       status: widget.lembrete?.status,

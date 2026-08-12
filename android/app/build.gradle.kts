@@ -42,6 +42,10 @@ android {
 }
 
 dependencies {
+    // The Flutter plugin provides Jitsi at runtime. MainActivity references its
+    // initializer to load it on demand, so it also needs the type at compile time.
+    compileOnly("org.jitsi.react:jitsi-meet-sdk:13.0.0")
+
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.3")
 }
 

@@ -11,6 +11,7 @@ import '../services/video_call_service.dart';
 import '../services/notification_service.dart';
 import '../services/tts_service.dart';
 import '../models/video_call.dart';
+import '../widgets/responsive_layout.dart';
 
 class IncomingVideoCallScreen extends StatefulWidget {
   final String callId;
@@ -145,8 +146,9 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen>
 
         if (useFirebase) {
           final idosoId = await SessionRoleService.getActiveIdosoId();
-          final profile =
-              await ElderlyProfileRepository.instance.getData(idosoId);
+          final profile = await ElderlyProfileRepository.instance.getData(
+            idosoId,
+          );
           final supervisorId = profile?['supervisorId'] as String?;
 
           if (supervisorId != null && supervisorId.isNotEmpty) {
@@ -177,8 +179,7 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen>
         } catch (_) {}
 
         if (useFirebase) {
-          final data =
-              await ElderlyProfileRepository.instance.getData(idosoId);
+          final data = await ElderlyProfileRepository.instance.getData(idosoId);
           if (data != null && mounted) {
             setState(() {
               _callerName = data['nome'] as String? ?? 'Idoso';
@@ -228,194 +229,184 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen>
         Theme.of(context).colorScheme.primary == Colors.black;
 
     final isVoice = widget.callType == 'voice';
+    final compact = context.isCompactHeight || context.isLandscape;
 
     return Scaffold(
       backgroundColor: isHighContrast ? Colors.black : const Color(0xFF121212),
       body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Spacer(flex: 2),
+        child: ResponsiveScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          maxContentWidth: 720,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const SizedBox(height: 24),
 
-                // SOS Alert banner if SOS
-                if (_isSosCall)
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 24),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.error,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.warning,
-                          color: Colors.white,
-                          size: 28,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'ALERTA DE EMERGÊNCIA SOS!',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w900,
-                            ),
+              // SOS Alert banner if SOS
+              if (_isSosCall)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 24),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.error,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.warning, color: Colors.white, size: 28),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'ALERTA DE EMERGÊNCIA SOS!',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
                           ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              // Pulsing Avatar Ripple
+              AnimatedBuilder(
+                animation: _pulseController,
+                builder: (context, child) {
+                  return Container(
+                    width: compact ? 120 : (isElderly ? 180 : 140),
+                    height: compact ? 120 : (isElderly ? 180 : 140),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color:
+                              (_isSosCall ? AppColors.error : AppColors.primary)
+                                  .withValues(
+                                    alpha: 0.2 * (1.0 - _pulseController.value),
+                                  ),
+                          blurRadius: 30 * _pulseController.value,
+                          spreadRadius: 25 * _pulseController.value,
+                        ),
+                        BoxShadow(
+                          color:
+                              (_isSosCall ? AppColors.error : AppColors.primary)
+                                  .withValues(
+                                    alpha: 0.3 * (1.0 - _pulseController.value),
+                                  ),
+                          blurRadius: 15 * _pulseController.value,
+                          spreadRadius: 10 * _pulseController.value,
                         ),
                       ],
                     ),
-                  ),
-
-                // Pulsing Avatar Ripple
-                AnimatedBuilder(
-                  animation: _pulseController,
-                  builder: (context, child) {
-                    return Container(
-                      width: isElderly ? 180 : 140,
-                      height: isElderly ? 180 : 140,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color:
-                                (_isSosCall
-                                        ? AppColors.error
-                                        : AppColors.primary)
-                                    .withValues(
-                                      alpha:
-                                          0.2 * (1.0 - _pulseController.value),
-                                    ),
-                            blurRadius: 30 * _pulseController.value,
-                            spreadRadius: 25 * _pulseController.value,
-                          ),
-                          BoxShadow(
-                            color:
-                                (_isSosCall
-                                        ? AppColors.error
-                                        : AppColors.primary)
-                                    .withValues(
-                                      alpha:
-                                          0.3 * (1.0 - _pulseController.value),
-                                    ),
-                            blurRadius: 15 * _pulseController.value,
-                            spreadRadius: 10 * _pulseController.value,
-                          ),
-                        ],
-                      ),
-                      child: child,
-                    );
-                  },
-                  child: Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: const Color(0xFF1E1E1E),
-                      border: Border.all(
-                        color: _isSosCall ? AppColors.error : AppColors.primary,
-                        width: 5,
-                      ),
+                    child: child,
+                  );
+                },
+                child: Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(0xFF1E1E1E),
+                    border: Border.all(
+                      color: _isSosCall ? AppColors.error : AppColors.primary,
+                      width: 5,
                     ),
-                    child: Center(
-                      child: Icon(
-                        isVoice ? Icons.phone_in_talk : Icons.videocam,
-                        size: isElderly ? 80 : 60,
-                        color: _isSosCall ? AppColors.error : AppColors.primary,
-                      ),
+                  ),
+                  child: Center(
+                    child: Icon(
+                      isVoice ? Icons.phone_in_talk : Icons.videocam,
+                      size: isElderly ? 80 : 60,
+                      color: _isSosCall ? AppColors.error : AppColors.primary,
                     ),
                   ),
                 ),
+              ),
 
-                const SizedBox(height: 32),
+              const SizedBox(height: 32),
 
-                // Caller name
-                Text(
-                  _callerName.isNotEmpty
-                      ? _callerName
-                      : (isVoice ? 'Ligação de Voz' : 'Ligação com Imagem'),
+              // Caller name
+              Text(
+                _callerName.isNotEmpty
+                    ? _callerName
+                    : (isVoice ? 'Ligação de Voz' : 'Ligação com Imagem'),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: isElderly ? 36 : 28,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                  height: 1.2,
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Badge Call Type Description
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: isVoice
+                      ? const Color(0xFF1A237E)
+                      : const Color(0xFF006064),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  isVoice ? 'LIGAÇÃO SÓ COM SOM' : 'LIGAÇÃO COM IMAGEM',
+                  style: TextStyle(
+                    fontSize: isElderly ? 18 : 14,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // Instruction tip
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  'Toque no botão VERDE para atender ou VERMELHO para recusar',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: isElderly ? 36 : 28,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.white,
-                    height: 1.2,
+                    fontSize: isElderly ? 18 : 14,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey[400],
                   ),
                 ),
+              ),
 
-                const SizedBox(height: 16),
+              const SizedBox(height: 24),
 
-                // Badge Call Type Description
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
+              // Accept / Decline buttons
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Decline
+                  _CallActionButton(
+                    icon: Icons.call_end,
+                    label: 'Recusar',
+                    color: AppColors.error,
+                    onPressed: _accepted ? null : _decline,
+                    large: isElderly && !compact,
                   ),
-                  decoration: BoxDecoration(
-                    color: isVoice
-                        ? const Color(0xFF1A237E)
-                        : const Color(0xFF006064),
-                    borderRadius: BorderRadius.circular(20),
+                  SizedBox(width: compact ? 24 : 48),
+                  // Accept
+                  _CallActionButton(
+                    icon: isVoice ? Icons.phone : Icons.videocam,
+                    label: 'Atender',
+                    color: const Color(0xFF2E7D32),
+                    onPressed: _accepted ? null : _accept,
+                    large: isElderly && !compact,
                   ),
-                  child: Text(
-                    isVoice ? 'LIGAÇÃO SÓ COM SOM' : 'LIGAÇÃO COM IMAGEM',
-                    style: TextStyle(
-                      fontSize: isElderly ? 18 : 14,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
+                ],
+              ),
 
-                const Spacer(flex: 1),
-
-                // Instruction tip
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Text(
-                    'Toque no botão VERDE para atender ou VERMELHO para recusar',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: isElderly ? 18 : 14,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.grey[400],
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // Accept / Decline buttons
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Decline
-                    _CallActionButton(
-                      icon: Icons.call_end,
-                      label: 'Recusar',
-                      color: AppColors.error,
-                      onPressed: _accepted ? null : _decline,
-                      large: isElderly,
-                    ),
-                    const SizedBox(width: 48),
-                    // Accept
-                    _CallActionButton(
-                      icon: isVoice ? Icons.phone : Icons.videocam,
-                      label: 'Atender',
-                      color: const Color(0xFF2E7D32),
-                      onPressed: _accepted ? null : _accept,
-                      large: isElderly,
-                    ),
-                  ],
-                ),
-
-                const Spacer(flex: 2),
-              ],
-            ),
+              const SizedBox(height: 24),
+            ],
           ),
         ),
       ),
@@ -465,12 +456,17 @@ class _CallActionButton extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: large ? 20 : 15,
-            fontWeight: FontWeight.w900,
-            color: Colors.white,
+        SizedBox(
+          width: large ? 112 : 88,
+          child: Text(
+            label,
+            maxLines: 2,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: large ? 20 : 15,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+            ),
           ),
         ),
       ],

@@ -16,14 +16,24 @@ import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
+import org.jitsi.meet.sdk.JitsiInitializer
 import org.json.JSONObject
 
 class MainActivity: FlutterActivity() {
     private val VOLUME_CHANNEL = "com.example.lembretes_app/volume"
     private val VIBRATION_CHANNEL = "com.example.lembretes_app/vibration"
     private val SECURE_CACHE_CHANNEL = "com.example.lembretes_app/secure_cache"
+    private val JITSI_CHANNEL = "com.example.lembretes_app/jitsi"
     private val SECURE_CACHE_ALIAS = "lembrete_amigo_secure_cache_key"
     private val SECURE_CACHE_PREFS = "secure_cache_store"
+    private val jitsiInitializationLock = Any()
+    private val jitsiInitializationResults = mutableListOf<MethodChannel.Result>()
+
+    @Volatile
+    private var isJitsiInitialized = false
+
+    @Volatile
+    private var isJitsiInitializing = false
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -94,6 +104,64 @@ class MainActivity: FlutterActivity() {
                 result.error("secure_cache_error", e.message, null)
             }
         }
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, JITSI_CHANNEL).setMethodCallHandler { call, result ->
+            if (call.method == "initialize") {
+                initializeJitsi(result)
+            } else {
+                result.notImplemented()
+            }
+        }
+    }
+
+    private fun initializeJitsi(result: MethodChannel.Result) {
+        var shouldStart = false
+
+        synchronized(jitsiInitializationLock) {
+            if (isJitsiInitialized) {
+                result.success(null)
+                return
+            }
+
+            jitsiInitializationResults.add(result)
+            if (!isJitsiInitializing) {
+                isJitsiInitializing = true
+                shouldStart = true
+            }
+        }
+
+        if (!shouldStart) return
+
+        Thread({
+            val failure = try {
+                JitsiInitializer().create(application)
+                null
+            } catch (error: Throwable) {
+                error
+            }
+
+            runOnUiThread {
+                val pendingResults: List<MethodChannel.Result>
+                synchronized(jitsiInitializationLock) {
+                    isJitsiInitialized = failure == null
+                    isJitsiInitializing = false
+                    pendingResults = jitsiInitializationResults.toList()
+                    jitsiInitializationResults.clear()
+                }
+
+                pendingResults.forEach { pendingResult ->
+                    if (failure == null) {
+                        pendingResult.success(null)
+                    } else {
+                        pendingResult.error(
+                            "jitsi_initialization_error",
+                            failure.message ?: "Nao foi possivel preparar a videochamada.",
+                            null,
+                        )
+                    }
+                }
+            }
+        }, "JitsiInitializer").start()
     }
 
     private fun securePrefs() = getSharedPreferences(SECURE_CACHE_PREFS, Context.MODE_PRIVATE)

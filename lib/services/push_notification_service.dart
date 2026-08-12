@@ -23,11 +23,14 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   final callType = message.data['callType'] ?? 'video';
   final callerName = message.data['callerName'];
   final initiatedBy = message.data['initiatedBy'] as String?;
-  
+
   await SessionRoleService.load();
-  final currentRole = SessionRoleService.isSupervisor ? 'supervisor' : 'elderly';
-  
-  if (initiatedBy == currentRole || (initiatedBy == 'sos' && currentRole == 'elderly')) {
+  final currentRole = SessionRoleService.isSupervisor
+      ? 'supervisor'
+      : 'elderly';
+
+  if (initiatedBy == currentRole ||
+      (initiatedBy == 'sos' && currentRole == 'elderly')) {
     return;
   }
 
@@ -95,7 +98,7 @@ class PushNotificationService {
     debugPrint('FCM permission: ${settings.authorizationStatus}');
 
     _currentToken = await _messaging!.getToken();
-    debugPrint('FCM token: $_currentToken');
+    debugPrint('FCM token obtido com sucesso.');
     _saveToken();
 
     _messaging!.onTokenRefresh.listen((token) {
@@ -161,7 +164,7 @@ class PushNotificationService {
       }
 
       final role = SessionRoleService.isSupervisor ? 'supervisor' : 'elderly';
-      
+
       // Apagar token do papel antigo (se houver) no mesmo usuário
       final authUid = FirebaseAuth.instance.currentUser?.uid;
       if (authUid != null) {
@@ -208,8 +211,11 @@ class PushNotificationService {
 
     if (callId == null || roomName == null) return;
 
-    final currentRole = SessionRoleService.isSupervisor ? 'supervisor' : 'elderly';
-    if (initiatedBy == currentRole || (initiatedBy == 'sos' && currentRole == 'elderly')) {
+    final currentRole = SessionRoleService.isSupervisor
+        ? 'supervisor'
+        : 'elderly';
+    if (initiatedBy == currentRole ||
+        (initiatedBy == 'sos' && currentRole == 'elderly')) {
       return;
     }
 
@@ -236,8 +242,9 @@ class PushNotificationService {
     }
 
     final senderRole = message.data['senderRole'] as String?;
-    final currentRole =
-        SessionRoleService.isSupervisor ? 'supervisor' : 'elderly';
+    final currentRole = SessionRoleService.isSupervisor
+        ? 'supervisor'
+        : 'elderly';
     if (senderRole != null && senderRole == currentRole) {
       return;
     }

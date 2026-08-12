@@ -24,13 +24,16 @@ class PhotoGalleryScreen extends StatelessWidget {
               child: ValueListenableBuilder<List<Lembrete>>(
                 valueListenable: LembreteService.instance.notifier,
                 builder: (context, lembretes, _) {
-                  final comFoto = lembretes
-                      .where((l) =>
-                          l.concluidoComFoto &&
-                          l.medicamentoFotoPath != null &&
-                          l.medicamentoFotoPath!.isNotEmpty)
-                      .toList()
-                    ..sort((a, b) => b.criadoEm.compareTo(a.criadoEm));
+                  final comFoto =
+                      lembretes
+                          .where(
+                            (l) =>
+                                l.concluidoComFoto &&
+                                l.medicamentoFotoPath != null &&
+                                l.medicamentoFotoPath!.isNotEmpty,
+                          )
+                          .toList()
+                        ..sort((a, b) => b.criadoEm.compareTo(a.criadoEm));
 
                   if (comFoto.isEmpty) {
                     return _buildEmptyState();
@@ -65,13 +68,15 @@ class PhotoGalleryScreen extends StatelessWidget {
     return Container(
       height: 64,
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-      ),
+      decoration: const BoxDecoration(color: AppColors.surface),
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.arrow_back, color: AppColors.primary, size: 36),
+            icon: const Icon(
+              Icons.arrow_back,
+              color: AppColors.primary,
+              size: 36,
+            ),
             onPressed: () => Navigator.of(context).pop(),
           ),
           const SizedBox(width: 8),
@@ -97,8 +102,11 @@ class PhotoGalleryScreen extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.photo_camera_outlined,
-              size: 80, color: AppColors.outlineVariant),
+          const Icon(
+            Icons.photo_camera_outlined,
+            size: 80,
+            color: AppColors.outlineVariant,
+          ),
           const SizedBox(height: 20),
           const Text(
             'Nenhuma foto ainda',
@@ -112,10 +120,7 @@ class PhotoGalleryScreen extends StatelessWidget {
           const Text(
             'As fotos de confirmacao de\nlembretes aparecerao aqui.',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 15,
-              color: AppColors.outline,
-            ),
+            style: TextStyle(fontSize: 15, color: AppColors.outline),
           ),
         ],
       ),
@@ -123,7 +128,10 @@ class PhotoGalleryScreen extends StatelessWidget {
   }
 
   Widget _buildDateGroup(
-      BuildContext context, String dateKey, List<Lembrete> items) {
+    BuildContext context,
+    String dateKey,
+    List<Lembrete> items,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -131,8 +139,11 @@ class PhotoGalleryScreen extends StatelessWidget {
           padding: const EdgeInsets.only(top: 12, bottom: 8),
           child: Row(
             children: [
-              const Icon(Icons.calendar_today,
-                  size: 16, color: AppColors.onSurfaceVariant),
+              const Icon(
+                Icons.calendar_today,
+                size: 16,
+                color: AppColors.onSurfaceVariant,
+              ),
               const SizedBox(width: 6),
               Text(
                 dateKey,
@@ -144,8 +155,7 @@ class PhotoGalleryScreen extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: AppColors.primaryFixed,
                   borderRadius: BorderRadius.circular(9999),
@@ -165,8 +175,8 @@ class PhotoGalleryScreen extends StatelessWidget {
         GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
+          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+            maxCrossAxisExtent: 240,
             crossAxisSpacing: 10,
             mainAxisSpacing: 10,
             childAspectRatio: 1.0,
@@ -194,19 +204,19 @@ class PhotoGalleryScreen extends StatelessWidget {
             isLocalFile && File(path).existsSync()
                 ? Image.file(File(path), fit: BoxFit.cover)
                 : path.startsWith('http')
-                    ? Image.network(
-                        path,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => _photoPlaceholder(),
-                      )
-                    : _photoPlaceholder(),
+                ? Image.network(
+                    path,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) =>
+                        _photoPlaceholder(),
+                  )
+                : _photoPlaceholder(),
             Positioned(
               bottom: 0,
               left: 0,
               right: 0,
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.bottomCenter,
@@ -250,8 +260,11 @@ class PhotoGalleryScreen extends StatelessWidget {
   Widget _photoPlaceholder() {
     return Container(
       color: AppColors.surfaceContainerHigh,
-      child: const Icon(Icons.broken_image_outlined,
-          color: AppColors.outline, size: 40),
+      child: const Icon(
+        Icons.broken_image_outlined,
+        color: AppColors.outline,
+        size: 40,
+      ),
     );
   }
 
@@ -283,13 +296,15 @@ class PhotoGalleryScreen extends StatelessWidget {
                 child: isLocalFile && File(path).existsSync()
                     ? Image.file(File(path), fit: BoxFit.contain)
                     : path.startsWith('http')
-                        ? Image.network(path, fit: BoxFit.contain)
-                        : _photoPlaceholder(),
+                    ? Image.network(path, fit: BoxFit.contain)
+                    : _photoPlaceholder(),
               ),
               const SizedBox(height: 12),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.black54,
                   borderRadius: BorderRadius.circular(12),

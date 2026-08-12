@@ -51,26 +51,25 @@ class NotificationService {
         (_cancellationTimer?.isActive ?? false)) {
       return;
     }
-    _cancellationTimer = Timer.periodic(
-      const Duration(milliseconds: 220),
-      (timer) async {
-        if (_cancellingNotification) return;
-        if (_pendingNotificationCancellations.isEmpty) {
-          timer.cancel();
-          _cancellationTimer = null;
-          return;
-        }
-        _cancellingNotification = true;
-        final notificationId = _pendingNotificationCancellations.first;
-        _pendingNotificationCancellations.remove(notificationId);
-        try {
-          await _plugin.cancel(notificationId);
-          await AlarmService.instance.cancelar(notificationId);
-        } finally {
-          _cancellingNotification = false;
-        }
-      },
-    );
+    _cancellationTimer = Timer.periodic(const Duration(milliseconds: 220), (
+      timer,
+    ) async {
+      if (_cancellingNotification) return;
+      if (_pendingNotificationCancellations.isEmpty) {
+        timer.cancel();
+        _cancellationTimer = null;
+        return;
+      }
+      _cancellingNotification = true;
+      final notificationId = _pendingNotificationCancellations.first;
+      _pendingNotificationCancellations.remove(notificationId);
+      try {
+        await _plugin.cancel(notificationId);
+        await AlarmService.instance.cancelar(notificationId);
+      } finally {
+        _cancellingNotification = false;
+      }
+    });
   }
 
   Future<void> _loadScheduledRegistry() {
@@ -136,7 +135,17 @@ class NotificationService {
 
     // 1. Initialize Timezones
     tz.initializeTimeZones();
-    final String timeZoneName = await FlutterTimezone.getLocalTimezone();
+    String timeZoneName = 'America/Sao_Paulo';
+    try {
+      timeZoneName = await FlutterTimezone.getLocalTimezone().timeout(
+        const Duration(seconds: 5),
+      );
+    } catch (e) {
+      debugPrint(
+        'Nao foi possivel obter o fuso horario local: $e. '
+        'Usando America/Sao_Paulo.',
+      );
+    }
     try {
       tz.setLocalLocation(tz.getLocation(timeZoneName));
     } catch (e) {
@@ -160,19 +169,39 @@ class NotificationService {
             DarwinNotificationCategory(
               _callCategory,
               actions: <DarwinNotificationAction>[
-                DarwinNotificationAction.plain(callAcceptAction, 'Atender',
-                    options: <DarwinNotificationActionOption>{DarwinNotificationActionOption.foreground}),
-                DarwinNotificationAction.plain(callDeclineAction, 'Recusar',
-                    options: <DarwinNotificationActionOption>{DarwinNotificationActionOption.foreground}),
+                DarwinNotificationAction.plain(
+                  callAcceptAction,
+                  'Atender',
+                  options: <DarwinNotificationActionOption>{
+                    DarwinNotificationActionOption.foreground,
+                  },
+                ),
+                DarwinNotificationAction.plain(
+                  callDeclineAction,
+                  'Recusar',
+                  options: <DarwinNotificationActionOption>{
+                    DarwinNotificationActionOption.foreground,
+                  },
+                ),
               ],
             ),
             DarwinNotificationCategory(
               _messageCategory,
               actions: <DarwinNotificationAction>[
-                DarwinNotificationAction.plain(messageOpenAction, 'Abrir recado',
-                    options: <DarwinNotificationActionOption>{DarwinNotificationActionOption.foreground}),
-                DarwinNotificationAction.plain(messageReadAction, 'Marcar como lido',
-                    options: <DarwinNotificationActionOption>{DarwinNotificationActionOption.foreground}),
+                DarwinNotificationAction.plain(
+                  messageOpenAction,
+                  'Abrir recado',
+                  options: <DarwinNotificationActionOption>{
+                    DarwinNotificationActionOption.foreground,
+                  },
+                ),
+                DarwinNotificationAction.plain(
+                  messageReadAction,
+                  'Marcar como lido',
+                  options: <DarwinNotificationActionOption>{
+                    DarwinNotificationActionOption.foreground,
+                  },
+                ),
               ],
             ),
           ],
@@ -186,12 +215,27 @@ class NotificationService {
         );
 
     // 5. Initialize plugin with click handler
-    await _plugin.initialize(
-      initializationSettings,
-      onDidReceiveNotificationResponse: _handleNotificationResponse,
-    );
+    final initialization = _plugin
+        .initialize(
+          initializationSettings,
+          onDidReceiveNotificationResponse: _handleNotificationResponse,
+        )
+        .then((_) {
+          _initialized = true;
+        });
 
-    _initialized = true;
+    try {
+      await initialization.timeout(const Duration(seconds: 8));
+    } on TimeoutException {
+      debugPrint('A inicializacao das notificacoes continua em segundo plano.');
+      unawaited(
+        initialization.catchError((Object error) {
+          debugPrint(
+            'Erro ao inicializar notificacoes em segundo plano: $error',
+          );
+        }),
+      );
+    }
   }
 
   Future<void> _handleNotificationResponse(
@@ -259,10 +303,7 @@ class NotificationService {
     );
   }
 
-  Future<void> _runOnce(
-    String key,
-    FutureOr<void> Function() operation,
-  ) async {
+  Future<void> _runOnce(String key, FutureOr<void> Function() operation) async {
     if (!_processingActions.add(key)) return;
     try {
       await operation();
@@ -392,10 +433,7 @@ class NotificationService {
       _stableStringHash('message_$messageId'),
       title,
       body,
-      NotificationDetails(
-        android: androidDetails,
-        iOS: iosDetails,
-      ),
+      NotificationDetails(android: androidDetails, iOS: iosDetails),
       payload: appMessagePayload(messageId),
     );
   }
@@ -424,7 +462,16 @@ class NotificationService {
       playSound: true,
       additionalFlags: Int32List.fromList(<int>[4]), // FLAG_INSISTENT
       enableVibration: true,
-      vibrationPattern: Int64List.fromList([0, 1000, 1000, 1000, 1000, 1000, 1000, 1000]),
+      vibrationPattern: Int64List.fromList([
+        0,
+        1000,
+        1000,
+        1000,
+        1000,
+        1000,
+        1000,
+        1000,
+      ]),
       color: AppColors.primary,
       ledColor: AppColors.secondaryFixedDim,
       ledOnMs: 1000,
@@ -485,7 +532,9 @@ class NotificationService {
     if (kIsWeb || !_initialized) return;
     await cancelarChamada(callId);
     final isVoice = callType == 'voice';
-    final title = isVoice ? 'Chamada de voz perdida' : 'Chamada de vídeo perdida';
+    final title = isVoice
+        ? 'Chamada de voz perdida'
+        : 'Chamada de vídeo perdida';
     final body = callerName == null || callerName.trim().isEmpty
         ? 'Você não atendeu esta chamada'
         : 'Chamada não atendida de ${callerName.trim()}';
@@ -569,7 +618,9 @@ class NotificationService {
           'Alertas inteligentes sobre atrasos e dificuldades nos lembretes',
       importance: isUrgent ? Importance.max : Importance.defaultImportance,
       priority: isUrgent ? Priority.high : Priority.defaultPriority,
-      sound: RawResourceAndroidNotificationSound(isUrgent ? 'chamada' : 'recado'),
+      sound: RawResourceAndroidNotificationSound(
+        isUrgent ? 'chamada' : 'recado',
+      ),
       playSound: true,
       enableVibration: true,
       color: alertColor,
@@ -620,7 +671,8 @@ class NotificationService {
     required LembreteStatus status,
   }) async {
     if (kIsWeb || !_initialized) return;
-    final urgent = status == LembreteStatus.precisaDeAjuda ||
+    final urgent =
+        status == LembreteStatus.precisaDeAjuda ||
         status == LembreteStatus.perdido;
     final action = switch (status) {
       LembreteStatus.concluido ||
@@ -687,7 +739,9 @@ class NotificationService {
     final activeIds = lembretes.map((item) => item.id).toSet();
 
     for (final removedId
-        in _scheduledReminderIds.keys.where((id) => !activeIds.contains(id)).toList()) {
+        in _scheduledReminderIds.keys
+            .where((id) => !activeIds.contains(id))
+            .toList()) {
       final ids = _scheduledReminderIds.remove(removedId) ?? const <int>{};
       _scheduledReminderSignatures.remove(removedId);
       _queueCancellations(ids);
@@ -750,7 +804,7 @@ class NotificationService {
   }) async {
     final notificationId = _notificationIdFor(lembrete.id, slot);
     _pendingNotificationCancellations.remove(notificationId);
-    
+
     // Escolhe o áudio baseado na categoria do lembrete
     final category = LembreteCategoria.normalizar(lembrete.categoria);
     String audioFile = 'geral.mp3';
@@ -764,12 +818,17 @@ class NotificationService {
       audioFile = 'exercicio.mp3';
     }
     final audioPath = 'assets/$audioFile';
-    
-    await AlarmService.instance.agendarAlarmeLembrete(lembrete, scheduledDate, audioPath, notificationId);
-    
-    _scheduledReminderIds.putIfAbsent(lembrete.id, () => <int>{}).add(
-          notificationId,
-        );
+
+    await AlarmService.instance.agendarAlarmeLembrete(
+      lembrete,
+      scheduledDate,
+      audioPath,
+      notificationId,
+    );
+
+    _scheduledReminderIds
+        .putIfAbsent(lembrete.id, () => <int>{})
+        .add(notificationId);
   }
 
   List<tz.TZDateTime> _nextOccurrences(Lembrete lembrete, tz.TZDateTime now) {

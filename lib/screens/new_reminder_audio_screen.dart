@@ -7,6 +7,7 @@ import 'package:record/record.dart';
 
 import '../theme/app_theme.dart';
 import '../services/tts_service.dart';
+import '../widgets/responsive_layout.dart';
 
 class NewReminderAudioScreen extends StatefulWidget {
   const NewReminderAudioScreen({super.key});
@@ -170,6 +171,7 @@ class _NewReminderAudioScreenState extends State<NewReminderAudioScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final compact = context.isCompactHeight || context.isLandscape;
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -177,204 +179,222 @@ class _NewReminderAudioScreenState extends State<NewReminderAudioScreen> {
           children: [
             _buildTopBar(context),
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              child: ResponsiveScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 16,
+                ),
+                maxContentWidth: 720,
                 child: Column(
                   children: [
                     const SizedBox(height: 20),
-                    Expanded(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          if (!_isRecording && _recordedFilePath == null) ...[
-                            GestureDetector(
-                              onTap: _startRecording,
-                              child: Container(
-                                width: 170,
-                                height: 170,
-                                decoration: BoxDecoration(
-                                  color: AppColors.secondaryContainer,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: Colors.white, width: 6),
-                                  boxShadow: const [
-                                    BoxShadow(
-                                      color: Colors.black26,
-                                      blurRadius: 16,
-                                      offset: Offset(0, 8),
-                                    ),
-                                  ],
-                                ),
-                                child: const Icon(
-                                  Icons.mic,
-                                  size: 72,
-                                  color: AppColors.onSecondaryContainer,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 28),
-                            const Text(
-                              'Toque para começar a gravar',
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            const Text(
-                              'Fale com tom carinhoso e calmo.\nSua voz traz segurança para o idoso.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.w500,
-                                color: AppColors.onSurfaceVariant,
-                              ),
-                            ),
-                          ] else if (_isRecording) ...[
-                            GestureDetector(
-                              onTap: _stopRecording,
-                              child: Container(
-                                width: 170,
-                                height: 170,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFD32F2F),
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: Colors.white, width: 6),
-                                  boxShadow: const [
-                                    BoxShadow(
-                                      color: Colors.redAccent,
-                                      blurRadius: 24,
-                                      offset: Offset(0, 4),
-                                    ),
-                                  ],
-                                ),
-                                child: const Icon(
-                                  Icons.stop,
-                                  size: 72,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            const Text(
-                              'Gravando sua voz...',
-                              style: TextStyle(
-                                fontSize: 26,
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFFD32F2F),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              'Toque no botão vermelho quando terminar.',
-                              style: TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.w500,
-                                color: AppColors.onSurfaceVariant,
-                              ),
-                            ),
-                          ] else ...[
-                            // CARD DE ÁUDIO GRAVADO
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(24),
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (!_isRecording && _recordedFilePath == null) ...[
+                          GestureDetector(
+                            onTap: _startRecording,
+                            child: Container(
+                              width: compact ? 140 : 170,
+                              height: compact ? 140 : 170,
                               decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(24),
-                                border: Border.all(color: AppColors.primaryContainer, width: 2),
+                                color: AppColors.secondaryContainer,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.white,
+                                  width: 6,
+                                ),
                                 boxShadow: const [
                                   BoxShadow(
-                                    color: Colors.black12,
+                                    color: Colors.black26,
                                     blurRadius: 16,
-                                    offset: Offset(0, 6),
+                                    offset: Offset(0, 8),
                                   ),
                                 ],
                               ),
-                              child: Column(
-                                children: [
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      GestureDetector(
-                                        onTap: _togglePlayback,
-                                        child: Container(
-                                          width: 110,
-                                          height: 110,
-                                          decoration: BoxDecoration(
-                                            color: _isPlaying ? AppColors.error : AppColors.primaryContainer,
-                                            shape: BoxShape.circle,
-                                            boxShadow: const [
-                                              BoxShadow(
-                                                color: Colors.black26,
-                                                blurRadius: 10,
-                                                offset: Offset(0, 4),
-                                              ),
-                                            ],
-                                          ),
-                                          child: Icon(
-                                            _isPlaying ? Icons.stop : Icons.play_arrow_rounded,
-                                            size: 64,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 28),
-                                      GestureDetector(
-                                        onTap: _startRecording,
-                                        child: Container(
-                                          width: 76,
-                                          height: 76,
-                                          decoration: BoxDecoration(
-                                            color: AppColors.surfaceContainerHigh,
-                                            shape: BoxShape.circle,
-                                            border: Border.all(
-                                              color: AppColors.outlineVariant,
-                                              width: 2,
-                                            ),
-                                          ),
-                                          child: const Icon(
-                                            Icons.refresh,
-                                            size: 36,
-                                            color: AppColors.primary,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 20),
-                                  Text(
-                                    _isPlaying ? 'Tocando voz gravada...' : 'Voz gravada com sucesso!',
-                                    style: const TextStyle(
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.w800,
-                                      color: AppColors.primary,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  const Text(
-                                    'Toque no play azul para escutar antes de salvar.',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w500,
-                                      color: AppColors.onSurfaceVariant,
-                                    ),
-                                  ),
-                                ],
+                              child: const Icon(
+                                Icons.mic,
+                                size: 72,
+                                color: AppColors.onSecondaryContainer,
                               ),
                             ),
-                          ],
+                          ),
+                          const SizedBox(height: 28),
+                          const Text(
+                            'Toque para começar a gravar',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          const Text(
+                            'Fale com tom carinhoso e calmo.\nSua voz traz segurança para o idoso.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.onSurfaceVariant,
+                            ),
+                          ),
+                        ] else if (_isRecording) ...[
+                          GestureDetector(
+                            onTap: _stopRecording,
+                            child: Container(
+                              width: compact ? 140 : 170,
+                              height: compact ? 140 : 170,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFD32F2F),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.white,
+                                  width: 6,
+                                ),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: Colors.redAccent,
+                                    blurRadius: 24,
+                                    offset: Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.stop,
+                                size: 72,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          const Text(
+                            'Gravando sua voz...',
+                            style: TextStyle(
+                              fontSize: 26,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFFD32F2F),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Toque no botão vermelho quando terminar.',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.onSurfaceVariant,
+                            ),
+                          ),
+                        ] else ...[
+                          // CARD DE ÁUDIO GRAVADO
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(24),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(
+                                color: AppColors.primaryContainer,
+                                width: 2,
+                              ),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Colors.black12,
+                                  blurRadius: 16,
+                                  offset: Offset(0, 6),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    GestureDetector(
+                                      onTap: _togglePlayback,
+                                      child: Container(
+                                        width: 110,
+                                        height: 110,
+                                        decoration: BoxDecoration(
+                                          color: _isPlaying
+                                              ? AppColors.error
+                                              : AppColors.primaryContainer,
+                                          shape: BoxShape.circle,
+                                          boxShadow: const [
+                                            BoxShadow(
+                                              color: Colors.black26,
+                                              blurRadius: 10,
+                                              offset: Offset(0, 4),
+                                            ),
+                                          ],
+                                        ),
+                                        child: Icon(
+                                          _isPlaying
+                                              ? Icons.stop
+                                              : Icons.play_arrow_rounded,
+                                          size: 64,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 28),
+                                    GestureDetector(
+                                      onTap: _startRecording,
+                                      child: Container(
+                                        width: 76,
+                                        height: 76,
+                                        decoration: BoxDecoration(
+                                          color: AppColors.surfaceContainerHigh,
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: AppColors.outlineVariant,
+                                            width: 2,
+                                          ),
+                                        ),
+                                        child: const Icon(
+                                          Icons.refresh,
+                                          size: 36,
+                                          color: AppColors.primary,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 20),
+                                Text(
+                                  _isPlaying
+                                      ? 'Tocando voz gravada...'
+                                      : 'Voz gravada com sucesso!',
+                                  style: const TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                const Text(
+                                  'Toque no play azul para escutar antes de salvar.',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ],
-                      ),
+                      ],
                     ),
                     if (_recordedFilePath != null) ...[
                       SizedBox(
                         width: double.infinity,
-                        height: 72,
                         child: ElevatedButton.icon(
                           onPressed: _salvarRetornar,
                           icon: const Icon(Icons.check_circle, size: 32),
                           label: const Text(
                             'SALVAR E VINCULAR',
+                            maxLines: 2,
+                            textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 22,
                               fontWeight: FontWeight.w900,
@@ -384,6 +404,11 @@ class _NewReminderAudioScreenState extends State<NewReminderAudioScreen> {
                             backgroundColor: const Color(0xFF2E7D32),
                             foregroundColor: Colors.white,
                             elevation: 4,
+                            minimumSize: const Size.fromHeight(72),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 14,
+                            ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(20),
                             ),
@@ -406,9 +431,7 @@ class _NewReminderAudioScreenState extends State<NewReminderAudioScreen> {
     return Container(
       height: 64,
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-      ),
+      decoration: const BoxDecoration(color: AppColors.surface),
       child: Row(
         children: [
           IconButton(

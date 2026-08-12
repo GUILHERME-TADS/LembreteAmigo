@@ -14,6 +14,7 @@ import '../services/offline_sync_service.dart';
 import '../models/lembrete.dart';
 import '../models/reminder_completion_result.dart';
 import '../widgets/index.dart';
+import '../widgets/responsive_layout.dart';
 
 class TakePhotoConfirmationScreen extends StatefulWidget {
   const TakePhotoConfirmationScreen({super.key});
@@ -339,6 +340,15 @@ class _TakePhotoConfirmationScreenState
   }
 
   Widget _buildSilhouetteOverlay(String? lembreteId) {
+    final compact = context.isCompactHeight || context.isLandscape;
+    final viewport = MediaQuery.sizeOf(context);
+    final overlayWidth = (viewport.width - 48).clamp(160.0, 260.0).toDouble();
+    final overlayHeight = (viewport.height * 0.45)
+        .clamp(180.0, 320.0)
+        .toDouble();
+    final overlaySide = overlayWidth < overlayHeight
+        ? overlayWidth
+        : overlayHeight;
     final isProfilePhoto = _isProfilePhoto || lembreteId == 'profile_photo';
 
     if (isProfilePhoto) {
@@ -346,15 +356,15 @@ class _TakePhotoConfirmationScreenState
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            width: 260,
-            height: 320,
+            width: overlayWidth,
+            height: overlayHeight,
             decoration: BoxDecoration(
               border: Border.all(
                 color: AppColors.secondaryContainer,
                 width: 4,
                 style: BorderStyle.solid,
               ),
-              borderRadius: BorderRadius.circular(130),
+              borderRadius: BorderRadius.circular(overlayWidth / 2),
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -362,7 +372,7 @@ class _TakePhotoConfirmationScreenState
                 Icon(
                   Icons.person_outline,
                   color: AppColors.secondaryContainer.withValues(alpha: 0.8),
-                  size: 100,
+                  size: compact ? 72 : 100,
                 ),
                 const SizedBox(height: 12),
                 Container(
@@ -394,8 +404,8 @@ class _TakePhotoConfirmationScreenState
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Container(
-          width: 260,
-          height: 260,
+          width: overlaySide,
+          height: overlaySide,
           decoration: BoxDecoration(
             border: Border.all(
               color: AppColors.secondaryContainer,
@@ -448,9 +458,11 @@ class _TakePhotoConfirmationScreenState
   }
 
   Widget _buildControlPanel(BuildContext context, String? lembreteId) {
+    final compact = context.isCompactHeight || context.isLandscape;
+    final panelHeight = compact ? 104.0 : 140.0;
     if (!_isCaptured) {
       return Container(
-        height: 140,
+        height: panelHeight,
         color: Colors.black,
         padding: const EdgeInsets.symmetric(horizontal: 24),
         child: Row(
@@ -461,8 +473,8 @@ class _TakePhotoConfirmationScreenState
               onTap: () => _capturePhoto(lembreteId),
               borderRadius: BorderRadius.circular(9999),
               child: Container(
-                width: 88,
-                height: 88,
+                width: compact ? 72 : 88,
+                height: compact ? 72 : 88,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: Colors.transparent,
@@ -470,8 +482,8 @@ class _TakePhotoConfirmationScreenState
                 ),
                 child: Center(
                   child: Container(
-                    width: 68,
-                    height: 68,
+                    width: compact ? 54 : 68,
+                    height: compact ? 54 : 68,
                     decoration: const BoxDecoration(
                       shape: BoxShape.circle,
                       color: AppColors.secondaryContainer,
@@ -502,7 +514,7 @@ class _TakePhotoConfirmationScreenState
       );
     } else {
       return Container(
-        height: 140,
+        height: panelHeight,
         padding: const EdgeInsets.symmetric(horizontal: 20),
         color: Colors.black,
         child: Row(
@@ -510,7 +522,7 @@ class _TakePhotoConfirmationScreenState
             // Botão Gigante Vermelho (Ficou Ruim / Repetir 👎)
             Expanded(
               child: SizedBox(
-                height: 90,
+                height: compact ? 68 : 90,
                 child: ElevatedButton.icon(
                   onPressed: () {
                     setState(() {
@@ -525,9 +537,15 @@ class _TakePhotoConfirmationScreenState
                     );
                   },
                   icon: const Icon(Icons.thumb_down_alt_rounded, size: 36),
-                  label: const Text(
-                    'FICOU RUIM 👎',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+                  label: const FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      'FICOU RUIM 👎',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFD32F2F),
@@ -543,7 +561,7 @@ class _TakePhotoConfirmationScreenState
             // Botão Gigante Verde (Ficou Boa / Confirmar 👍)
             Expanded(
               child: SizedBox(
-                height: 90,
+                height: compact ? 68 : 90,
                 child: ElevatedButton.icon(
                   onPressed: _isUploading
                       ? null
@@ -671,11 +689,14 @@ class _TakePhotoConfirmationScreenState
                           ),
                         )
                       : const Icon(Icons.thumb_up_alt_rounded, size: 36),
-                  label: Text(
-                    _isUploading ? 'SALVANDO...' : 'FICOU BOA 👍',
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w900,
+                  label: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      _isUploading ? 'SALVANDO...' : 'FICOU BOA 👍',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
                   ),
                   style: ElevatedButton.styleFrom(

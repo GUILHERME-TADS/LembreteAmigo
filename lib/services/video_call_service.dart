@@ -6,6 +6,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:jitsi_meet_flutter_sdk/jitsi_meet_flutter_sdk.dart';
 
 import '../main.dart';
@@ -28,6 +29,10 @@ class VideoCallStart {
 class VideoCallService {
   VideoCallService._();
   static final VideoCallService instance = VideoCallService._();
+  static const MethodChannel _jitsiChannel = MethodChannel(
+    'com.example.lembretes_app/jitsi',
+  );
+  static Future<void>? _jitsiInitialization;
 
   final ValueNotifier<VideoCall?> activeCallNotifier = ValueNotifier(null);
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _callSubscription;
@@ -78,6 +83,7 @@ class VideoCallService {
         openJitsiWeb(url, callId, (id) => endCall(id));
         return;
       }
+      await _ensureJitsiInitialized();
       final jitsiMeet = JitsiMeet();
       final isVoice = callType == 'voice';
 
@@ -129,6 +135,25 @@ class VideoCallService {
         message: 'Nao foi possivel abrir a sala de chamada neste aparelho.',
         severity: AppStatusSeverity.critical,
       );
+    }
+  }
+
+  Future<void> _ensureJitsiInitialized() async {
+    final currentInitialization = _jitsiInitialization;
+    if (currentInitialization != null) {
+      return currentInitialization;
+    }
+
+    final initialization = _jitsiChannel.invokeMethod<void>('initialize');
+    _jitsiInitialization = initialization;
+
+    try {
+      await initialization;
+    } catch (_) {
+      if (identical(_jitsiInitialization, initialization)) {
+        _jitsiInitialization = null;
+      }
+      rethrow;
     }
   }
 

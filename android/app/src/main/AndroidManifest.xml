@@ -53,6 +53,19 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <!-- Jitsi loads React Native and several native libraries. Starting it
+             together with the app can exceed Android's startup deadline on
+             slower devices, so the app initializes it only when a call opens. -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="org.jitsi.meet.sdk.JitsiInitializer"
+                tools:node="remove" />
+        </provider>
         
         <receiver android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
         <receiver android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver" android:exported="true">

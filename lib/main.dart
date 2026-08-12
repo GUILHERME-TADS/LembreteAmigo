@@ -73,6 +73,7 @@ import 'services/always_listening_service.dart';
 import 'services/voice_notification_service.dart';
 import 'services/radio_service.dart';
 import 'services/analytics_service.dart';
+import 'widgets/responsive_layout.dart';
 import 'services/remote_config_service.dart';
 import 'services/presence_service.dart';
 import 'services/alarm_service.dart';
@@ -256,7 +257,13 @@ Future<void> _activateAppCheck() async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Alarm.init();
+  runApp(const _StartupApp());
+
+  try {
+    await Alarm.init().timeout(const Duration(seconds: 8));
+  } catch (e) {
+    debugPrint('Erro ao inicializar alarmes. Continuando sem alarmes: $e');
+  }
   AlarmService.instance.init();
   configureDependencies();
   try {
@@ -275,7 +282,7 @@ void main() async {
     } else {
       await Firebase.initializeApp();
     }
-    await _activateAppCheck();
+    await _activateAppCheck().timeout(const Duration(seconds: 12));
     debugPrint('Firebase e App Check inicializados com sucesso.');
     await CrashlyticsService.instance.init();
   } catch (e) {
@@ -297,7 +304,9 @@ void main() async {
   }
 
   try {
-    await getIt<RemoteConfigService>().init();
+    await getIt<RemoteConfigService>().init().timeout(
+      const Duration(seconds: 10),
+    );
   } catch (e) {
     debugPrint('Erro ao inicializar RemoteConfig: $e');
   }
@@ -354,7 +363,8 @@ void main() async {
             );
           };
       final launchDetails = await NotificationService.instance
-          .getLaunchDetails();
+          .getLaunchDetails()
+          .timeout(const Duration(seconds: 5));
       if (launchDetails != null &&
           launchDetails.didNotificationLaunchApp &&
           launchDetails.notificationResponse?.payload != null) {
@@ -423,7 +433,7 @@ void main() async {
         navigator.pushNamed('/messages');
       };
 
-      await push.init();
+      await push.init().timeout(const Duration(seconds: 15));
     } catch (e) {
       debugPrint(
         'Erro ao inicializar push notifications. Continuando sem FCM: $e',
@@ -437,6 +447,52 @@ void main() async {
       pendingNotificationAction: pendingNotificationAction,
     ),
   );
+}
+
+class _StartupApp extends StatelessWidget {
+  const _StartupApp();
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.theme,
+      home: const Scaffold(
+        backgroundColor: AppColors.surface,
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.favorite_rounded,
+                    size: 72,
+                    color: AppColors.primary,
+                  ),
+                  SizedBox(height: 20),
+                  Text(
+                    'Lembrete Amigo',
+                    textAlign: TextAlign.center,
+                    style: AppTypography.headlineMd,
+                  ),
+                  SizedBox(height: 24),
+                  CircularProgressIndicator(),
+                  SizedBox(height: 20),
+                  Text(
+                    'Preparando seu cuidado...',
+                    textAlign: TextAlign.center,
+                    style: AppTypography.bodyMd,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class MeuApp extends StatefulWidget {
@@ -842,7 +898,9 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
           data: mediaQuery.copyWith(
             textScaler: TextScaler.linear(scaleFactor.clamp(1.0, 2.5)),
           ),
-          child: AppStatusBanner(child: child ?? const SizedBox.shrink()),
+          child: ResponsiveAppViewport(
+            child: AppStatusBanner(child: child ?? const SizedBox.shrink()),
+          ),
         );
       },
       initialRoute: '/',

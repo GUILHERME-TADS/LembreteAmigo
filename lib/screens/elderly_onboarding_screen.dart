@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/tts_service.dart';
 import '../widgets/index.dart';
+import '../widgets/responsive_layout.dart';
 
 class ElderlyOnboardingScreen extends StatefulWidget {
   const ElderlyOnboardingScreen({super.key});
@@ -19,26 +20,34 @@ class _ElderlyOnboardingScreenState extends State<ElderlyOnboardingScreen> {
     _OnboardingStep(
       icon: Icons.waving_hand,
       title: 'Bem-vindo ao\nLembrete Amigo!',
-      subtitle: 'Eu sou o Alex. Um assistente por voz que vai te acompanhar em cada momento do dia.',
-      ttsMessage: 'Olá! Seja muito bem-vindo ao Lembrete Amigo. Eu sou o Alex e vou te ajudar a lembrar das suas atividades do dia a dia.',
+      subtitle:
+          'Eu sou o Alex. Um assistente por voz que vai te acompanhar em cada momento do dia.',
+      ttsMessage:
+          'Olá! Seja muito bem-vindo ao Lembrete Amigo. Eu sou o Alex e vou te ajudar a lembrar das suas atividades do dia a dia.',
     ),
     _OnboardingStep(
       icon: Icons.volume_up,
       title: 'Lembretes em\nSom Alto',
-      subtitle: 'O aplicativo fala em voz alta sobre seus remédios, refeições e exercícios. Os botões são grandes e fáceis de tocar.',
-      ttsMessage: 'Eu vou ler todos os seus lembretes em voz alta na hora certa. Os botões na tela são grandes e coloridos para você tocar sem dificuldade.',
+      subtitle:
+          'O aplicativo fala em voz alta sobre seus remédios, refeições e exercícios. Os botões são grandes e fáceis de tocar.',
+      ttsMessage:
+          'Eu vou ler todos os seus lembretes em voz alta na hora certa. Os botões na tela são grandes e coloridos para você tocar sem dificuldade.',
     ),
     _OnboardingStep(
       icon: Icons.mic,
       title: 'Lembrete por Voz',
-      subtitle: 'Para criar um novo lembrete rápido, basta tocar no grande botão amarelo de microfone no meio da tela.',
-      ttsMessage: 'No meio da tela inicial, você pode tocar no grande círculo amarelo de microfone para gravar um novo lembrete com a sua voz.',
+      subtitle:
+          'Para criar um novo lembrete rápido, basta tocar no grande botão amarelo de microfone no meio da tela.',
+      ttsMessage:
+          'No meio da tela inicial, você pode tocar no grande círculo amarelo de microfone para gravar um novo lembrete com a sua voz.',
     ),
     _OnboardingStep(
       icon: Icons.local_hospital,
       title: 'Ligar para a\nAmbulância',
-      subtitle: 'Se não estiver se sentindo bem ou em caso de emergência, você pode tocar no botão da Ambulância para pedir socorro rápido.',
-      ttsMessage: 'Se você não estiver se sentindo bem ou tiver uma emergência, pode ir até a tela de ajuda e tocar no botão vermelho para ligar para a Ambulância imediatamente.',
+      subtitle:
+          'Se não estiver se sentindo bem ou em caso de emergência, você pode tocar no botão da Ambulância para pedir socorro rápido.',
+      ttsMessage:
+          'Se você não estiver se sentindo bem ou tiver uma emergência, pode ir até a tela de ajuda e tocar no botão vermelho para ligar para a Ambulância imediatamente.',
     ),
   ];
 
@@ -100,8 +109,11 @@ class _ElderlyOnboardingScreenState extends State<ElderlyOnboardingScreen> {
                     borderRadius: BorderRadius.circular(12),
                     child: const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      child: Icon(Icons.arrow_back,
-                          color: AppColors.primary, size: 36),
+                      child: Icon(
+                        Icons.arrow_back,
+                        color: AppColors.primary,
+                        size: 36,
+                      ),
                     ),
                   )
                 else
@@ -117,8 +129,11 @@ class _ElderlyOnboardingScreenState extends State<ElderlyOnboardingScreen> {
                     borderRadius: BorderRadius.circular(12),
                     child: const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      child: Icon(Icons.arrow_back,
-                          color: AppColors.primary, size: 36),
+                      child: Icon(
+                        Icons.arrow_back,
+                        color: AppColors.primary,
+                        size: 36,
+                      ),
                     ),
                   ),
                 const Spacer(),
@@ -137,11 +152,12 @@ class _ElderlyOnboardingScreenState extends State<ElderlyOnboardingScreen> {
                 itemCount: _steps.length,
                 itemBuilder: (context, index) {
                   final step = _steps[index];
-                  return Padding(
+                  return ResponsiveScrollView(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
+                    maxContentWidth: 720,
                     child: Column(
                       children: [
-                        const Spacer(flex: 1),
+                        const SizedBox(height: 20),
                         Icon(step.icon, size: 80, color: AppColors.primary),
                         const SizedBox(height: 24),
                         Text(
@@ -165,8 +181,8 @@ class _ElderlyOnboardingScreenState extends State<ElderlyOnboardingScreen> {
                             color: AppColors.onSurfaceVariant,
                           ),
                         ),
-                          const SizedBox(height: 20),
-                          const Spacer(flex: 2),
+                        const SizedBox(height: 20),
+                        const SizedBox(height: 32),
                       ],
                     ),
                   );
@@ -177,7 +193,6 @@ class _ElderlyOnboardingScreenState extends State<ElderlyOnboardingScreen> {
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
               child: SizedBox(
                 width: double.infinity,
-                height: 96,
                 child: ElevatedButton(
                   onPressed: _goNext,
                   style: ElevatedButton.styleFrom(
@@ -187,22 +202,32 @@ class _ElderlyOnboardingScreenState extends State<ElderlyOnboardingScreen> {
                       borderRadius: BorderRadius.circular(24),
                     ),
                     elevation: 4,
+                    minimumSize: Size.fromHeight(
+                      context.isCompactHeight ? 72 : 96,
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        _currentPage < _steps.length - 1
-                            ? 'Continuar'
-                            : 'Entendi',
-                        style: const TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w800,
+                      Expanded(
+                        child: Text(
+                          _currentPage < _steps.length - 1
+                              ? 'Continuar'
+                              : 'Entendi',
+                          maxLines: 2,
+                          style: TextStyle(
+                            fontSize: context.isCompactHeight ? 24 : 28,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                       ),
                       Container(
-                        width: 64,
-                        height: 64,
+                        width: context.isCompactHeight ? 52 : 64,
+                        height: context.isCompactHeight ? 52 : 64,
                         decoration: const BoxDecoration(
                           color: AppColors.onSecondaryContainer,
                           shape: BoxShape.circle,

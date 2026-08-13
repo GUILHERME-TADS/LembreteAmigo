@@ -519,6 +519,7 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
   bool _slowVoice = false;
   bool _largeButtons = false;
   bool _reduceAnimations = false;
+  bool _checkingRequiredPermissions = false;
 
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
   _incomingCallFirestoreSubscription;
@@ -712,19 +713,49 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _lifecycleState = state;
     if (state == AppLifecycleState.resumed) {
-      AlwaysListeningService.instance.resumeIfEnabled();
-      LembreteService.instance.resumeSubscriptions();
-      _loadAccessibilityPreferences();
-      LembreteService.instance.carregar().then((_) {
-        OfflineSyncService.instance.syncPendingWrites();
-        _openDueReminderIfNeeded();
-        _startIncomingCallFirestoreListener();
-        _enforceElderlyAuth();
-      });
+      unawaited(_resumeAfterPermissionCheck());
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive) {
       AlwaysListeningService.instance.pauseTemporarily();
       LembreteService.instance.pauseSubscriptions();
+    }
+  }
+
+  Future<void> _resumeAfterPermissionCheck() async {
+    if (!await _ensureRequiredPermissions()) return;
+
+    AlwaysListeningService.instance.resumeIfEnabled();
+    LembreteService.instance.resumeSubscriptions();
+    unawaited(_loadAccessibilityPreferences());
+    await LembreteService.instance.carregar();
+    if (!SessionRoleService.isSupervisor) {
+      await NotificationService.instance.agendarTodos(
+        LembreteService.instance.lembretes,
+      );
+    }
+    unawaited(OfflineSyncService.instance.syncPendingWrites());
+    _openDueReminderIfNeeded();
+    _startIncomingCallFirestoreListener();
+    _enforceElderlyAuth();
+  }
+
+  Future<bool> _ensureRequiredPermissions() async {
+    if (kIsWeb) return true;
+    if (_checkingRequiredPermissions) return false;
+    _checkingRequiredPermissions = true;
+    try {
+      final granted = await AppPermissionService.instance.isGateCompleted();
+      if (!granted &&
+          mounted &&
+          _routeTracker.currentRouteName != '/required-permissions') {
+        navigatorKey.currentState?.pushNamedAndRemoveUntil(
+          '/required-permissions',
+          (route) => false,
+        );
+      }
+      return granted;
+    } finally {
+      _checkingRequiredPermissions = false;
     }
   }
 

@@ -254,9 +254,14 @@ exports.escalateMissedReminders = onSchedule(
               reminderId: document.id,
               alertId,
             },
-            android: {priority: "high", ttl: 300000},
+            android: {priority: "high", ttl: 24 * 60 * 60 * 1000},
             apns: {
-              headers: {"apns-priority": "10"},
+              headers: {
+                "apns-priority": "10",
+                "apns-expiration": String(
+                    Math.floor(Date.now() / 1000) + 86400,
+                ),
+              },
               payload: {aps: {sound: "default", badge: 1}},
             },
           });

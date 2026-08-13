@@ -1660,15 +1660,20 @@ exports.sendPush = onCall(BASE_CALL_OPTIONS, async (request) => {
         ]),
     );
     const isIncomingCall = validatedData.type === "video_call";
+    const ttl = isIncomingCall ? 60000 : 7 * 24 * 60 * 60 * 1000;
+    const expiration = Math.floor(Date.now() / 1000) + Math.floor(ttl / 1000);
     const message = {
       token: tokenData.token,
       data: validatedData,
       android: {
         priority: "high",
-        ttl: 60000,
+        ttl,
       },
       apns: {
-        headers: {"apns-priority": "10"},
+        headers: {
+          "apns-priority": "10",
+          "apns-expiration": String(expiration),
+        },
         payload: {
           aps: {
             "sound": "default",

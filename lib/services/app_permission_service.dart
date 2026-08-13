@@ -31,20 +31,59 @@ class AppPermissionService {
   Future<bool> isGateCompleted() async {
     if (kIsWeb) return true;
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_gateCompletedKey) ?? false;
+    final wasCompleted = prefs.getBool(_gateCompletedKey) ?? false;
+    if (!wasCompleted) return false;
+
+    final stillGranted = await hasCurrentRequiredPermissions();
+    if (!stillGranted) {
+      await prefs.setBool(_gateCompletedKey, false);
+    }
+    return stillGranted;
+  }
+
+  Future<bool> hasCurrentRequiredPermissions() async {
+    if (kIsWeb) return true;
+    final currentStatuses = await statuses();
+    return currentStatuses.isNotEmpty &&
+        currentStatuses.every((item) => item.granted);
   }
 
   List<({String title, String description, Permission permission})>
-      get _requiredPermissions {
+  get _requiredPermissions {
     final items = <({String title, String description, Permission permission})>[
-      (title: 'Notificações', description: 'Avisa quando chegar a hora de cada lembrete.', permission: Permission.notification),
-      (title: 'Microfone', description: 'Permite responder e criar lembretes por voz.', permission: Permission.microphone),
-      (title: 'Câmera', description: 'Permite confirmar medicamentos e identificar itens.', permission: Permission.camera),
-      (title: 'Localização', description: 'Permite enviar a localização junto de um pedido de SOS.', permission: Permission.locationWhenInUse),
+      (
+        title: 'Notificações',
+        description: 'Avisa quando chegar a hora de cada lembrete.',
+        permission: Permission.notification,
+      ),
+      (
+        title: 'Microfone',
+        description: 'Permite responder e criar lembretes por voz.',
+        permission: Permission.microphone,
+      ),
+      (
+        title: 'Câmera',
+        description: 'Permite confirmar medicamentos e identificar itens.',
+        permission: Permission.camera,
+      ),
+      (
+        title: 'Localização',
+        description: 'Permite enviar a localização junto de um pedido de SOS.',
+        permission: Permission.locationWhenInUse,
+      ),
     ];
     if (Platform.isAndroid) {
-      items.add((title: 'Alarmes exatos', description: 'Faz os lembretes tocarem no horário correto.', permission: Permission.scheduleExactAlarm));
-      items.add((title: 'Bateria contínua', description: 'Evita pausas na rádio e atrasos em lembretes com a tela apagada.', permission: Permission.ignoreBatteryOptimizations));
+      items.add((
+        title: 'Alarmes exatos',
+        description: 'Faz os lembretes tocarem no horário correto.',
+        permission: Permission.scheduleExactAlarm,
+      ));
+      items.add((
+        title: 'Bateria contínua',
+        description:
+            'Evita pausas na rádio e atrasos em lembretes com a tela apagada.',
+        permission: Permission.ignoreBatteryOptimizations,
+      ));
     }
     return items;
   }
@@ -52,12 +91,14 @@ class AppPermissionService {
   Future<List<AppPermissionItem>> statuses() async {
     final result = <AppPermissionItem>[];
     for (final item in _requiredPermissions) {
-      result.add(AppPermissionItem(
-        title: item.title,
-        description: item.description,
-        permission: item.permission,
-        status: await item.permission.status,
-      ));
+      result.add(
+        AppPermissionItem(
+          title: item.title,
+          description: item.description,
+          permission: item.permission,
+          status: await item.permission.status,
+        ),
+      );
     }
     return result;
   }
@@ -73,7 +114,7 @@ class AppPermissionService {
   }
 
   Future<bool> completeGateIfGranted() async {
-    final allGranted = (await statuses()).every((item) => item.granted);
+    final allGranted = await hasCurrentRequiredPermissions();
     if (allGranted) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_gateCompletedKey, true);

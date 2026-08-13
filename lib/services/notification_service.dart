@@ -12,11 +12,14 @@ import '../models/smart_alert.dart';
 import '../theme/app_theme.dart';
 
 import '../services/alarm_service.dart';
+import '../services/app_status_service.dart';
+import '../services/reminder_schedule_policy.dart';
 
 class NotificationService {
   NotificationService._();
   static final NotificationService instance = NotificationService._();
   static const int _maxGeneratedSlots = 40;
+  static const int _maxIntervalGeneratedSlots = 96;
   static const String _callPayloadPrefix = 'incoming_call:';
   static const String _messagePayloadPrefix = 'app_message:';
   static const String _missedCallPayloadPrefix = 'missed_call:';
@@ -736,6 +739,8 @@ class NotificationService {
   Future<void> _agendarTodosInterno(List<Lembrete> lembretes) async {
     await _loadScheduledRegistry();
     final now = tz.TZDateTime.now(tz.local);
+    final activeAlarmIds = await AlarmService.instance.scheduledAlarmIds();
+    var schedulingFailed = false;
     final activeIds = lembretes.map((item) => item.id).toSet();
 
     for (final removedId
@@ -749,8 +754,10 @@ class NotificationService {
 
     for (final l in lembretes) {
       try {
-        final signature = jsonEncode(l.toJson());
-        if (_scheduledReminderSignatures[l.id] == signature) continue;
+        final signature = ReminderSchedulePolicy.fingerprint(
+          reminderSignature: jsonEncode(l.toJson()),
+          now: now,
+        );
         final oldIds = _scheduledReminderIds[l.id] ?? const <int>{};
         if (l.concluido) {
           _queueCancellations(oldIds);
@@ -758,16 +765,36 @@ class NotificationService {
           _scheduledReminderSignatures.remove(l.id);
           continue;
         }
-        _scheduledReminderIds[l.id] = <int>{};
-        await _agendarLembrete(l, now);
-        final newIds = _scheduledReminderIds[l.id] ?? const <int>{};
+        if (ReminderSchedulePolicy.canReuseSchedule(
+          storedFingerprint: _scheduledReminderSignatures[l.id],
+          currentFingerprint: signature,
+          registeredAlarmIds: oldIds,
+          activeAlarmIds: activeAlarmIds,
+        )) {
+          continue;
+        }
+        final newIds = await _agendarLembrete(l, now);
+        _scheduledReminderIds[l.id] = newIds;
         _queueCancellations(oldIds.difference(newIds));
         _scheduledReminderSignatures[l.id] = signature;
       } catch (e) {
+        schedulingFailed = true;
         debugPrint('Erro ao agendar lembrete ${l.id}: $e');
       }
     }
     await _saveScheduledRegistry();
+    if (schedulingFailed) {
+      AppStatusService.instance.report(
+        id: 'reminder-scheduling',
+        title: 'Lembretes bloqueados pelo celular',
+        message:
+            'Autorize notificacoes e alarmes exatos para receber os avisos '
+            'mesmo com o aplicativo fechado.',
+        severity: AppStatusSeverity.critical,
+      );
+    } else {
+      AppStatusService.instance.clear('reminder-scheduling');
+    }
   }
 
   int _notificationIdFor(String id, [int slot = 0]) {
@@ -790,14 +817,28 @@ class NotificationService {
     return hash;
   }
 
-  Future<void> _agendarLembrete(Lembrete lembrete, tz.TZDateTime now) async {
+  Future<Set<int>> _agendarLembrete(
+    Lembrete lembrete,
+    tz.TZDateTime now,
+  ) async {
     final occurrences = _nextOccurrences(lembrete, now);
-    for (var i = 0; i < occurrences.length; i++) {
-      await _scheduleReminder(lembrete, occurrences[i], slot: i + 1);
+    final scheduledIds = <int>{};
+    try {
+      for (var i = 0; i < occurrences.length; i++) {
+        scheduledIds.add(
+          await _scheduleReminder(lembrete, occurrences[i], slot: i + 1),
+        );
+      }
+      return scheduledIds;
+    } catch (_) {
+      for (final id in scheduledIds) {
+        await AlarmService.instance.cancelar(id);
+      }
+      rethrow;
     }
   }
 
-  Future<void> _scheduleReminder(
+  Future<int> _scheduleReminder(
     Lembrete lembrete,
     tz.TZDateTime scheduledDate, {
     int slot = 0,
@@ -819,16 +860,16 @@ class NotificationService {
     }
     final audioPath = 'assets/$audioFile';
 
-    await AlarmService.instance.agendarAlarmeLembrete(
+    final scheduled = await AlarmService.instance.agendarAlarmeLembrete(
       lembrete,
       scheduledDate,
       audioPath,
       notificationId,
     );
-
-    _scheduledReminderIds
-        .putIfAbsent(lembrete.id, () => <int>{})
-        .add(notificationId);
+    if (!scheduled) {
+      throw StateError('O Android recusou o alarme exato $notificationId.');
+    }
+    return notificationId;
   }
 
   List<tz.TZDateTime> _nextOccurrences(Lembrete lembrete, tz.TZDateTime now) {
@@ -842,11 +883,15 @@ class NotificationService {
     }
 
     final occurrences = <tz.TZDateTime>[];
+    final maxSlots =
+        lembrete.recorrencia == 'intervalo' || lembrete.recorrenciaIntervalo
+        ? _maxIntervalGeneratedSlots
+        : _maxGeneratedSlots;
     var day = _firstCandidateDay(lembrete, now);
     var checkedDays = 0;
     const maxDaysToCheck = 730;
 
-    while (occurrences.length < _maxGeneratedSlots &&
+    while (occurrences.length < maxSlots &&
         checkedDays < maxDaysToCheck &&
         _isOnOrBeforeReminderEnd(lembrete, day)) {
       if (_isReminderActiveOnDay(lembrete, day)) {
@@ -864,8 +909,8 @@ class NotificationService {
       checkedDays++;
     }
 
-    if (occurrences.length > _maxGeneratedSlots) {
-      return occurrences.take(_maxGeneratedSlots).toList();
+    if (occurrences.length > maxSlots) {
+      return occurrences.take(maxSlots).toList();
     }
     return occurrences;
   }

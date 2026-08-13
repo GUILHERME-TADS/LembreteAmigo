@@ -24,20 +24,13 @@ class _VoiceSettingsScreenState extends State<VoiceSettingsScreen> {
     _speechRate = _profile.speechRate;
   }
 
-
-
   Future<void> _testVoice() async {
     try {
-      final testProfile = AlexVoiceProfile(
-        speechRate: _speechRate,
-        pitch: 1.0,
-      );
+      final testProfile = AlexVoiceProfile(speechRate: _speechRate, pitch: 1.0);
 
       final tts = TTSService.instance;
       await tts.initFromProfile(testProfile);
-      await tts.falar(
-        'Olá! Meu nome é Alex. Como posso ajudar você hoje?',
-      );
+      await tts.falar('Olá! Meu nome é Alex. Como posso ajudar você hoje?');
     } catch (e) {
       debugPrint('Erro ao testar voz: $e');
     }
@@ -47,15 +40,10 @@ class _VoiceSettingsScreenState extends State<VoiceSettingsScreen> {
     setState(() => _saving = true);
 
     try {
-      final newProfile = AlexVoiceProfile(
-        speechRate: _speechRate,
-        pitch: 1.0,
-      );
+      final newProfile = AlexVoiceProfile(speechRate: _speechRate, pitch: 1.0);
 
       await TTSService.instance.updateProfile(newProfile);
-      await TTSService.instance.falar(
-        'Pronto! Voz atualizada.',
-      );
+      await TTSService.instance.falar('Pronto! Voz atualizada.');
 
       if (mounted) {
         Navigator.pop(context);
@@ -94,7 +82,9 @@ class _VoiceSettingsScreenState extends State<VoiceSettingsScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
           decoration: BoxDecoration(
-            color: isSelected ? AppColors.primary.withValues(alpha: 0.08) : Colors.white,
+            color: isSelected
+                ? AppColors.primary.withValues(alpha: 0.08)
+                : Colors.white,
             border: Border.all(
               color: isSelected ? AppColors.primary : AppColors.outlineVariant,
               width: isSelected ? 3 : 1.5,
@@ -106,24 +96,23 @@ class _VoiceSettingsScreenState extends State<VoiceSettingsScreen> {
                       color: AppColors.primary.withValues(alpha: 0.1),
                       blurRadius: 8,
                       offset: const Offset(0, 4),
-                    )
+                    ),
                   ]
                 : null,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                emoji,
-                style: const TextStyle(fontSize: 36),
-              ),
+              Text(emoji, style: const TextStyle(fontSize: 36)),
               const SizedBox(height: 8),
               Text(
                 label,
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w900,
-                  color: isSelected ? AppColors.primary : AppColors.onSurfaceVariant,
+                  color: isSelected
+                      ? AppColors.primary
+                      : AppColors.onSurfaceVariant,
                 ),
               ),
             ],
@@ -149,13 +138,13 @@ class _VoiceSettingsScreenState extends State<VoiceSettingsScreen> {
             TTSService.instance.parar(caller: this);
             Navigator.pop(context);
           },
-          icon: const Icon(
+          icon: Icon(
             Icons.arrow_back,
             color: AppColors.primary,
             size: 36,
           ),
         ),
-        title: const Text(
+        title: Text(
           'Voz do Alex',
           style: TextStyle(
             fontSize: 28,
@@ -201,17 +190,14 @@ class _VoiceSettingsScreenState extends State<VoiceSettingsScreen> {
               child: OutlinedButton(
                 onPressed: _testVoice,
                 style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: AppColors.outline),
+                  side: BorderSide(color: AppColors.outline),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
                 child: const Text(
                   'TESTAR VOZ',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 16,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
                 ),
               ),
             ),

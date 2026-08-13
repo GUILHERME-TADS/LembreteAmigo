@@ -15,8 +15,7 @@ class IdentifyMedicationScreen extends StatefulWidget {
       _IdentifyMedicationScreenState();
 }
 
-class _IdentifyMedicationScreenState
-    extends State<IdentifyMedicationScreen> {
+class _IdentifyMedicationScreenState extends State<IdentifyMedicationScreen> {
   final ImagePicker _imagePicker = ImagePicker();
   String? _fotoPath;
   bool _isProcessing = false;
@@ -41,224 +40,236 @@ class _IdentifyMedicationScreenState
             padding: const EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  ChoiceChip(
-                    label: const Text('Identificar Remédio'),
-                    selected: !_isReceitaMode,
-                    selectedColor: AppColors.primary,
-                    labelStyle: TextStyle(
-                      color: !_isReceitaMode
-                          ? Colors.white
-                          : AppColors.onSurfaceVariant,
-                      fontWeight: FontWeight.bold,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    ChoiceChip(
+                      label: const Text('Identificar Remédio'),
+                      selected: !_isReceitaMode,
+                      selectedColor: AppColors.primary,
+                      labelStyle: TextStyle(
+                        color: !_isReceitaMode
+                            ? Colors.white
+                            : AppColors.onSurfaceVariant,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      onSelected: (val) {
+                        if (val) {
+                          setState(() {
+                            _isReceitaMode = false;
+                            _result = null;
+                          });
+                        }
+                      },
                     ),
-                    onSelected: (val) {
-                      if (val) {
-                        setState(() {
-                          _isReceitaMode = false;
-                          _result = null;
-                        });
-                      }
-                    },
-                  ),
-                  const SizedBox(width: 12),
-                  ChoiceChip(
-                    label: const Text('Ler Receita Médica'),
-                    selected: _isReceitaMode,
-                    selectedColor: AppColors.primary,
-                    labelStyle: TextStyle(
-                      color: _isReceitaMode
-                          ? Colors.white
-                          : AppColors.onSurfaceVariant,
-                      fontWeight: FontWeight.bold,
+                    const SizedBox(width: 12),
+                    ChoiceChip(
+                      label: const Text('Ler Receita Médica'),
+                      selected: _isReceitaMode,
+                      selectedColor: AppColors.primary,
+                      labelStyle: TextStyle(
+                        color: _isReceitaMode
+                            ? Colors.white
+                            : AppColors.onSurfaceVariant,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      onSelected: (val) {
+                        if (val) {
+                          setState(() {
+                            _isReceitaMode = true;
+                            _result = null;
+                          });
+                        }
+                      },
                     ),
-                    onSelected: (val) {
-                      if (val) {
-                        setState(() {
-                          _isReceitaMode = true;
-                          _result = null;
-                        });
-                      }
-                    },
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              Text(
-                _isReceitaMode
-                    ? 'Tire uma foto nítida da receita médica.'
-                    : 'Tire uma foto do comprimido ou da embalagem.',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.onSurface,
+                  ],
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                _isReceitaMode
-                    ? 'A inteligência artificial vai ler a receita e extrair os lembretes.'
-                    : 'A inteligência artificial vai identificar o medicamento automaticamente.',
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: AppColors.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton.icon(
-                  onPressed: _mostrarDicasFoto,
-                  icon: const Icon(Icons.tips_and_updates, color: AppColors.primary, size: 20),
-                  label: const Text(
-                    'Dicas para uma foto perfeita com IA',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.primary),
-                  ),
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                const SizedBox(height: 24),
+                Text(
+                  _isReceitaMode
+                      ? 'Tire uma foto nítida da receita médica.'
+                      : 'Tire uma foto do comprimido ou da embalagem.',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.onSurface,
                   ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              Center(
-                child: _fotoPath != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: Image.file(
-                          File(_fotoPath!),
-                          height: 300,
-                          fit: BoxFit.contain,
-                          errorBuilder: (_, error, stackTrace) =>
-                              const Icon(Icons.broken_image, size: 64),
-                        ),
-                      )
-                    : GestureDetector(
-                        onTap: _tirarFoto,
-                        child: Container(
-                          height: 300,
-                          decoration: BoxDecoration(
-                            color: AppColors.surfaceContainerLow,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: AppColors.outlineVariant,
-                              width: 2,
-                            ),
+                const SizedBox(height: 8),
+                Text(
+                  _isReceitaMode
+                      ? 'A inteligência artificial vai ler a receita e extrair os lembretes.'
+                      : 'A inteligência artificial vai identificar o medicamento automaticamente.',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppColors.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: _mostrarDicasFoto,
+                    icon: Icon(
+                      Icons.tips_and_updates,
+                      color: AppColors.primary,
+                      size: 20,
+                    ),
+                    label: Text(
+                      'Dicas para uma foto perfeita com IA',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Center(
+                  child: _fotoPath != null
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: Image.file(
+                            File(_fotoPath!),
+                            height: 300,
+                            fit: BoxFit.contain,
+                            errorBuilder: (_, error, stackTrace) =>
+                                const Icon(Icons.broken_image, size: 64),
                           ),
-                          child: const Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.add_a_photo,
-                                size: 72,
-                                color: AppColors.primary,
+                        )
+                      : GestureDetector(
+                          onTap: _tirarFoto,
+                          child: Container(
+                            height: 300,
+                            decoration: BoxDecoration(
+                              color: AppColors.surfaceContainerLow,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: AppColors.outlineVariant,
+                                width: 2,
                               ),
-                              SizedBox(height: 16),
-                              Text(
-                                'ADICIONAR FOTO',
-                                style: TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w800,
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.add_a_photo,
+                                  size: 72,
                                   color: AppColors.primary,
                                 ),
-                              ),
-                              SizedBox(height: 6),
-                              Text(
-                                'Câmera ou Galeria',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  color: AppColors.onSurfaceVariant,
+                                SizedBox(height: 16),
+                                Text(
+                                  'ADICIONAR FOTO',
+                                  style: TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.primary,
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-              ),
-              if (_result != null) _buildResultCard(),
-              const SizedBox(height: 24),
-              SizedBox(
-                height: 64,
-                child: ElevatedButton(
-                  onPressed:
-                      _fotoPath != null && !_isProcessing
-                          ? (_result != null ? _tirarFoto : _identificar)
-                          : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  child: _isProcessing
-                      ? Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
-                              ),
+                                SizedBox(height: 6),
+                                Text(
+                                  'Câmera ou Galeria',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    color: AppColors.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 12),
-                            Text(
-                              _isReceitaMode
-                                  ? 'Analisando receita...'
-                                  : 'Analisando imagem...',
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
-                        )
-                      : Text(
-                          _result != null
-                              ? 'TIRAR NOVA FOTO'
-                              : (_isReceitaMode
-                                  ? 'LER RECEITA MÉDICA'
-                                  : 'IDENTIFICAR REMÉDIO'),
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
                           ),
                         ),
                 ),
-              ),
-              if (_result != null && _result!.success && !_isReceitaMode) ...[
-                const SizedBox(height: 12),
+                if (_result != null) _buildResultCard(),
+                const SizedBox(height: 24),
                 SizedBox(
                   height: 64,
-                  child: ElevatedButton.icon(
-                    onPressed: _confirmarResultado,
-                    icon: const Icon(Icons.check_circle, size: 28),
-                    label: const Text(
-                      'CONFIRMAR E CRIAR LEMBRETE',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+                  child: ElevatedButton(
+                    onPressed: _fotoPath != null && !_isProcessing
+                        ? (_result != null ? _tirarFoto : _identificar)
+                        : null,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2E7D32),
+                      backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
                     ),
+                    child: _isProcessing
+                        ? Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                _isReceitaMode
+                                    ? 'Analisando receita...'
+                                    : 'Analisando imagem...',
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          )
+                        : Text(
+                            _result != null
+                                ? 'TIRAR NOVA FOTO'
+                                : (_isReceitaMode
+                                      ? 'LER RECEITA MÉDICA'
+                                      : 'IDENTIFICAR REMÉDIO'),
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                   ),
                 ),
+                if (_result != null && _result!.success && !_isReceitaMode) ...[
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 64,
+                    child: ElevatedButton.icon(
+                      onPressed: _confirmarResultado,
+                      icon: const Icon(Icons.check_circle, size: 28),
+                      label: const Text(
+                        'CONFIRMAR E CRIAR LEMBRETE',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.success,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
-        ),
         ),
       ),
     );
@@ -282,16 +293,30 @@ class _IdentifyMedicationScreenState
               ),
               const SizedBox(height: 16),
               ListTile(
-                leading: const Icon(Icons.photo_camera, color: AppColors.primary, size: 28),
-                title: const Text('Tirar Foto com a Câmera', style: TextStyle(fontWeight: FontWeight.bold)),
+                leading: Icon(
+                  Icons.photo_camera,
+                  color: AppColors.primary,
+                  size: 28,
+                ),
+                title: const Text(
+                  'Tirar Foto com a Câmera',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
                 onTap: () {
                   Navigator.pop(ctx);
                   _pickPhotoSource(ImageSource.camera);
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.photo_library, color: AppColors.primary, size: 28),
-                title: const Text('Escolher da Galeria', style: TextStyle(fontWeight: FontWeight.bold)),
+                leading: Icon(
+                  Icons.photo_library,
+                  color: AppColors.primary,
+                  size: 28,
+                ),
+                title: const Text(
+                  'Escolher da Galeria',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
                 onTap: () {
                   Navigator.pop(ctx);
                   _pickPhotoSource(ImageSource.gallery);
@@ -341,8 +366,9 @@ class _IdentifyMedicationScreenState
       final base64Image = base64Encode(bytes);
 
       if (_isReceitaMode) {
-        final result = await PrescriptionParserService.instance
-            .parse(imageBase64: base64Image);
+        final result = await PrescriptionParserService.instance.parse(
+          imageBase64: base64Image,
+        );
 
         if (mounted) {
           setState(() => _isProcessing = false);
@@ -369,8 +395,9 @@ class _IdentifyMedicationScreenState
           }
         }
       } else {
-        final result = await MedicationIdentifierService.instance
-            .identify(imageBase64: base64Image);
+        final result = await MedicationIdentifierService.instance.identify(
+          imageBase64: base64Image,
+        );
 
         if (mounted) {
           setState(() {
@@ -403,12 +430,14 @@ class _IdentifyMedicationScreenState
         ),
         child: Row(
           children: [
-            const Icon(Icons.error, color: AppColors.error, size: 32),
+            Icon(Icons.error, color: AppColors.error, size: 32),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                result.hasError ? result.erro : 'Nenhum medicamento reconhecido na imagem. Tente tirar outra foto.',
-                style: const TextStyle(
+                result.hasError
+                    ? result.erro
+                    : 'Nenhum medicamento reconhecido na imagem. Tente tirar outra foto.',
+                style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                   color: AppColors.error,
@@ -426,10 +455,7 @@ class _IdentifyMedicationScreenState
       decoration: BoxDecoration(
         color: AppColors.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: AppColors.tertiaryFixedDim,
-          width: 2,
-        ),
+        border: Border.all(color: AppColors.tertiaryFixedDim, width: 2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -437,16 +463,16 @@ class _IdentifyMedicationScreenState
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Row(
+              Row(
                 children: [
-                  Icon(Icons.check_circle, color: Color(0xFF2E7D32), size: 26),
+                  Icon(Icons.check_circle, color: AppColors.success, size: 26),
                   SizedBox(width: 8),
                   Text(
                     'Identificado!',
                     style: TextStyle(
                       fontSize: 19,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF2E7D32),
+                      color: AppColors.success,
                     ),
                   ),
                 ],
@@ -458,22 +484,39 @@ class _IdentifyMedicationScreenState
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   minimumSize: Size.zero,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          _detailRow('Nome', result.nome, onEdit: () => _editarCampo('nome', result.nome)),
-          _detailRow('Dosagem', result.dosagem, onEdit: () => _editarCampo('dosagem', result.dosagem)),
-          _detailRow('Intervalo sugerido', result.intervaloSugerido, onEdit: () => _editarCampo('intervalo', result.intervaloSugerido)),
+          _detailRow(
+            'Nome',
+            result.nome,
+            onEdit: () => _editarCampo('nome', result.nome),
+          ),
+          _detailRow(
+            'Dosagem',
+            result.dosagem,
+            onEdit: () => _editarCampo('dosagem', result.dosagem),
+          ),
+          _detailRow(
+            'Intervalo sugerido',
+            result.intervaloSugerido,
+            onEdit: () => _editarCampo('intervalo', result.intervaloSugerido),
+          ),
           if (result.observacoes.isNotEmpty) ...[
             const SizedBox(height: 8),
             Text(
               result.observacoes,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
                 fontStyle: FontStyle.italic,
                 color: AppColors.onSurfaceVariant,
@@ -489,7 +532,8 @@ class _IdentifyMedicationScreenState
     final result = _result;
     if (result == null) return;
     TTSService.instance.parar();
-    final texto = 'Identifiquei o medicamento ${result.nome}, dosagem ${result.dosagem}. Sugestão de uso: ${result.intervaloSugerido}. ${result.observacoes}';
+    final texto =
+        'Identifiquei o medicamento ${result.nome}, dosagem ${result.dosagem}. Sugestão de uso: ${result.intervaloSugerido}. ${result.observacoes}';
     TTSService.instance.falar(texto);
   }
 
@@ -557,41 +601,62 @@ class _IdentifyMedicationScreenState
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Row(
+        title: Row(
           children: [
             Icon(Icons.tips_and_updates, color: AppColors.primary),
             SizedBox(width: 8),
             Text('Dicas para Boa Foto'),
           ],
         ),
-        content: const Column(
+        content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: Icon(Icons.light_mode, color: Colors.amber),
-              title: Text('Boa iluminação', style: TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Text('Tire a foto em um local bem iluminado para evitar sombras sobre o texto.'),
+              leading: Icon(Icons.light_mode, color: AppColors.warning),
+              title: Text(
+                'Boa iluminação',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              subtitle: Text(
+                'Tire a foto em um local bem iluminado para evitar sombras sobre o texto.',
+              ),
             ),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: Icon(Icons.center_focus_strong, color: AppColors.primary),
-              title: Text('Foco no texto principal', style: TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Text('Foque bem no nome do remédio e na dosagem (ex: 50mg ou 10ml).'),
+              leading: Icon(
+                Icons.center_focus_strong,
+                color: AppColors.primary,
+              ),
+              title: Text(
+                'Foco no texto principal',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              subtitle: Text(
+                'Foque bem no nome do remédio e na dosagem (ex: 50mg ou 10ml).',
+              ),
             ),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: Icon(Icons.flash_off, color: Colors.orange),
-              title: Text('Cuidado com reflexos', style: TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Text('Evite que o flash da câmera reflita no plástico ou vidro da embalagem.'),
+              leading: Icon(Icons.flash_off, color: AppColors.warning),
+              title: Text(
+                'Cuidado com reflexos',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              subtitle: Text(
+                'Evite que o flash da câmera reflita no plástico ou vidro da embalagem.',
+              ),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Entendi', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text(
+              'Entendi',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -609,7 +674,7 @@ class _IdentifyMedicationScreenState
             width: 140,
             child: Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
                 color: AppColors.onSurfaceVariant,
@@ -619,7 +684,7 @@ class _IdentifyMedicationScreenState
           Expanded(
             child: Text(
               value.isEmpty ? '(Não identificado)' : value,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
                 color: AppColors.onSurface,
@@ -628,7 +693,7 @@ class _IdentifyMedicationScreenState
           ),
           if (onEdit != null)
             IconButton(
-              icon: const Icon(Icons.edit, size: 18, color: AppColors.primary),
+              icon: Icon(Icons.edit, size: 18, color: AppColors.primary),
               constraints: const BoxConstraints(),
               padding: const EdgeInsets.only(left: 8),
               onPressed: onEdit,
@@ -638,7 +703,6 @@ class _IdentifyMedicationScreenState
       ),
     );
   }
-
 
   void _confirmarResultado() {
     final result = _result;

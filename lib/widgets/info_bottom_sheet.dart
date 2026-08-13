@@ -15,7 +15,7 @@ void showInfoBottomSheet({
     builder: (context) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: AppColors.background,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
@@ -41,7 +41,7 @@ void showInfoBottomSheet({
                     Expanded(
                       child: Text(
                         title,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
                           color: AppColors.primary,
@@ -53,7 +53,7 @@ void showInfoBottomSheet({
                 const SizedBox(height: 16),
                 Text(
                   content,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     height: 1.5,
                     color: AppColors.onSurfaceVariant,

@@ -53,41 +53,31 @@ class PresenceService {
           await FirebaseFirestore.instance
               .collection('supervisores')
               .doc(uid)
-              .set(
-            {
-              'lastSeen': FieldValue.serverTimestamp(),
-              'updatedAt': FieldValue.serverTimestamp(),
-            },
-            SetOptions(merge: true),
-          );
+              .set({
+                'lastSeen': FieldValue.serverTimestamp(),
+                'updatedAt': FieldValue.serverTimestamp(),
+              }, SetOptions(merge: true));
         }
       } else {
         final idosoId = await SessionRoleService.getActiveIdosoId();
-        if (idosoId.isNotEmpty && !SessionRoleService.isLocalOnlyIdosoId(idosoId)) {
+        if (idosoId.isNotEmpty &&
+            !SessionRoleService.isLocalOnlyIdosoId(idosoId)) {
           final batch = FirebaseFirestore.instance.batch();
           final perfilRef = FirebaseFirestore.instance
               .collection('idoso_perfil')
               .doc(idosoId);
-          batch.set(
-            perfilRef,
-            {
-              'lastSeen': FieldValue.serverTimestamp(),
-              'updatedAt': FieldValue.serverTimestamp(),
-            },
-            SetOptions(merge: true),
-          );
+          batch.set(perfilRef, {
+            'lastSeen': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
 
           final idosoRef = FirebaseFirestore.instance
               .collection('idosos')
               .doc(idosoId);
-          batch.set(
-            idosoRef,
-            {
-              'lastSeen': FieldValue.serverTimestamp(),
-              'updatedAt': FieldValue.serverTimestamp(),
-            },
-            SetOptions(merge: true),
-          );
+          batch.set(idosoRef, {
+            'lastSeen': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
 
           await batch.commit();
         }
@@ -103,61 +93,54 @@ class PresenceService {
   }) {
     if (userId.isEmpty) {
       return Stream.value(
-        const PresenceStatus(
-          isOnline: false,
-          statusText: 'offline',
-        ),
+        const PresenceStatus(isOnline: false, statusText: 'offline'),
       );
     }
 
-    final collectionName =
-        isSupervisorTarget ? 'supervisores' : 'idoso_perfil';
+    final collectionName = isSupervisorTarget ? 'supervisores' : 'idoso_perfil';
 
     return FirebaseFirestore.instance
         .collection(collectionName)
         .doc(userId)
         .snapshots()
         .map((doc) {
-      if (!doc.exists || doc.data() == null) {
-        return const PresenceStatus(
-          isOnline: false,
-          statusText: 'offline',
-        );
-      }
+          if (!doc.exists || doc.data() == null) {
+            return const PresenceStatus(isOnline: false, statusText: 'offline');
+          }
 
-      final data = doc.data()!;
-      final rawLastSeen = data['lastSeen'];
+          final data = doc.data()!;
+          final rawLastSeen = data['lastSeen'];
 
-      DateTime? lastSeen;
-      if (rawLastSeen is Timestamp) {
-        lastSeen = rawLastSeen.toDate();
-      } else if (rawLastSeen is String) {
-        lastSeen = DateTime.tryParse(rawLastSeen);
-      }
+          DateTime? lastSeen;
+          if (rawLastSeen is Timestamp) {
+            lastSeen = rawLastSeen.toDate();
+          } else if (rawLastSeen is String) {
+            lastSeen = DateTime.tryParse(rawLastSeen);
+          }
 
-      if (lastSeen == null) {
-        return const PresenceStatus(
-          isOnline: false,
-          statusText: 'offline',
-        );
-      }
+          if (lastSeen == null) {
+            return const PresenceStatus(isOnline: false, statusText: 'offline');
+          }
 
-      final now = DateTime.now();
-      final diffSeconds = now.difference(lastSeen).inSeconds;
+          final now = DateTime.now();
+          final diffSeconds = now.difference(lastSeen).inSeconds;
 
-      // Online if lastSeen is within the last 120 seconds
-      final isOnline = diffSeconds < 120;
-      final text = formatPresenceText(lastSeen, isOnline: isOnline);
+          // Online if lastSeen is within the last 120 seconds
+          final isOnline = diffSeconds < 120;
+          final text = formatPresenceText(lastSeen, isOnline: isOnline);
 
-      return PresenceStatus(
-        isOnline: isOnline,
-        statusText: text,
-        lastSeen: lastSeen,
-      );
-    });
+          return PresenceStatus(
+            isOnline: isOnline,
+            statusText: text,
+            lastSeen: lastSeen,
+          );
+        });
   }
 
-  static String formatPresenceText(DateTime lastSeen, {required bool isOnline}) {
+  static String formatPresenceText(
+    DateTime lastSeen, {
+    required bool isOnline,
+  }) {
     if (isOnline) return 'Online';
 
     final now = DateTime.now();

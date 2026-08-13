@@ -1,6 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
+import '../../theme/app_theme.dart';
 import 'chart_colors.dart';
 
 class CategoryDistributionChart extends StatelessWidget {
@@ -13,14 +14,14 @@ class CategoryDistributionChart extends StatelessWidget {
     required this.totalByCategory,
   });
 
-  static const _categoryColors = {
-    'medicacao': Color(0xFFEF5350),
-    'refeicao': Color(0xFFFFB74D),
-    'refeicoes': Color(0xFFFFB74D),
-    'exercicio': Color(0xFF66BB6A),
-    'agua': Color(0xFF42A5F5),
-    'hidratacao': Color(0xFF42A5F5),
-    'bem_estar': Color(0xFFAB47BC),
+  static Map<String, Color> get _categoryColors => {
+    'medicacao': AppColors.error,
+    'refeicao': AppColors.mealsColor,
+    'refeicoes': AppColors.mealsColor,
+    'exercicio': AppColors.success,
+    'agua': AppColors.info,
+    'hidratacao': AppColors.info,
+    'bem_estar': AppColors.medicationsColor,
   };
 
   static const _categoryLabels = {
@@ -46,20 +47,22 @@ class CategoryDistributionChart extends StatelessWidget {
       final totalCount = entry.value;
       if (totalCount == 0) continue;
       final pct = (completed / totalCount * 100).round();
-      final color = _categoryColors[entry.key] ?? Colors.grey;
+      final color = _categoryColors[entry.key] ?? AppColors.outline;
       final label = _categoryLabels[entry.key] ?? entry.key;
 
-      sections.add(PieChartSectionData(
-        color: color,
-        value: totalCount.toDouble(),
-        title: '$pct%',
-        radius: 45,
-        titleStyle: const TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
+      sections.add(
+        PieChartSectionData(
+          color: color,
+          value: totalCount.toDouble(),
+          title: '$pct%',
+          radius: 45,
+          titleStyle: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
         ),
-      ));
+      );
 
       legendItems.add(
         Padding(
@@ -78,7 +81,7 @@ class CategoryDistributionChart extends StatelessWidget {
               Expanded(
                 child: Text(
                   label,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
                     color: ChartColors.onSurfaceVariant,
                   ),
@@ -86,7 +89,7 @@ class CategoryDistributionChart extends StatelessWidget {
               ),
               Text(
                 '$completed/$totalCount',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.bold,
                   color: ChartColors.onSurface,
@@ -125,7 +128,7 @@ class CategoryDistributionChart extends StatelessWidget {
   }
 
   Widget _emptyState() {
-    return const SizedBox(
+    return SizedBox(
       height: 160,
       child: Center(
         child: Column(

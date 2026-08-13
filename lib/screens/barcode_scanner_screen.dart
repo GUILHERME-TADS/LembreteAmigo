@@ -20,9 +20,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
   @override
   void initState() {
     super.initState();
-    _scannerController = MobileScannerController(
-      detectionTimeoutMs: 3000,
-    );
+    _scannerController = MobileScannerController(detectionTimeoutMs: 3000);
   }
 
   @override
@@ -58,10 +56,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
   Widget _buildScanner() {
     return Stack(
       children: [
-        MobileScanner(
-          controller: _scannerController,
-          onDetect: _onDetect,
-        ),
+        MobileScanner(controller: _scannerController, onDetect: _onDetect),
         _buildScanOverlay(),
         Positioned(
           bottom: 24,
@@ -78,7 +73,9 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
             ),
           ),
         ),
@@ -116,15 +113,16 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.qr_code_scanner, color: Colors.white54, size: 48),
+              const Icon(
+                Icons.qr_code_scanner,
+                color: Colors.white54,
+                size: 48,
+              ),
               const SizedBox(height: 8),
               Text(
                 'Posicione o código de barras\nno centro da tela',
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 14,
-                ),
+                style: const TextStyle(color: Colors.white70, fontSize: 14),
               ),
             ],
           ),
@@ -150,7 +148,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Row(
+        title: Row(
           children: [
             Icon(Icons.keyboard, color: AppColors.primary),
             SizedBox(width: 8),
@@ -160,7 +158,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
+            Text(
               'Digite os números (EAN) que aparecem abaixo das barrinhas na embalagem:',
               style: TextStyle(fontSize: 14, color: AppColors.onSurfaceVariant),
             ),
@@ -215,7 +213,9 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
       });
       if (result.sucesso) {
         HapticFeedback.heavyImpact();
-        TTSService.instance.falar('Código lido: ${result.nome}. ${result.dosagem}');
+        TTSService.instance.falar(
+          'Código lido: ${result.nome}. ${result.dosagem}',
+        );
       } else {
         TTSService.instance.falar('Código não identificado no banco de dados.');
       }
@@ -230,7 +230,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
 
   Widget _buildResultView() {
     return Container(
-      color: const Color(0xFFF8FAFC),
+      color: AppColors.background,
       child: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -238,14 +238,18 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (_result!.sucesso) ...[
-                const Icon(Icons.check_circle, color: Color(0xFF2E7D32), size: 64),
+                Icon(
+                  Icons.check_circle,
+                  color: AppColors.success,
+                  size: 64,
+                ),
                 const SizedBox(height: 16),
-                const Text(
+                Text(
                   'Medicamento Identificado!',
                   style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFF1E293B),
+                    color: AppColors.onSurface,
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -260,10 +264,12 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                         }),
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
-                          side: const BorderSide(color: Color(0xFFCBD5E1)),
+                          side: BorderSide(color: AppColors.outlineVariant),
                         ),
-                        child: const Text('Escanear outro',
-                            style: TextStyle(fontSize: 16)),
+                        child: const Text(
+                          'Escanear outro',
+                          style: TextStyle(fontSize: 16),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -279,20 +285,27 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                         ),
-                        child: const Text('Usar este', style: TextStyle(fontSize: 16)),
+                        child: const Text(
+                          'Usar este',
+                          style: TextStyle(fontSize: 16),
+                        ),
                       ),
                     ),
                   ],
                 ),
               ] else ...[
-                const Icon(Icons.error_outline, color: Color(0xFFC62828), size: 64),
+                Icon(
+                  Icons.error_outline,
+                  color: AppColors.error,
+                  size: 64,
+                ),
                 const SizedBox(height: 16),
-                const Text(
+                Text(
                   'Não foi possível identificar',
                   style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFF1E293B),
+                    color: AppColors.onSurface,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -301,7 +314,10 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                       ? _result!.erro
                       : 'Código não reconhecido. Tente pela foto.',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Color(0xFF64748B), fontSize: 15),
+                  style: TextStyle(
+                    color: AppColors.onSurfaceVariant,
+                    fontSize: 15,
+                  ),
                 ),
                 const SizedBox(height: 32),
                 SizedBox(
@@ -311,8 +327,10 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                       _result = null;
                     }),
                     icon: const Icon(Icons.refresh),
-                    label: const Text('Tentar novamente',
-                        style: TextStyle(fontSize: 16)),
+                    label: const Text(
+                      'Tentar novamente',
+                      style: TextStyle(fontSize: 16),
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
@@ -334,10 +352,15 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                       }
                     },
                     icon: const Icon(Icons.auto_awesome),
-                    label: const Text('Ler Embalagem com Inteligência Artificial',
-                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                    label: const Text(
+                      'Ler Embalagem com Inteligência Artificial',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2E7D32),
+                      backgroundColor: AppColors.success,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
@@ -348,8 +371,10 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                   width: double.infinity,
                   child: TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Voltar',
-                        style: TextStyle(fontSize: 16, color: Color(0xFF64748B))),
+                    child: Text(
+                      'Voltar',
+                      style: TextStyle(fontSize: 16, color: AppColors.onSurfaceVariant),
+                    ),
                   ),
                 ),
               ],
@@ -367,7 +392,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: AppColors.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -375,12 +400,12 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Detalhes identificados:',
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF64748B),
+                  color: AppColors.onSurfaceVariant,
                 ),
               ),
               ElevatedButton.icon(
@@ -390,16 +415,29 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   minimumSize: Size.zero,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          _infoRow('Nome', _result!.nome, onEdit: () => _editarCampo('nome', _result!.nome)),
-          _infoRow('Dosagem', _result!.dosagem.isEmpty ? 'Não especificada' : _result!.dosagem, onEdit: () => _editarCampo('dosagem', _result!.dosagem)),
+          _infoRow(
+            'Nome',
+            _result!.nome,
+            onEdit: () => _editarCampo('nome', _result!.nome),
+          ),
+          _infoRow(
+            'Dosagem',
+            _result!.dosagem.isEmpty ? 'Não especificada' : _result!.dosagem,
+            onEdit: () => _editarCampo('dosagem', _result!.dosagem),
+          ),
         ],
       ),
     );
@@ -409,7 +447,9 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
     final result = _result;
     if (result == null || !result.sucesso) return;
     TTSService.instance.parar();
-    TTSService.instance.falar('Código lido com sucesso: medicamento ${result.nome}, dosagem ${result.dosagem}');
+    TTSService.instance.falar(
+      'Código lido com sucesso: medicamento ${result.nome}, dosagem ${result.dosagem}',
+    );
   }
 
   void _editarCampo(String campo, String valorAtual) {
@@ -475,26 +515,26 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
             width: 80,
             child: Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF64748B),
+                color: AppColors.onSurfaceVariant,
               ),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF1E293B),
+                color: AppColors.onSurface,
               ),
             ),
           ),
           if (onEdit != null)
             IconButton(
-              icon: const Icon(Icons.edit, size: 18, color: AppColors.primary),
+              icon: Icon(Icons.edit, size: 18, color: AppColors.primary),
               constraints: const BoxConstraints(),
               padding: const EdgeInsets.only(left: 8),
               onPressed: onEdit,

@@ -6,8 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ElderlyProfileRepository {
   ElderlyProfileRepository._();
 
-  static final ElderlyProfileRepository instance =
-      ElderlyProfileRepository._();
+  static final ElderlyProfileRepository instance = ElderlyProfileRepository._();
 
   static const String primaryCollection = 'idoso_perfil';
   static const String legacyCollection = 'idosos';
@@ -58,16 +57,13 @@ class ElderlyProfileRepository {
       legacyRef(idosoId).get(),
       primaryRef(idosoId).get(),
     ]);
-    return <String, dynamic>{
-      ...?documents[0].data(),
-      ...?documents[1].data(),
-    };
+    return <String, dynamic>{...?documents[0].data(), ...?documents[1].data()};
   }
 
   Map<String, dynamic> sanitize(Map<String, dynamic> source) => {
-        for (final entry in source.entries)
-          if (allowedFields.contains(entry.key)) entry.key: entry.value,
-      };
+    for (final entry in source.entries)
+      if (allowedFields.contains(entry.key)) entry.key: entry.value,
+  };
 
   Future<String?> getCachedPhotoPath() async {
     final prefs = await SharedPreferences.getInstance();

@@ -23,11 +23,7 @@ class AppMessage {
     this.duracaoSegundos,
   });
 
-  AppMessage copyWith({
-    String? audioPath,
-    bool? lido,
-    String? texto,
-  }) {
+  AppMessage copyWith({String? audioPath, bool? lido, String? texto}) {
     return AppMessage(
       id: id,
       idosoId: idosoId,

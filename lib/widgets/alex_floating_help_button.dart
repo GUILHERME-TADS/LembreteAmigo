@@ -38,16 +38,10 @@ class _AlexFloatingHelpButtonState extends State<AlexFloatingHelpButton>
       duration: const Duration(milliseconds: 1000),
     );
     _slideAnimation = Tween<double>(begin: 40.0, end: 0.0).animate(
-      CurvedAnimation(
-        parent: _entryController,
-        curve: Curves.elasticOut,
-      ),
+      CurvedAnimation(parent: _entryController, curve: Curves.elasticOut),
     );
     _scaleAnimation = Tween<double>(begin: 0.6, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _entryController,
-        curve: Curves.elasticOut,
-      ),
+      CurvedAnimation(parent: _entryController, curve: Curves.elasticOut),
     );
     _entryController.forward();
   }
@@ -114,103 +108,106 @@ class _AlexFloatingHelpButtonState extends State<AlexFloatingHelpButton>
               alignment: Alignment.bottomRight,
               clipBehavior: Clip.none,
               children: [
-            // Speech bubble next to Alex
-            Positioned(
-              right: isFlipped ? null : 80,
-              left: isFlipped ? 80 : null,
-              bottom: 10,
-              child: AnimatedOpacity(
-                duration: const Duration(milliseconds: 250),
-                opacity: 1.0,
-                child: GestureDetector(
-                  onTap: () => _handleTap(isThisSpeaking),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 14,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isThisSpeaking
-                          ? AppColors.error
-                          : AppColors.primary,
-                      borderRadius: BorderRadius.only(
-                        topLeft: const Radius.circular(20),
-                        topRight: const Radius.circular(20),
-                        bottomLeft: Radius.circular(isFlipped ? 4 : 20),
-                        bottomRight: Radius.circular(isFlipped ? 20 : 4),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.15),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
+                // Speech bubble next to Alex
+                Positioned(
+                  right: isFlipped ? null : 80,
+                  left: isFlipped ? 80 : null,
+                  bottom: 10,
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 250),
+                    opacity: 1.0,
+                    child: GestureDetector(
+                      onTap: () => _handleTap(isThisSpeaking),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 14,
                         ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          isThisSpeaking
-                              ? Icons.stop_circle_rounded
-                              : Icons.volume_up_rounded,
-                          color: Colors.white,
-                          size: 24,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          isThisSpeaking ? 'PARAR DE FALAR' : 'ME EXPLICA',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 0.5,
+                        decoration: BoxDecoration(
+                          color: isThisSpeaking
+                              ? AppColors.error
+                              : AppColors.primary,
+                          borderRadius: BorderRadius.only(
+                            topLeft: const Radius.circular(20),
+                            topRight: const Radius.circular(20),
+                            bottomLeft: Radius.circular(isFlipped ? 4 : 20),
+                            bottomRight: Radius.circular(isFlipped ? 20 : 4),
                           ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.15),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
                         ),
-                      ],
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              isThisSpeaking
+                                  ? Icons.stop_circle_rounded
+                                  : Icons.volume_up_rounded,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              isThisSpeaking ? 'PARAR DE FALAR' : 'ME EXPLICA',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ),
-            
-            // Alex Avatar button itself
-            GestureDetector(
-              onTap: () => _handleTap(isThisSpeaking),
-              child: AnimatedBuilder(
-                animation: _glowController,
-                builder: (context, child) {
-                  return Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      boxShadow: isThisSpeaking
-                          ? [
-                              BoxShadow(
-                                color: AppColors.secondaryFixed.withValues(
-                                  alpha: 0.4 + (_glowController.value * 0.3),
-                                ),
-                                blurRadius: 12 + (_glowController.value * 12),
-                                spreadRadius: 2 + (_glowController.value * 6),
-                              ),
-                            ]
-                          : [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.15),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                    ),
-                    child: AlexAvatar(
-                      size: 68,
-                      animate: true,
-                      activeCaller: this,
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
+
+                // Alex Avatar button itself
+                GestureDetector(
+                  onTap: () => _handleTap(isThisSpeaking),
+                  child: AnimatedBuilder(
+                    animation: _glowController,
+                    builder: (context, child) {
+                      return Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          boxShadow: isThisSpeaking
+                              ? [
+                                  BoxShadow(
+                                    color: AppColors.secondaryFixed.withValues(
+                                      alpha:
+                                          0.4 + (_glowController.value * 0.3),
+                                    ),
+                                    blurRadius:
+                                        12 + (_glowController.value * 12),
+                                    spreadRadius:
+                                        2 + (_glowController.value * 6),
+                                  ),
+                                ]
+                              : [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.15),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                        ),
+                        child: AlexAvatar(
+                          size: 68,
+                          animate: true,
+                          activeCaller: this,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
           ),
         );

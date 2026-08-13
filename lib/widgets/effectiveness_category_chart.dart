@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../theme/app_theme.dart';
 import '../models/effectiveness_metrics.dart';
 
 class EffectivenessCategoryChart extends StatelessWidget {
@@ -7,9 +8,9 @@ class EffectivenessCategoryChart extends StatelessWidget {
   const EffectivenessCategoryChart({super.key, required this.categories});
 
   Color _colorForScore(double score) {
-    if (score >= 90) return const Color(0xFF2E7D32);
-    if (score >= 70) return const Color(0xFFF57F17);
-    return const Color(0xFFC62828);
+    if (score >= 90) return AppColors.success;
+    if (score >= 70) return AppColors.warning;
+    return AppColors.error;
   }
 
   IconData _iconForCategory(String category) {
@@ -32,64 +33,69 @@ class EffectivenessCategoryChart extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'POR CATEGORIA',
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w700,
-            color: Color(0xFF64748B),
+            color: AppColors.onSurfaceVariant,
             letterSpacing: 0.5,
           ),
         ),
         const SizedBox(height: 12),
-        ...categories.map((cat) => Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: Row(
-            children: [
-              Icon(_iconForCategory(cat.category), size: 20,
-                  color: const Color(0xFF475569)),
-              const SizedBox(width: 10),
-              Expanded(
-                flex: 2,
-                child: Text(
-                  cat.label,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1E293B),
-                  ),
+        ...categories.map(
+          (cat) => Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Row(
+              children: [
+                Icon(
+                  _iconForCategory(cat.category),
+                  size: 20,
+                  color: AppColors.onSurfaceVariant,
                 ),
-              ),
-              Expanded(
-                flex: 4,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: cat.score / 100,
-                    minHeight: 10,
-                    backgroundColor: const Color(0xFFE2E8F0),
-                    valueColor: AlwaysStoppedAnimation(
-                      _colorForScore(cat.score),
+                const SizedBox(width: 10),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    cat.label,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.onSurface,
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              SizedBox(
-                width: 44,
-                child: Text(
-                  '${cat.score.toStringAsFixed(0)}%',
-                  textAlign: TextAlign.right,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    color: _colorForScore(cat.score),
+                Expanded(
+                  flex: 4,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: cat.score / 100,
+                      minHeight: 10,
+                      backgroundColor: AppColors.outlineVariant,
+                      valueColor: AlwaysStoppedAnimation(
+                        _colorForScore(cat.score),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 44,
+                  child: Text(
+                    '${cat.score.toStringAsFixed(0)}%',
+                    textAlign: TextAlign.right,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: _colorForScore(cat.score),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-        )),
+        ),
       ],
     );
   }

@@ -16,7 +16,7 @@ class SupervisorHeader extends StatelessWidget {
     return Row(
       children: [
         IconButton(
-          icon: const Icon(
+          icon: Icon(
             Icons.arrow_back,
             color: AppColors.primary,
             size: 32,
@@ -27,7 +27,7 @@ class SupervisorHeader extends StatelessWidget {
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
+            Icon(
               Icons.health_and_safety,
               size: 40,
               color: AppColors.primary,
@@ -35,7 +35,7 @@ class SupervisorHeader extends StatelessWidget {
             const SizedBox(width: 8),
             Text(
               title,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 32,
                 fontWeight: FontWeight.w800,
                 height: 1.2,

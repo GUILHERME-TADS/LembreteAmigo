@@ -1,6 +1,15 @@
 import '../models/lembrete.dart';
 
-enum ReminderStatus { done, doneWithPhoto, caregiverConfirmed, late, scheduled, postponed, missed, needsHelp }
+enum ReminderStatus {
+  done,
+  doneWithPhoto,
+  caregiverConfirmed,
+  late,
+  scheduled,
+  postponed,
+  missed,
+  needsHelp,
+}
 
 class ReminderStateHelper {
   static bool isActiveToday(Lembrete lembrete, {DateTime? now}) =>
@@ -83,7 +92,8 @@ class ReminderStateHelper {
     final nowMinutes = currentTime.hour * 60 + currentTime.minute;
     for (final lembrete in today) {
       final visual = visualStatus(lembrete, now: currentTime);
-      final reminderMinutes = lembrete.horarioHour * 60 + lembrete.horarioMinute;
+      final reminderMinutes =
+          lembrete.horarioHour * 60 + lembrete.horarioMinute;
       if (visual == ReminderStatus.scheduled && reminderMinutes >= nowMinutes) {
         return lembrete;
       }
@@ -106,5 +116,4 @@ ReminderStatus reminderStatusFromLembrete(Lembrete lembrete) =>
 ReminderStatus reminderVisualStatusFromLembrete(
   Lembrete lembrete, {
   DateTime? now,
-}) =>
-    ReminderStateHelper.visualStatus(lembrete, now: now);
+}) => ReminderStateHelper.visualStatus(lembrete, now: now);

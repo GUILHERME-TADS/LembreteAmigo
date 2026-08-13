@@ -75,8 +75,6 @@ class _VolumeWarningBannerState extends State<VolumeWarningBanner>
     );
   }
 
-
-
   Future<void> _speakWarning() async {
     await TTSService.instance.falar(
       'Som do celular baixo. Aumente o som para não perder lembretes importantes. Se o botão não mudar o volume, use os botões na lateral do seu celular.',
@@ -86,7 +84,8 @@ class _VolumeWarningBannerState extends State<VolumeWarningBanner>
 
   @override
   Widget build(BuildContext context) {
-    if (SessionRoleService.isSupervisor || !VolumeService.isLow(_volumePercentage)) {
+    if (SessionRoleService.isSupervisor ||
+        !VolumeService.isLow(_volumePercentage)) {
       return const SizedBox.shrink();
     }
 
@@ -106,7 +105,7 @@ class _VolumeWarningBannerState extends State<VolumeWarningBanner>
                 size: 32,
               ),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Text(
                   'SOM DO CELULAR BAIXO',
                   style: TextStyle(
@@ -119,7 +118,7 @@ class _VolumeWarningBannerState extends State<VolumeWarningBanner>
               ),
               Text(
                 '$_volumePercentage%',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
                   color: AppColors.onErrorContainer,
@@ -138,13 +137,13 @@ class _VolumeWarningBannerState extends State<VolumeWarningBanner>
                   alpha: 0.2,
                 ),
                 valueColor: AlwaysStoppedAnimation<Color>(
-                  _volumePercentage <= 15 ? AppColors.error : Colors.orange,
+                  _volumePercentage <= 15 ? AppColors.error : AppColors.warning,
                 ),
               ),
             ),
           ),
           const SizedBox(height: 12),
-          const Text(
+          Text(
             'Aumente o som para nao perder lembretes importantes.',
             style: TextStyle(
               fontSize: 16,
@@ -184,7 +183,10 @@ class _VolumeWarningBannerState extends State<VolumeWarningBanner>
                   onPressed: _speakWarning,
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.onErrorContainer,
-                    side: const BorderSide(color: AppColors.onErrorContainer, width: 2),
+                    side: BorderSide(
+                      color: AppColors.onErrorContainer,
+                      width: 2,
+                    ),
                     padding: EdgeInsets.zero,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -196,7 +198,7 @@ class _VolumeWarningBannerState extends State<VolumeWarningBanner>
             ],
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Se o botao nao mudar o volume, use os botoes laterais do celular.',
             style: TextStyle(
               fontSize: 13,

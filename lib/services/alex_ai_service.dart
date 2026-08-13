@@ -6,7 +6,7 @@ class AlexMessage {
   final String text;
   final DateTime timestamp;
   AlexMessage({required this.role, required this.text, DateTime? timestamp})
-      : timestamp = timestamp ?? DateTime.now();
+    : timestamp = timestamp ?? DateTime.now();
 }
 
 class AlexAIResponse {
@@ -23,10 +23,14 @@ class AlexAIResponse {
   });
 
   bool get isEmergency => actionType == 'emergency' && confidence >= 0.8;
-  bool get isCreateReminder => actionType == 'create_reminder' && confidence >= 0.5;
-  bool get isCompleteReminder => actionType == 'complete_reminder' && confidence >= 0.5;
-  bool get isListReminders => actionType == 'list_reminders' && confidence >= 0.5;
-  bool get isPostponeReminder => actionType == 'postpone_reminder' && confidence >= 0.5;
+  bool get isCreateReminder =>
+      actionType == 'create_reminder' && confidence >= 0.5;
+  bool get isCompleteReminder =>
+      actionType == 'complete_reminder' && confidence >= 0.5;
+  bool get isListReminders =>
+      actionType == 'list_reminders' && confidence >= 0.5;
+  bool get isPostponeReminder =>
+      actionType == 'postpone_reminder' && confidence >= 0.5;
 }
 
 class AlexVoiceReminderResult {
@@ -204,9 +208,7 @@ class AlexAIService {
     try {
       final functions = FirebaseFunctions.instance;
       final callable = functions.httpsCallable('parseVoiceReminder');
-      final result = await callable.call({
-        'text': text,
-      });
+      final result = await callable.call({'text': text});
 
       final data = Map<String, dynamic>.from(result.data as Map);
       return AlexVoiceReminderResult.fromJson(data);

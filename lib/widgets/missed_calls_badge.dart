@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
+import '../../theme/app_theme.dart';
 import '../services/video_call_service.dart';
 
 class MissedCallsBadge extends StatelessWidget {
   final Widget child;
 
-  const MissedCallsBadge({
-    super.key,
-    required this.child,
-  });
+  const MissedCallsBadge({super.key, required this.child});
 
   @override
   Widget build(BuildContext context) {
@@ -24,10 +22,13 @@ class MissedCallsBadge extends StatelessWidget {
                 right: -8,
                 top: -8,
                 child: Container(
-                  constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+                  constraints: const BoxConstraints(
+                    minWidth: 22,
+                    minHeight: 22,
+                  ),
                   padding: const EdgeInsets.symmetric(horizontal: 5),
                   decoration: BoxDecoration(
-                    color: Colors.red.shade700,
+                    color: AppColors.error,
                     shape: count < 10 ? BoxShape.circle : BoxShape.rectangle,
                     borderRadius: count < 10 ? null : BorderRadius.circular(11),
                     border: Border.all(color: Colors.white, width: 2),

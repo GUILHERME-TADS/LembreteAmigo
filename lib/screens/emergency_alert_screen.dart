@@ -110,7 +110,7 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
   Future<void> _fazerLigacao() async {
     if (_idosoPhone.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
             'Telefone do idoso não cadastrado. Adicione um telefone nas configurações.',
           ),
@@ -154,7 +154,7 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
         );
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(
               'Não foi possível iniciar a chamada pelo aplicativo.',
             ),
@@ -184,7 +184,7 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text(
+        title: Text(
           'Resolver Lembrete',
           style: TextStyle(
             color: AppColors.primary,
@@ -197,17 +197,17 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text(
+            child: Text(
               'CANCELAR',
               style: TextStyle(color: AppColors.primary),
             ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text(
+            child: Text(
               'RESOLVER',
               style: TextStyle(
-                color: Colors.green,
+                color: AppColors.success,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -222,15 +222,15 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
       final sucesso = await LembreteService.instance.concluir(lembrete.id);
       if (sucesso && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text('Lembrete resolvido com sucesso.'),
-            backgroundColor: Colors.green,
+            backgroundColor: AppColors.success,
           ),
         );
         Navigator.pop(context); // Fechar a tela de alerta
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text('Não foi possível resolver o lembrete agora.'),
             backgroundColor: AppColors.error,
           ),
@@ -364,7 +364,7 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.center,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.w700,
                             color: AppColors.onSurface,
@@ -374,7 +374,7 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
                         Text(
                           'ALERTA: $_idosoName $_motivoAlerta',
                           textAlign: TextAlign.center,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w500,
                             height: 1.6,
@@ -385,7 +385,7 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
                           Text(
                             '${LembreteCategoria.nome(widget.lembrete!.categoria)} - ${widget.lembrete!.horarioFormatado}',
                             textAlign: TextAlign.center,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 17,
                               fontWeight: FontWeight.w700,
                               color: AppColors.onSurface,
@@ -396,7 +396,7 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
                             Text(
                               '+ ${widget.totalAlertas - 1} outro${widget.totalAlertas == 2 ? '' : 's'} alerta${widget.totalAlertas == 2 ? '' : 's'} ativo${widget.totalAlertas == 2 ? '' : 's'}',
                               textAlign: TextAlign.center,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w600,
                                 color: AppColors.error,
@@ -476,12 +476,12 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
                           height: 52,
                           child: OutlinedButton.icon(
                             onPressed: _isCalling ? null : _fazerLigacao,
-                            icon: const Icon(
+                            icon: Icon(
                               Icons.phone,
                               size: 22,
                               color: AppColors.onSurfaceVariant,
                             ),
-                            label: const Text(
+                            label: Text(
                               'Ligar por Telefone Celular (GSM)',
                               style: TextStyle(
                                 fontSize: 16,
@@ -490,7 +490,7 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
                               ),
                             ),
                             style: OutlinedButton.styleFrom(
-                              side: const BorderSide(
+                              side: BorderSide(
                                 color: AppColors.outlineVariant,
                               ),
                               shape: RoundedRectangleBorder(
@@ -518,7 +518,7 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
                                 ),
                               ),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.green,
+                                backgroundColor: AppColors.success,
                                 foregroundColor: Colors.white,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
@@ -556,7 +556,7 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              const Row(
+              Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
@@ -592,7 +592,7 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(
+            icon: Icon(
               Icons.arrow_back,
               color: AppColors.onSurface,
               size: 36,
@@ -640,7 +640,7 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
         const SizedBox(height: 16),
         Text(
           timeStr,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 48,
             fontWeight: FontWeight.bold,
             color: AppColors.onSurface,
@@ -648,7 +648,7 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
         ),
         Text(
           dateStr,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 16,
             color: AppColors.onSurfaceVariant,
           ),

@@ -33,10 +33,7 @@ class PrescriptionParserResult {
   final List<PrescriptionReminderItem> lembretes;
   final String erro;
 
-  const PrescriptionParserResult({
-    this.lembretes = const [],
-    this.erro = '',
-  });
+  const PrescriptionParserResult({this.lembretes = const [], this.erro = ''});
 
   bool get hasError => erro.isNotEmpty;
   bool get success => !hasError && lembretes.isNotEmpty;
@@ -46,8 +43,11 @@ class PrescriptionParserResult {
     final list = rawList is List ? rawList : const [];
     final items = list
         .whereType<Map>()
-        .map((item) => PrescriptionReminderItem.fromJson(
-            Map<String, dynamic>.from(item)))
+        .map(
+          (item) => PrescriptionReminderItem.fromJson(
+            Map<String, dynamic>.from(item),
+          ),
+        )
         .toList();
     return PrescriptionParserResult(
       lembretes: items,
@@ -61,15 +61,12 @@ class PrescriptionParserService {
   static final PrescriptionParserService instance =
       PrescriptionParserService._();
 
-  Future<PrescriptionParserResult> parse({
-    required String imageBase64,
-  }) async {
+  Future<PrescriptionParserResult> parse({required String imageBase64}) async {
     try {
-      final function = FirebaseFunctions.instance
-          .httpsCallable('parsePrescription');
-      final result = await function.call({
-        'imageBase64': imageBase64,
-      });
+      final function = FirebaseFunctions.instance.httpsCallable(
+        'parsePrescription',
+      );
+      final result = await function.call({'imageBase64': imageBase64});
 
       final data = Map<String, dynamic>.from(result.data as Map);
       return PrescriptionParserResult.fromJson(data);

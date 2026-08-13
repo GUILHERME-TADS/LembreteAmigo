@@ -25,63 +25,73 @@ class SupervisorHelpScreen extends StatefulWidget {
 
 class _SupervisorHelpScreenState extends State<SupervisorHelpScreen> {
   String _searchQuery = '';
-  
+
   final List<FAQItem> _faqs = [
     // Gerenciar Lembretes
     FAQItem(
       category: 'Gerenciar Lembretes',
       question: 'Como cadastrar um lembrete com áudio familiar?',
-      answer: 'Ao criar um lembrete, selecione "Grave Voz" na seção "Áudio do Idoso" e use o microfone para gravar uma frase curta e familiar. Essa gravação tocará no celular do idoso logo no início do aviso.',
+      answer:
+          'Ao criar um lembrete, selecione "Grave Voz" na seção "Áudio do Idoso" e use o microfone para gravar uma frase curta e familiar. Essa gravação tocará no celular do idoso logo no início do aviso.',
     ),
     FAQItem(
       category: 'Gerenciar Lembretes',
       question: 'Como associar a foto real do remédio?',
-      answer: 'Selecione a categoria "Remédio" e toque na área "Tirar Foto do Remédio". Capture a embalagem ou comprimido para que o idoso consiga identificá-lo visualmente com facilidade.',
+      answer:
+          'Selecione a categoria "Remédio" e toque na área "Tirar Foto do Remédio". Capture a embalagem ou comprimido para que o idoso consiga identificá-lo visualmente com facilidade.',
     ),
     // Histórico e Relatórios
     FAQItem(
       category: 'Histórico e Relatórios',
       question: 'Como conferir se o idoso tomou o remédio correto?',
-      answer: 'Acesse a tela "Histórico" no menu inferior. Se o lembrete foi concluído com foto, você verá um botão "Ver Foto". Toque nele para abrir a imagem de confirmação tirada pelo idoso.',
+      answer:
+          'Acesse a tela "Histórico" no menu inferior. Se o lembrete foi concluído com foto, você verá um botão "Ver Foto". Toque nele para abrir a imagem de confirmação tirada pelo idoso.',
     ),
     FAQItem(
       category: 'Histórico e Relatórios',
       question: 'Como visualizar os relatórios de adesão mensal?',
-      answer: 'Clique em "Relatórios Mensais" no menu lateral (Drawer) ou no botão correspondente no histórico para ver gráficos coloridos de cumprimento da rotina do idoso.',
+      answer:
+          'Clique em "Relatórios Mensais" no menu lateral (Drawer) ou no botão correspondente no histórico para ver gráficos coloridos de cumprimento da rotina do idoso.',
     ),
     // Monitoramento de Saúde
     FAQItem(
       category: 'Monitoramento de Saúde',
       question: 'O que significa o indicador de bateria no painel?',
-      answer: 'Representa a carga atual da bateria do celular do idoso. Se o nível cair abaixo de 15%, um alerta de bateria baixa será destacado no radar do cuidador.',
+      answer:
+          'Representa a carga atual da bateria do celular do idoso. Se o nível cair abaixo de 15%, um alerta de bateria baixa será destacado no radar do cuidador.',
     ),
     // Alertas de Emergência
     FAQItem(
       category: 'Alertas de Emergência',
       question: 'Como funciona o botão de socorro do idoso?',
-      answer: 'Quando o idoso pressiona o botão "SOS" na tela dele, a central do cuidador recebe instantaneamente um alerta crítico vermelho e toca uma sirene de emergência.',
+      answer:
+          'Quando o idoso pressiona o botão "SOS" na tela dele, a central do cuidador recebe instantaneamente um alerta crítico vermelho e toca uma sirene de emergência.',
     ),
     FAQItem(
       category: 'Alertas de Emergência',
       question: 'O que são as barreiras do "Radar do Celular"?',
-      answer: 'São alertas automatizados baseados em sensores. Por exemplo, se o volume do idoso estiver no mínimo ou se o app estiver inativo, o cuidador será avisado.',
+      answer:
+          'São alertas automatizados baseados em sensores. Por exemplo, se o volume do idoso estiver no mínimo ou se o app estiver inativo, o cuidador será avisado.',
     ),
     // Configurações Gerais
     FAQItem(
       category: 'Configurações Gerais',
       question: 'Como edito a foto ou as informações do paciente?',
-      answer: 'Você pode editar o perfil do paciente, incluindo foto e dados pessoais, acessando o menu lateral e selecionando a opção de edição de perfil.',
+      answer:
+          'Você pode editar o perfil do paciente, incluindo foto e dados pessoais, acessando o menu lateral e selecionando a opção de edição de perfil.',
     ),
     FAQItem(
       category: 'Configurações Gerais',
       question: 'Como configurar as opções de voz (Alex) para o idoso?',
-      answer: 'Para configurar a voz e leitura de tela, acesse o menu lateral, vá em "Configurações de Voz" e personalize a assistente virtual de acordo com a preferência do idoso.',
+      answer:
+          'Para configurar a voz e leitura de tela, acesse o menu lateral, vá em "Configurações de Voz" e personalize a assistente virtual de acordo com a preferência do idoso.',
     ),
     // Chamadas
     FAQItem(
       category: 'Monitoramento de Saúde',
       question: 'Como funcionam as chamadas de vídeo e áudio?',
-      answer: 'Através do painel principal, você pode iniciar chamadas de vídeo ou áudio para se comunicar com o idoso de forma simples e rápida, permitindo verificar como ele está em tempo real.',
+      answer:
+          'Através do painel principal, você pode iniciar chamadas de vídeo ou áudio para se comunicar com o idoso de forma simples e rápida, permitindo verificar como ele está em tempo real.',
     ),
   ];
 
@@ -93,19 +103,22 @@ class _SupervisorHelpScreenState extends State<SupervisorHelpScreen> {
         final slides = [
           {
             'title': '1. Emparelhamento',
-            'desc': 'Vincule o celular do idoso na opção "Cadastrar/Emparelhar Idoso" do menu lateral para que a sincronização comece de imediato.',
+            'desc':
+                'Vincule o celular do idoso na opção "Cadastrar/Emparelhar Idoso" do menu lateral para que a sincronização comece de imediato.',
             'icon': Icons.phonelink_setup,
             'color': AppColors.primary,
           },
           {
             'title': '2. Criar Lembretes',
-            'desc': 'Configure remédios, refeições ou hidratação. Grave sua própria voz e tire foto real do remédio para ajudar na identificação.',
+            'desc':
+                'Configure remédios, refeições ou hidratação. Grave sua própria voz e tire foto real do remédio para ajudar na identificação.',
             'icon': Icons.add_circle_outline,
             'color': AppColors.secondary,
           },
           {
             'title': '3. Monitoramento & SOS',
-            'desc': 'Acompanhe a bateria e alertas do radar. Se o idoso pedir ajuda (SOS), você receberá um aviso sonoro imediato.',
+            'desc':
+                'Acompanhe a bateria e alertas do radar. Se o idoso pedir ajuda (SOS), você receberá um aviso sonoro imediato.',
             'icon': Icons.warning_amber,
             'color': AppColors.error,
           },
@@ -117,7 +130,9 @@ class _SupervisorHelpScreenState extends State<SupervisorHelpScreen> {
             final slideColor = slide['color'] as Color;
 
             return Dialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: Column(
@@ -126,9 +141,13 @@ class _SupervisorHelpScreenState extends State<SupervisorHelpScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
+                        Text(
                           'Guia de Início Rápido',
-                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.primary),
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                          ),
                         ),
                         IconButton(
                           icon: const Icon(Icons.close),
@@ -144,18 +163,30 @@ class _SupervisorHelpScreenState extends State<SupervisorHelpScreen> {
                         color: slideColor.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(slide['icon'] as IconData, size: 64, color: slideColor),
+                      child: Icon(
+                        slide['icon'] as IconData,
+                        size: 64,
+                        color: slideColor,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     Text(
                       slide['title'] as String,
-                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: slideColor),
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        color: slideColor,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     Text(
                       slide['desc'] as String,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 16, height: 1.5, color: AppColors.onSurfaceVariant),
+                      style: TextStyle(
+                        fontSize: 16,
+                        height: 1.5,
+                        color: AppColors.onSurfaceVariant,
+                      ),
                     ),
                     const SizedBox(height: 24),
                     // Navigation Dots
@@ -168,7 +199,9 @@ class _SupervisorHelpScreenState extends State<SupervisorHelpScreen> {
                           height: 10,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: currentSlide == idx ? slideColor : AppColors.outlineVariant,
+                            color: currentSlide == idx
+                                ? slideColor
+                                : AppColors.outlineVariant,
                           ),
                         );
                       }),
@@ -185,7 +218,13 @@ class _SupervisorHelpScreenState extends State<SupervisorHelpScreen> {
                                     currentSlide--;
                                   });
                                 },
-                          child: const Text('VOLTAR', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                          child: const Text(
+                            'VOLTAR',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
                         ),
                         ElevatedButton(
                           onPressed: () {
@@ -200,11 +239,18 @@ class _SupervisorHelpScreenState extends State<SupervisorHelpScreen> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: slideColor,
                             foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                           ),
                           child: Text(
-                            currentSlide == slides.length - 1 ? 'CONCLUIR' : 'AVANÇAR',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                            currentSlide == slides.length - 1
+                                ? 'CONCLUIR'
+                                : 'AVANÇAR',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
                           ),
                         ),
                       ],
@@ -232,11 +278,14 @@ class _SupervisorHelpScreenState extends State<SupervisorHelpScreen> {
     var filteredFaqs = _faqs;
     if (_searchQuery.isNotEmpty) {
       final query = _searchQuery.toLowerCase();
-      filteredFaqs = _faqs.where((f) =>
-        f.question.toLowerCase().contains(query) ||
-        f.answer.toLowerCase().contains(query) ||
-        f.category.toLowerCase().contains(query)
-      ).toList();
+      filteredFaqs = _faqs
+          .where(
+            (f) =>
+                f.question.toLowerCase().contains(query) ||
+                f.answer.toLowerCase().contains(query) ||
+                f.category.toLowerCase().contains(query),
+          )
+          .toList();
     }
 
     // Group filtered FAQs by Category
@@ -246,17 +295,34 @@ class _SupervisorHelpScreenState extends State<SupervisorHelpScreen> {
     }
 
     final categoriesMetadata = {
-      'Gerenciar Lembretes': {'icon': Icons.medication, 'color': AppColors.medicationsColor},
-      'Histórico e Relatórios': {'icon': Icons.history, 'color': AppColors.mealsColor},
-      'Monitoramento de Saúde': {'icon': Icons.favorite, 'color': AppColors.tertiaryContainer},
-      'Alertas de Emergência': {'icon': Icons.warning_amber, 'color': AppColors.error},
-      'Configurações Gerais': {'icon': Icons.settings, 'color': AppColors.primary},
+      'Gerenciar Lembretes': {
+        'icon': Icons.medication,
+        'color': AppColors.medicationsColor,
+      },
+      'Histórico e Relatórios': {
+        'icon': Icons.history,
+        'color': AppColors.mealsColor,
+      },
+      'Monitoramento de Saúde': {
+        'icon': Icons.favorite,
+        'color': AppColors.tertiaryContainer,
+      },
+      'Alertas de Emergência': {
+        'icon': Icons.warning_amber,
+        'color': AppColors.error,
+      },
+      'Configurações Gerais': {
+        'icon': Icons.settings,
+        'color': AppColors.primary,
+      },
     };
 
     return Scaffold(
       backgroundColor: AppColors.background,
       drawer: const SupervisorDrawer(currentRoute: '/supervisor-help'),
-      bottomNavigationBar: const SupervisorBottomNav(selected: SupervisorNavDestination.help),
+      bottomNavigationBar: const SupervisorBottomNav(
+        selected: SupervisorNavDestination.help,
+      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -273,19 +339,27 @@ class _SupervisorHelpScreenState extends State<SupervisorHelpScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
+                          gradient: LinearGradient(
                             colors: [AppColors.primary, AppColors.secondary],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: const [
-                            BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 4))
+                            BoxShadow(
+                              color: Colors.black12,
+                              blurRadius: 8,
+                              offset: Offset(0, 4),
+                            ),
                           ],
                         ),
                         child: const Row(
                           children: [
-                            Icon(Icons.auto_awesome, color: Colors.white, size: 32),
+                            Icon(
+                              Icons.auto_awesome,
+                              color: Colors.white,
+                              size: 32,
+                            ),
                             SizedBox(width: 16),
                             Expanded(
                               child: Column(
@@ -293,30 +367,51 @@ class _SupervisorHelpScreenState extends State<SupervisorHelpScreen> {
                                 children: [
                                   Text(
                                     'Novo no Lembrete Amigo?',
-                                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                   SizedBox(height: 2),
                                   Text(
                                     'Veja o Guia de Início Rápido (3 passos)',
-                                    style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w600),
+                                    style: TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                 ],
                               ),
                             ),
-                            Icon(Icons.arrow_forward_ios, color: Colors.white, size: 18),
+                            Icon(
+                              Icons.arrow_forward_ios,
+                              color: Colors.white,
+                              size: 18,
+                            ),
                           ],
                         ),
                       ),
                     ),
                     const SizedBox(height: 24),
-                    const Text(
+                    Text(
                       'Central de Ajuda',
-                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.onSurface),
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.onSurface,
+                      ),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
+                    Text(
                       'Tire dúvidas sobre o painel do cuidador.',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w400, height: 1.6, color: AppColors.onSurfaceVariant),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w400,
+                        height: 1.6,
+                        color: AppColors.onSurfaceVariant,
+                      ),
                     ),
                     const SizedBox(height: 20),
                     // Search box
@@ -333,11 +428,17 @@ class _SupervisorHelpScreenState extends State<SupervisorHelpScreen> {
                             _searchQuery = val;
                           });
                         },
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           hintText: 'Pesquisar dúvidas...',
-                          prefixIcon: Icon(Icons.search, color: AppColors.onSurfaceVariant),
+                          prefixIcon: Icon(
+                            Icons.search,
+                            color: AppColors.onSurfaceVariant,
+                          ),
                           border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
                         ),
                       ),
                     ),
@@ -349,11 +450,19 @@ class _SupervisorHelpScreenState extends State<SupervisorHelpScreen> {
                           padding: const EdgeInsets.all(32),
                           child: Column(
                             children: [
-                              Icon(Icons.help_outline, size: 64, color: AppColors.outlineVariant),
+                              Icon(
+                                Icons.help_outline,
+                                size: 64,
+                                color: AppColors.outlineVariant,
+                              ),
                               const SizedBox(height: 16),
-                              const Text(
+                              Text(
                                 'Nenhuma dúvida encontrada',
-                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.onSurfaceVariant),
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.onSurfaceVariant,
+                                ),
                               ),
                             ],
                           ),
@@ -363,7 +472,9 @@ class _SupervisorHelpScreenState extends State<SupervisorHelpScreen> {
                       ...groupedFaqs.entries.map((group) {
                         final catName = group.key;
                         final items = group.value;
-                        final meta = categoriesMetadata[catName] ?? {'icon': Icons.help, 'color': AppColors.primary};
+                        final meta =
+                            categoriesMetadata[catName] ??
+                            {'icon': Icons.help, 'color': AppColors.primary};
                         final catIcon = meta['icon'] as IconData;
                         final catColor = meta['color'] as Color;
 
@@ -387,7 +498,11 @@ class _SupervisorHelpScreenState extends State<SupervisorHelpScreen> {
                                       catName,
                                       maxLines: 2,
                                       overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: catColor),
+                                      style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                        color: catColor,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -395,17 +510,31 @@ class _SupervisorHelpScreenState extends State<SupervisorHelpScreen> {
                               const Divider(height: 24),
                               ...items.map((item) {
                                 return Theme(
-                                  data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                                  data: Theme.of(
+                                    context,
+                                  ).copyWith(dividerColor: Colors.transparent),
                                   child: ExpansionTile(
                                     title: Text(
                                       item.question,
-                                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.onSurface),
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.onSurface,
+                                      ),
                                     ),
-                                    childrenPadding: const EdgeInsets.only(bottom: 12, left: 8, right: 8),
+                                    childrenPadding: const EdgeInsets.only(
+                                      bottom: 12,
+                                      left: 8,
+                                      right: 8,
+                                    ),
                                     children: [
                                       Text(
                                         item.answer,
-                                        style: const TextStyle(fontSize: 15, height: 1.45, color: AppColors.onSurfaceVariant),
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          height: 1.45,
+                                          color: AppColors.onSurfaceVariant,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -428,66 +557,105 @@ class _SupervisorHelpScreenState extends State<SupervisorHelpScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Row(
+                          Row(
                             children: [
-                              Icon(Icons.support_agent, color: AppColors.primary, size: 32),
+                              Icon(
+                                Icons.support_agent,
+                                color: AppColors.primary,
+                                size: 32,
+                              ),
                               SizedBox(width: 12),
                               Expanded(
                                 child: Text(
                                   'Suporte Técnico',
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.primary),
+                                  style: TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.primary,
+                                  ),
                                 ),
                               ),
                             ],
                           ),
                           const SizedBox(height: 12),
-                          const Text(
+                          Text(
                             'Precisa de ajuda adicional? Fale com nossa equipe diretamente através das opções de contato rápido:',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w400, height: 1.5, color: AppColors.onSurfaceVariant),
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w400,
+                              height: 1.5,
+                              color: AppColors.onSurfaceVariant,
+                            ),
                           ),
                           const SizedBox(height: 16),
                           Row(
                             children: [
                               Expanded(
                                 child: ElevatedButton.icon(
-                                  onPressed: () => _launchUrlHelper('https://wa.me/5586994194571?text=Olá,%20preciso%20de%20ajuda%20com%20o%20app%20Lembrete%20Amigo.'),
+                                  onPressed: () => _launchUrlHelper(
+                                    'https://wa.me/5586994194571?text=Olá,%20preciso%20de%20ajuda%20com%20o%20app%20Lembrete%20Amigo.',
+                                  ),
                                   icon: const Icon(Icons.forum, size: 20),
-                                  label: const FittedBox(fit: BoxFit.scaleDown, child: Text('WhatsApp')),
+                                  label: const FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text('WhatsApp'),
+                                  ),
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.green,
+                                    backgroundColor: AppColors.success,
                                     foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                    ),
                                   ),
                                 ),
                               ),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: ElevatedButton.icon(
-                                  onPressed: () => _launchUrlHelper('tel:+5586994194571'),
+                                  onPressed: () =>
+                                      _launchUrlHelper('tel:+5586994194571'),
                                   icon: const Icon(Icons.phone, size: 20),
-                                  label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Ligar')),
+                                  label: const FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text('Ligar'),
+                                  ),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: AppColors.primary,
                                     foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                    ),
                                   ),
                                 ),
                               ),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: ElevatedButton.icon(
-                                  onPressed: () => _launchUrlHelper('mailto:guilhermebarbosa556@gmail.com?subject=Ajuda%20Lembrete%20Amigo'),
+                                  onPressed: () => _launchUrlHelper(
+                                    'mailto:guilhermebarbosa556@gmail.com?subject=Ajuda%20Lembrete%20Amigo',
+                                  ),
                                   icon: const Icon(Icons.email, size: 20),
-                                  label: const FittedBox(fit: BoxFit.scaleDown, child: Text('E-mail')),
+                                  label: const FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text('E-mail'),
+                                  ),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: AppColors.secondary,
                                     foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -513,23 +681,32 @@ class _SupervisorHelpScreenState extends State<SupervisorHelpScreen> {
         return Container(
           height: 64,
           padding: const EdgeInsets.symmetric(horizontal: 20),
-          decoration: const BoxDecoration(
-            color: AppColors.surface,
-          ),
+          decoration: BoxDecoration(color: AppColors.surface),
           child: Row(
             children: [
               IconButton(
-                icon: const Icon(Icons.menu, color: AppColors.primary, size: 32),
+                icon: Icon(Icons.menu, color: AppColors.primary, size: 32),
                 onPressed: () => Scaffold.of(context).openDrawer(),
               ),
-              const Expanded(
+              Expanded(
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.health_and_safety, size: 32, color: AppColors.primary),
+                    Icon(
+                      Icons.health_and_safety,
+                      size: 32,
+                      color: AppColors.primary,
+                    ),
                     SizedBox(width: 8),
-                    Text('Cuidador', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                    Text(
+                      'Cuidador',
+                      style: TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -537,7 +714,7 @@ class _SupervisorHelpScreenState extends State<SupervisorHelpScreen> {
             ],
           ),
         );
-      }
+      },
     );
   }
 }

@@ -68,7 +68,9 @@ class _SupervisorReminderDetailScreenState
         debugPrint('Erro ao reproduzir áudio da família: $e');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Não foi possível reproduzir o áudio gravado.')),
+            const SnackBar(
+              content: Text('Não foi possível reproduzir o áudio gravado.'),
+            ),
           );
         }
       }
@@ -80,12 +82,13 @@ class _SupervisorReminderDetailScreenState
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
+        title: Text(
           'Excluir Lembrete?',
           style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: AppColors.error,
-              fontSize: 22),
+            fontWeight: FontWeight.bold,
+            color: AppColors.error,
+            fontSize: 22,
+          ),
         ),
         content: Text(
           'Tem certeza que deseja excluir o lembrete "${widget.title}"? O idoso deixará de ser notificado neste horário.',
@@ -104,7 +107,7 @@ class _SupervisorReminderDetailScreenState
                   await LembreteService.instance.remover(widget.lembrete!.id);
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
+                      SnackBar(
                         content: Text('Lembrete excluído com sucesso!'),
                         backgroundColor: AppColors.error,
                       ),
@@ -127,10 +130,13 @@ class _SupervisorReminderDetailScreenState
               backgroundColor: AppColors.error,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8)),
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
-            child: const Text('Excluir',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            child: const Text(
+              'Excluir',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -158,7 +164,8 @@ class _SupervisorReminderDetailScreenState
 
   @override
   Widget build(BuildContext context) {
-    final isMedication = widget.category.toLowerCase() == 'medicamento' ||
+    final isMedication =
+        widget.category.toLowerCase() == 'medicamento' ||
         widget.category.toLowerCase() == 'medicacao';
     final tabCount = isMedication ? 3 : 2;
 
@@ -176,14 +183,19 @@ class _SupervisorReminderDetailScreenState
           title: Text(
             'Detalhes do Lembrete',
             style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-                color: widget.accentColor),
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+              color: widget.accentColor,
+            ),
           ),
           actions: [
             if (widget.lembrete != null) ...[
               IconButton(
-                icon: const Icon(Icons.edit_rounded, color: AppColors.primary, size: 26),
+                icon: Icon(
+                  Icons.edit_rounded,
+                  color: AppColors.primary,
+                  size: 26,
+                ),
                 tooltip: 'Editar Lembrete',
                 onPressed: () => Navigator.pushNamed(
                   context,
@@ -192,8 +204,11 @@ class _SupervisorReminderDetailScreenState
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.delete_outline_rounded,
-                    color: AppColors.error, size: 26),
+                icon: Icon(
+                  Icons.delete_outline_rounded,
+                  color: AppColors.error,
+                  size: 26,
+                ),
                 tooltip: 'Excluir Lembrete',
                 onPressed: () => _confirmarExclusao(context),
               ),
@@ -205,13 +220,21 @@ class _SupervisorReminderDetailScreenState
             unselectedLabelColor: AppColors.onSurfaceVariant,
             indicatorColor: widget.accentColor,
             indicatorWeight: 3,
-            labelStyle:
-                const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            labelStyle: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
             tabs: [
-              const Tab(text: 'DETALHES', icon: Icon(Icons.info_outline_rounded)),
+              const Tab(
+                text: 'DETALHES',
+                icon: Icon(Icons.info_outline_rounded),
+              ),
               const Tab(text: 'HISTÓRICO', icon: Icon(Icons.history_rounded)),
               if (isMedication)
-                const Tab(text: 'BULA (IA)', icon: Icon(Icons.auto_awesome_rounded)),
+                const Tab(
+                  text: 'BULA (IA)',
+                  icon: Icon(Icons.auto_awesome_rounded),
+                ),
             ],
           ),
         ),
@@ -235,9 +258,11 @@ class _SupervisorReminderDetailScreenState
   Widget _buildDetailsTab() {
     final photoPath = widget.lembrete?.medicamentoFotoPath;
     final hasPhoto = photoPath != null && photoPath.isNotEmpty;
-    final hasInstructions = widget.lembrete?.medicamentoInstrucoes != null &&
+    final hasInstructions =
+        widget.lembrete?.medicamentoInstrucoes != null &&
         widget.lembrete!.medicamentoInstrucoes!.isNotEmpty;
-    final hasAudio = widget.lembrete?.audioPath != null &&
+    final hasAudio =
+        widget.lembrete?.audioPath != null &&
         widget.lembrete!.audioPath!.isNotEmpty;
 
     return SingleChildScrollView(
@@ -252,7 +277,9 @@ class _SupervisorReminderDetailScreenState
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                  color: widget.accentColor.withValues(alpha: 0.3), width: 1.5),
+                color: widget.accentColor.withValues(alpha: 0.3),
+                width: 1.5,
+              ),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.04),
@@ -268,7 +295,7 @@ class _SupervisorReminderDetailScreenState
                 Text(
                   widget.title,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.w800,
                     color: AppColors.primary,
@@ -278,12 +305,15 @@ class _SupervisorReminderDetailScreenState
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.schedule_rounded,
-                        size: 24, color: AppColors.primary),
+                    Icon(
+                      Icons.schedule_rounded,
+                      size: 24,
+                      color: AppColors.primary,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       widget.time,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.w700,
                         color: AppColors.onSurface,
@@ -293,8 +323,10 @@ class _SupervisorReminderDetailScreenState
                 ),
                 const SizedBox(height: 12),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: widget.accentColor.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(9999),
@@ -325,34 +357,41 @@ class _SupervisorReminderDetailScreenState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Row(
+                  Row(
                     children: [
-                      Icon(Icons.repeat_rounded,
-                          color: AppColors.primary, size: 24),
+                      Icon(
+                        Icons.repeat_rounded,
+                        color: AppColors.primary,
+                        size: 24,
+                      ),
                       SizedBox(width: 10),
                       Text(
                         'Frequência do Lembrete',
                         style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primary),
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
                   Text(
                     _getRecorrenciaTexto(widget.lembrete!),
-                    style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.onSurface),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.onSurface,
+                    ),
                   ),
                   if (widget.lembrete?.dataInicio != null) ...[
                     const SizedBox(height: 8),
                     Text(
                       'Início: ${widget.lembrete!.dataInicio!.day.toString().padLeft(2, '0')}/${widget.lembrete!.dataInicio!.month.toString().padLeft(2, '0')}/${widget.lembrete!.dataInicio!.year}',
-                      style: const TextStyle(
-                          fontSize: 14, color: AppColors.onSurfaceVariant),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppColors.onSurfaceVariant,
+                      ),
                     ),
                   ],
                   if (widget.lembrete?.isUsoContinuo == false &&
@@ -360,8 +399,10 @@ class _SupervisorReminderDetailScreenState
                     const SizedBox(height: 4),
                     Text(
                       'Fim: ${widget.lembrete!.dataFim!.day.toString().padLeft(2, '0')}/${widget.lembrete!.dataFim!.month.toString().padLeft(2, '0')}/${widget.lembrete!.dataFim!.year}',
-                      style: const TextStyle(
-                          fontSize: 14, color: AppColors.onSurfaceVariant),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppColors.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ],
@@ -382,27 +423,32 @@ class _SupervisorReminderDetailScreenState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Row(
+                  Row(
                     children: [
-                      Icon(Icons.menu_book_rounded,
-                          color: AppColors.primary, size: 24),
+                      Icon(
+                        Icons.menu_book_rounded,
+                        color: AppColors.primary,
+                        size: 24,
+                      ),
                       SizedBox(width: 10),
                       Text(
                         'Instruções ao Idoso',
                         style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primary),
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
                   Text(
                     widget.lembrete!.medicamentoInstrucoes!,
-                    style: const TextStyle(
-                        fontSize: 16,
-                        color: AppColors.onSurface,
-                        height: 1.4),
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: AppColors.onSurface,
+                      height: 1.4,
+                    ),
                   ),
                 ],
               ),
@@ -422,25 +468,31 @@ class _SupervisorReminderDetailScreenState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Row(
+                  Row(
                     children: [
-                      Icon(Icons.mic_rounded,
-                          color: AppColors.primary, size: 24),
+                      Icon(
+                        Icons.mic_rounded,
+                        color: AppColors.primary,
+                        size: 24,
+                      ),
                       SizedBox(width: 10),
                       Text(
                         'Áudio Personalizado da Família',
                         style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primary),
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 6),
-                  const Text(
+                  Text(
                     'Este é o áudio gravado que o idoso escuta ao ser notificado.',
                     style: TextStyle(
-                        fontSize: 14, color: AppColors.onSurfaceVariant),
+                      fontSize: 14,
+                      color: AppColors.onSurfaceVariant,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   SizedBox(
@@ -449,16 +501,19 @@ class _SupervisorReminderDetailScreenState
                     child: ElevatedButton.icon(
                       onPressed: _toggleAudio,
                       icon: Icon(
-                          _isPlayingAudio
-                              ? Icons.stop_rounded
-                              : Icons.play_arrow_rounded,
-                          size: 28),
+                        _isPlayingAudio
+                            ? Icons.stop_rounded
+                            : Icons.play_arrow_rounded,
+                        size: 28,
+                      ),
                       label: Text(
                         _isPlayingAudio
                             ? 'PARAR ÁUDIO'
                             : 'OUVIR GRAVAÇÃO DA FAMÍLIA',
                         style: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold),
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: _isPlayingAudio
@@ -466,7 +521,8 @@ class _SupervisorReminderDetailScreenState
                             : AppColors.primary,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14)),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
                       ),
                     ),
                   ),
@@ -488,12 +544,15 @@ class _SupervisorReminderDetailScreenState
                       arguments: widget.lembrete,
                     ),
                     icon: const Icon(Icons.edit_rounded),
-                    label: const Text('EDITAR LEMBRETE',
-                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    label: const Text(
+                      'EDITAR LEMBRETE',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14)),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                     ),
                   ),
                 ),
@@ -507,7 +566,7 @@ class _SupervisorReminderDetailScreenState
 
   Widget _buildHistoryTab() {
     if (widget.lembrete == null) {
-      return const Center(
+      return Center(
         child: Text(
           'Lembrete ainda não salvo para exibir histórico.',
           style: TextStyle(fontSize: 16, color: AppColors.onSurfaceVariant),
@@ -518,16 +577,17 @@ class _SupervisorReminderDetailScreenState
     return ValueListenableBuilder<List<LembreteEvento>>(
       valueListenable: LembreteService.instance.eventosNotifier,
       builder: (context, todosEventos, child) {
-        final eventos = todosEventos
-            .where((e) => e.lembreteId == widget.lembrete!.id)
-            .toList()
-          ..sort((a, b) => b.registradoEm.compareTo(a.registradoEm));
+        final eventos =
+            todosEventos
+                .where((e) => e.lembreteId == widget.lembrete!.id)
+                .toList()
+              ..sort((a, b) => b.registradoEm.compareTo(a.registradoEm));
 
         final total = eventos.length;
-        final concluidos =
-            eventos.where((e) => e.status.isConcluido).length;
-        final perdidos =
-            eventos.where((e) => e.status == LembreteStatus.perdido).length;
+        final concluidos = eventos.where((e) => e.status.isConcluido).length;
+        final perdidos = eventos
+            .where((e) => e.status == LembreteStatus.perdido)
+            .length;
         final taxa = total > 0 ? ((concluidos / total) * 100).round() : 0;
 
         return SingleChildScrollView(
@@ -542,25 +602,39 @@ class _SupervisorReminderDetailScreenState
                   color: AppColors.primary.withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(18),
                   border: Border.all(
-                      color: AppColors.primary.withValues(alpha: 0.3)),
+                    color: AppColors.primary.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: Column(
                   children: [
-                    const Text(
+                    Text(
                       'Resumo de Adesão do Lembrete',
                       style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primary),
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
                         _buildStatItem('Taxa', '$taxa%', AppColors.primary),
-                        _buildStatItem('Concluídos', '$concluidos', AppColors.success),
-                        _buildStatItem('Perdidos', '$perdidos', AppColors.error),
-                        _buildStatItem('Total Logs', '$total', AppColors.onSurfaceVariant),
+                        _buildStatItem(
+                          'Concluídos',
+                          '$concluidos',
+                          AppColors.success,
+                        ),
+                        _buildStatItem(
+                          'Perdidos',
+                          '$perdidos',
+                          AppColors.error,
+                        ),
+                        _buildStatItem(
+                          'Total Logs',
+                          '$total',
+                          AppColors.onSurfaceVariant,
+                        ),
                       ],
                     ),
                   ],
@@ -568,12 +642,13 @@ class _SupervisorReminderDetailScreenState
               ),
               const SizedBox(height: 20),
 
-              const Text(
+              Text(
                 'Histórico Cronológico',
                 style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.onSurface),
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.onSurface,
+                ),
               ),
               const SizedBox(height: 12),
 
@@ -581,10 +656,13 @@ class _SupervisorReminderDetailScreenState
                 Container(
                   padding: const EdgeInsets.all(32),
                   alignment: Alignment.center,
-                  child: const Column(
+                  child: Column(
                     children: [
-                      Icon(Icons.history_rounded,
-                          size: 48, color: AppColors.outline),
+                      Icon(
+                        Icons.history_rounded,
+                        size: 48,
+                        color: AppColors.outline,
+                      ),
                       SizedBox(height: 12),
                       Text(
                         'Nenhum registro de atividade para este lembrete ainda.',
@@ -619,8 +697,7 @@ class _SupervisorReminderDetailScreenState
                       statusColor = AppColors.error;
                       statusIcon = Icons.cancel_rounded;
                       statusText = 'Não Respondido / Perdido';
-                    } else if (evento.status ==
-                        LembreteStatus.precisaDeAjuda) {
+                    } else if (evento.status == LembreteStatus.precisaDeAjuda) {
                       statusColor = AppColors.error;
                       statusIcon = Icons.sos_rounded;
                       statusText = 'Pediu Ajuda';
@@ -649,8 +726,11 @@ class _SupervisorReminderDetailScreenState
                               color: statusColor.withValues(alpha: 0.12),
                               shape: BoxShape.circle,
                             ),
-                            child: Icon(statusIcon,
-                                color: statusColor, size: 24),
+                            child: Icon(
+                              statusIcon,
+                              color: statusColor,
+                              size: 24,
+                            ),
                           ),
                           const SizedBox(width: 14),
                           Expanded(
@@ -668,19 +748,21 @@ class _SupervisorReminderDetailScreenState
                                 const SizedBox(height: 4),
                                 Text(
                                   dataStr,
-                                  style: const TextStyle(
-                                      fontSize: 14,
-                                      color: AppColors.onSurfaceVariant),
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: AppColors.onSurfaceVariant,
+                                  ),
                                 ),
                                 if (evento.observacao != null &&
                                     evento.observacao!.isNotEmpty) ...[
                                   const SizedBox(height: 4),
                                   Text(
                                     evento.observacao!,
-                                    style: const TextStyle(
-                                        fontSize: 13,
-                                        fontStyle: FontStyle.italic,
-                                        color: AppColors.onSurface),
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontStyle: FontStyle.italic,
+                                      color: AppColors.onSurface,
+                                    ),
                                   ),
                                 ],
                               ],
@@ -704,15 +786,19 @@ class _SupervisorReminderDetailScreenState
         Text(
           value,
           style: TextStyle(
-              fontSize: 22, fontWeight: FontWeight.w900, color: color),
+            fontSize: 22,
+            fontWeight: FontWeight.w900,
+            color: color,
+          ),
         ),
         const SizedBox(height: 4),
         Text(
           label,
-          style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: AppColors.onSurfaceVariant),
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: AppColors.onSurfaceVariant,
+          ),
         ),
       ],
     );
@@ -746,8 +832,8 @@ class _SupervisorReminderDetailScreenState
                       image: photoPath.startsWith('assets/')
                           ? AssetImage(photoPath) as ImageProvider
                           : (kIsWeb || photoPath.startsWith('http'))
-                              ? NetworkImage(photoPath) as ImageProvider
-                              : FileImage(File(photoPath)) as ImageProvider,
+                          ? NetworkImage(photoPath) as ImageProvider
+                          : FileImage(File(photoPath)) as ImageProvider,
                       fit: BoxFit.contain,
                     ),
                   ),
@@ -756,8 +842,11 @@ class _SupervisorReminderDetailScreenState
                   top: 20,
                   right: 20,
                   child: IconButton(
-                    icon:
-                        const Icon(Icons.close, color: Colors.white, size: 40),
+                    icon: const Icon(
+                      Icons.close,
+                      color: Colors.white,
+                      size: 40,
+                    ),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ),
@@ -786,8 +875,8 @@ class _SupervisorReminderDetailScreenState
             image: photoPath.startsWith('assets/')
                 ? AssetImage(photoPath) as ImageProvider
                 : (kIsWeb || photoPath.startsWith('http'))
-                    ? NetworkImage(photoPath) as ImageProvider
-                    : FileImage(File(photoPath)) as ImageProvider,
+                ? NetworkImage(photoPath) as ImageProvider
+                : FileImage(File(photoPath)) as ImageProvider,
             fit: BoxFit.cover,
             errorBuilder: (context, error, stackTrace) =>
                 Icon(widget.iconData, size: 56, color: widget.accentColor),
@@ -801,9 +890,7 @@ class _SupervisorReminderDetailScreenState
 class _BulaAssistantTabContent extends StatefulWidget {
   final String medicationName;
 
-  const _BulaAssistantTabContent({
-    required this.medicationName,
-  });
+  const _BulaAssistantTabContent({required this.medicationName});
 
   @override
   State<_BulaAssistantTabContent> createState() =>
@@ -895,20 +982,22 @@ class _BulaAssistantTabContentState extends State<_BulaAssistantTabContent> {
       children: [
         Container(
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: AppColors.surface,
-            border:
-                Border(bottom: BorderSide(color: AppColors.outlineVariant)),
+            border: Border(bottom: BorderSide(color: AppColors.outlineVariant)),
           ),
           child: Row(
             children: [
-              const Icon(Icons.auto_awesome_rounded,
-                  color: AppColors.primary, size: 24),
+              Icon(
+                Icons.auto_awesome_rounded,
+                color: AppColors.primary,
+                size: 24,
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   'Bula Inteligente - ${widget.medicationName}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: AppColors.primary,
@@ -927,12 +1016,13 @@ class _BulaAssistantTabContentState extends State<_BulaAssistantTabContent> {
               final msg = _messages[index];
               final isIA = msg['sender'] == 'ia';
               return Align(
-                alignment:
-                    isIA ? Alignment.centerLeft : Alignment.centerRight,
+                alignment: isIA ? Alignment.centerLeft : Alignment.centerRight,
                 child: Container(
                   margin: const EdgeInsets.only(bottom: 12),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   constraints: BoxConstraints(
                     maxWidth: MediaQuery.of(context).size.width * 0.82,
                   ),
@@ -943,10 +1033,12 @@ class _BulaAssistantTabContentState extends State<_BulaAssistantTabContent> {
                     borderRadius: BorderRadius.only(
                       topLeft: const Radius.circular(16),
                       topRight: const Radius.circular(16),
-                      bottomLeft:
-                          isIA ? Radius.zero : const Radius.circular(16),
-                      bottomRight:
-                          isIA ? const Radius.circular(16) : Radius.zero,
+                      bottomLeft: isIA
+                          ? Radius.zero
+                          : const Radius.circular(16),
+                      bottomRight: isIA
+                          ? const Radius.circular(16)
+                          : Radius.zero,
                     ),
                   ),
                   child: Text(
@@ -975,8 +1067,10 @@ class _BulaAssistantTabContentState extends State<_BulaAssistantTabContent> {
                   label: Text(quickQuestions[idx]),
                   onPressed: () => _sendMessage(quickQuestions[idx]),
                   backgroundColor: AppColors.surfaceContainerLow,
-                  labelStyle: const TextStyle(
-                      color: AppColors.primary, fontWeight: FontWeight.bold),
+                  labelStyle: TextStyle(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),

@@ -184,7 +184,7 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
                       const SizedBox(height: 8),
                       const SupervisorHeader(),
                       const SizedBox(height: 48),
-                      const Align(
+                      Align(
                         alignment: Alignment.centerLeft,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -231,7 +231,7 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
                         child: TextButton(
                           onPressed: () =>
                               Navigator.pushNamed(context, '/forgot-password'),
-                          child: const Text(
+                          child: Text(
                             'Esqueci minha senha',
                             style: TextStyle(
                               fontSize: 16,
@@ -249,7 +249,7 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
                         child: ElevatedButton.icon(
                           onPressed: _isLoading ? null : _entrar,
                           icon: _isLoading
-                              ? const SizedBox(
+                              ? SizedBox(
                                   width: 24,
                                   height: 24,
                                   child: CircularProgressIndicator(
@@ -297,7 +297,7 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
                         alignment: WrapAlignment.center,
                         crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          const Text(
+                          Text(
                             'Não possui acesso?',
                             style: TextStyle(
                               fontSize: 18,
@@ -311,7 +311,7 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
                               context,
                               '/supervisor-register',
                             ),
-                            child: const Text(
+                            child: Text(
                               'Criar conta',
                               style: TextStyle(
                                 fontSize: 18,
@@ -323,7 +323,7 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
                         ],
                       ),
                       const SizedBox(height: 32),
-                      const Divider(color: AppColors.outlineVariant),
+                      Divider(color: AppColors.outlineVariant),
                       const SizedBox(height: 16),
                       Wrap(
                         spacing: 32,
@@ -340,7 +340,7 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
                                 icon: Icons.description_outlined,
                               );
                             },
-                            child: const Text(
+                            child: Text(
                               'Termos de Uso',
                               style: TextStyle(
                                 fontSize: 14,
@@ -358,7 +358,7 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
                                 icon: Icons.security_outlined,
                               );
                             },
-                            child: const Text(
+                            child: Text(
                               'Privacidade',
                               style: TextStyle(
                                 fontSize: 14,
@@ -376,7 +376,7 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
                                 icon: Icons.build_outlined,
                               );
                             },
-                            child: const Text(
+                            child: Text(
                               'Suporte Técnico',
                               style: TextStyle(
                                 fontSize: 14,

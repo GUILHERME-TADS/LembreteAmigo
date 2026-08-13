@@ -46,10 +46,7 @@ class AnalyticsService {
   Future<void> logReminderCompleted(String reminderId, String category) async {
     await logEvent(
       name: 'lembrete_concluido',
-      parameters: {
-        'reminder_id': reminderId,
-        'category': category,
-      },
+      parameters: {'reminder_id': reminderId, 'category': category},
     );
   }
 
@@ -60,10 +57,7 @@ class AnalyticsService {
   Future<void> logError(String errorMessage, String context) async {
     await logEvent(
       name: 'erro_app',
-      parameters: {
-        'message': errorMessage,
-        'context': context,
-      },
+      parameters: {'message': errorMessage, 'context': context},
     );
   }
 

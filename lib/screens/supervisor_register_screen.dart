@@ -139,7 +139,7 @@ class _SupervisorRegisterScreenState extends State<SupervisorRegisterScreen> {
             children: [
               const SupervisorHeader(),
               const SizedBox(height: 24),
-              const Text(
+              Text(
                 'Criar Conta de Cuidador',
                 style: TextStyle(
                   fontSize: 32,
@@ -149,7 +149,7 @@ class _SupervisorRegisterScreenState extends State<SupervisorRegisterScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Preencha os dados para começar a monitorar.',
                 style: TextStyle(
                   fontSize: 18,
@@ -195,7 +195,7 @@ class _SupervisorRegisterScreenState extends State<SupervisorRegisterScreen> {
                 child: ElevatedButton.icon(
                   onPressed: _isLoading ? null : _criarConta,
                   icon: _isLoading
-                      ? const SizedBox(
+                      ? SizedBox(
                           width: 24,
                           height: 24,
                           child: CircularProgressIndicator(
@@ -226,7 +226,7 @@ class _SupervisorRegisterScreenState extends State<SupervisorRegisterScreen> {
                   alignment: WrapAlignment.center,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    const Text(
+                    Text(
                       'Já possui conta?',
                       style: TextStyle(
                         fontSize: 18,
@@ -235,7 +235,7 @@ class _SupervisorRegisterScreenState extends State<SupervisorRegisterScreen> {
                     ),
                     TextButton(
                       onPressed: () => Navigator.pop(context),
-                      child: const Text(
+                      child: Text(
                         'Fazer login',
                         style: TextStyle(
                           fontSize: 18,

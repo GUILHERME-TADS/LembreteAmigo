@@ -42,7 +42,7 @@ class _NewReminderAudioScreenState extends State<NewReminderAudioScreen> {
       if (!await _audioRecorder.hasPermission()) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(
               'Permissao de microfone negada. Autorize o acesso para gravar.',
             ),
@@ -125,7 +125,7 @@ class _NewReminderAudioScreenState extends State<NewReminderAudioScreen> {
       _recordedFilePath = null;
     });
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
+      SnackBar(
         content: Text('A gravacao nao foi salva. Tente novamente.'),
         backgroundColor: AppColors.error,
       ),
@@ -212,7 +212,7 @@ class _NewReminderAudioScreenState extends State<NewReminderAudioScreen> {
                                   ),
                                 ],
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.mic,
                                 size: 72,
                                 color: AppColors.onSecondaryContainer,
@@ -220,7 +220,7 @@ class _NewReminderAudioScreenState extends State<NewReminderAudioScreen> {
                             ),
                           ),
                           const SizedBox(height: 28),
-                          const Text(
+                          Text(
                             'Toque para começar a gravar',
                             style: TextStyle(
                               fontSize: 24,
@@ -229,7 +229,7 @@ class _NewReminderAudioScreenState extends State<NewReminderAudioScreen> {
                             ),
                           ),
                           const SizedBox(height: 10),
-                          const Text(
+                          Text(
                             'Fale com tom carinhoso e calmo.\nSua voz traz segurança para o idoso.',
                             textAlign: TextAlign.center,
                             style: TextStyle(
@@ -245,15 +245,15 @@ class _NewReminderAudioScreenState extends State<NewReminderAudioScreen> {
                               width: compact ? 140 : 170,
                               height: compact ? 140 : 170,
                               decoration: BoxDecoration(
-                                color: const Color(0xFFD32F2F),
+                                color: AppColors.error,
                                 shape: BoxShape.circle,
                                 border: Border.all(
                                   color: Colors.white,
                                   width: 6,
                                 ),
-                                boxShadow: const [
+                                boxShadow: [
                                   BoxShadow(
-                                    color: Colors.redAccent,
+                                    color: AppColors.error,
                                     blurRadius: 24,
                                     offset: Offset(0, 4),
                                   ),
@@ -267,16 +267,16 @@ class _NewReminderAudioScreenState extends State<NewReminderAudioScreen> {
                             ),
                           ),
                           const SizedBox(height: 24),
-                          const Text(
+                          Text(
                             'Gravando sua voz...',
                             style: TextStyle(
                               fontSize: 26,
                               fontWeight: FontWeight.w800,
-                              color: Color(0xFFD32F2F),
+                              color: AppColors.error,
                             ),
                           ),
                           const SizedBox(height: 8),
-                          const Text(
+                          Text(
                             'Toque no botão vermelho quando terminar.',
                             style: TextStyle(
                               fontSize: 17,
@@ -350,7 +350,7 @@ class _NewReminderAudioScreenState extends State<NewReminderAudioScreen> {
                                             width: 2,
                                           ),
                                         ),
-                                        child: const Icon(
+                                        child: Icon(
                                           Icons.refresh,
                                           size: 36,
                                           color: AppColors.primary,
@@ -364,14 +364,14 @@ class _NewReminderAudioScreenState extends State<NewReminderAudioScreen> {
                                   _isPlaying
                                       ? 'Tocando voz gravada...'
                                       : 'Voz gravada com sucesso!',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 22,
                                     fontWeight: FontWeight.w800,
                                     color: AppColors.primary,
                                   ),
                                 ),
                                 const SizedBox(height: 6),
-                                const Text(
+                                Text(
                                   'Toque no play azul para escutar antes de salvar.',
                                   style: TextStyle(
                                     fontSize: 16,
@@ -401,7 +401,7 @@ class _NewReminderAudioScreenState extends State<NewReminderAudioScreen> {
                             ),
                           ),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF2E7D32),
+                            backgroundColor: AppColors.success,
                             foregroundColor: Colors.white,
                             elevation: 4,
                             minimumSize: const Size.fromHeight(72),
@@ -431,18 +431,18 @@ class _NewReminderAudioScreenState extends State<NewReminderAudioScreen> {
     return Container(
       height: 64,
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: const BoxDecoration(color: AppColors.surface),
+      decoration: BoxDecoration(color: AppColors.surface),
       child: Row(
         children: [
           IconButton(
             onPressed: () => Navigator.pop(context),
-            icon: const Icon(
+            icon: Icon(
               Icons.arrow_back,
               color: AppColors.primary,
               size: 36,
             ),
           ),
-          const Expanded(
+          Expanded(
             child: Text(
               'Gravar Voz do Familiar',
               textAlign: TextAlign.center,

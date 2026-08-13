@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import '../../theme/app_theme.dart';
 
 class EffectivenessScoreGauge extends StatelessWidget {
   final double score;
@@ -12,9 +13,9 @@ class EffectivenessScoreGauge extends StatelessWidget {
   });
 
   Color get _color {
-    if (score >= 90) return const Color(0xFF2E7D32);
-    if (score >= 70) return const Color(0xFFF57F17);
-    return const Color(0xFFC62828);
+    if (score >= 90) return AppColors.success;
+    if (score >= 70) return AppColors.warning;
+    return AppColors.error;
   }
 
   String get _label {
@@ -78,7 +79,7 @@ class _GaugePainter extends CustomPainter {
     final radius = size.width / 2 - 12;
 
     final bgPaint = Paint()
-      ..color = Colors.grey.withValues(alpha: 0.15)
+      ..color = AppColors.outline.withValues(alpha: 0.15)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 18
       ..strokeCap = StrokeCap.round;

@@ -235,7 +235,7 @@ class _CareCenterScreenState extends State<CareCenterScreen> {
     final color = alert.severity == 3
         ? AppColors.error
         : alert.severity == 2
-        ? const Color(0xFFE07A00)
+        ? AppColors.warning
         : AppColors.primary;
     final statusLabel = switch (alert.status) {
       CareAlertStatus.open => 'ABERTA',
@@ -277,7 +277,7 @@ class _CareCenterScreenState extends State<CareCenterScreen> {
             const SizedBox(height: 8),
             Text(
               DateFormat('dd/MM/yyyy HH:mm').format(alert.createdAt.toLocal()),
-              style: const TextStyle(color: AppColors.onSurfaceVariant),
+              style: TextStyle(color: AppColors.onSurfaceVariant),
             ),
             if (alert.resolution?.isNotEmpty == true) ...[
               const SizedBox(height: 8),

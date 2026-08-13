@@ -29,7 +29,9 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
   String _selectedStatus = 'Todos';
   SupervisorInsights? _aiPatterns;
   bool _aiPatternsLoading = false;
-  final Debouncer _searchDebouncer = Debouncer(delay: Duration(milliseconds: 300));
+  final Debouncer _searchDebouncer = Debouncer(
+    delay: Duration(milliseconds: 300),
+  );
 
   @override
   void initState() {
@@ -51,7 +53,8 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
   void _updateOnlineStatus(List<ConnectivityResult> results) {
     if (!mounted) return;
     final online = results.any(
-      (r) => r == ConnectivityResult.wifi ||
+      (r) =>
+          r == ConnectivityResult.wifi ||
           r == ConnectivityResult.mobile ||
           r == ConnectivityResult.ethernet,
     );
@@ -119,8 +122,18 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
       return 'Ontem';
     } else {
       const meses = [
-        'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-        'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+        'Janeiro',
+        'Fevereiro',
+        'Março',
+        'Abril',
+        'Maio',
+        'Junho',
+        'Julho',
+        'Agosto',
+        'Setembro',
+        'Outubro',
+        'Novembro',
+        'Dezembro',
       ];
       return '${date.day.toString().padLeft(2, '0')} de ${meses[date.month - 1]} de ${date.year}';
     }
@@ -143,18 +156,23 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
         }
 
         return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               AppBar(
-                title: const Text('Foto do Lembrete', style: TextStyle(fontWeight: FontWeight.bold)),
+                title: const Text(
+                  'Foto do Lembrete',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
                 automaticallyImplyLeading: false,
                 actions: [
                   IconButton(
                     icon: const Icon(Icons.close),
                     onPressed: () => Navigator.pop(context),
-                  )
+                  ),
                 ],
                 backgroundColor: Colors.transparent,
                 elevation: 0,
@@ -169,12 +187,16 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
                     errorBuilder: (context, error, stackTrace) {
                       return Container(
                         height: 200,
-                        color: Colors.grey[200],
+                        color: AppColors.surfaceContainerHigh,
                         alignment: Alignment.center,
-                        child: const Column(
+                        child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.broken_image, size: 48, color: Colors.grey),
+                            Icon(
+                              Icons.broken_image,
+                              size: 48,
+                              color: AppColors.outline,
+                            ),
                             SizedBox(height: 8),
                             Text('Não foi possível carregar a imagem'),
                           ],
@@ -189,7 +211,10 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
                 child: Text(
                   lembrete.titulo,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],
@@ -218,9 +243,11 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
                   final occurrences = EffectivenessService.instance
                       .collapseOccurrences(eventos);
                   var list = List<LembreteEvento>.from(occurrences);
-                  
+
                   if (_selectedCategory != 'Todos') {
-                    list = list.where((e) => e.categoria == _selectedCategory).toList();
+                    list = list
+                        .where((e) => e.categoria == _selectedCategory)
+                        .toList();
                   }
 
                   if (_selectedStatus == 'Concluídos') {
@@ -231,10 +258,15 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
 
                   if (_searchQuery.isNotEmpty) {
                     final query = _searchQuery.toLowerCase();
-                    list = list.where((e) =>
-                      e.titulo.toLowerCase().contains(query) ||
-                      _categoriaLabel(e.categoria).toLowerCase().contains(query)
-                    ).toList();
+                    list = list
+                        .where(
+                          (e) =>
+                              e.titulo.toLowerCase().contains(query) ||
+                              _categoriaLabel(
+                                e.categoria,
+                              ).toLowerCase().contains(query),
+                        )
+                        .toList();
                   }
 
                   list.sort((a, b) => b.registradoEm.compareTo(a.registradoEm));
@@ -247,7 +279,7 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Histórico de Atividades',
                           style: TextStyle(
                             fontSize: 28,
@@ -269,12 +301,20 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
                               padding: const EdgeInsets.all(48),
                               child: Column(
                                 children: [
-                                  Icon(Icons.history, size: 64, color: AppColors.outlineVariant),
+                                  Icon(
+                                    Icons.history,
+                                    size: 64,
+                                    color: AppColors.outlineVariant,
+                                  ),
                                   const SizedBox(height: 16),
-                                  const Text(
+                                  Text(
                                     'Nenhuma atividade encontrada',
                                     textAlign: TextAlign.center,
-                                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.onSurfaceVariant),
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.onSurfaceVariant,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -302,9 +342,7 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
       child: SizedBox(
         width: double.infinity,
         child: OutlinedButton.icon(
-          onPressed: _aiPatternsLoading
-              ? null
-              : () => _analyzePatterns(todos),
+          onPressed: _aiPatternsLoading ? null : () => _analyzePatterns(todos),
           icon: _aiPatternsLoading
               ? const SizedBox(
                   width: 16,
@@ -338,16 +376,19 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
       decoration: BoxDecoration(
         color: AppColors.primaryContainer.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.25), width: 1.5),
+        border: Border.all(
+          color: AppColors.primary.withValues(alpha: 0.25),
+          width: 1.5,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.auto_awesome, size: 18, color: AppColors.primary),
+              Icon(Icons.auto_awesome, size: 18, color: AppColors.primary),
               const SizedBox(width: 8),
-              const Text(
+              Text(
                 'PADRÕES IDENTIFICADOS (IA)',
                 style: TextStyle(
                   fontSize: 12,
@@ -359,14 +400,18 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
               const Spacer(),
               GestureDetector(
                 onTap: () => setState(() => _aiPatterns = null),
-                child: const Icon(Icons.close, size: 18, color: AppColors.onSurfaceVariant),
+                child: Icon(
+                  Icons.close,
+                  size: 18,
+                  color: AppColors.onSurfaceVariant,
+                ),
               ),
             ],
           ),
           const SizedBox(height: 12),
           Text(
             p.summary,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w600,
               height: 1.4,
@@ -375,25 +420,36 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
           ),
           if (p.insights.isNotEmpty) ...[
             const SizedBox(height: 12),
-            ...p.insights.map((i) => Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('• ', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),
-                  Expanded(
-                    child: Text(
-                      i,
-                      style: const TextStyle(fontSize: 14, color: AppColors.onSurfaceVariant),
+            ...p.insights.map(
+              (i) => Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '• ',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                      ),
                     ),
-                  ),
-                ],
+                    Expanded(
+                      child: Text(
+                        i,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppColors.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            )),
+            ),
           ],
           if (p.attentionPoints.isNotEmpty) ...[
             const SizedBox(height: 12),
-            const Text(
+            Text(
               'ATENÇÃO',
               style: TextStyle(
                 fontSize: 11,
@@ -403,26 +459,36 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
               ),
             ),
             const SizedBox(height: 6),
-            ...p.attentionPoints.map((a) => Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(Icons.warning_amber_rounded, size: 16, color: AppColors.error),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      a,
-                      style: const TextStyle(fontSize: 14, color: AppColors.error, fontWeight: FontWeight.w600),
+            ...p.attentionPoints.map(
+              (a) => Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.warning_amber_rounded,
+                      size: 16,
+                      color: AppColors.error,
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        a,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppColors.error,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            )),
+            ),
           ],
           if (p.suggestions.isNotEmpty) ...[
             const SizedBox(height: 12),
-            const Text(
+            Text(
               'SUGESTÕES',
               style: TextStyle(
                 fontSize: 11,
@@ -432,22 +498,31 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
               ),
             ),
             const SizedBox(height: 6),
-            ...p.suggestions.map((s) => Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(Icons.lightbulb_outline, size: 16, color: AppColors.primary),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      s,
-                      style: const TextStyle(fontSize: 14, color: AppColors.onSurfaceVariant),
+            ...p.suggestions.map(
+              (s) => Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.lightbulb_outline,
+                      size: 16,
+                      color: AppColors.primary,
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        s,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppColors.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            )),
+            ),
           ],
         ],
       ),
@@ -477,7 +552,9 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
     final pct = total > 0 ? (concluidos / total) : 0.0;
 
     final totalRemedios = todos.where((l) => l.categoria == 'medicacao').length;
-    final concluidosRemedios = todos.where((l) => l.categoria == 'medicacao' && l.concluido).length;
+    final concluidosRemedios = todos
+        .where((l) => l.categoria == 'medicacao' && l.concluido)
+        .length;
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -493,7 +570,7 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'ADESÃO GERAL DO IDOSO',
                 style: TextStyle(
                   fontSize: 12,
@@ -507,7 +584,7 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
                   Icon(
                     Icons.circle,
                     size: 10,
-                    color: _isOnline ? Colors.green : AppColors.error,
+                    color: _isOnline ? AppColors.success : AppColors.error,
                   ),
                   const SizedBox(width: 6),
                   Text(
@@ -515,7 +592,7 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
-                      color: _isOnline ? Colors.green : AppColors.error,
+                      color: _isOnline ? AppColors.success : AppColors.error,
                     ),
                   ),
                 ],
@@ -536,13 +613,13 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
                       strokeWidth: 6,
                       backgroundColor: AppColors.surfaceContainerHigh,
                       color: pct >= 0.8
-                          ? Colors.green
-                          : (pct >= 0.5 ? Colors.orange : AppColors.error),
+                          ? AppColors.success
+                          : (pct >= 0.5 ? AppColors.warning : AppColors.error),
                     ),
                   ),
                   Text(
                     '${(pct * 100).toInt()}%',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w900,
                       color: AppColors.primary,
@@ -557,14 +634,14 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
                   children: [
                     Text(
                       '$concluidos de $total concluídos',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: AppColors.onSurface,
                       ),
                     ),
                     const SizedBox(height: 2),
-                    const Text(
+                    Text(
                       'Histórico total registrado',
                       style: TextStyle(
                         fontSize: 13,
@@ -575,7 +652,10 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.surfaceContainerLowest,
                   borderRadius: BorderRadius.circular(12),
@@ -583,12 +663,27 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
                 ),
                 child: Column(
                   children: [
-                    const Icon(Icons.medication_outlined, color: AppColors.medicationsColor, size: 20),
+                    Icon(
+                      Icons.medication_outlined,
+                      color: AppColors.medicationsColor,
+                      size: 20,
+                    ),
                     const SizedBox(height: 4),
-                    const Text('Remédios', style: TextStyle(fontSize: 10, color: AppColors.onSurfaceVariant, fontWeight: FontWeight.bold)),
+                    Text(
+                      'Remédios',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: AppColors.onSurfaceVariant,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     Text(
                       '$concluidosRemedios/$totalRemedios',
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary),
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                      ),
                     ),
                   ],
                 ),
@@ -629,16 +724,23 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
                   }
                 });
               },
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 hintText: 'Pesquisar por nome ou categoria...',
-                prefixIcon: Icon(Icons.search, color: AppColors.onSurfaceVariant, size: 20),
+                prefixIcon: Icon(
+                  Icons.search,
+                  color: AppColors.onSurfaceVariant,
+                  size: 20,
+                ),
                 border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
               ),
             ),
           ),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'FILTRAR POR CATEGORIA',
             style: TextStyle(
               fontSize: 11,
@@ -650,7 +752,7 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
           const SizedBox(height: 8),
           _buildCategoryChips(),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'FILTRAR POR STATUS',
             style: TextStyle(
               fontSize: 11,
@@ -748,11 +850,12 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
 
     for (final evento in todos) {
       final date = evento.registradoEm;
-      final bool isNewDay = lastDate == null ||
+      final bool isNewDay =
+          lastDate == null ||
           lastDate.day != date.day ||
           lastDate.month != date.month ||
           lastDate.year != date.year;
-      
+
       if (isNewDay) {
         lastDate = date;
         listItems.add(
@@ -760,7 +863,7 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
             padding: const EdgeInsets.only(top: 20, bottom: 10),
             child: Text(
               _formatHeaderDate(date),
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
                 color: AppColors.primary,
@@ -770,9 +873,7 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
         );
       }
 
-      listItems.add(
-        _activityCard(evento),
-      );
+      listItems.add(_activityCard(evento));
     }
 
     return Column(
@@ -787,27 +888,29 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
         return Container(
           height: 64,
           padding: const EdgeInsets.symmetric(horizontal: 20),
-          decoration: const BoxDecoration(
-            color: AppColors.surface,
-          ),
+          decoration: BoxDecoration(color: AppColors.surface),
           child: Row(
             children: [
               IconButton(
                 onPressed: () => Scaffold.of(context).openDrawer(),
-                icon: const Icon(Icons.menu, color: AppColors.primary, size: 32),
+                icon: Icon(Icons.menu, color: AppColors.primary, size: 32),
               ),
-              const Expanded(
+              Expanded(
                 child: Text(
                   'Lembrete Amigo',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700, color: AppColors.primary),
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primary,
+                  ),
                 ),
               ),
               const SizedBox(width: 48),
             ],
           ),
         );
-      }
+      },
     );
   }
 
@@ -819,19 +922,21 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
         break;
       }
     }
-    return (source ?? Lembrete(
-      id: evento.lembreteId,
-      titulo: evento.titulo,
-      horarioHour: evento.registradoEm.hour,
-      horarioMinute: evento.registradoEm.minute,
-      categoria: evento.categoria,
-      idosoId: evento.idosoId,
-    )).copyWith(
-      titulo: evento.titulo,
-      categoria: evento.categoria,
-      criadoEm: evento.registradoEm,
-      status: evento.status,
-    );
+    return (source ??
+            Lembrete(
+              id: evento.lembreteId,
+              titulo: evento.titulo,
+              horarioHour: evento.registradoEm.hour,
+              horarioMinute: evento.registradoEm.minute,
+              categoria: evento.categoria,
+              idosoId: evento.idosoId,
+            ))
+        .copyWith(
+          titulo: evento.titulo,
+          categoria: evento.categoria,
+          criadoEm: evento.registradoEm,
+          status: evento.status,
+        );
   }
 
   Widget _activityCard(LembreteEvento evento) {
@@ -845,7 +950,7 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
     final concluido = lembrete.concluido;
     final concluidoComFoto = lembrete.concluidoComFoto;
 
-    final cardAccentColor = concluido ? Colors.green : color;
+    final cardAccentColor = concluido ? AppColors.success : color;
     final statusLabel = switch (evento.status) {
       LembreteStatus.concluido => 'Concluído',
       LembreteStatus.concluidoComFoto => 'Concluído com foto',
@@ -886,146 +991,177 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
           ],
         ),
         child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Container(
-                width: 6,
-                color: cardAccentColor,
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: cardAccentColor.withValues(alpha: 0.15),
-                          shape: BoxShape.circle,
+          borderRadius: BorderRadius.circular(16),
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(width: 6, color: cardAccentColor),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: cardAccentColor.withValues(alpha: 0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(icon, color: cardAccentColor, size: 22),
                         ),
-                        child: Icon(icon, color: cardAccentColor, size: 22),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              lembrete.titulo,
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: concluido ? AppColors.onSurfaceVariant : AppColors.onSurface,
-                                decoration: concluido ? TextDecoration.lineThrough : null,
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                lembrete.titulo,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: concluido
+                                      ? AppColors.onSurfaceVariant
+                                      : AppColors.onSurface,
+                                  decoration: concluido
+                                      ? TextDecoration.lineThrough
+                                      : null,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 6),
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 6,
-                              crossAxisAlignment: WrapCrossAlignment.center,
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: color.withValues(alpha: 0.12),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Text(
-                                    categoryLabel,
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                      color: color,
+                              const SizedBox(height: 6),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 6,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 2,
                                     ),
-                                  ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 2,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: cardAccentColor.withValues(alpha: 0.12),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Text(
-                                    statusLabel,
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                      color: cardAccentColor,
+                                    decoration: BoxDecoration(
+                                      color: color.withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(20),
                                     ),
-                                  ),
-                                ),
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(Icons.schedule, size: 14, color: AppColors.onSurfaceVariant),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      eventTime,
-                                      style: const TextStyle(
-                                        fontSize: 13,
+                                    child: Text(
+                                      categoryLabel,
+                                      style: TextStyle(
+                                        fontSize: 11,
                                         fontWeight: FontWeight.bold,
+                                        color: color,
+                                      ),
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: cardAccentColor.withValues(
+                                        alpha: 0.12,
+                                      ),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Text(
+                                      statusLabel,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: cardAccentColor,
+                                      ),
+                                    ),
+                                  ),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.schedule,
+                                        size: 14,
                                         color: AppColors.onSurfaceVariant,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        eventTime,
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColors.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  if (concluidoComFoto &&
+                                      lembrete.medicamentoFotoPath != null) ...[
+                                    GestureDetector(
+                                      onTap: () =>
+                                          _showPhotoDialog(context, lembrete),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.tertiaryFixedDim
+                                              .withValues(alpha: 0.15),
+                                          borderRadius: BorderRadius.circular(
+                                            20,
+                                          ),
+                                          border: Border.all(
+                                            color: AppColors.tertiaryFixedDim,
+                                            width: 1,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              Icons.photo_camera,
+                                              size: 12,
+                                              color: AppColors
+                                                  .onTertiaryFixedVariant,
+                                            ),
+                                            SizedBox(width: 4),
+                                            Text(
+                                              'Ver Foto',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.bold,
+                                                color: AppColors
+                                                    .onTertiaryFixedVariant,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ),
                                   ],
-                                ),
-                                if (concluidoComFoto && lembrete.medicamentoFotoPath != null) ...[
-                                  GestureDetector(
-                                    onTap: () => _showPhotoDialog(context, lembrete),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.tertiaryFixedDim.withValues(alpha: 0.15),
-                                        borderRadius: BorderRadius.circular(20),
-                                        border: Border.all(color: AppColors.tertiaryFixedDim, width: 1),
-                                      ),
-                                      child: const Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(Icons.photo_camera, size: 12, color: AppColors.onTertiaryFixedVariant),
-                                          SizedBox(width: 4),
-                                          Text(
-                                            'Ver Foto',
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold,
-                                              color: AppColors.onTertiaryFixedVariant,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
                                 ],
-                              ],
-                            ),
-                          ],
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      if (concluido)
-                        const Icon(Icons.check_circle, color: Colors.green, size: 26)
-                      else
-                        Icon(
-                          Icons.radio_button_unchecked,
-                          color: color.withValues(alpha: 0.4),
-                          size: 26,
-                        ),
-                    ],
+                        const SizedBox(width: 8),
+                        if (concluido)
+                          Icon(
+                            Icons.check_circle,
+                            color: AppColors.success,
+                            size: 26,
+                          )
+                        else
+                          Icon(
+                            Icons.radio_button_unchecked,
+                            color: color.withValues(alpha: 0.4),
+                            size: 26,
+                          ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
         ),
       ),
     );

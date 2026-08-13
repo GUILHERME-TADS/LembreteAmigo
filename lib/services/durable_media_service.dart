@@ -29,7 +29,8 @@ class DurableMediaService {
 
     final dot = path.lastIndexOf('.');
     final extension = dot >= 0 ? path.substring(dot) : '';
-    final filename = '${prefix}_${DateTime.now().microsecondsSinceEpoch}$extension';
+    final filename =
+        '${prefix}_${DateTime.now().microsecondsSinceEpoch}$extension';
     final target = File('${directory.path}/$filename');
     await source.copy(target.path);
     return target.path;

@@ -75,7 +75,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
       caller: this,
     );
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
+      SnackBar(
         content: Text(
           'Você precisa de um cuidador conectado para usar esta função.',
         ),
@@ -294,7 +294,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(24),
               ),
-              title: const Text(
+              title: Text(
                 'Gravar recado de voz',
                 textAlign: TextAlign.center,
                 style: TextStyle(
@@ -325,7 +325,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                             ),
                           ],
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.mic,
                           size: 56,
                           color: AppColors.onPrimaryContainer,
@@ -338,7 +338,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                       child: Container(
                         width: 140,
                         height: 140,
-                        decoration: const BoxDecoration(
+                        decoration: BoxDecoration(
                           color: AppColors.error,
                           shape: BoxShape.circle,
                           boxShadow: [
@@ -365,7 +365,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                           child: Container(
                             width: 100,
                             height: 100,
-                            decoration: const BoxDecoration(
+                            decoration: BoxDecoration(
                               color: AppColors.secondaryContainer,
                               shape: BoxShape.circle,
                             ),
@@ -389,7 +389,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                                 color: AppColors.outlineVariant,
                               ),
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.refresh,
                               size: 28,
                               color: AppColors.primary,
@@ -486,7 +486,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                               );
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
+                                  SnackBar(
                                     content: Text('Recado de voz enviado.'),
                                     backgroundColor: AppColors.tertiaryFixedDim,
                                   ),
@@ -506,7 +506,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.secondaryContainer,
                     ),
-                    child: const Text(
+                    child: Text(
                       'Enviar recado',
                       style: TextStyle(
                         fontSize: 18,
@@ -570,14 +570,14 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
   Widget _buildTopBar(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      decoration: const BoxDecoration(color: AppColors.surface),
+      decoration: BoxDecoration(color: AppColors.surface),
       child: Row(
         children: [
           const SizedBox(width: 48),
           const Spacer(),
           Column(
             mainAxisSize: MainAxisSize.min,
-            children: const [
+            children: [
               Text(
                 'Pedir ajuda',
                 style: TextStyle(
@@ -671,7 +671,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                                         size: 128,
                                         borderWidth: 0,
                                       )
-                                    : const Icon(
+                                    : Icon(
                                         Icons.person,
                                         size: 80,
                                         color: AppColors.onPrimaryContainer,
@@ -683,8 +683,8 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                               right: 0,
                               child: Container(
                                 padding: const EdgeInsets.all(10),
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFF2E7D32), // Green
+                                decoration: BoxDecoration(
+                                  color: AppColors.success, // Green
                                   shape: BoxShape.circle,
                                 ),
                                 child: const Icon(
@@ -701,7 +701,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                       Text(
                         'Ligar para $_caregiverName',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.w800,
                           height: 1.2,
@@ -722,7 +722,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
               child: Opacity(
                 opacity: _isPaired ? 1.0 : 0.4,
                 child: Material(
-                  color: const Color(0xFFE8F5E9), // Soft Green
+                  color: AppColors.successContainer, // Soft Green
                   borderRadius: BorderRadius.circular(AppRadius.lg),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -738,18 +738,18 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         border: Border.all(
-                          color: const Color(0xFF2E7D32),
+                          color: AppColors.success,
                           width: 3,
                         ),
                         borderRadius: BorderRadius.circular(AppRadius.lg),
                       ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
+                        children: [
                           Icon(
                             Icons.videocam,
                             size: 36,
-                            color: Color(0xFF2E7D32),
+                            color: AppColors.success,
                           ),
                           SizedBox(height: 6),
                           Text(
@@ -758,7 +758,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w900,
-                              color: Color(0xFF2E7D32),
+                              color: AppColors.success,
                               height: 1.1,
                             ),
                           ),
@@ -774,7 +774,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
               child: Opacity(
                 opacity: _isPaired ? 1.0 : 0.4,
                 child: Material(
-                  color: const Color(0xFFF3E5F5), // Soft Purple
+                  color: AppColors.medicationContainer, // Soft Purple
                   borderRadius: BorderRadius.circular(AppRadius.lg),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -792,18 +792,18 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         border: Border.all(
-                          color: const Color(0xFF7B1FA2),
+                          color: AppColors.medicationsColor,
                           width: 3,
                         ),
                         borderRadius: BorderRadius.circular(AppRadius.lg),
                       ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
+                        children: [
                           Icon(
                             Icons.location_on,
                             size: 36,
-                            color: Color(0xFF7B1FA2),
+                            color: AppColors.medicationsColor,
                           ),
                           SizedBox(height: 6),
                           Text(
@@ -812,7 +812,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w900,
-                              color: Color(0xFF7B1FA2),
+                              color: AppColors.medicationsColor,
                               height: 1.1,
                             ),
                           ),
@@ -839,7 +839,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
               child: Opacity(
                 opacity: _isPaired ? 1.0 : 0.4,
                 child: Material(
-                  color: const Color(0xFFE3F2FD), // Soft Blue
+                  color: AppColors.infoContainer, // Soft Blue
                   borderRadius: BorderRadius.circular(AppRadius.lg),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -859,15 +859,15 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         border: Border.all(
-                          color: const Color(0xFF1565C0),
+                          color: AppColors.info,
                           width: 3,
                         ),
                         borderRadius: BorderRadius.circular(AppRadius.lg),
                       ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
-                          Icon(Icons.mic, size: 36, color: Color(0xFF1565C0)),
+                        children: [
+                          Icon(Icons.mic, size: 36, color: AppColors.info),
                           SizedBox(height: 6),
                           Text(
                             'Falar\nRecado',
@@ -875,7 +875,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w900,
-                              color: Color(0xFF1565C0),
+                              color: AppColors.info,
                               height: 1.1,
                             ),
                           ),
@@ -891,7 +891,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
               child: Opacity(
                 opacity: _isPaired ? 1.0 : 0.4,
                 child: Material(
-                  color: const Color(0xFFE3F2FD), // Soft Blue
+                  color: AppColors.infoContainer, // Soft Blue
                   borderRadius: BorderRadius.circular(AppRadius.lg),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -921,7 +921,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         border: Border.all(
-                          color: const Color(0xFF1565C0),
+                          color: AppColors.info,
                           width: 3,
                         ),
                         borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -929,21 +929,21 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const MessageUnreadBadge(
+                          MessageUnreadBadge(
                             child: Icon(
                               Icons.chat_bubble,
                               size: 36,
-                              color: Color(0xFF1565C0),
+                              color: AppColors.info,
                             ),
                           ),
                           const SizedBox(height: 6),
-                          const Text(
+                          Text(
                             'Ouvir\nRecados',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w900,
-                              color: Color(0xFF1565C0),
+                              color: AppColors.info,
                               height: 1.1,
                             ),
                           ),
@@ -960,7 +960,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
 
         // HISTÓRICO DE LIGAÇÕES (Verde Água)
         Material(
-          color: const Color(0xFFE0F2F1), // Soft Teal
+          color: AppColors.customContainer, // Soft Teal
           borderRadius: BorderRadius.circular(AppRadius.lg),
           child: InkWell(
             borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -983,17 +983,17 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
               decoration: BoxDecoration(
-                border: Border.all(color: const Color(0xFF00695C), width: 3),
+                border: Border.all(color: AppColors.onCustomContainer, width: 3),
                 borderRadius: BorderRadius.circular(AppRadius.lg),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
+                children: [
                   MissedCallsBadge(
                     child: Icon(
                       Icons.history,
                       size: 32,
-                      color: Color(0xFF00695C),
+                      color: AppColors.onCustomContainer,
                     ),
                   ),
                   SizedBox(width: 12),
@@ -1002,7 +1002,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w900,
-                      color: Color(0xFF00695C),
+                      color: AppColors.onCustomContainer,
                     ),
                   ),
                 ],
@@ -1017,7 +1017,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
           width: double.infinity,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: const Color(0xFFFFEBEE), // Soft Red
+            color: AppColors.errorContainer, // Soft Red
             borderRadius: BorderRadius.circular(24),
             border: Border.all(color: AppColors.error, width: 4),
           ),
@@ -1025,7 +1025,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
+                children: [
                   Icon(
                     Icons.warning_amber_rounded,
                     color: AppColors.error,
@@ -1090,7 +1090,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                       ),
                       if (!hasAmbulance) ...[
                         const SizedBox(height: 8),
-                        const Text(
+                        Text(
                           'Toque acima para adicionar o número',
                           textAlign: TextAlign.center,
                           style: TextStyle(
@@ -1103,12 +1103,12 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                         const SizedBox(height: 8),
                         TextButton.icon(
                           onPressed: _abrirDialogoConfigurarAmbulancia,
-                          icon: const Icon(
+                          icon: Icon(
                             Icons.edit,
                             size: 20,
                             color: AppColors.error,
                           ),
-                          label: const Text(
+                          label: Text(
                             'Editar número',
                             style: TextStyle(
                               fontSize: 16,
@@ -1160,7 +1160,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                 borderRadius: BorderRadius.circular(24),
               ),
               backgroundColor: AppColors.background,
-              title: const Text(
+              title: Text(
                 'Número da Ambulância',
                 style: TextStyle(
                   fontSize: 22,
@@ -1171,7 +1171,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
+                  Text(
                     'Digite o número da ambulância da sua região (exemplo: 192).',
                     style: TextStyle(
                       fontSize: 18,

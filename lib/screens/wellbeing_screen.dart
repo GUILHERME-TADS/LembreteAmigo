@@ -353,7 +353,7 @@ class _WellbeingScreenState extends State<WellbeingScreen> {
               Text('Sintomas: ${entry.symptoms.join(', ')}'),
             if (entry.note.isNotEmpty) Text(entry.note),
             if (entry.needsHelp)
-              const Text(
+              Text(
                 'PEDIU AJUDA',
                 style: TextStyle(
                   color: AppColors.error,

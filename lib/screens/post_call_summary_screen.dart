@@ -98,12 +98,12 @@ class PostCallSummaryScreen extends StatelessWidget {
                 ),
                 decoration: BoxDecoration(
                   color: status == VideoCallStatus.ended
-                      ? const Color(0xFFE8F5E9)
-                      : const Color(0xFFFFEBEE),
+                      ? AppColors.successContainer
+                      : AppColors.errorContainer,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
                     color: status == VideoCallStatus.ended
-                        ? const Color(0xFF2E7D32)
+                        ? AppColors.success
                         : AppColors.error,
                     width: 2,
                   ),
@@ -118,7 +118,7 @@ class PostCallSummaryScreen extends StatelessWidget {
                           ? Icons.check_circle
                           : Icons.phone_disabled,
                       color: status == VideoCallStatus.ended
-                          ? const Color(0xFF2E7D32)
+                          ? AppColors.success
                           : AppColors.error,
                       size: 24,
                     ),
@@ -131,7 +131,7 @@ class PostCallSummaryScreen extends StatelessWidget {
                         fontSize: isElderly ? 18 : 16,
                         fontWeight: FontWeight.bold,
                         color: status == VideoCallStatus.ended
-                            ? const Color(0xFF1B5E20)
+                            ? AppColors.onSuccessContainer
                             : AppColors.error,
                       ),
                     ),
@@ -236,7 +236,7 @@ class PostCallSummaryScreen extends StatelessWidget {
                         ),
                       ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF2E7D32),
+                        backgroundColor: AppColors.success,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),

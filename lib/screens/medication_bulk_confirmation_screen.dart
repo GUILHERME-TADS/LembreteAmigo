@@ -29,10 +29,10 @@ class _EditablePrescriptionItem {
     required String dosage,
     required String obs,
     required this.time,
-  })  : selected = true,
-        titleController = TextEditingController(text: title),
-        dosageController = TextEditingController(text: dosage),
-        obsController = TextEditingController(text: obs);
+  }) : selected = true,
+       titleController = TextEditingController(text: title),
+       dosageController = TextEditingController(text: dosage),
+       obsController = TextEditingController(text: obs);
 
   void dispose() {
     titleController.dispose();
@@ -70,14 +70,16 @@ class _MedicationBulkConfirmationScreenState
   }
 
   Future<void> _selectTime(
-      BuildContext context, _EditablePrescriptionItem item) async {
+    BuildContext context,
+    _EditablePrescriptionItem item,
+  ) async {
     final picked = await showTimePicker(
       context: context,
       initialTime: item.time,
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
+            colorScheme: ColorScheme.light(
               primary: AppColors.primary,
               onPrimary: Colors.white,
               onSurface: AppColors.onSurface,
@@ -98,7 +100,7 @@ class _MedicationBulkConfirmationScreenState
     final selectedItems = _items.where((i) => i.selected).toList();
     if (selectedItems.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('Selecione pelo menos um medicamento para salvar.'),
           backgroundColor: AppColors.error,
         ),
@@ -112,9 +114,8 @@ class _MedicationBulkConfirmationScreenState
       final now = DateTime.now();
       int index = 0;
       for (final item in selectedItems) {
-        final uniqueId =
-            '${now.millisecondsSinceEpoch}_${index++}';
-        
+        final uniqueId = '${now.millisecondsSinceEpoch}_${index++}';
+
         final String fullTitle = item.titleController.text.trim();
         final lembrete = Lembrete(
           id: uniqueId,
@@ -135,7 +136,7 @@ class _MedicationBulkConfirmationScreenState
             content: Text(
               '${selectedItems.length} lembretes criados com sucesso!',
             ),
-            backgroundColor: const Color(0xFF2E7D32),
+            backgroundColor: AppColors.success,
           ),
         );
         Navigator.pop(context, true);
@@ -160,15 +161,16 @@ class _MedicationBulkConfirmationScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Confirmar Receita'),
-      ),
+      appBar: AppBar(title: const Text('Confirmar Receita')),
       body: SafeArea(
         child: _items.isEmpty
-            ? const Center(
+            ? Center(
                 child: Text(
                   'Nenhum medicamento encontrado na receita.',
-                  style: TextStyle(fontSize: 16, color: AppColors.onSurfaceVariant),
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: AppColors.onSurfaceVariant,
+                  ),
                 ),
               )
             : Column(
@@ -219,7 +221,7 @@ class _MedicationBulkConfirmationScreenState
                                           border: InputBorder.none,
                                           isDense: true,
                                         ),
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 18,
                                           fontWeight: FontWeight.bold,
                                           color: AppColors.onSurface,
@@ -227,7 +229,7 @@ class _MedicationBulkConfirmationScreenState
                                       ),
                                     ),
                                     IconButton(
-                                      icon: const Icon(
+                                      icon: Icon(
                                         Icons.delete_outline,
                                         color: AppColors.error,
                                       ),
@@ -252,7 +254,7 @@ class _MedicationBulkConfirmationScreenState
                                             vertical: 8,
                                           ),
                                         ),
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 15,
                                           color: AppColors.onSurface,
                                         ),
@@ -269,23 +271,26 @@ class _MedicationBulkConfirmationScreenState
                                         ),
                                         decoration: BoxDecoration(
                                           color: AppColors.primaryContainer,
-                                          borderRadius: BorderRadius.circular(8),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
                                         ),
                                         child: Row(
                                           children: [
-                                            const Icon(
+                                            Icon(
                                               Icons.access_time,
                                               size: 18,
-                                              color: AppColors.onPrimaryContainer,
+                                              color:
+                                                  AppColors.onPrimaryContainer,
                                             ),
                                             const SizedBox(width: 6),
                                             Text(
                                               '${item.time.hour.toString().padLeft(2, '0')}:${item.time.minute.toString().padLeft(2, '0')}',
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 fontSize: 16,
                                                 fontWeight: FontWeight.bold,
-                                                color:
-                                                    AppColors.onPrimaryContainer,
+                                                color: AppColors
+                                                    .onPrimaryContainer,
                                               ),
                                             ),
                                           ],
@@ -304,7 +309,7 @@ class _MedicationBulkConfirmationScreenState
                                       vertical: 8,
                                     ),
                                   ),
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 14,
                                     color: AppColors.onSurfaceVariant,
                                   ),

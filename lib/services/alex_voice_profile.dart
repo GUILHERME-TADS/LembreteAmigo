@@ -7,15 +7,9 @@ class AlexVoiceProfile {
   final double speechRate;
   final double pitch;
 
-  const AlexVoiceProfile({
-    this.speechRate = 0.4,
-    this.pitch = 1.0,
-  });
+  const AlexVoiceProfile({this.speechRate = 0.4, this.pitch = 1.0});
 
-  AlexVoiceProfile copyWith({
-    double? speechRate,
-    double? pitch,
-  }) {
+  AlexVoiceProfile copyWith({double? speechRate, double? pitch}) {
     return AlexVoiceProfile(
       speechRate: speechRate ?? this.speechRate,
       pitch: pitch ?? this.pitch,
@@ -34,22 +28,14 @@ class AlexVoiceProfile {
       final idosoId = await SessionRoleService.getActiveIdosoId();
       if (!SessionRoleService.isLocalOnlyIdosoId(idosoId) &&
           await SessionRoleService.canSyncElderlyPrivateData()) {
-        await OfflineSyncService.instance.setOrQueue(
-          'idoso_perfil',
-          idosoId,
-          {
-            'alex_voice_rate': speechRate,
-            'alex_voice_pitch': pitch,
-          },
-        );
-        await OfflineSyncService.instance.setOrQueue(
-          'idosos',
-          idosoId,
-          {
-            'alex_voice_rate': speechRate,
-            'alex_voice_pitch': pitch,
-          },
-        );
+        await OfflineSyncService.instance.setOrQueue('idoso_perfil', idosoId, {
+          'alex_voice_rate': speechRate,
+          'alex_voice_pitch': pitch,
+        });
+        await OfflineSyncService.instance.setOrQueue('idosos', idosoId, {
+          'alex_voice_rate': speechRate,
+          'alex_voice_pitch': pitch,
+        });
       }
     }
   }

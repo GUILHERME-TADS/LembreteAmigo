@@ -49,7 +49,8 @@ class _ElderlyProfileAvatarState extends State<ElderlyProfileAvatar> {
   @override
   Widget build(BuildContext context) {
     final fotoPath = _resolvedPath;
-    final showLocalImage = fotoPath != null &&
+    final showLocalImage =
+        fotoPath != null &&
         !fotoPath.startsWith('avatar_') &&
         !fotoPath.startsWith('http') &&
         !kIsWeb &&
@@ -73,18 +74,11 @@ class _ElderlyProfileAvatarState extends State<ElderlyProfileAvatar> {
                 fit: BoxFit.cover,
               )
             : showNetworkImage
-                ? DecorationImage(
-                    image: NetworkImage(fotoPath),
-                    fit: BoxFit.cover,
-                  )
-                : null,
+            ? DecorationImage(image: NetworkImage(fotoPath), fit: BoxFit.cover)
+            : null,
       ),
       child: !showLocalImage && !showNetworkImage
-          ? Icon(
-              Icons.person,
-              color: Colors.white,
-              size: widget.size * 0.58,
-            )
+          ? Icon(Icons.person, color: Colors.white, size: widget.size * 0.58)
           : null,
     );
   }

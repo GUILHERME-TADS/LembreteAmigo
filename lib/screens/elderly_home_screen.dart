@@ -496,7 +496,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                 decoration: BoxDecoration(
                   color: isHighContrast
                       ? Colors.black
-                      : const Color(0xFF2E7D32),
+                      : AppColors.success,
                   shape: BoxShape.circle,
                   boxShadow: const [
                     BoxShadow(
@@ -541,11 +541,11 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     final cardBg = isHighContrast
         ? Colors.white
         : (lembrete.concluido
-              ? const Color(0xFFE8F5E9)
+              ? AppColors.successContainer
               : lembrete.status == LembreteStatus.adiado
-              ? const Color(0xFFFFFDE7)
+              ? AppColors.warningContainer
               : isAtrasado
-              ? const Color(0xFFFFEBEE)
+              ? AppColors.errorContainer
               : AppColors.surfaceContainerLowest);
 
     final titleColor = isHighContrast
@@ -584,11 +584,11 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
         ? (lembrete.concluido
               ? Colors.black
               : lembrete.status == LembreteStatus.adiado
-              ? Colors.yellow
+              ? AppColors.secondaryContainer
               : (isAtrasado ||
                     lembrete.status == LembreteStatus.perdido ||
                     lembrete.status == LembreteStatus.precisaDeAjuda)
-              ? Colors.red
+              ? AppColors.error
               : Colors.black)
         : (lembrete.concluido
               ? AppColors.tertiaryFixedDim
@@ -621,7 +621,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
           color: isHighContrast
-              ? (isAtrasado ? Colors.red : Colors.black)
+              ? (isAtrasado ? AppColors.error : Colors.black)
               : (lembrete.concluido
                     ? AppColors.tertiaryFixedDim
                     : lembrete.status == LembreteStatus.adiado
@@ -777,7 +777,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                               _isPlaying &&
                                   _playingAudioPath == lembrete.audioPath
                               ? (isHighContrast
-                                    ? Colors.yellow
+                                    ? AppColors.secondaryContainer
                                     : (lembrete.status == LembreteStatus.adiado
                                           ? AppColors.secondaryFixed
                                           : accentColor.withValues(alpha: 0.2)))
@@ -820,13 +820,13 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                 : AppColors.tertiaryFixedDim)
                           : lembrete.status == LembreteStatus.adiado
                           ? (isHighContrast
-                                ? Colors.yellow
+                                ? AppColors.secondaryContainer
                                 : AppColors.secondaryFixed)
                           : (isAtrasado ||
                                 lembrete.status == LembreteStatus.perdido ||
                                 lembrete.status ==
                                     LembreteStatus.precisaDeAjuda)
-                          ? (isHighContrast ? Colors.red : AppColors.error)
+                          ? (isHighContrast ? AppColors.error : AppColors.error)
                           : (isHighContrast
                                 ? Colors.white
                                 : accentColor.withValues(alpha: 0.1)),
@@ -956,14 +956,14 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                 color: AppColors.outlineVariant.withValues(alpha: 0.15),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.notifications_off_outlined,
                 size: 80,
                 color: AppColors.outline,
               ),
             ),
             const SizedBox(height: 24),
-            const Text(
+            Text(
               'Nenhum lembrete para hoje.\nAproveite o seu dia!',
               textAlign: TextAlign.center,
               style: TextStyle(
@@ -1180,7 +1180,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                         ? Icons.check_circle
                         : Icons.check_circle_outline,
                     color: totalOriginal > 0
-                        ? (isHighContrast ? Colors.black : Colors.green)
+                        ? (isHighContrast ? Colors.black : AppColors.success)
                         : (isHighContrast ? Colors.black54 : AppColors.outline),
                     size: totalOriginal > 0 ? 28 : 24,
                   ),
@@ -1196,7 +1196,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                         color: totalOriginal > 0
                             ? (isHighContrast
                                   ? Colors.black
-                                  : Colors.green[800])
+                                  : AppColors.onSuccessContainer)
                             : (isHighContrast
                                   ? Colors.black54
                                   : AppColors.onSurfaceVariant),
@@ -1389,7 +1389,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
 
   @override
   Widget build(BuildContext context) {
-    const bgColor = AppColors.background;
+    final bgColor = AppColors.background;
     final isHighContrast =
         Theme.of(context).colorScheme.primary == Colors.black;
 
@@ -1436,7 +1436,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                             ),
                             decoration: BoxDecoration(
                               color: isHighContrast
-                                  ? Colors.yellow
+                                  ? AppColors.secondaryContainer
                                   : AppColors.secondaryContainer,
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
@@ -1517,7 +1517,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
   Widget _buildTopBar() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      decoration: const BoxDecoration(color: AppColors.surface),
+      decoration: BoxDecoration(color: AppColors.surface),
       child: Row(
         children: [
           const SizedBox(width: 56),
@@ -1525,7 +1525,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
+                Text(
                   'Lembrete Amigo',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -1580,7 +1580,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: isHighContrast
-                  ? Colors.yellow
+                  ? AppColors.secondaryContainer
                   : AppColors.secondaryContainer,
               border: Border.all(
                 color: isHighContrast ? Colors.black : Colors.white,
@@ -1707,7 +1707,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: AppColors.outlineVariant),
+        side: BorderSide(color: AppColors.outlineVariant),
       ),
       child: ExpansionTile(
         leading: const Icon(Icons.more_horiz, size: 30),
@@ -1762,7 +1762,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
           child: FilledButton(
             onPressed: () => _postponeFocusedReminder(lembrete),
             style: style(
-              highContrast ? Colors.yellow : AppColors.secondaryContainer,
+              highContrast ? AppColors.secondaryContainer : AppColors.secondaryContainer,
               highContrast ? Colors.black : AppColors.onSecondaryContainer,
             ),
             child: const Column(
@@ -1783,7 +1783,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
           child: FilledButton(
             onPressed: () => _requestFocusedHelp(lembrete),
             style: style(
-              highContrast ? Colors.red : AppColors.error,
+              highContrast ? AppColors.error : AppColors.error,
               Colors.white,
             ),
             child: const Column(
@@ -1817,7 +1817,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
             width: isHighContrast ? 4.0 : 2.5,
           ),
         ),
-        child: const Column(
+        child: Column(
           children: [
             Icon(
               Icons.notifications_off_outlined,
@@ -2046,7 +2046,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                             fontWeight: FontWeight.w900,
                                             color: isHighContrast
                                                 ? Colors.black
-                                                : Colors.red[700],
+                                                : AppColors.error,
                                           ),
                                         ),
                                       ),
@@ -2094,7 +2094,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                   ),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: isHighContrast
-                                        ? Colors.yellow
+                                        ? AppColors.secondaryContainer
                                         : AppColors.secondaryContainer,
                                     foregroundColor: isHighContrast
                                         ? Colors.black

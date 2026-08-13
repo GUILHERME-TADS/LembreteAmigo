@@ -70,16 +70,14 @@ class _EffectivenessFeedbackScreenState
     return Container(
       height: 64,
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-      ),
+      decoration: BoxDecoration(color: AppColors.surface),
       child: Row(
         children: [
           IconButton(
             onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.arrow_back, color: AppColors.primary, size: 32),
+            icon: Icon(Icons.arrow_back, color: AppColors.primary, size: 32),
           ),
-          const Expanded(
+          Expanded(
             child: Text(
               'Efetividade',
               textAlign: TextAlign.center,
@@ -136,9 +134,7 @@ class _EffectivenessFeedbackScreenState
       ),
       child: Column(
         children: [
-          Center(
-            child: EffectivenessScoreGauge(score: metrics.overallScore),
-          ),
+          Center(child: EffectivenessScoreGauge(score: metrics.overallScore)),
           const SizedBox(height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -174,22 +170,19 @@ class _EffectivenessFeedbackScreenState
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 20, color: const Color(0xFF64748B)),
+        Icon(icon, size: 20, color: AppColors.onSurfaceVariant),
         const SizedBox(height: 4),
         Text(
           value,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w800,
-            color: Color(0xFF1E293B),
+            color: AppColors.onSurface,
           ),
         ),
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 12,
-            color: Color(0xFF94A3B8),
-          ),
+          style: TextStyle(fontSize: 12, color: AppColors.outline),
         ),
       ],
     );
@@ -221,7 +214,9 @@ class _EffectivenessFeedbackScreenState
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     decoration: BoxDecoration(
-                      color: isSelected ? AppColors.primary : Colors.transparent,
+                      color: isSelected
+                          ? AppColors.primary
+                          : Colors.transparent,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -230,7 +225,9 @@ class _EffectivenessFeedbackScreenState
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
-                        color: isSelected ? Colors.white : const Color(0xFF64748B),
+                        color: isSelected
+                            ? Colors.white
+                            : AppColors.onSurfaceVariant,
                       ),
                     ),
                   ),
@@ -287,18 +284,18 @@ class _EffectivenessFeedbackScreenState
     final trendIcon = trend == 'improving'
         ? Icons.trending_up
         : trend == 'declining'
-            ? Icons.trending_down
-            : Icons.trending_flat;
+        ? Icons.trending_down
+        : Icons.trending_flat;
     final trendColor = trend == 'improving'
-        ? const Color(0xFF2E7D32)
+        ? AppColors.success
         : trend == 'declining'
-            ? const Color(0xFFC62828)
-            : const Color(0xFFF57F17);
+        ? AppColors.error
+        : AppColors.warning;
     final trendLabel = trend == 'improving'
         ? 'Melhorando'
         : trend == 'declining'
-            ? 'Diminuindo'
-            : 'Estável';
+        ? 'Diminuindo'
+        : 'Estável';
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -355,30 +352,42 @@ class _EffectivenessFeedbackScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'RESUMO',
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF64748B),
+              color: AppColors.onSurfaceVariant,
               letterSpacing: 0.5,
             ),
           ),
           const SizedBox(height: 10),
-          _summaryRow('Melhor dia', metrics.bestDayOfWeek, Icons.arrow_upward,
-              const Color(0xFF2E7D32)),
+          _summaryRow(
+            'Melhor dia',
+            metrics.bestDayOfWeek,
+            Icons.arrow_upward,
+            AppColors.success,
+          ),
           const SizedBox(height: 6),
-          _summaryRow('Dia de atenção', metrics.worstDayOfWeek,
-              Icons.arrow_downward, const Color(0xFFC62828)),
+          _summaryRow(
+            'Dia de atenção',
+            metrics.worstDayOfWeek,
+            Icons.arrow_downward,
+            AppColors.error,
+          ),
           const SizedBox(height: 6),
-          _summaryRow('Total de eventos', '${metrics.totalEvents}',
-              Icons.event_note, const Color(0xFF3B82F6)),
+          _summaryRow(
+            'Total de eventos',
+            '${metrics.totalEvents}',
+            Icons.event_note,
+            AppColors.info,
+          ),
           const SizedBox(height: 6),
           _summaryRow(
             'Taxa de conclusão',
             '${metrics.completionRate.toStringAsFixed(1)}%',
             Icons.check_circle,
-            const Color(0xFF7C3AED),
+            AppColors.medicationsColor,
           ),
         ],
       ),
@@ -386,7 +395,11 @@ class _EffectivenessFeedbackScreenState
   }
 
   Widget _summaryRow(
-      String label, String value, IconData icon, Color iconColor) {
+    String label,
+    String value,
+    IconData icon,
+    Color iconColor,
+  ) {
     return Row(
       children: [
         Icon(icon, size: 18, color: iconColor),
@@ -394,10 +407,7 @@ class _EffectivenessFeedbackScreenState
         Expanded(
           child: Text(
             label,
-            style: const TextStyle(
-              fontSize: 14,
-              color: Color(0xFF475569),
-            ),
+            style: TextStyle(fontSize: 14, color: AppColors.onSurfaceVariant),
           ),
         ),
         Text(
@@ -416,52 +426,57 @@ class _EffectivenessFeedbackScreenState
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFEFF6FF),
+        color: AppColors.infoContainer,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFBFDBFE)),
+        border: Border.all(color: AppColors.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.auto_awesome, color: Color(0xFF2563EB), size: 20),
+              Icon(Icons.auto_awesome, color: AppColors.info, size: 20),
               SizedBox(width: 6),
               Text(
                 'RECOMENDAÇÕES',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF1D4ED8),
+                  color: AppColors.info,
                   letterSpacing: 0.5,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 10),
-          ...recommendations.map((rec) => Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('• ', style: TextStyle(
-                  color: Color(0xFF2563EB),
-                  fontWeight: FontWeight.w700,
-                  fontSize: 14,
-                )),
-                Expanded(
-                  child: Text(
-                    rec,
-                    style: const TextStyle(
+          ...recommendations.map(
+            (rec) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '• ',
+                    style: TextStyle(
+                      color: AppColors.info,
+                      fontWeight: FontWeight.w700,
                       fontSize: 14,
-                      color: Color(0xFF1E293B),
-                      height: 1.4,
                     ),
                   ),
-                ),
-              ],
+                  Expanded(
+                    child: Text(
+                      rec,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppColors.onSurface,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          )),
+          ),
         ],
       ),
     );

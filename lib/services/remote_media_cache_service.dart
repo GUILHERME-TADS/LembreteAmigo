@@ -6,8 +6,7 @@ import 'package:path_provider/path_provider.dart';
 
 class RemoteMediaCacheService {
   RemoteMediaCacheService._();
-  static final RemoteMediaCacheService instance =
-      RemoteMediaCacheService._();
+  static final RemoteMediaCacheService instance = RemoteMediaCacheService._();
 
   static const int maxCacheBytes = 200 * 1024 * 1024;
   final Map<String, Future<String>> _downloads = {};
@@ -21,9 +20,9 @@ class RemoteMediaCacheService {
     if (path == null || path.isEmpty || !_isRemote(path) || kIsWeb) {
       return path ?? '';
     }
-    return _downloads.putIfAbsent(path, () => _download(path)).whenComplete(
-      () => _downloads.remove(path),
-    );
+    return _downloads
+        .putIfAbsent(path, () => _download(path))
+        .whenComplete(() => _downloads.remove(path));
   }
 
   Future<String> _download(String url) async {
@@ -38,7 +37,9 @@ class RemoteMediaCacheService {
     final client = HttpClient()..connectionTimeout = const Duration(seconds: 8);
     try {
       final request = await client.getUrl(Uri.parse(url));
-      final response = await request.close().timeout(const Duration(seconds: 15));
+      final response = await request.close().timeout(
+        const Duration(seconds: 15),
+      );
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw HttpException('HTTP ${response.statusCode}', uri: Uri.parse(url));
       }
@@ -79,7 +80,17 @@ class RemoteMediaCacheService {
     }
     final hashString = hash.toUnsigned(32).toRadixString(16).padLeft(8, '0');
     final decoded = Uri.decodeFull(url).toLowerCase();
-    const extensions = ['.m4a', '.mp3', '.wav', '.aac', '.ogg', '.jpg', '.jpeg', '.png', '.webp'];
+    const extensions = [
+      '.m4a',
+      '.mp3',
+      '.wav',
+      '.aac',
+      '.ogg',
+      '.jpg',
+      '.jpeg',
+      '.png',
+      '.webp',
+    ];
     final extension = extensions.firstWhere(
       decoded.contains,
       orElse: () => '.bin',

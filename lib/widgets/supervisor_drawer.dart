@@ -87,7 +87,7 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
     if (protectedRoutes.contains(routeName) && !_isConnected) {
       Navigator.pop(context); // Close drawer to display snackbar clearly
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
             'Conecte um dispositivo de idoso para acessar esta tela.',
           ),
@@ -118,7 +118,7 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
       child: Column(
         children: [
           UserAccountsDrawerHeader(
-            decoration: const BoxDecoration(color: AppColors.primary),
+            decoration: BoxDecoration(color: AppColors.primary),
             accountName: Text(
               _supervisorName,
               style: const TextStyle(
@@ -143,7 +143,7 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
                     : null,
               ),
               child: _supervisorFoto == null || _supervisorFoto!.isEmpty
-                  ? const Icon(Icons.person, color: AppColors.primary, size: 40)
+                  ? Icon(Icons.person, color: AppColors.primary, size: 40)
                   : null,
             ),
           ),
@@ -152,7 +152,7 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
               padding: EdgeInsets.zero,
               children: [
                 ListTile(
-                  leading: const Icon(Icons.home, color: AppColors.primary),
+                  leading: Icon(Icons.home, color: AppColors.primary),
                   title: const Text(
                     'Painel Inicial',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -162,13 +162,16 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
                 Opacity(
                   opacity: _isConnected ? 1.0 : 0.4,
                   child: ListTile(
-                    leading: const Icon(
+                    leading: Icon(
                       Icons.task_alt,
                       color: AppColors.primary,
                     ),
                     title: const Text(
                       'Central de Pendências',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     onTap: () => _navigateTo(context, '/care-center'),
                   ),
@@ -176,13 +179,16 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
                 Opacity(
                   opacity: _isConnected ? 1.0 : 0.4,
                   child: ListTile(
-                    leading: const Icon(
+                    leading: Icon(
                       Icons.inventory_2_outlined,
                       color: AppColors.primary,
                     ),
                     title: const Text(
                       'Estoque de Medicamentos',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     onTap: () => _navigateTo(context, '/medication-stock'),
                   ),
@@ -190,22 +196,22 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
                 Opacity(
                   opacity: _isConnected ? 1.0 : 0.4,
                   child: ListTile(
-                    leading: const Icon(
+                    leading: Icon(
                       Icons.mood_outlined,
                       color: AppColors.primary,
                     ),
                     title: const Text(
                       'Diário de Bem-estar',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                    onTap: () => _navigateTo(
-                      context,
-                      '/supervisor-wellbeing',
-                    ),
+                    onTap: () => _navigateTo(context, '/supervisor-wellbeing'),
                   ),
                 ),
                 ListTile(
-                  leading: const Icon(
+                  leading: Icon(
                     Icons.person_add,
                     color: AppColors.primary,
                   ),
@@ -218,7 +224,7 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
                 Opacity(
                   opacity: _isConnected ? 1.0 : 0.4,
                   child: ListTile(
-                    leading: const Icon(Icons.person, color: AppColors.primary),
+                    leading: Icon(Icons.person, color: AppColors.primary),
                     title: const Text(
                       'Editar Dados do Idoso',
                       style: TextStyle(
@@ -235,7 +241,7 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
                 Opacity(
                   opacity: _isConnected ? 1.0 : 0.4,
                   child: ListTile(
-                    leading: const Icon(
+                    leading: Icon(
                       Icons.edit_calendar,
                       color: AppColors.primary,
                     ),
@@ -252,7 +258,7 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
                 Opacity(
                   opacity: _isConnected ? 1.0 : 0.4,
                   child: ListTile(
-                    leading: const MessageUnreadBadge(
+                    leading: MessageUnreadBadge(
                       child: Icon(Icons.forum, color: AppColors.primary),
                     ),
                     title: const Text(
@@ -268,11 +274,8 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
                 Opacity(
                   opacity: _isConnected ? 1.0 : 0.4,
                   child: ListTile(
-                    leading: const MissedCallsBadge(
-                      child: Icon(
-                        Icons.videocam,
-                        color: AppColors.primary,
-                      ),
+                    leading: MissedCallsBadge(
+                      child: Icon(Icons.videocam, color: AppColors.primary),
                     ),
                     title: const Text(
                       'Chamadas de Vídeo',
@@ -287,7 +290,7 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
                 Opacity(
                   opacity: _isConnected ? 1.0 : 0.4,
                   child: ListTile(
-                    leading: const Icon(
+                    leading: Icon(
                       Icons.analytics,
                       color: AppColors.primary,
                     ),
@@ -304,7 +307,7 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
                 Opacity(
                   opacity: _isConnected ? 1.0 : 0.4,
                   child: ListTile(
-                    leading: const Icon(
+                    leading: Icon(
                       Icons.favorite,
                       color: AppColors.primary,
                     ),
@@ -322,7 +325,7 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
                 Opacity(
                   opacity: _isConnected ? 1.0 : 0.4,
                   child: ListTile(
-                    leading: const Icon(
+                    leading: Icon(
                       Icons.history,
                       color: AppColors.primary,
                     ),
@@ -337,7 +340,7 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
                   ),
                 ),
                 ListTile(
-                  leading: const Icon(Icons.settings, color: AppColors.primary),
+                  leading: Icon(Icons.settings, color: AppColors.primary),
                   title: const Text(
                     'Configurações',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -345,7 +348,7 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
                   onTap: () => _navigateTo(context, '/supervisor-settings'),
                 ),
                 ListTile(
-                  leading: const Icon(Icons.help, color: AppColors.primary),
+                  leading: Icon(Icons.help, color: AppColors.primary),
                   title: const Text(
                     'Ajuda',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -359,8 +362,8 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
           SafeArea(
             top: false,
             child: ListTile(
-              leading: const Icon(Icons.logout, color: AppColors.error),
-              title: const Text(
+              leading: Icon(Icons.logout, color: AppColors.error),
+              title: Text(
                 'Sair da Conta',
                 style: TextStyle(
                   fontSize: 18,
@@ -370,12 +373,12 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
               ),
               onTap: () async {
                 final navigator = Navigator.of(context);
-                
+
                 showDialog(
                   context: context,
                   barrierColor: Colors.black87,
                   barrierDismissible: false,
-                  builder: (_) => const Center(
+                  builder: (_) => Center(
                     child: CircularProgressIndicator(color: AppColors.primary),
                   ),
                 );
@@ -388,7 +391,7 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
                 await SessionRoleService.logout();
                 await LembreteService.instance.reset();
                 await MessageService.instance.reset();
-                
+
                 if (navigator.mounted) {
                   navigator.pushNamedAndRemoveUntil('/', (route) => false);
                 }

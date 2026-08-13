@@ -240,7 +240,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
       } else {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(
               'Não consegui usar o microfone. Se o celular pedir, aperte Permitir.',
             ),
@@ -323,7 +323,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
         _sending = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('Não consegui guardar o recado. Grave de novo.'),
           backgroundColor: AppColors.error,
         ),
@@ -338,11 +338,11 @@ class _MessagesScreenState extends State<MessagesScreen> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text(
+          title: Text(
             'Apagar Recado',
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              color: Color(0xFF008069),
+              color: AppColors.primary,
             ),
           ),
           content: const Text(
@@ -352,10 +352,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text(
+              child: Text(
                 'CANCELAR',
                 style: TextStyle(
-                  color: Color(0xFF008069),
+                  color: AppColors.primary,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -369,16 +369,16 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   await MessageService.instance.deleteMessage(message.id);
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
+                      SnackBar(
                         content: Text('Recado apagado.'),
-                        backgroundColor: Colors.green,
+                        backgroundColor: AppColors.success,
                       ),
                     );
                   }
                 } catch (e) {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
+                      SnackBar(
                         content: Text(
                           'Não consegui apagar. Veja se a internet está ligada.',
                         ),
@@ -390,7 +390,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   _deletingMessageIds.remove(message.id);
                 }
               },
-              child: const Text(
+              child: Text(
                 'APAGAR',
                 style: TextStyle(
                   color: AppColors.error,
@@ -409,16 +409,16 @@ class _MessagesScreenState extends State<MessagesScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoadingRole) {
-      return const Scaffold(
-        backgroundColor: Color(0xFFEFEAE2),
+      return Scaffold(
+        backgroundColor: AppColors.background,
         body: Center(
-          child: CircularProgressIndicator(color: Color(0xFF008069)),
+          child: CircularProgressIndicator(color: AppColors.primary),
         ),
       );
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFEFEAE2),
+      backgroundColor: AppColors.background,
       floatingActionButton: !_isSupervisor
           ? const AlexFloatingHelpButton(
               textoExplicacao:
@@ -466,8 +466,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: const BoxDecoration(
-        color: Color(0xFF008069),
+      decoration: BoxDecoration(
+        color: AppColors.primary,
         boxShadow: [
           BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
         ],
@@ -502,10 +502,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
                     width: 12,
                     height: 12,
                     decoration: BoxDecoration(
-                      color: Colors.greenAccent.shade400,
+                      color: AppColors.success,
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: const Color(0xFF008069),
+                        color: AppColors.primary,
                         width: 2,
                       ),
                     ),
@@ -547,7 +547,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                             ? FontWeight.bold
                             : FontWeight.normal,
                         color: isOnline
-                            ? Colors.greenAccent.shade100
+                            ? AppColors.successContainer
                             : Colors.white.withValues(alpha: 0.85),
                       ),
                     );
@@ -567,8 +567,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
         padding: const EdgeInsets.all(28),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          children: const [
-            Icon(Icons.mark_chat_unread_outlined, size: 72, color: Colors.grey),
+          children: [
+            Icon(Icons.mark_chat_unread_outlined, size: 72, color: AppColors.outline),
             SizedBox(height: 16),
             Text(
               'Nenhum recado ainda',
@@ -576,14 +576,14 @@ class _MessagesScreenState extends State<MessagesScreen> {
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF008069),
+                color: AppColors.primary,
               ),
             ),
             SizedBox(height: 8),
             Text(
               'Os recados escritos e falados aparecem aqui.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 16, color: Colors.grey),
+              style: TextStyle(fontSize: 16, color: AppColors.outline),
             ),
           ],
         ),
@@ -597,7 +597,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
         : message.senderRole == 'elderly';
 
     final bubbleColor = sentByMe
-        ? const Color(0xFFE7FFDB) // WhatsApp green sent bubble
+        ? AppColors.chatOutgoing // WhatsApp green sent bubble
         : Colors.white; // WhatsApp white received bubble
 
     final alignment = sentByMe ? Alignment.centerRight : Alignment.centerLeft;
@@ -641,7 +641,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                 audioPath: message.audioPath,
                 subtitle: '',
                 isChatDesign: true,
-                accentColor: const Color(0xFF008069),
+                accentColor: AppColors.primary,
                 defaultDuration: Duration(
                   seconds: message.duracaoSegundos ?? 0,
                 ),
@@ -667,9 +667,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
                       ),
                       const SizedBox(width: 8),
                       IconButton(
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.play_circle_fill,
-                          color: Color(0xFF008069),
+                          color: AppColors.primary,
                           size: 36,
                         ),
                         onPressed: () => TTSService.instance.falar(
@@ -695,7 +695,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                       }
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF008069),
+                      backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -735,9 +735,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   ),
                   const SizedBox(width: 8),
                   IconButton(
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.play_circle_fill,
-                      color: Color(0xFF008069),
+                      color: AppColors.primary,
                       size: 36,
                     ),
                     onPressed: () =>
@@ -753,7 +753,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
               children: [
                 Text(
                   time,
-                  style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                  style: TextStyle(fontSize: 10, color: AppColors.onSurfaceVariant),
                 ),
                 if (sentByMe) ...[
                   const SizedBox(width: 4),
@@ -765,7 +765,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                       return Icon(
                         pending ? Icons.schedule : Icons.done_all,
                         size: 16,
-                        color: pending ? Colors.orange[700] : Colors.blue,
+                        color: pending ? AppColors.warning : AppColors.info,
                       );
                     },
                   ),
@@ -815,25 +815,25 @@ class _MessagesScreenState extends State<MessagesScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       child: Row(
         children: [
-          const Icon(Icons.fiber_manual_record, color: Colors.red, size: 20),
+          Icon(Icons.fiber_manual_record, color: AppColors.error, size: 20),
           const SizedBox(width: 8),
           Text(
             'Gravando: $minutes:$seconds',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: Colors.red,
+              color: AppColors.error,
             ),
           ),
           const Spacer(),
           IconButton(
-            icon: const Icon(Icons.delete, color: Colors.red, size: 26),
+            icon: Icon(Icons.delete, color: AppColors.error, size: 26),
             onPressed: _sending ? null : _cancelVoiceRecording,
           ),
           const SizedBox(width: 8),
           Container(
-            decoration: const BoxDecoration(
-              color: Color(0xFF008069),
+            decoration: BoxDecoration(
+              color: AppColors.primary,
               shape: BoxShape.circle,
             ),
             child: IconButton(
@@ -860,7 +860,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
         ),
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF008069),
+          backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),

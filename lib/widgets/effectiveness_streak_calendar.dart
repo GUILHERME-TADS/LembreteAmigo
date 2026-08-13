@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../theme/app_theme.dart';
 import '../models/effectiveness_metrics.dart';
 
 class EffectivenessStreakCalendar extends StatelessWidget {
@@ -24,15 +25,18 @@ class EffectivenessStreakCalendar extends StatelessWidget {
       children: [
         Row(
           children: [
-            const Icon(Icons.local_fire_department,
-                color: Color(0xFFFF6D00), size: 22),
+            Icon(
+              Icons.local_fire_department,
+              color: AppColors.warning,
+              size: 22,
+            ),
             const SizedBox(width: 6),
             Text(
               '$currentStreak dias consecutivos',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
-                color: Color(0xFF1E293B),
+                color: AppColors.onSurface,
               ),
             ),
           ],
@@ -41,10 +45,7 @@ class EffectivenessStreakCalendar extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             'Recorde: $bestStreak dias',
-            style: const TextStyle(
-              fontSize: 13,
-              color: Color(0xFF94A3B8),
-            ),
+            style: TextStyle(fontSize: 13, color: AppColors.outline),
           ),
         ],
         const SizedBox(height: 12),
@@ -64,9 +65,9 @@ class EffectivenessStreakCalendar extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: hasData
                         ? (isGood
-                            ? const Color(0xFF2E7D32).withValues(alpha: 0.15)
-                            : const Color(0xFFC62828).withValues(alpha: 0.1))
-                        : const Color(0xFFF1F5F9),
+                              ? AppColors.success.withValues(alpha: 0.15)
+                              : AppColors.error.withValues(alpha: 0.1))
+                        : AppColors.surfaceContainerLow,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Center(
@@ -75,20 +76,23 @@ class EffectivenessStreakCalendar extends StatelessWidget {
                             isGood ? Icons.check : Icons.close,
                             size: 18,
                             color: isGood
-                                ? const Color(0xFF2E7D32)
-                                : const Color(0xFFC62828),
+                                ? AppColors.success
+                                : AppColors.error,
                           )
-                        : const Icon(Icons.remove, size: 18,
-                            color: Color(0xFFCBD5E1)),
+                        : Icon(
+                            Icons.remove,
+                            size: 18,
+                            color: AppColors.outlineVariant,
+                          ),
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   dayLabel,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF64748B),
+                    color: AppColors.onSurfaceVariant,
                   ),
                 ),
               ],

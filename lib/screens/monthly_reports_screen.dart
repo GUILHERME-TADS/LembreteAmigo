@@ -302,18 +302,18 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
     return Container(
       height: 64,
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      decoration: const BoxDecoration(color: AppColors.surface),
+      decoration: BoxDecoration(color: AppColors.surface),
       child: Row(
         children: [
           IconButton(
             onPressed: () => Navigator.pop(context),
-            icon: const Icon(
+            icon: Icon(
               Icons.arrow_back,
               color: AppColors.primary,
               size: 32,
             ),
           ),
-          const Expanded(
+          Expanded(
             child: Text(
               'Lembrete Amigo',
               textAlign: TextAlign.center,
@@ -334,7 +334,7 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Relatorios Familiares',
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
@@ -350,7 +350,7 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
           'Resumo semanal e mensal de saude de $_idosoName',
           maxLines: 3,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 18,
             height: 1.5,
             color: AppColors.onSurfaceVariant,
@@ -402,7 +402,7 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
               Icon(Icons.family_restroom, color: AppColors.primary, size: 30),
               SizedBox(width: 10),
@@ -433,7 +433,7 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
           const SizedBox(height: 14),
           Text(
             _weeklyHumanSummary,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 17,
               height: 1.35,
               fontWeight: FontWeight.w700,
@@ -443,7 +443,7 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
           const SizedBox(height: 8),
           Text(
             _weeklyAttention,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
               height: 1.35,
               color: AppColors.onSurfaceVariant,
@@ -468,7 +468,7 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
           children: [
             Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
                 color: AppColors.onSurfaceVariant,
@@ -477,7 +477,7 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
             const SizedBox(height: 4),
             Text(
               value,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w900,
                 color: AppColors.primary,
@@ -523,7 +523,7 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Aderencia por Categoria',
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
@@ -570,7 +570,7 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 18,
                   color: AppColors.primaryFixed,
                 ),
@@ -579,7 +579,7 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
             const SizedBox(width: 8),
             Text(
               '$percent%',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w800,
                 color: AppColors.primaryFixed,
@@ -632,7 +632,7 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
           value: pending.toDouble(),
           title: '$pending',
           radius: 35,
-          titleStyle: const TextStyle(
+          titleStyle: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.bold,
             color: AppColors.onSurfaceVariant,
@@ -650,7 +650,7 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
       ),
       child: Column(
         children: [
-          const Text(
+          Text(
             'Desempenho Geral',
             style: TextStyle(
               fontSize: 26,
@@ -665,7 +665,7 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
               children: [
                 Expanded(
                   child: total == 0
-                      ? const Center(
+                      ? Center(
                           child: Text(
                             'Sem ocorrências neste mês',
                             textAlign: TextAlign.center,
@@ -700,7 +700,7 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
                       const SizedBox(height: 16),
                       Text(
                         '$_geralPct%',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 32,
                           fontWeight: FontWeight.w900,
                           color: AppColors.onTertiaryContainer,
@@ -731,7 +731,7 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
         const SizedBox(width: 8),
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 14,
             color: AppColors.onSurfaceVariant,
           ),
@@ -739,7 +739,7 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
         const Spacer(),
         Text(
           value,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.bold,
             color: AppColors.onSurface,
@@ -809,7 +809,7 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Tendência de Adesão',
                 style: TextStyle(
                   fontSize: 20,
@@ -837,7 +837,7 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Comparativo Semanal',
                 style: TextStyle(
                   fontSize: 20,

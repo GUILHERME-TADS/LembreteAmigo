@@ -33,8 +33,8 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
 
   Future<void> _loadProfilePhoto() async {
     try {
-      final localFoto =
-          await ElderlyProfileRepository.instance.getCachedPhotoPath();
+      final localFoto = await ElderlyProfileRepository.instance
+          .getCachedPhotoPath();
       if (mounted) {
         setState(() {
           _fotoPath = localFoto;
@@ -77,7 +77,9 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
         detailedExplanation:
             'Olá! Esta é a tela do seu remédio. Aqui você pode ver a foto, o horário e como tomar. Aperte o botão de ouvir para eu falar de novo.',
         spokenText: (l, timeStr) {
-          final inst = (l.medicamentoInstrucoes != null && l.medicamentoInstrucoes!.isNotEmpty)
+          final inst =
+              (l.medicamentoInstrucoes != null &&
+                  l.medicamentoInstrucoes!.isNotEmpty)
               ? ' Como tomar: ${l.medicamentoInstrucoes}.'
               : '';
           return 'Remédio: ${l.titulo} $timeStr.$inst';
@@ -95,8 +97,7 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
             : 'Está na hora da sua refeição!',
         detailedExplanation:
             'Olá! Esta é a tela da sua refeição. Aqui você pode ver o horário e o que comer. Aperte o botão de ouvir para eu falar de novo.',
-        spokenText: (l, timeStr) =>
-            'Refeição: ${l.titulo} $timeStr.',
+        spokenText: (l, timeStr) => 'Refeição: ${l.titulo} $timeStr.',
         defaultSpokenText: () => 'Hora da refeição.',
       );
     } else if (cat == 'exercicio') {
@@ -110,8 +111,7 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
             : 'Está na hora do seu exercício!',
         detailedExplanation:
             'Olá! Esta é a tela do seu exercício. Aqui você pode ver o horário e o que fazer. Aperte o botão de ouvir para eu falar de novo.',
-        spokenText: (l, timeStr) =>
-            'Exercício: ${l.titulo} $timeStr.',
+        spokenText: (l, timeStr) => 'Exercício: ${l.titulo} $timeStr.',
         defaultSpokenText: () => 'Hora do exercício.',
       );
     } else if (cat == 'hidratacao') {
@@ -125,8 +125,7 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
             : 'Está na hora da sua hidratação!',
         detailedExplanation:
             'Olá! Esta é a tela da sua hidratação. Aqui você pode ver o horário e quanta água beber. Aperte o botão de ouvir para eu falar de novo.',
-        spokenText: (l, timeStr) =>
-            'Hidratação: ${l.titulo} $timeStr.',
+        spokenText: (l, timeStr) => 'Hidratação: ${l.titulo} $timeStr.',
         defaultSpokenText: () => 'Hora da hidratação.',
       );
     } else {
@@ -140,8 +139,7 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
             : 'Está na hora do seu lembrete!',
         detailedExplanation:
             'Olá! Esta é a tela do seu lembrete. Aqui você pode ver o horário e o que fazer. Aperte o botão de ouvir para eu falar de novo.',
-        spokenText: (l, timeStr) =>
-            'Lembrete: ${l.titulo} $timeStr.',
+        spokenText: (l, timeStr) => 'Lembrete: ${l.titulo} $timeStr.',
         defaultSpokenText: () => 'Hora do lembrete.',
       );
     }
@@ -161,10 +159,7 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
           )
         : cfg.defaultSpokenText();
 
-    await TTSService.instance.falar(
-      text,
-      caller: this,
-    );
+    await TTSService.instance.falar(text, caller: this);
     if (mounted) setState(() => _isSpeakingAudio = false);
   }
 
@@ -192,11 +187,13 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
     final cfg = _config;
     final title = _lembrete?.titulo ?? cfg.defaultTitle;
 
-    final hasPhoto = _lembrete?.categoria == 'medicacao' &&
+    final hasPhoto =
+        _lembrete?.categoria == 'medicacao' &&
         _lembrete?.medicamentoFotoPath != null &&
         _lembrete!.medicamentoFotoPath!.isNotEmpty;
 
-    final hasInstructions = _lembrete?.medicamentoInstrucoes != null &&
+    final hasInstructions =
+        _lembrete?.medicamentoInstrucoes != null &&
         _lembrete!.medicamentoInstrucoes!.isNotEmpty;
 
     return Scaffold(
@@ -236,7 +233,10 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
   }
 
   Widget _buildHeroCard(
-      _ReminderCategoryConfig cfg, String title, bool hasPhoto) {
+    _ReminderCategoryConfig cfg,
+    String title,
+    bool hasPhoto,
+  ) {
     final visualStatus = _lembrete != null
         ? ReminderStateHelper.visualStatus(_lembrete!, now: DateTime.now())
         : ReminderStatus.scheduled;
@@ -288,7 +288,9 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
         children: [
           // Banner do período do dia no topo do card
           _buildPeriodBanner(
-              _lembrete?.horarioHour ?? DateTime.now().hour, cfg),
+            _lembrete?.horarioHour ?? DateTime.now().hour,
+            cfg,
+          ),
           const SizedBox(height: 24),
 
           // Foto do medicamento ou ícone principal da categoria
@@ -318,13 +320,17 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
             runSpacing: 10,
             children: [
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: cfg.color.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                      color: cfg.color.withValues(alpha: 0.4), width: 2),
+                    color: cfg.color.withValues(alpha: 0.4),
+                    width: 2,
+                  ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -344,8 +350,10 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
               ),
               if (_lembrete != null)
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.surfaceContainerHigh,
                     borderRadius: BorderRadius.circular(16),
@@ -353,12 +361,15 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.repeat_rounded,
-                          size: 22, color: AppColors.onSurfaceVariant),
+                      Icon(
+                        Icons.repeat_rounded,
+                        size: 22,
+                        color: AppColors.onSurfaceVariant,
+                      ),
                       const SizedBox(width: 6),
                       Text(
                         _getRecorrenciaTexto(_lembrete!),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
                           color: AppColors.onSurfaceVariant,
@@ -402,7 +413,9 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
   }
 
   Widget _buildAudioAndInstructionsCard(
-      _ReminderCategoryConfig cfg, bool hasInstructions) {
+    _ReminderCategoryConfig cfg,
+    bool hasInstructions,
+  ) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -418,7 +431,7 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
             children: [
               Icon(Icons.volume_up_rounded, size: 28, color: cfg.color),
               const SizedBox(width: 10),
-              const Text(
+              Text(
                 'AJUDA E VOZ',
                 style: TextStyle(
                   fontSize: 18,
@@ -443,8 +456,10 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
               },
               child: Container(
                 width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 16,
+                ),
                 decoration: BoxDecoration(
                   color: cfg.color,
                   borderRadius: BorderRadius.circular(18),
@@ -459,8 +474,11 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.volume_up_rounded,
-                        color: Colors.white, size: 36),
+                    const Icon(
+                      Icons.volume_up_rounded,
+                      color: Colors.white,
+                      size: 36,
+                    ),
                     const SizedBox(width: 14),
                     Expanded(
                       child: Column(
@@ -520,7 +538,7 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
         ),
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.onSurfaceVariant,
-          side: const BorderSide(color: AppColors.outlineVariant, width: 2),
+          side: BorderSide(color: AppColors.outlineVariant, width: 2),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
           ),
@@ -530,7 +548,9 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
   }
 
   void _showManagementBottomSheet(
-      BuildContext context, _ReminderCategoryConfig cfg) {
+    BuildContext context,
+    _ReminderCategoryConfig cfg,
+  ) {
     if (_lembrete == null) return;
     TTSService.instance.parar(caller: this);
 
@@ -539,7 +559,7 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (ctx) => Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.only(
             topLeft: Radius.circular(28),
@@ -566,7 +586,7 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
               children: [
                 Icon(Icons.settings_rounded, size: 30, color: cfg.color),
                 const SizedBox(width: 12),
-                const Expanded(
+                Expanded(
                   child: Text(
                     'Configurações do Lembrete',
                     style: TextStyle(
@@ -583,7 +603,7 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
               ],
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Ações seguras para modificar ou apagar este lembrete:',
               style: TextStyle(fontSize: 16, color: AppColors.onSurfaceVariant),
             ),
@@ -598,30 +618,37 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
                   TTSService.instance.parar(caller: this);
                   final result = await showDialog<String>(
                     context: context,
-                    builder: (context) => ElderlyEditTitleDialog(
-                        initialValue: _lembrete!.titulo),
+                    builder: (context) =>
+                        ElderlyEditTitleDialog(initialValue: _lembrete!.titulo),
                   );
                   if (result == null ||
                       result.isEmpty ||
                       result == _lembrete!.titulo) {
                     return;
                   }
-                  await LembreteService.instance
-                      .atualizarTitulo(_lembrete!.id, result);
+                  await LembreteService.instance.atualizarTitulo(
+                    _lembrete!.id,
+                    result,
+                  );
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text('Pronto. O nome foi trocado.')));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Pronto. O nome foi trocado.'),
+                      ),
+                    );
                   }
                 },
                 icon: const Icon(Icons.edit_rounded, size: 28),
-                label: const Text('MUDAR NOME DO LEMBRETE',
-                    style:
-                        TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                label: const Text(
+                  'MUDAR NOME DO LEMBRETE',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: cfg.color,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16)),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                 ),
               ),
             ),
@@ -650,19 +677,24 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
                     picked.minute,
                   );
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text('Pronto. O horário foi trocado.')));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Pronto. O horário foi trocado.'),
+                      ),
+                    );
                   }
                 },
                 icon: const Icon(Icons.access_time_rounded, size: 28),
-                label: const Text('MUDAR HORÁRIO',
-                    style:
-                        TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                label: const Text(
+                  'MUDAR HORÁRIO',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: cfg.color,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16)),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                 ),
               ),
             ),
@@ -686,19 +718,22 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
                   await LembreteService.instance.remover(_lembrete!.id);
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Lembrete apagado.')));
+                      const SnackBar(content: Text('Lembrete apagado.')),
+                    );
                     Navigator.pop(context);
                   }
                 },
                 icon: const Icon(Icons.delete_forever_rounded, size: 28),
-                label: const Text('APAGAR ESTE LEMBRETE',
-                    style:
-                        TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                label: const Text(
+                  'APAGAR ESTE LEMBRETE',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                ),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.error,
-                  side: const BorderSide(color: AppColors.error, width: 2.5),
+                  side: BorderSide(color: AppColors.error, width: 2.5),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16)),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                 ),
               ),
             ),
@@ -711,9 +746,7 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
   Widget _buildTopBar(BuildContext context, _ReminderCategoryConfig cfg) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-      ),
+      decoration: BoxDecoration(color: AppColors.surface),
       child: Row(
         children: [
           IconButton(
@@ -721,7 +754,7 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
               TTSService.instance.parar(caller: this);
               Navigator.pop(context);
             },
-            icon: const Icon(
+            icon: Icon(
               Icons.arrow_back,
               color: AppColors.primary,
               size: 36,
@@ -730,7 +763,7 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
           const Spacer(),
           Text(
             cfg.topBarTitle,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.w700,
               color: AppColors.primary,
@@ -795,9 +828,7 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
       child: OutlinedButton.icon(
         onPressed: _speak,
         icon: Icon(
-          _isSpeakingAudio
-              ? Icons.graphic_eq_rounded
-              : Icons.volume_up_rounded,
+          _isSpeakingAudio ? Icons.graphic_eq_rounded : Icons.volume_up_rounded,
           size: 30,
           color: cfg.color,
         ),
@@ -831,14 +862,14 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
                 width: 24,
                 height: 24,
                 child: CircularProgressIndicator(
-                    color: Colors.white, strokeWidth: 3))
+                  color: Colors.white,
+                  strokeWidth: 3,
+                ),
+              )
             : const Icon(Icons.psychology, size: 30),
         label: Text(
           _isFetchingExplanation ? 'PENSANDO...' : 'PARA QUE SERVE?',
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w900,
-          ),
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
         ),
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
@@ -858,11 +889,14 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
       _isFetchingExplanation = true;
     });
 
-    await TTSService.instance
-        .falar("Vou perguntar ao médico virtual, só um momento.", caller: this);
+    await TTSService.instance.falar(
+      "Vou perguntar ao médico virtual, só um momento.",
+      caller: this,
+    );
 
-    final explanation =
-        await GeminiService.explicarMedicamento(_lembrete!.titulo);
+    final explanation = await GeminiService.explicarMedicamento(
+      _lembrete!.titulo,
+    );
 
     if (mounted) {
       setState(() {
@@ -873,7 +907,9 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
   }
 
   Widget _buildMedicinePhotoContainer(
-      String path, _ReminderCategoryConfig cfg) {
+    String path,
+    _ReminderCategoryConfig cfg,
+  ) {
     return GestureDetector(
       onTap: () {
         showDialog(
@@ -889,8 +925,8 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
                       image: path.startsWith('assets/')
                           ? AssetImage(path) as ImageProvider
                           : path.startsWith('http')
-                              ? NetworkImage(path)
-                              : FileImage(File(path)),
+                          ? NetworkImage(path)
+                          : FileImage(File(path)),
                       fit: BoxFit.contain,
                     ),
                   ),
@@ -899,8 +935,11 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
                   top: 20,
                   right: 20,
                   child: IconButton(
-                    icon:
-                        const Icon(Icons.close, color: Colors.white, size: 40),
+                    icon: const Icon(
+                      Icons.close,
+                      color: Colors.white,
+                      size: 40,
+                    ),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ),
@@ -929,8 +968,8 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
             image: path.startsWith('assets/')
                 ? AssetImage(path) as ImageProvider
                 : path.startsWith('http')
-                    ? NetworkImage(path)
-                    : FileImage(File(path)),
+                ? NetworkImage(path)
+                : FileImage(File(path)),
             fit: BoxFit.cover,
             errorBuilder: (context, error, stackTrace) =>
                 Icon(cfg.icon, size: 80, color: cfg.color),

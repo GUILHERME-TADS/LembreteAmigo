@@ -30,13 +30,13 @@ class GoogleAuthService {
           message: 'Erro ao obter credenciais do Google.',
         );
       }
-      final credential = GoogleAuthProvider.credential(
-        idToken: idToken,
-      );
+      final credential = GoogleAuthProvider.credential(idToken: idToken);
       return FirebaseAuth.instance.signInWithCredential(credential);
     } catch (e) {
       final errStr = e.toString().toLowerCase();
-      if (errStr.contains('cancel') || errStr.contains('abort') || errStr.contains('user')) {
+      if (errStr.contains('cancel') ||
+          errStr.contains('abort') ||
+          errStr.contains('user')) {
         throw FirebaseAuthException(
           code: 'canceled',
           message: 'Login cancelado pelo usuário.',
@@ -50,10 +50,14 @@ class GoogleAuthService {
     if (!kIsWeb) {
       await _initialize();
       try {
-        await GoogleSignIn.instance.disconnect().timeout(const Duration(seconds: 2));
+        await GoogleSignIn.instance.disconnect().timeout(
+          const Duration(seconds: 2),
+        );
       } catch (_) {}
       try {
-        await GoogleSignIn.instance.signOut().timeout(const Duration(seconds: 2));
+        await GoogleSignIn.instance.signOut().timeout(
+          const Duration(seconds: 2),
+        );
       } catch (_) {}
     }
     try {

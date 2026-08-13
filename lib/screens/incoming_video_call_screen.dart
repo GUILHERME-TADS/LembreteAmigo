@@ -232,7 +232,7 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen>
     final compact = context.isCompactHeight || context.isLandscape;
 
     return Scaffold(
-      backgroundColor: isHighContrast ? Colors.black : const Color(0xFF121212),
+      backgroundColor: isHighContrast ? Colors.black : AppColors.cameraSurface,
       body: SafeArea(
         child: ResponsiveScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -307,7 +307,7 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen>
                 child: Container(
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: const Color(0xFF1E1E1E),
+                    color: AppColors.cameraSurface,
                     border: Border.all(
                       color: _isSosCall ? AppColors.error : AppColors.primary,
                       width: 5,
@@ -349,8 +349,8 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen>
                 ),
                 decoration: BoxDecoration(
                   color: isVoice
-                      ? const Color(0xFF1A237E)
-                      : const Color(0xFF006064),
+                      ? AppColors.primary
+                      : AppColors.onCustomContainer,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -374,7 +374,7 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen>
                   style: TextStyle(
                     fontSize: isElderly ? 18 : 14,
                     fontWeight: FontWeight.w500,
-                    color: Colors.grey[400],
+                    color: AppColors.outline,
                   ),
                 ),
               ),
@@ -398,7 +398,7 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen>
                   _CallActionButton(
                     icon: isVoice ? Icons.phone : Icons.videocam,
                     label: 'Atender',
-                    color: const Color(0xFF2E7D32),
+                    color: AppColors.success,
                     onPressed: _accepted ? null : _accept,
                     large: isElderly && !compact,
                   ),

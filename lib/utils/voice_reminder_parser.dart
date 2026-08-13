@@ -89,7 +89,7 @@ class VoiceReminderParser {
 
   static VoiceReminderParseResult? parse(String text) {
     final textNormalizedLower = _normalize(text).toLowerCase();
-    
+
     // 1. Parser Algorítmico tradicional (Regex e Regras relativas)
     final normalized = _wordsToNumbers(textNormalizedLower);
 
@@ -114,7 +114,7 @@ class VoiceReminderParser {
         final parts = entry.value.split(':');
         final h = int.parse(parts[0]);
         final m = int.parse(parts[1]);
-        
+
         // Remove a parte do horário do título para ficar mais limpo
         final title = _cleanTitle(text, textNormalizedLower, entry.key);
         return VoiceReminderParseResult(hour: h, minute: m, title: title);
@@ -159,13 +159,8 @@ class VoiceReminderParser {
       final adjustedTarget = _applyPeriod(targetHour, paraAs.group(3), text);
       if (adjustedTarget == null) return null;
 
-      final totalMinutes =
-          (adjustedTarget * 60 - minutesBefore) % (24 * 60);
-      return (
-        totalMinutes ~/ 60,
-        totalMinutes % 60,
-        paraAs.group(0)!,
-      );
+      final totalMinutes = (adjustedTarget * 60 - minutesBefore) % (24 * 60);
+      return (totalMinutes ~/ 60, totalMinutes % 60, paraAs.group(0)!);
     }
 
     final menos = RegExp(
@@ -184,13 +179,8 @@ class VoiceReminderParser {
       final adjustedTarget = _applyPeriod(targetHour, menos.group(3), text);
       if (adjustedTarget == null) return null;
 
-      final totalMinutes =
-          (adjustedTarget * 60 - minutesBefore) % (24 * 60);
-      return (
-        totalMinutes ~/ 60,
-        totalMinutes % 60,
-        menos.group(0)!,
-      );
+      final totalMinutes = (adjustedTarget * 60 - minutesBefore) % (24 * 60);
+      return (totalMinutes ~/ 60, totalMinutes % 60, menos.group(0)!);
     }
 
     return null;
@@ -218,7 +208,9 @@ class VoiceReminderParser {
       if (match == null) continue;
 
       final rawHour = int.tryParse(match.group(1)!);
-      final rawMinute = match.groupCount >= 2 ? _parseMinute(match.group(2)) : 0;
+      final rawMinute = match.groupCount >= 2
+          ? _parseMinute(match.group(2))
+          : 0;
       final explicitPeriod = match.groupCount >= 3 ? match.group(3) : null;
       if (rawHour == null || rawMinute == null) continue;
 
@@ -242,16 +234,17 @@ class VoiceReminderParser {
   static int? _applyPeriod(int hour, String? explicitPeriod, String text) {
     if (hour < 0 || hour > 23) return null;
 
-    final period = explicitPeriod ??
+    final period =
+        explicitPeriod ??
         (RegExp(r'\bmadrugada\b').hasMatch(text)
             ? 'madrugada'
             : RegExp(r'\bmanha\b').hasMatch(text)
-                ? 'manha'
-                : RegExp(r'\btarde\b').hasMatch(text)
-                    ? 'tarde'
-                    : RegExp(r'\bnoite\b').hasMatch(text)
-                        ? 'noite'
-                        : null);
+            ? 'manha'
+            : RegExp(r'\btarde\b').hasMatch(text)
+            ? 'tarde'
+            : RegExp(r'\bnoite\b').hasMatch(text)
+            ? 'noite'
+            : null);
 
     switch (period) {
       case 'madrugada':
@@ -280,7 +273,12 @@ class VoiceReminderParser {
     DateTime? now,
   }) {
     final dateInfo = _parseDateInfo(normalized, now: now);
-    final title = _cleanTitle(original, normalized, matchedTime, dateInfo?.matchedText);
+    final title = _cleanTitle(
+      original,
+      normalized,
+      matchedTime,
+      dateInfo?.matchedText,
+    );
     return VoiceReminderParseResult(
       hour: hour,
       minute: minute,
@@ -319,7 +317,9 @@ class VoiceReminderParser {
       );
     }
 
-    final daquiADias = RegExp(r'\bdaqui\s+a\s+(\d+)\s+dias?\b').firstMatch(text);
+    final daquiADias = RegExp(
+      r'\bdaqui\s+a\s+(\d+)\s+dias?\b',
+    ).firstMatch(text);
     if (daquiADias != null) {
       final days = int.tryParse(daquiADias.group(1)!);
       if (days != null && days > 0) {
@@ -338,7 +338,10 @@ class VoiceReminderParser {
     final match = weekdayRegex.firstMatch(text);
     if (match != null) {
       final isRecurrent = match.group(1) != null;
-      final isNext = match.group(2) == 'proxima' || match.group(2) == 'proximo' || match.group(4) != null;
+      final isNext =
+          match.group(2) == 'proxima' ||
+          match.group(2) == 'proximo' ||
+          match.group(4) != null;
       final dayName = match.group(3)!;
 
       const weekdaysMap = {
@@ -374,8 +377,12 @@ class VoiceReminderParser {
       }
     }
 
-    if (RegExp(r'\b(?:todos\s+os\s+dias|diario|diaria|diariamente)\b').hasMatch(text)) {
-      final m = RegExp(r'\b(?:todos\s+os\s+dias|diario|diaria|diariamente)\b').firstMatch(text);
+    if (RegExp(
+      r'\b(?:todos\s+os\s+dias|diario|diaria|diariamente)\b',
+    ).hasMatch(text)) {
+      final m = RegExp(
+        r'\b(?:todos\s+os\s+dias|diario|diaria|diariamente)\b',
+      ).firstMatch(text);
       return _DateInfo(
         dataInicio: today,
         recorrencia: 'diario',

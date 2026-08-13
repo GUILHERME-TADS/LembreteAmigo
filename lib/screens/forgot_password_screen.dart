@@ -40,7 +40,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   children: [
                     const SupervisorHeader(),
                     const SizedBox(height: 24),
-                    const Text(
+                    Text(
                       'Recuperar Senha',
                       style: TextStyle(
                         fontSize: 32,
@@ -50,7 +50,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
+                    Text(
                       'Insira seu e-mail de cuidador cadastrado para enviarmos as instruções de redefinição.',
                       style: TextStyle(
                         fontSize: 18,
@@ -67,7 +67,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       controller: _emailController,
                     ),
                     const SizedBox(height: 8),
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.only(left: 4),
                       child: Text(
                         'Verifique se o e-mail inserido é o mesmo utilizado no seu ID de Cuidador.',
@@ -85,7 +85,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       child: ElevatedButton.icon(
                         onPressed: _isLoading ? null : _onSubmit,
                         icon: _isLoading
-                            ? const SizedBox(
+                            ? SizedBox(
                                 width: 24,
                                 height: 24,
                                 child: CircularProgressIndicator(
@@ -111,7 +111,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       ),
                     ),
                     const SizedBox(height: 32),
-                    const Center(
+                    Center(
                       child: Text(
                         'Proteção de dados em conformidade com a LGPD.',
                         textAlign: TextAlign.center,
@@ -180,7 +180,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Recuperação de Senha', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Recuperação de Senha',
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
         content: Text(message, style: const TextStyle(fontSize: 18)),
         actions: [
           TextButton(
@@ -216,10 +219,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     color: AppColors.tertiaryFixedDim,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.check_circle, size: 48, color: AppColors.onTertiaryFixedVariant),
+                  child: Icon(
+                    Icons.check_circle,
+                    size: 48,
+                    color: AppColors.onTertiaryFixedVariant,
+                  ),
                 ),
                 const SizedBox(height: 16),
-                const Text(
+                Text(
                   'E-mail Enviado!',
                   style: TextStyle(
                     fontSize: 28,
@@ -229,7 +236,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                const Text(
+                Text(
                   'Se o e-mail informado estiver em nosso sistema, você receberá um link de redefinição em alguns instantes. Não esqueça de verificar sua caixa de spam.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
@@ -249,7 +256,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       backgroundColor: AppColors.surfaceContainerHigh,
                       foregroundColor: AppColors.primary,
                     ),
-                    child: const Text('Entendi', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                    child: const Text(
+                      'Entendi',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ),
               ],

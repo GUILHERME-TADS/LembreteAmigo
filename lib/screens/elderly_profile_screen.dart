@@ -17,6 +17,7 @@ import '../services/offline_sync_service.dart';
 import '../services/durable_media_service.dart';
 import '../services/secure_cache_service.dart';
 import '../widgets/index.dart';
+import '../widgets/theme_mode_selector.dart';
 import '../widgets/custom_time_picker.dart';
 import '../models/lembrete.dart';
 import '../utils/period_helper.dart';
@@ -258,7 +259,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
+        title: Text(
           'Desconectar Cuidador?',
           style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.error),
         ),
@@ -276,7 +277,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text(
+            child: Text(
               'SIM, DESCONECTAR',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
@@ -364,7 +365,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
+              Text(
                 'O que você deseja fazer?',
                 textAlign: TextAlign.center,
                 style: TextStyle(
@@ -394,10 +395,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                     foregroundColor: AppColors.onSecondaryContainer,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
-                      side: const BorderSide(
-                        color: AppColors.secondary,
-                        width: 2,
-                      ),
+                      side: BorderSide(color: AppColors.secondary, width: 2),
                     ),
                   ),
                 ),
@@ -424,7 +422,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                     foregroundColor: AppColors.primary,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
-                      side: const BorderSide(
+                      side: BorderSide(
                         color: AppColors.outlineVariant,
                         width: 2,
                       ),
@@ -465,7 +463,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                 height: 56,
                 child: TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text(
+                  child: Text(
                     'VOLTAR',
                     style: TextStyle(
                       fontSize: 16,
@@ -531,7 +529,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
           Text(
             message,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w700,
               color: AppColors.onSurface,
@@ -574,7 +572,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
   Widget _buildTopBar() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      decoration: const BoxDecoration(color: AppColors.surface),
+      decoration: BoxDecoration(color: AppColors.surface),
       child: Row(
         children: [
           IconButton(
@@ -582,16 +580,12 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
               TTSService.instance.parar(caller: this);
               Navigator.pop(context);
             },
-            icon: const Icon(
-              Icons.arrow_back,
-              color: AppColors.primary,
-              size: 36,
-            ),
+            icon: Icon(Icons.arrow_back, color: AppColors.primary, size: 36),
           ),
           const Spacer(),
           Column(
             mainAxisSize: MainAxisSize.min,
-            children: const [
+            children: [
               Text(
                 'Meus Dados',
                 style: TextStyle(
@@ -643,10 +637,10 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                             width: double.infinity,
                             padding: const EdgeInsets.all(24),
                             decoration: BoxDecoration(
-                              gradient: const LinearGradient(
+                              gradient: LinearGradient(
                                 colors: [
                                   AppColors.primary,
-                                  Color(0xFF1565C0), // Royal Blue
+                                  AppColors.info, // Royal Blue
                                 ],
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
@@ -715,7 +709,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                                 const SizedBox(height: 12),
                                 ElevatedButton.icon(
                                   onPressed: _selectProfilePhotoOptions,
-                                  icon: const Icon(
+                                  icon: Icon(
                                     Icons.edit,
                                     size: 16,
                                     color: AppColors.primary,
@@ -1007,7 +1001,10 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                                   child: ElevatedButton.icon(
                                     onPressed: () {
                                       TTSService.instance.parar(caller: this);
-                                      Navigator.pushNamed(context, '/wellbeing');
+                                      Navigator.pushNamed(
+                                        context,
+                                        '/wellbeing',
+                                      );
                                     },
                                     icon: const Icon(Icons.mood, size: 28),
                                     label: const Text(
@@ -1019,8 +1016,10 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                                       ),
                                     ),
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFFD9F3E4),
-                                      foregroundColor: const Color(0xFF145A32),
+                                      backgroundColor:
+                                          AppColors.successContainer,
+                                      foregroundColor:
+                                          AppColors.onSuccessContainer,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(12),
                                       ),
@@ -1052,8 +1051,9 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                                       ),
                                     ),
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFFFFE0DC),
-                                      foregroundColor: const Color(0xFF8C1D18),
+                                      backgroundColor: AppColors.errorContainer,
+                                      foregroundColor:
+                                          AppColors.onErrorContainer,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(12),
                                       ),
@@ -1101,6 +1101,8 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                                 ),
 
                                 const SizedBox(height: 16),
+                                const ThemeModeSelector(large: true),
+                                const SizedBox(height: 16),
                                 SizedBox(
                                   width: double.infinity,
                                   height: 64,
@@ -1140,7 +1142,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                                             TextButton(
                                               onPressed: () =>
                                                   Navigator.pop(ctx, true),
-                                              child: const Text(
+                                              child: Text(
                                                 'SIM, SAIR',
                                                 style: TextStyle(
                                                   fontWeight: FontWeight.bold,
@@ -1166,7 +1168,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                                     },
                                     style: OutlinedButton.styleFrom(
                                       foregroundColor: AppColors.onSurface,
-                                      side: const BorderSide(
+                                      side: BorderSide(
                                         color: AppColors.outlineVariant,
                                         width: 2,
                                       ),
@@ -1213,7 +1215,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
       alignment: Alignment.centerLeft,
       child: Text(
         title.toUpperCase(),
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.05,
@@ -1255,7 +1257,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                     children: [
                       Text(
                         label,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
                           color: AppColors.onSurfaceVariant,
@@ -1264,7 +1266,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                       const SizedBox(height: 4),
                       Text(
                         value,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                           color: AppColors.onSurface,
@@ -1359,7 +1361,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                               children: [
                                 Text(
                                   med.titulo,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 20,
                                     fontWeight: FontWeight.w800,
                                     color: AppColors.onSurface,
@@ -1436,7 +1438,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          const Icon(
+                          Icon(
                             Icons.chevron_right,
                             color: AppColors.outline,
                             size: 28,
@@ -1471,7 +1473,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
         break;
       case 'exercicio':
         icon = Icons.directions_walk;
-        color = const Color(0xFF2E7D32);
+        color = AppColors.success;
         catName = 'exercício';
         break;
     }
@@ -1516,7 +1518,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                               children: [
                                 Text(
                                   lembrete.titulo,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 20,
                                     fontWeight: FontWeight.w800,
                                     color: AppColors.onSurface,
@@ -1593,7 +1595,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          const Icon(
+                          Icon(
                             Icons.chevron_right,
                             color: AppColors.outline,
                             size: 28,
@@ -1613,23 +1615,19 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
 
   Widget _buildAvatarIconChild() {
     if (_fotoPath == null) {
-      return const Icon(
-        Icons.person,
-        size: 48,
-        color: AppColors.onPrimaryContainer,
-      );
+      return Icon(Icons.person, size: 48, color: AppColors.onPrimaryContainer);
     }
     IconData icon = Icons.person;
     Color color = AppColors.onPrimaryContainer;
     if (_fotoPath == 'avatar_1') {
       icon = Icons.person;
-      color = Colors.blue;
+      color = AppColors.info;
     } else if (_fotoPath == 'avatar_2') {
       icon = Icons.face;
-      color = Colors.green;
+      color = AppColors.success;
     } else if (_fotoPath == 'avatar_3') {
       icon = Icons.portrait;
-      color = Colors.orange;
+      color = AppColors.warning;
     }
     return Icon(icon, size: 48, color: color);
   }
@@ -1648,7 +1646,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'Minha foto',
                 style: TextStyle(
                   fontSize: 22,
@@ -1658,7 +1656,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
               ),
               const SizedBox(height: 16),
               ListTile(
-                leading: const Icon(
+                leading: Icon(
                   Icons.camera_alt,
                   color: AppColors.primary,
                   size: 28,
@@ -1684,7 +1682,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
               ),
               const Divider(),
               ListTile(
-                leading: const Icon(
+                leading: Icon(
                   Icons.photo_library,
                   color: AppColors.primary,
                   size: 28,
@@ -1701,12 +1699,8 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
               if (_fotoPath != null && _fotoPath!.isNotEmpty) ...[
                 const Divider(),
                 ListTile(
-                  leading: const Icon(
-                    Icons.delete,
-                    color: AppColors.error,
-                    size: 28,
-                  ),
-                  title: const Text(
+                  leading: Icon(Icons.delete, color: AppColors.error, size: 28),
+                  title: Text(
                     'Apagar minha foto',
                     style: TextStyle(
                       fontSize: 18,
@@ -1857,11 +1851,11 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                     onTap: () => _useMockPhoto('avatar_1'),
                     child: CircleAvatar(
                       radius: 36,
-                      backgroundColor: Colors.blue[100],
-                      child: const Icon(
+                      backgroundColor: AppColors.infoContainer,
+                      child: Icon(
                         Icons.person,
                         size: 40,
-                        color: Colors.blue,
+                        color: AppColors.info,
                       ),
                     ),
                   ),
@@ -1869,11 +1863,11 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                     onTap: () => _useMockPhoto('avatar_2'),
                     child: CircleAvatar(
                       radius: 36,
-                      backgroundColor: Colors.green[100],
-                      child: const Icon(
+                      backgroundColor: AppColors.successContainer,
+                      child: Icon(
                         Icons.face,
                         size: 40,
-                        color: Colors.green,
+                        color: AppColors.success,
                       ),
                     ),
                   ),
@@ -1881,11 +1875,11 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                     onTap: () => _useMockPhoto('avatar_3'),
                     child: CircleAvatar(
                       radius: 36,
-                      backgroundColor: Colors.orange[100],
-                      child: const Icon(
+                      backgroundColor: AppColors.warningContainer,
+                      child: Icon(
                         Icons.portrait,
                         size: 40,
-                        color: Colors.orange,
+                        color: AppColors.warning,
                       ),
                     ),
                   ),
@@ -2036,7 +2030,7 @@ class _ElderlyEditTitleDialogState extends State<ElderlyEditTitleDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      title: const Text(
+      title: Text(
         'Mudar nome do lembrete',
         textAlign: TextAlign.center,
         style: TextStyle(
@@ -2140,7 +2134,7 @@ class _ElderlyDeleteReminderDialogState
       title: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Expanded(
+          Expanded(
             child: Text(
               'Apagar lembrete?',
               style: TextStyle(
@@ -2193,7 +2187,7 @@ class _ElderlyDeleteReminderDialogState
             Text(
               'Você quer mesmo apagar o lembrete "${widget.lembrete.titulo}"?',
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: AppColors.onSurface,

@@ -20,10 +20,7 @@ Future<TimeOfDay?> showCustomTimePicker({
 class CustomTimePickerDialog extends StatefulWidget {
   final TimeOfDay initialTime;
 
-  const CustomTimePickerDialog({
-    super.key,
-    required this.initialTime,
-  });
+  const CustomTimePickerDialog({super.key, required this.initialTime});
 
   @override
   State<CustomTimePickerDialog> createState() => _CustomTimePickerDialogState();
@@ -67,7 +64,7 @@ class _CustomTimePickerDialogState extends State<CustomTimePickerDialog> {
             mainAxisSize: MainAxisSize.min,
             children: [
               // Título principal da tela
-              const Text(
+              Text(
                 'AJUSTAR HORÁRIO',
                 style: TextStyle(
                   fontSize: 24,
@@ -77,7 +74,7 @@ class _CustomTimePickerDialogState extends State<CustomTimePickerDialog> {
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Toque nos botões de + e - para alterar as horas e minutos.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
@@ -136,7 +133,7 @@ class _CustomTimePickerDialogState extends State<CustomTimePickerDialog> {
                   // Dois pontos separadores piscando levemente
                   Container(
                     margin: const EdgeInsets.symmetric(horizontal: 12),
-                    child: const Text(
+                    child: Text(
                       ':',
                       style: TextStyle(
                         fontSize: 54,
@@ -149,8 +146,11 @@ class _CustomTimePickerDialogState extends State<CustomTimePickerDialog> {
                   // Coluna de Minutos
                   _buildControlColumn(
                     value: _minute,
-                    onIncrement: () => _adjustMinute(5), // Incrementa de 5 em 5 para maior facilidade
-                    onDecrement: () => _adjustMinute(-5), // Decrementa de 5 em 5
+                    onIncrement: () => _adjustMinute(
+                      5,
+                    ), // Incrementa de 5 em 5 para maior facilidade
+                    onDecrement: () =>
+                        _adjustMinute(-5), // Decrementa de 5 em 5
                     label: 'MINUTO',
                     // Permitir ajuste fino se pressionar de forma simples ou secundária
                     onIncrementFine: () => _adjustMinute(1),
@@ -161,7 +161,7 @@ class _CustomTimePickerDialogState extends State<CustomTimePickerDialog> {
               const SizedBox(height: 12),
 
               // Legenda para ajuste fino
-              const Text(
+              Text(
                 'Dica: Nos minutos, os botões grandes alteram de 5 em 5.\nToque nos números para digitar o horário exato.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
@@ -173,7 +173,7 @@ class _CustomTimePickerDialogState extends State<CustomTimePickerDialog> {
               const SizedBox(height: 24),
 
               // Atalhos rápidos
-              const Align(
+              Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
                   'ATALHOS RÁPIDOS',
@@ -210,12 +210,15 @@ class _CustomTimePickerDialogState extends State<CustomTimePickerDialog> {
                       onPressed: () => Navigator.pop(context),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        side: const BorderSide(color: AppColors.outlineVariant, width: 2),
+                        side: BorderSide(
+                          color: AppColors.outlineVariant,
+                          width: 2,
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text(
+                      child: Text(
                         'CANCELAR',
                         style: TextStyle(
                           fontSize: 18,
@@ -229,7 +232,10 @@ class _CustomTimePickerDialogState extends State<CustomTimePickerDialog> {
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () {
-                        Navigator.pop(context, TimeOfDay(hour: _hour, minute: _minute));
+                        Navigator.pop(
+                          context,
+                          TimeOfDay(hour: _hour, minute: _minute),
+                        );
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.secondaryContainer,
@@ -272,7 +278,7 @@ class _CustomTimePickerDialogState extends State<CustomTimePickerDialog> {
       children: [
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w800,
             color: AppColors.onSurfaceVariant,
@@ -295,10 +301,8 @@ class _CustomTimePickerDialogState extends State<CustomTimePickerDialog> {
             // Abrir caixa de diálogo simples para entrada direta via teclado se o idoso preferir
             final res = await showDialog<int>(
               context: context,
-              builder: (context) => _NumberInputDialog(
-                label: label,
-                initialValue: value,
-              ),
+              builder: (context) =>
+                  _NumberInputDialog(label: label, initialValue: value),
             );
             if (res != null) {
               setState(() {
@@ -323,7 +327,7 @@ class _CustomTimePickerDialogState extends State<CustomTimePickerDialog> {
                   color: AppColors.primary.withValues(alpha: 0.04),
                   blurRadius: 8,
                   offset: const Offset(0, 4),
-                )
+                ),
               ],
             ),
             child: Stack(
@@ -331,7 +335,7 @@ class _CustomTimePickerDialogState extends State<CustomTimePickerDialog> {
                 Center(
                   child: Text(
                     value.toString().padLeft(2, '0'),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 48,
                       fontWeight: FontWeight.w800,
                       color: AppColors.primary,
@@ -349,11 +353,15 @@ class _CustomTimePickerDialogState extends State<CustomTimePickerDialog> {
                       borderRadius: BorderRadius.circular(999),
                       child: Container(
                         padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
+                        decoration: BoxDecoration(
                           color: AppColors.surfaceContainerHigh,
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.add, size: 14, color: AppColors.primary),
+                        child: Icon(
+                          Icons.add,
+                          size: 14,
+                          color: AppColors.primary,
+                        ),
                       ),
                     ),
                   ),
@@ -365,11 +373,15 @@ class _CustomTimePickerDialogState extends State<CustomTimePickerDialog> {
                       borderRadius: BorderRadius.circular(999),
                       child: Container(
                         padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
+                        decoration: BoxDecoration(
                           color: AppColors.surfaceContainerHigh,
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.remove, size: 14, color: AppColors.primary),
+                        child: Icon(
+                          Icons.remove,
+                          size: 14,
+                          color: AppColors.primary,
+                        ),
                       ),
                     ),
                   ),
@@ -457,7 +469,9 @@ class _CustomTimePickerDialogState extends State<CustomTimePickerDialog> {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
-                color: isSelected ? Colors.white.withValues(alpha: 0.8) : AppColors.onSurfaceVariant,
+                color: isSelected
+                    ? Colors.white.withValues(alpha: 0.8)
+                    : AppColors.onSurfaceVariant,
               ),
             ),
           ],
@@ -471,10 +485,7 @@ class _NumberInputDialog extends StatefulWidget {
   final String label;
   final int initialValue;
 
-  const _NumberInputDialog({
-    required this.label,
-    required this.initialValue,
-  });
+  const _NumberInputDialog({required this.label, required this.initialValue});
 
   @override
   State<_NumberInputDialog> createState() => _NumberInputDialogState();
@@ -568,9 +579,7 @@ class ClockFacePainter extends CustomPainter {
     }
 
     // 2. Desenhar números chaves (12, 3, 6, 9)
-    final textPainter = TextPainter(
-      textDirection: TextDirection.ltr,
-    );
+    final textPainter = TextPainter(textDirection: TextDirection.ltr);
     final textStyle = TextStyle(
       color: primaryColor.withValues(alpha: 0.7),
       fontSize: 13,
@@ -593,7 +602,8 @@ class ClockFacePainter extends CustomPainter {
     });
 
     // 3. ngulos dos ponteiros (corrigidos para o topo do relógio -90 graus)
-    final double hourAngle = ((hour % 12) * 30 + (minute * 0.5)) * math.pi / 180 - math.pi / 2;
+    final double hourAngle =
+        ((hour % 12) * 30 + (minute * 0.5)) * math.pi / 180 - math.pi / 2;
     final double minuteAngle = (minute * 6) * math.pi / 180 - math.pi / 2;
 
     // 4. Desenhar Ponteiro das Horas (mais curto e grosso)

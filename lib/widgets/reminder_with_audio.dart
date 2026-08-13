@@ -43,7 +43,8 @@ class ReminderWithAudio extends StatefulWidget {
   final VoidCallback onTap;
   final VoidCallback? onStatusTap;
   final ReminderStatus status;
-  final Color accentColor;
+  final Color? _accentColor;
+  Color get accentColor => _accentColor ?? AppColors.primary;
   final String? audioPath;
   final String? ttsText;
 
@@ -57,10 +58,10 @@ class ReminderWithAudio extends StatefulWidget {
     required this.onTap,
     this.onStatusTap,
     this.status = ReminderStatus.scheduled,
-    this.accentColor = AppColors.primary,
+    Color? accentColor,
     this.audioPath,
     this.ttsText,
-  });
+  }) : _accentColor = accentColor;
 
   @override
   State<ReminderWithAudio> createState() => _ReminderWithAudioState();
@@ -240,11 +241,11 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
     return Container(
       decoration: BoxDecoration(
         color: isDoneStatus
-            ? const Color(0xFFE8F5E9)
+            ? AppColors.successContainer
             : isPostponed
-            ? const Color(0xFFFFFDE7)
+            ? AppColors.warningContainer
             : isAttentionStatus
-            ? const Color(0xFFFFEBEE)
+            ? AppColors.errorContainer
             : AppColors.surfaceContainerLowest,
         border: Border.all(
           color: isDoneStatus
@@ -478,11 +479,11 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
                                           height: 56,
                                           decoration: BoxDecoration(
                                             color: isDoneStatus
-                                                ? const Color(0xFFC8E6C9)
+                                                ? AppColors.successContainer
                                                 : isPostponed
-                                                ? const Color(0xFFFFF59D)
+                                                ? AppColors.secondaryContainer
                                                 : isAttentionStatus
-                                                ? const Color(0xFFFFCDD2)
+                                                ? AppColors.errorContainer
                                                 : widget.accentColor.withValues(
                                                     alpha: 0.1,
                                                   ),
@@ -492,9 +493,9 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
                                             ),
                                             border: Border.all(
                                               color: isDoneStatus
-                                                  ? const Color(0xFF388E3C)
+                                                  ? AppColors.success
                                                   : isPostponed
-                                                  ? const Color(0xFFFBC02D)
+                                                  ? AppColors.secondary
                                                   : isAttentionStatus
                                                   ? AppColors.error
                                                   : widget.accentColor,
@@ -520,9 +521,9 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
                                                       ? Icons.close
                                                       : Icons.priority_high,
                                                   color: isDoneStatus
-                                                      ? const Color(0xFF005312)
+                                                      ? AppColors.tertiaryContainer
                                                       : isPostponed
-                                                      ? const Color(0xFF827717)
+                                                      ? AppColors.onWarningContainer
                                                       : AppColors.error,
                                                   size: 32,
                                                 )

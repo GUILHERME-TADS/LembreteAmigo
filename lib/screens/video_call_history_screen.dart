@@ -31,13 +31,13 @@ class _VideoCallHistoryScreenState extends State<VideoCallHistoryScreen> {
       _callsSubscription = VideoCallService.instance
           .watchCallHistory(idosoId)
           .listen((calls) {
-        if (mounted) {
-          setState(() {
-            _calls = calls;
-            _loading = false;
+            if (mounted) {
+              setState(() {
+                _calls = calls;
+                _loading = false;
+              });
+            }
           });
-        }
-      });
       VideoCallService.instance.markMissedCallsAsRead();
     } catch (_) {
       if (mounted) setState(() => _loading = false);
@@ -99,7 +99,7 @@ class _VideoCallHistoryScreenState extends State<VideoCallHistoryScreen> {
             padding: const EdgeInsets.only(top: 16.0, bottom: 8.0, left: 8.0),
             child: Text(
               header,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
                 color: AppColors.onSurfaceVariant,
@@ -134,11 +134,14 @@ class _VideoCallHistoryScreenState extends State<VideoCallHistoryScreen> {
         child: _loading
             ? const Center(child: CircularProgressIndicator())
             : _calls.isEmpty
-                ? _EmptyState(isElderly: isElderly, onStartCall: () => _startCall('video'))
-                : ListView(
-                    padding: const EdgeInsets.all(16),
-                    children: _buildGroupedList(isElderly),
-                  ),
+            ? _EmptyState(
+                isElderly: isElderly,
+                onStartCall: () => _startCall('video'),
+              )
+            : ListView(
+                padding: const EdgeInsets.all(16),
+                children: _buildGroupedList(isElderly),
+              ),
       ),
       floatingActionButton: isElderly
           ? null
@@ -204,7 +207,10 @@ class _EmptyState extends StatelessWidget {
                 icon: const Icon(Icons.videocam),
                 label: const Text('Iniciar Ligação'),
                 style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 16,
+                  ),
                 ),
               ),
             ],
@@ -232,13 +238,22 @@ class _CallHistoryTile extends StatelessWidget {
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
-          children: const [
-            Icon(Icons.delete_forever_rounded, color: AppColors.error, size: 28),
+          children: [
+            Icon(
+              Icons.delete_forever_rounded,
+              color: AppColors.error,
+              size: 28,
+            ),
             SizedBox(width: 8),
-            Text('Apagar Ligação', style: TextStyle(fontWeight: FontWeight.bold)),
+            Text(
+              'Apagar Ligação',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ],
         ),
-        content: const Text('Tem certeza que deseja apagar este registro do histórico de ligações?'),
+        content: const Text(
+          'Tem certeza que deseja apagar este registro do histórico de ligações?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -248,7 +263,9 @@ class _CallHistoryTile extends StatelessWidget {
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.error,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
             onPressed: () => Navigator.of(ctx).pop(true),
             child: const Text('Apagar'),
@@ -277,7 +294,8 @@ class _CallHistoryTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isSos = call.isFromSos;
-    final isMissed = call.status == VideoCallStatus.missed ||
+    final isMissed =
+        call.status == VideoCallStatus.missed ||
         call.status == VideoCallStatus.declined;
 
     Color iconBgColor;
@@ -299,17 +317,19 @@ class _CallHistoryTile extends StatelessWidget {
       callIcon = Icons.phone_missed_rounded;
       cardBgColor = AppColors.errorContainer.withValues(alpha: 0.18);
       borderColor = AppColors.error.withValues(alpha: 0.35);
-      statusLabel = call.status == VideoCallStatus.declined ? 'Recusada' : 'Não Atendida';
+      statusLabel = call.status == VideoCallStatus.declined
+          ? 'Recusada'
+          : 'Não Atendida';
       statusColor = AppColors.error;
     } else {
-      iconBgColor = Colors.teal.shade600;
+      iconBgColor = AppColors.onCustomContainer;
       callIcon = call.isVoiceCall
           ? Icons.phone_callback_rounded
           : Icons.video_camera_back_rounded;
-      cardBgColor = Colors.teal.shade50.withValues(alpha: 0.35);
-      borderColor = Colors.teal.shade200;
+      cardBgColor = AppColors.customContainer.withValues(alpha: 0.35);
+      borderColor = AppColors.customContainer;
       statusLabel = 'Atendida • Concluída';
-      statusColor = Colors.teal.shade800;
+      statusColor = AppColors.onCustomContainer;
     }
 
     return Card(
@@ -317,16 +337,16 @@ class _CallHistoryTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: borderColor,
-          width: 1,
-        ),
+        side: BorderSide(color: borderColor, width: 1),
       ),
       elevation: 0,
       child: Padding(
         padding: const EdgeInsets.all(8.0),
         child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 8,
+            vertical: 4,
+          ),
           leading: Container(
             width: isElderly ? 56 : 48,
             height: isElderly ? 56 : 48,
@@ -344,7 +364,9 @@ class _CallHistoryTile extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  call.isFromSupervisor ? 'Ligação do Cuidador' : 'Ligação do Idoso',
+                  call.isFromSupervisor
+                      ? 'Ligação do Cuidador'
+                      : 'Ligação do Idoso',
                   style: TextStyle(
                     fontWeight: FontWeight.w900,
                     fontSize: isElderly ? 20 : 16,
@@ -353,7 +375,10 @@ class _CallHistoryTile extends StatelessWidget {
               ),
               if (isSos)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.error,
                     borderRadius: BorderRadius.circular(8),
@@ -412,7 +437,7 @@ class _CallHistoryTile extends StatelessWidget {
                 ),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.primary,
-                  side: const BorderSide(color: AppColors.primary, width: 2),
+                  side: BorderSide(color: AppColors.primary, width: 2),
                   padding: EdgeInsets.symmetric(
                     horizontal: isElderly ? 16 : 12,
                     vertical: isElderly ? 12 : 8,

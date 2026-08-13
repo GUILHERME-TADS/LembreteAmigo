@@ -107,7 +107,7 @@ class _ElderlyOnboardingScreenState extends State<ElderlyOnboardingScreen> {
                       );
                     },
                     borderRadius: BorderRadius.circular(12),
-                    child: const Padding(
+                    child: Padding(
                       padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       child: Icon(
                         Icons.arrow_back,
@@ -127,7 +127,7 @@ class _ElderlyOnboardingScreenState extends State<ElderlyOnboardingScreen> {
                       );
                     },
                     borderRadius: BorderRadius.circular(12),
-                    child: const Padding(
+                    child: Padding(
                       padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       child: Icon(
                         Icons.arrow_back,
@@ -163,7 +163,7 @@ class _ElderlyOnboardingScreenState extends State<ElderlyOnboardingScreen> {
                         Text(
                           step.title,
                           textAlign: TextAlign.center,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 32,
                             fontWeight: FontWeight.w800,
                             height: 1.2,
@@ -174,7 +174,7 @@ class _ElderlyOnboardingScreenState extends State<ElderlyOnboardingScreen> {
                         Text(
                           step.subtitle,
                           textAlign: TextAlign.center,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w400,
                             height: 1.5,
@@ -228,7 +228,7 @@ class _ElderlyOnboardingScreenState extends State<ElderlyOnboardingScreen> {
                       Container(
                         width: context.isCompactHeight ? 52 : 64,
                         height: context.isCompactHeight ? 52 : 64,
-                        decoration: const BoxDecoration(
+                        decoration: BoxDecoration(
                           color: AppColors.onSecondaryContainer,
                           shape: BoxShape.circle,
                         ),

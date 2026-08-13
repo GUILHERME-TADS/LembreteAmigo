@@ -75,7 +75,7 @@ class _DeviceReadinessScreenState extends State<DeviceReadinessScreen> {
         context: context,
         barrierDismissible: false,
         builder: (dialogContext) => AlertDialog(
-          icon: const Icon(Icons.alarm_on, color: AppColors.primary, size: 48),
+          icon: Icon(Icons.alarm_on, color: AppColors.primary, size: 48),
           title: const Text('Teste agendado'),
           content: const Text(
             'O som deve tocar em aproximadamente 5 segundos. '
@@ -169,7 +169,7 @@ class _DeviceReadinessScreenState extends State<DeviceReadinessScreen> {
             ),
             const SizedBox(height: 8),
             if (!_loading && _diagnostics.barriers.isEmpty)
-              const Card(
+              Card(
                 child: ListTile(
                   leading: Icon(
                     Icons.check_circle,

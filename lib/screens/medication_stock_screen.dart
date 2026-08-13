@@ -172,7 +172,7 @@ class _MedicationStockScreenState extends State<MedicationStockScreen> {
                 padding: const EdgeInsets.all(20),
                 child: Row(
                   children: [
-                    const Icon(Icons.history, color: AppColors.primary),
+                    Icon(Icons.history, color: AppColors.primary),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
@@ -216,12 +216,12 @@ class _MedicationStockScreenState extends State<MedicationStockScreen> {
                         return ListTile(
                           leading: CircleAvatar(
                             backgroundColor: positive
-                                ? const Color(0xFFE8F5E9)
+                                ? AppColors.successContainer
                                 : AppColors.errorContainer,
                             child: Icon(
                               positive ? Icons.add : Icons.remove,
                               color: positive
-                                  ? const Color(0xFF2E7D32)
+                                  ? AppColors.success
                                   : AppColors.error,
                             ),
                           ),
@@ -295,7 +295,7 @@ class _MedicationStockScreenState extends State<MedicationStockScreen> {
     final color = stock == 0
         ? AppColors.error
         : low
-        ? const Color(0xFFE07A00)
+        ? AppColors.warning
         : AppColors.primary;
     final busy = _busyReminderId == reminder.id;
     return Card(

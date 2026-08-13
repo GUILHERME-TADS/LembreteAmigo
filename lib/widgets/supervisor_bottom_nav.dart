@@ -32,15 +32,14 @@ class _SupervisorBottomNavState extends State<SupervisorBottomNav> {
   }
 
   void _handleTap(String routeName, BuildContext context) {
-    final protectedRoutes = [
-      '/new-reminder',
-      '/activity-history',
-    ];
+    final protectedRoutes = ['/new-reminder', '/activity-history'];
 
     if (protectedRoutes.contains(routeName) && !_isConnected) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Conecte um dispositivo de idoso para acessar esta tela.'),
+        SnackBar(
+          content: Text(
+            'Conecte um dispositivo de idoso para acessar esta tela.',
+          ),
           backgroundColor: AppColors.error,
         ),
       );
@@ -48,11 +47,7 @@ class _SupervisorBottomNavState extends State<SupervisorBottomNav> {
     }
 
     if (routeName == '/supervisor-dashboard') {
-      Navigator.pushNamedAndRemoveUntil(
-        context,
-        routeName,
-        (route) => false,
-      );
+      Navigator.pushNamedAndRemoveUntil(context, routeName, (route) => false);
     } else {
       Navigator.pushNamed(context, routeName);
     }
@@ -96,7 +91,8 @@ class _SupervisorBottomNavState extends State<SupervisorBottomNav> {
               _SupervisorNavItem(
                 icon: Icons.add_circle,
                 label: 'Novo',
-                selected: widget.selected == SupervisorNavDestination.newReminder,
+                selected:
+                    widget.selected == SupervisorNavDestination.newReminder,
                 opacity: _isConnected ? 1.0 : 0.4,
                 onTap: widget.selected == SupervisorNavDestination.newReminder
                     ? null
@@ -154,7 +150,9 @@ class _SupervisorNavItem extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
             decoration: BoxDecoration(
-              color: selected ? AppColors.secondaryContainer : Colors.transparent,
+              color: selected
+                  ? AppColors.secondaryContainer
+                  : Colors.transparent,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Column(

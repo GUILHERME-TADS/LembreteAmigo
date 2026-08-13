@@ -68,11 +68,11 @@ class PhotoGalleryScreen extends StatelessWidget {
     return Container(
       height: 64,
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: const BoxDecoration(color: AppColors.surface),
+      decoration: BoxDecoration(color: AppColors.surface),
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(
+            icon: Icon(
               Icons.arrow_back,
               color: AppColors.primary,
               size: 36,
@@ -80,9 +80,9 @@ class PhotoGalleryScreen extends StatelessWidget {
             onPressed: () => Navigator.of(context).pop(),
           ),
           const SizedBox(width: 8),
-          const Icon(Icons.photo_library, color: AppColors.primary, size: 28),
+          Icon(Icons.photo_library, color: AppColors.primary, size: 28),
           const SizedBox(width: 10),
-          const Expanded(
+          Expanded(
             child: Text(
               'Galeria de Fotos',
               style: TextStyle(
@@ -102,13 +102,13 @@ class PhotoGalleryScreen extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(
+          Icon(
             Icons.photo_camera_outlined,
             size: 80,
             color: AppColors.outlineVariant,
           ),
           const SizedBox(height: 20),
-          const Text(
+          Text(
             'Nenhuma foto ainda',
             style: TextStyle(
               fontSize: 22,
@@ -117,7 +117,7 @@ class PhotoGalleryScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'As fotos de confirmacao de\nlembretes aparecerao aqui.',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 15, color: AppColors.outline),
@@ -139,7 +139,7 @@ class PhotoGalleryScreen extends StatelessWidget {
           padding: const EdgeInsets.only(top: 12, bottom: 8),
           child: Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.calendar_today,
                 size: 16,
                 color: AppColors.onSurfaceVariant,
@@ -147,7 +147,7 @@ class PhotoGalleryScreen extends StatelessWidget {
               const SizedBox(width: 6),
               Text(
                 dateKey,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                   color: AppColors.onSurfaceVariant,
@@ -162,7 +162,7 @@ class PhotoGalleryScreen extends StatelessWidget {
                 ),
                 child: Text(
                   '${items.length} foto${items.length == 1 ? '' : 's'}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                     color: AppColors.onPrimaryFixed,
@@ -245,7 +245,7 @@ class PhotoGalleryScreen extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: Colors.green.shade600,
+                  color: AppColors.success,
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(Icons.check, color: Colors.white, size: 12),
@@ -260,7 +260,7 @@ class PhotoGalleryScreen extends StatelessWidget {
   Widget _photoPlaceholder() {
     return Container(
       color: AppColors.surfaceContainerHigh,
-      child: const Icon(
+      child: Icon(
         Icons.broken_image_outlined,
         color: AppColors.outline,
         size: 40,

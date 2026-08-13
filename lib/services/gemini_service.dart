@@ -40,7 +40,9 @@ class GeminiService {
     try {
       final cached = await SecureCacheService.instance.read(cacheKey);
       if (cached != null && cached.trim().isNotEmpty) {
-        debugPrint('[GeminiService] Resposta recuperada do CACHE LOCAL para "$nomeRemedio" (0ms)');
+        debugPrint(
+          '[GeminiService] Resposta recuperada do CACHE LOCAL para "$nomeRemedio" (0ms)',
+        );
         return cached.trim();
       }
     } catch (e) {
@@ -55,11 +57,15 @@ class GeminiService {
           model: 'gemini-flash-lite-latest',
           apiKey: currentKey,
           safetySettings: [
-            SafetySetting(HarmCategory.dangerousContent, HarmBlockThreshold.none),
+            SafetySetting(
+              HarmCategory.dangerousContent,
+              HarmBlockThreshold.none,
+            ),
           ],
         );
 
-        final prompt = '''
+        final prompt =
+            '''
 Você é o Alex, um assistente virtual carinhoso, atencioso e especialista em ajudar idosos.
 Sua missão é explicar para um idoso leigo, de forma simples e reconfortante, para que serve o remédio "$nomeRemedio".
 
@@ -77,16 +83,22 @@ Regras Obrigatórias:
         if (responseText != null && responseText.isNotEmpty) {
           // Grava a explicação no cache para consultas futuras
           await SecureCacheService.instance.write(cacheKey, responseText);
-          debugPrint('[GeminiService] Resposta gravada no CACHE LOCAL para "$nomeRemedio"');
+          debugPrint(
+            '[GeminiService] Resposta gravada no CACHE LOCAL para "$nomeRemedio"',
+          );
           return responseText;
         }
       } catch (e) {
-        debugPrint('[GeminiService] Falha na Chave #${i + 1} para "$nomeRemedio": $e');
+        debugPrint(
+          '[GeminiService] Falha na Chave #${i + 1} para "$nomeRemedio": $e',
+        );
         if (i == activeKeys.length - 1) {
           // Todas as chaves falharam
           return 'Desculpe, não consegui encontrar informações sobre este remédio no momento.';
         }
-        debugPrint('[GeminiService] Alternando para a próxima chave no pool (Chave #${i + 2})...');
+        debugPrint(
+          '[GeminiService] Alternando para a próxima chave no pool (Chave #${i + 2})...',
+        );
       }
     }
 

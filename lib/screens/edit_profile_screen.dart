@@ -402,7 +402,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         if (mounted) {
           setState(() => _isLoading = false);
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
+            SnackBar(
               content: Text(
                 'Conecte um dispositivo de idoso antes de alterar os dados.',
               ),
@@ -426,7 +426,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text('Não encontrei seus dados para editar.'),
             backgroundColor: AppColors.error,
           ),
@@ -616,12 +616,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Widget _buildTopBar() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      decoration: const BoxDecoration(color: AppColors.surface),
+      decoration: BoxDecoration(color: AppColors.surface),
       child: Row(
         children: [
           IconButton(
             onPressed: _voltar,
-            icon: const Icon(
+            icon: Icon(
               Icons.arrow_back,
               color: AppColors.primary,
               size: 36,
@@ -630,7 +630,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           const Spacer(),
           Column(
             mainAxisSize: MainAxisSize.min,
-            children: const [
+            children: [
               Text(
                 'Meus Dados',
                 style: TextStyle(
@@ -793,7 +793,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           const SizedBox(height: 32),
                           Text(
                             stepTitle,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 26,
                               fontWeight: FontWeight.w900,
                               color: AppColors.primary,
@@ -828,7 +828,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                   child: OutlinedButton(
                                     onPressed: _voltar,
                                     style: OutlinedButton.styleFrom(
-                                      side: const BorderSide(
+                                      side: BorderSide(
                                         color: AppColors.outlineVariant,
                                         width: 2,
                                       ),
@@ -838,7 +838,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                     ),
                                     child: Text(
                                       _currentStep == 0 ? 'CANCELAR' : 'VOLTAR',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 18,
                                         fontWeight: FontWeight.bold,
                                         color: AppColors.onSurfaceVariant,

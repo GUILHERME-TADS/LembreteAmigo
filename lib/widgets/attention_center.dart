@@ -94,7 +94,7 @@ class AttentionCenter extends StatelessWidget {
                 ? 'Tudo certo agora. Nenhuma ação urgente.'
                 : '${entries.length} item(ns) por prioridade'
                       '${criticalCount > 0 ? ' • $criticalCount urgente(s)' : ''}',
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.onSurfaceVariant,
               fontSize: 15,
             ),
@@ -125,7 +125,7 @@ class AttentionCenter extends StatelessWidget {
               if (entries.length > 5)
                 Text(
                   '+ ${entries.length - 5} item(ns)',
-                  style: const TextStyle(color: AppColors.onSurfaceVariant),
+                  style: TextStyle(color: AppColors.onSurfaceVariant),
                 ),
             ],
           ),
@@ -193,7 +193,7 @@ class _AttentionCard extends StatelessWidget {
     final color = entry.severity == 3
         ? AppColors.error
         : entry.severity == 2
-        ? const Color(0xFFE07A00)
+        ? AppColors.warning
         : AppColors.primary;
     return Container(
       width: double.infinity,
@@ -262,12 +262,12 @@ class _AllClearCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFE8F5E9),
+        color: AppColors.successContainer,
         borderRadius: BorderRadius.circular(14),
       ),
-      child: const Row(
+      child: Row(
         children: [
-          Icon(Icons.check_circle, color: Color(0xFF2E7D32), size: 30),
+          Icon(Icons.check_circle, color: AppColors.success, size: 30),
           SizedBox(width: 12),
           Expanded(
             child: Text(

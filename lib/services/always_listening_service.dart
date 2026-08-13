@@ -13,11 +13,11 @@ enum ListeningState { paused, listening, processing, sleeping }
 
 class AlwaysListeningService {
   AlwaysListeningService._();
-  static final AlwaysListeningService instance =
-      AlwaysListeningService._();
+  static final AlwaysListeningService instance = AlwaysListeningService._();
 
-  final ValueNotifier<ListeningState> state =
-      ValueNotifier(ListeningState.sleeping);
+  final ValueNotifier<ListeningState> state = ValueNotifier(
+    ListeningState.sleeping,
+  );
   final ValueNotifier<bool> enabled = ValueNotifier(false);
 
   stt.SpeechToText? _speech;
@@ -34,8 +34,7 @@ class AlwaysListeningService {
     _initialized = true;
 
     final prefs = await SharedPreferences.getInstance();
-    enabled.value =
-        prefs.getBool('always_listening_enabled') ?? false;
+    enabled.value = prefs.getBool('always_listening_enabled') ?? false;
 
     if (enabled.value) {
       start();
@@ -91,16 +90,12 @@ class AlwaysListeningService {
       final idosoId = await SessionRoleService.getActiveIdosoId();
       if (!SessionRoleService.isLocalOnlyIdosoId(idosoId) &&
           await SessionRoleService.canSyncElderlyPrivateData()) {
-        await OfflineSyncService.instance.setOrQueue(
-          'idoso_perfil',
-          idosoId,
-          {'always_listening_enabled': value},
-        );
-        await OfflineSyncService.instance.setOrQueue(
-          'idosos',
-          idosoId,
-          {'always_listening_enabled': value},
-        );
+        await OfflineSyncService.instance.setOrQueue('idoso_perfil', idosoId, {
+          'always_listening_enabled': value,
+        });
+        await OfflineSyncService.instance.setOrQueue('idosos', idosoId, {
+          'always_listening_enabled': value,
+        });
       }
     }
 
@@ -179,7 +174,9 @@ class AlwaysListeningService {
 
     final available = await _initSpeech();
     if (!available) {
-      debugPrint('AlwaysListening: Speech recognition not available, retrying soon...');
+      debugPrint(
+        'AlwaysListening: Speech recognition not available, retrying soon...',
+      );
       state.value = ListeningState.paused;
       _retryTimer?.cancel();
       _retryTimer = Timer(const Duration(seconds: 5), () {
@@ -219,8 +216,9 @@ class AlwaysListeningService {
             return;
           }
 
-          final wakeMatch =
-              RegExp(r'^(alex|alê|ale)(?:\s*,?\s*|$)').firstMatch(text);
+          final wakeMatch = RegExp(
+            r'^(alex|alê|ale)(?:\s*,?\s*|$)',
+          ).firstMatch(text);
 
           if (wakeMatch == null) {
             _wakeWordOnlyTimer?.cancel();
@@ -298,8 +296,7 @@ class AlwaysListeningService {
     final wasAwaiting = _awaitingCommand;
     _awaitingCommand = false;
 
-    final wakeMatch =
-        RegExp(r'^(alex|alê|ale)(?:\s*,?\s*|$)').firstMatch(text);
+    final wakeMatch = RegExp(r'^(alex|alê|ale)(?:\s*,?\s*|$)').firstMatch(text);
     if (wakeMatch == null) {
       if (!wasAwaiting) {
         state.value = ListeningState.listening;
@@ -308,7 +305,9 @@ class AlwaysListeningService {
       }
     }
 
-    final command = wakeMatch == null ? text.trim() : text.substring(wakeMatch.end).trim();
+    final command = wakeMatch == null
+        ? text.trim()
+        : text.substring(wakeMatch.end).trim();
 
     if (command.isEmpty) {
       try {

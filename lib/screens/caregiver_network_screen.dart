@@ -339,7 +339,7 @@ class _CaregiverNetworkScreenState extends State<CaregiverNetworkScreen> {
                 color: AppColors.primaryFixed,
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: const Column(
+              child: Column(
                 children: [
                   Icon(Icons.groups_2, size: 52, color: AppColors.primary),
                   SizedBox(height: 8),
@@ -404,7 +404,7 @@ class _CaregiverNetworkScreenState extends State<CaregiverNetworkScreen> {
                         IconButton(
                           tooltip: 'Remover cuidador',
                           onPressed: () => _removeCaregiver(caregiver),
-                          icon: const Icon(
+                          icon: Icon(
                             Icons.person_remove_outlined,
                             color: AppColors.error,
                           ),

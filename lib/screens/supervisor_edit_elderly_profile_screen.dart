@@ -58,7 +58,7 @@ class _SupervisorEditElderlyProfileScreenState
       if (!mounted) return;
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('Conecte um idoso antes de editar os dados.'),
           backgroundColor: AppColors.error,
         ),

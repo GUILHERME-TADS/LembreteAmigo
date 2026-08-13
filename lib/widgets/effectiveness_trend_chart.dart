@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../theme/app_theme.dart';
 import '../models/effectiveness_metrics.dart';
 
 class EffectivenessTrendChart extends StatelessWidget {
@@ -10,10 +11,10 @@ class EffectivenessTrendChart extends StatelessWidget {
   Widget build(BuildContext context) {
     final validDays = dailyTrend.where((d) => d.score >= 0).toList();
     if (validDays.isEmpty) {
-      return const Center(
+      return Center(
         child: Text(
           'Sem dados suficientes',
-          style: TextStyle(color: Color(0xFF94A3B8)),
+          style: TextStyle(color: AppColors.outline),
         ),
       );
     }
@@ -57,7 +58,7 @@ class _TrendPainter extends CustomPainter {
     }
 
     final linePaint = Paint()
-      ..color = const Color(0xFF3B82F6)
+      ..color = AppColors.info
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.5
       ..strokeCap = StrokeCap.round
@@ -68,8 +69,8 @@ class _TrendPainter extends CustomPainter {
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: [
-          const Color(0xFF3B82F6).withValues(alpha: 0.3),
-          const Color(0xFF3B82F6).withValues(alpha: 0.02),
+          AppColors.info.withValues(alpha: 0.3),
+          AppColors.info.withValues(alpha: 0.02),
         ],
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
 
@@ -89,7 +90,7 @@ class _TrendPainter extends CustomPainter {
     canvas.drawPath(fillPath, fillPaint);
 
     for (final point in points) {
-      canvas.drawCircle(point, 3, Paint()..color = const Color(0xFF3B82F6));
+      canvas.drawCircle(point, 3, Paint()..color = AppColors.info);
     }
   }
 

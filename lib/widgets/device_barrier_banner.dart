@@ -178,17 +178,17 @@ class _DeviceBarrierBannerState extends State<DeviceBarrierBanner>
   _BarrierColors _colorsFor(DeviceBarrierSeverity severity) {
     switch (severity) {
       case DeviceBarrierSeverity.critical:
-        return const _BarrierColors(
+        return _BarrierColors(
           background: AppColors.errorContainer,
           foreground: AppColors.onErrorContainer,
         );
       case DeviceBarrierSeverity.warning:
-        return const _BarrierColors(
+        return _BarrierColors(
           background: AppColors.secondaryContainer,
           foreground: AppColors.onSecondaryContainer,
         );
       case DeviceBarrierSeverity.info:
-        return const _BarrierColors(
+        return _BarrierColors(
           background: AppColors.primaryFixed,
           foreground: AppColors.onPrimaryFixed,
         );

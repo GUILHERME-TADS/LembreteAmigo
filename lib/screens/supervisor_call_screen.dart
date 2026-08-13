@@ -37,10 +37,13 @@ class _SupervisorCallScreenState extends State<SupervisorCallScreen> {
       _idosoId = activeIdosoId;
 
       if (activeIdosoId.isNotEmpty) {
-        final profile = await ElderlyProfileRepository.instance.getData(activeIdosoId);
+        final profile = await ElderlyProfileRepository.instance.getData(
+          activeIdosoId,
+        );
         if (profile != null) {
           _idosoNome = profile['nome'] as String? ?? 'Meu Idoso';
-          _idosoFoto = (profile['fotoPath'] as String?) ??
+          _idosoFoto =
+              (profile['fotoPath'] as String?) ??
               (profile['fotoUrl'] as String?) ??
               (profile['foto'] as String?);
         } else {
@@ -52,7 +55,8 @@ class _SupervisorCallScreenState extends State<SupervisorCallScreen> {
           if (doc.exists && doc.data() != null) {
             final data = doc.data()!;
             _idosoNome = data['nome'] as String? ?? 'Meu Idoso';
-            _idosoFoto = (data['fotoPath'] as String?) ??
+            _idosoFoto =
+                (data['fotoPath'] as String?) ??
                 (data['fotoUrl'] as String?) ??
                 (data['foto'] as String?);
           }
@@ -73,7 +77,7 @@ class _SupervisorCallScreenState extends State<SupervisorCallScreen> {
     try {
       if (_idosoId.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text('Nenhum idoso ativo selecionado para ligar.'),
             backgroundColor: AppColors.error,
           ),
@@ -94,13 +98,11 @@ class _SupervisorCallScreenState extends State<SupervisorCallScreen> {
           callId: result.callId,
         );
       } else if (mounted) {
-        final msg = VideoCallService.instance.lastStartFailureMessage ??
+        final msg =
+            VideoCallService.instance.lastStartFailureMessage ??
             'Não foi possível conectar a chamada agora.';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(msg),
-            backgroundColor: AppColors.error,
-          ),
+          SnackBar(content: Text(msg), backgroundColor: AppColors.error),
         );
       }
     } finally {
@@ -114,13 +116,22 @@ class _SupervisorCallScreenState extends State<SupervisorCallScreen> {
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
-          children: const [
-            Icon(Icons.delete_forever_rounded, color: AppColors.error, size: 28),
+          children: [
+            Icon(
+              Icons.delete_forever_rounded,
+              color: AppColors.error,
+              size: 28,
+            ),
             SizedBox(width: 8),
-            Text('Apagar Ligação', style: TextStyle(fontWeight: FontWeight.bold)),
+            Text(
+              'Apagar Ligação',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ],
         ),
-        content: const Text('Tem certeza que deseja apagar este registro do histórico de ligações?'),
+        content: const Text(
+          'Tem certeza que deseja apagar este registro do histórico de ligações?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -130,7 +141,9 @@ class _SupervisorCallScreenState extends State<SupervisorCallScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.error,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
             onPressed: () => Navigator.of(ctx).pop(true),
             child: const Text('Apagar'),
@@ -180,7 +193,10 @@ class _SupervisorCallScreenState extends State<SupervisorCallScreen> {
                     decoration: BoxDecoration(
                       color: AppColors.surface,
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppColors.outlineVariant, width: 2),
+                      border: Border.all(
+                        color: AppColors.outlineVariant,
+                        width: 2,
+                      ),
                       boxShadow: const [
                         BoxShadow(
                           color: Colors.black12,
@@ -199,7 +215,9 @@ class _SupervisorCallScreenState extends State<SupervisorCallScreen> {
                           builder: (context, snapshot) {
                             final presence = snapshot.data;
                             final isOnline = presence?.isOnline ?? false;
-                            final statusText = presence?.statusText ?? (isOnline ? 'Online' : 'Offline');
+                            final statusText =
+                                presence?.statusText ??
+                                (isOnline ? 'Online' : 'Offline');
 
                             return Column(
                               children: [
@@ -215,9 +233,14 @@ class _SupervisorCallScreenState extends State<SupervisorCallScreen> {
                                       width: 22,
                                       height: 22,
                                       decoration: BoxDecoration(
-                                        color: isOnline ? Colors.green.shade600 : Colors.grey.shade400,
+                                        color: isOnline
+                                            ? AppColors.success
+                                            : AppColors.outline,
                                         shape: BoxShape.circle,
-                                        border: Border.all(color: Colors.white, width: 3),
+                                        border: Border.all(
+                                          color: Colors.white,
+                                          width: 3,
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -225,7 +248,7 @@ class _SupervisorCallScreenState extends State<SupervisorCallScreen> {
                                 const SizedBox(height: 12),
                                 Text(
                                   _idosoNome,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 24,
                                     fontWeight: FontWeight.bold,
                                     color: AppColors.primary,
@@ -238,7 +261,9 @@ class _SupervisorCallScreenState extends State<SupervisorCallScreen> {
                                     Icon(
                                       Icons.circle,
                                       size: 10,
-                                      color: isOnline ? Colors.green.shade600 : Colors.grey.shade400,
+                                      color: isOnline
+                                          ? AppColors.success
+                                          : AppColors.outline,
                                     ),
                                     const SizedBox(width: 6),
                                     Text(
@@ -246,7 +271,9 @@ class _SupervisorCallScreenState extends State<SupervisorCallScreen> {
                                       style: TextStyle(
                                         fontSize: 14,
                                         fontWeight: FontWeight.w700,
-                                        color: isOnline ? Colors.green.shade700 : AppColors.onSurfaceVariant,
+                                        color: isOnline
+                                            ? AppColors.success
+                                            : AppColors.onSurfaceVariant,
                                       ),
                                     ),
                                   ],
@@ -262,16 +289,23 @@ class _SupervisorCallScreenState extends State<SupervisorCallScreen> {
                           children: [
                             Expanded(
                               child: ElevatedButton.icon(
-                                onPressed: _isCalling ? null : () => _iniciarChamada('video'),
+                                onPressed: _isCalling
+                                    ? null
+                                    : () => _iniciarChamada('video'),
                                 icon: const Icon(Icons.videocam, size: 28),
                                 label: const Text(
                                   'Vídeo',
-                                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppColors.primary,
                                   foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                  ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(14),
                                   ),
@@ -281,16 +315,23 @@ class _SupervisorCallScreenState extends State<SupervisorCallScreen> {
                             const SizedBox(width: 14),
                             Expanded(
                               child: ElevatedButton.icon(
-                                onPressed: _isCalling ? null : () => _iniciarChamada('voice'),
+                                onPressed: _isCalling
+                                    ? null
+                                    : () => _iniciarChamada('voice'),
                                 icon: const Icon(Icons.phone, size: 28),
                                 label: const Text(
                                   'Voz',
-                                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF00695C),
+                                  backgroundColor: AppColors.onCustomContainer,
                                   foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                  ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(14),
                                   ),
@@ -310,9 +351,13 @@ class _SupervisorCallScreenState extends State<SupervisorCallScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Row(
-                        children: const [
+                        children: [
                           MissedCallsBadge(
-                            child: Icon(Icons.history, color: AppColors.primary, size: 26),
+                            child: Icon(
+                              Icons.history,
+                              color: AppColors.primary,
+                              size: 26,
+                            ),
                           ),
                           SizedBox(width: 10),
                           Text(
@@ -333,10 +378,15 @@ class _SupervisorCallScreenState extends State<SupervisorCallScreen> {
                   _idosoId.isEmpty
                       ? const Text('Nenhum idoso vinculado para ver histórico.')
                       : StreamBuilder<List<VideoCall>>(
-                          stream: VideoCallService.instance.watchCallHistory(_idosoId),
+                          stream: VideoCallService.instance.watchCallHistory(
+                            _idosoId,
+                          ),
                           builder: (context, snapshot) {
-                            if (snapshot.connectionState == ConnectionState.waiting) {
-                              return const Center(child: CircularProgressIndicator());
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return const Center(
+                                child: CircularProgressIndicator(),
+                              );
                             }
                             final calls = snapshot.data ?? [];
                             if (calls.isEmpty) {
@@ -347,7 +397,7 @@ class _SupervisorCallScreenState extends State<SupervisorCallScreen> {
                                   color: AppColors.surface,
                                   borderRadius: BorderRadius.circular(16),
                                 ),
-                                child: const Text(
+                                child: Text(
                                   'Nenhuma chamada registrada ainda.',
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
@@ -365,7 +415,8 @@ class _SupervisorCallScreenState extends State<SupervisorCallScreen> {
                               itemBuilder: (context, index) {
                                 final call = calls[index];
                                 final isSos = call.isFromSos;
-                                final isMissed = call.status == VideoCallStatus.missed ||
+                                final isMissed =
+                                    call.status == VideoCallStatus.missed ||
                                     call.status == VideoCallStatus.declined;
 
                                 Color iconBgColor;
@@ -378,26 +429,37 @@ class _SupervisorCallScreenState extends State<SupervisorCallScreen> {
                                 if (isSos) {
                                   iconBgColor = AppColors.error;
                                   callIcon = Icons.warning_amber_rounded;
-                                  cardBgColor = AppColors.errorContainer.withValues(alpha: 0.35);
-                                  borderColor = AppColors.error.withValues(alpha: 0.5);
+                                  cardBgColor = AppColors.errorContainer
+                                      .withValues(alpha: 0.35);
+                                  borderColor = AppColors.error.withValues(
+                                    alpha: 0.5,
+                                  );
                                   statusLabel = 'Emergência SOS';
                                   statusColor = AppColors.error;
                                 } else if (isMissed) {
                                   iconBgColor = AppColors.error;
                                   callIcon = Icons.phone_missed_rounded;
-                                  cardBgColor = AppColors.errorContainer.withValues(alpha: 0.18);
-                                  borderColor = AppColors.error.withValues(alpha: 0.35);
-                                  statusLabel = call.status == VideoCallStatus.declined ? 'Recusada' : 'Não Atendida';
+                                  cardBgColor = AppColors.errorContainer
+                                      .withValues(alpha: 0.18);
+                                  borderColor = AppColors.error.withValues(
+                                    alpha: 0.35,
+                                  );
+                                  statusLabel =
+                                      call.status == VideoCallStatus.declined
+                                      ? 'Recusada'
+                                      : 'Não Atendida';
                                   statusColor = AppColors.error;
                                 } else {
-                                  iconBgColor = Colors.teal.shade600;
+                                  iconBgColor = AppColors.onCustomContainer;
                                   callIcon = call.isVoiceCall
                                       ? Icons.phone_callback_rounded
                                       : Icons.video_camera_back_rounded;
-                                  cardBgColor = Colors.teal.shade50.withValues(alpha: 0.35);
-                                  borderColor = Colors.teal.shade200;
+                                  cardBgColor = AppColors.customContainer.withValues(
+                                    alpha: 0.35,
+                                  );
+                                  borderColor = AppColors.customContainer;
                                   statusLabel = 'Atendida • Concluída';
-                                  statusColor = Colors.teal.shade800;
+                                  statusColor = AppColors.onCustomContainer;
                                 }
 
                                 return Card(
@@ -414,7 +476,11 @@ class _SupervisorCallScreenState extends State<SupervisorCallScreen> {
                                   child: Padding(
                                     padding: const EdgeInsets.all(8.0),
                                     child: ListTile(
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
                                       leading: Container(
                                         width: 48,
                                         height: 48,
@@ -432,7 +498,9 @@ class _SupervisorCallScreenState extends State<SupervisorCallScreen> {
                                         children: [
                                           Expanded(
                                             child: Text(
-                                              call.isFromSupervisor ? 'Ligação para Idoso' : 'Ligação do Idoso',
+                                              call.isFromSupervisor
+                                                  ? 'Ligação para Idoso'
+                                                  : 'Ligação do Idoso',
                                               style: const TextStyle(
                                                 fontWeight: FontWeight.w900,
                                                 fontSize: 16,
@@ -441,10 +509,15 @@ class _SupervisorCallScreenState extends State<SupervisorCallScreen> {
                                           ),
                                           if (isSos)
                                             Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                    vertical: 4,
+                                                  ),
                                               decoration: BoxDecoration(
                                                 color: AppColors.error,
-                                                borderRadius: BorderRadius.circular(8),
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
                                               ),
                                               child: const Text(
                                                 'SOS',
@@ -458,9 +531,12 @@ class _SupervisorCallScreenState extends State<SupervisorCallScreen> {
                                         ],
                                       ),
                                       subtitle: Padding(
-                                        padding: const EdgeInsets.only(top: 4.0),
+                                        padding: const EdgeInsets.only(
+                                          top: 4.0,
+                                        ),
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Text(
                                               statusLabel,
@@ -473,10 +549,11 @@ class _SupervisorCallScreenState extends State<SupervisorCallScreen> {
                                             const SizedBox(height: 2),
                                             Text(
                                               '${call.formattedStartTime} • Tempo: ${call.formattedDetailedDuration}',
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 fontSize: 12,
                                                 fontWeight: FontWeight.w600,
-                                                color: AppColors.onSurfaceVariant,
+                                                color:
+                                                    AppColors.onSurfaceVariant,
                                               ),
                                             ),
                                           ],
@@ -486,9 +563,12 @@ class _SupervisorCallScreenState extends State<SupervisorCallScreen> {
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
                                           OutlinedButton.icon(
-                                            onPressed: () => _iniciarChamada(call.callType),
+                                            onPressed: () =>
+                                                _iniciarChamada(call.callType),
                                             icon: Icon(
-                                              call.isVoiceCall ? Icons.phone : Icons.videocam,
+                                              call.isVoiceCall
+                                                  ? Icons.phone
+                                                  : Icons.videocam,
                                               size: 18,
                                             ),
                                             label: const Text(
@@ -499,18 +579,34 @@ class _SupervisorCallScreenState extends State<SupervisorCallScreen> {
                                               ),
                                             ),
                                             style: OutlinedButton.styleFrom(
-                                              foregroundColor: AppColors.primary,
-                                              side: const BorderSide(color: AppColors.primary, width: 2),
-                                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                              foregroundColor:
+                                                  AppColors.primary,
+                                              side: BorderSide(
+                                                color: AppColors.primary,
+                                                width: 2,
+                                              ),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 12,
+                                                    vertical: 8,
+                                                  ),
                                               shape: RoundedRectangleBorder(
-                                                borderRadius: BorderRadius.circular(12),
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
                                               ),
                                             ),
                                           ),
                                           IconButton(
-                                            icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 22),
+                                            icon: Icon(
+                                              Icons.delete_outline_rounded,
+                                              color: AppColors.error,
+                                              size: 22,
+                                            ),
                                             tooltip: 'Apagar ligação',
-                                            onPressed: () => _confirmDeleteCall(context, call.id),
+                                            onPressed: () => _confirmDeleteCall(
+                                              context,
+                                              call.id,
+                                            ),
                                           ),
                                         ],
                                       ),

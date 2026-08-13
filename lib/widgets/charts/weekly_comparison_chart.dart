@@ -1,5 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import '../../../theme/app_theme.dart';
 
 import 'chart_colors.dart';
 
@@ -42,7 +43,9 @@ class WeeklyComparisonChart extends StatelessWidget {
               barTouchData: BarTouchData(
                 touchTooltipData: BarTouchTooltipData(
                   getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                    final week = groupIndex == 0 ? 'Semana passada' : 'Esta semana';
+                    final week = groupIndex == 0
+                        ? 'Semana passada'
+                        : 'Esta semana';
                     final pct = rod.toY.toInt();
                     return BarTooltipItem(
                       '$week\n$pct%',
@@ -65,7 +68,7 @@ class WeeklyComparisonChart extends StatelessWidget {
                       if (value == 0) return const SizedBox.shrink();
                       return Text(
                         '${value.toInt()}%',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 10,
                           color: ChartColors.onSurfaceVariant,
                         ),
@@ -78,7 +81,7 @@ class WeeklyComparisonChart extends StatelessWidget {
                     showTitles: true,
                     getTitlesWidget: (value, meta) {
                       if (value == 0) {
-                        return const Padding(
+                        return Padding(
                           padding: EdgeInsets.only(top: 8),
                           child: Text(
                             'Semana\npassada',
@@ -90,7 +93,7 @@ class WeeklyComparisonChart extends StatelessWidget {
                           ),
                         );
                       }
-                      return const Padding(
+                      return Padding(
                         padding: EdgeInsets.only(top: 8),
                         child: Text(
                           'Esta\nsemana',
@@ -118,7 +121,7 @@ class WeeklyComparisonChart extends StatelessWidget {
                 drawVerticalLine: false,
                 horizontalInterval: 25,
                 getDrawingHorizontalLine: (value) => FlLine(
-                  color: Colors.grey.withValues(alpha: 0.15),
+                  color: AppColors.outline.withValues(alpha: 0.15),
                   strokeWidth: 1,
                 ),
               ),
@@ -135,7 +138,7 @@ class WeeklyComparisonChart extends StatelessWidget {
           children: [
             _legendDot(ChartColors.outline),
             const SizedBox(width: 4),
-            const Text(
+            Text(
               'Semana passada',
               style: TextStyle(
                 fontSize: 11,
@@ -145,7 +148,7 @@ class WeeklyComparisonChart extends StatelessWidget {
             const SizedBox(width: 16),
             _legendDot(ChartColors.primary),
             const SizedBox(width: 4),
-            const Text(
+            Text(
               'Esta semana',
               style: TextStyle(
                 fontSize: 11,
@@ -173,7 +176,7 @@ class WeeklyComparisonChart extends StatelessWidget {
           backDrawRodData: BackgroundBarChartRodData(
             show: true,
             toY: 100,
-            color: Colors.grey.withValues(alpha: 0.08),
+            color: AppColors.outline.withValues(alpha: 0.08),
           ),
         ),
       ],
@@ -181,7 +184,7 @@ class WeeklyComparisonChart extends StatelessWidget {
   }
 
   Widget _emptyState() {
-    return const SizedBox(
+    return SizedBox(
       height: 180,
       child: Center(
         child: Column(

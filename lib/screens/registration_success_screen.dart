@@ -56,7 +56,7 @@ class RegistrationSuccessScreen extends StatelessWidget {
                             width: 2,
                           ),
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.person,
                           size: 72,
                           color: AppColors.onSurfaceVariant,
@@ -73,7 +73,7 @@ class RegistrationSuccessScreen extends StatelessWidget {
                             shape: BoxShape.circle,
                             border: Border.all(color: Colors.white, width: 3),
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.check_circle,
                             color: AppColors.onTertiaryFixedVariant,
                             size: 28,
@@ -83,7 +83,7 @@ class RegistrationSuccessScreen extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 32),
-                  const Text(
+                  Text(
                     'Tudo pronto!',
                     style: TextStyle(
                       fontSize: 40,
@@ -93,7 +93,7 @@ class RegistrationSuccessScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  const Text(
+                  Text(
                     'Agora você pode começar a cuidar e acompanhar quem você ama com segurança e clareza.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
@@ -137,7 +137,7 @@ class RegistrationSuccessScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  const Row(
+                  Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(

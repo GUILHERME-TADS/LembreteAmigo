@@ -57,7 +57,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 child: Column(
                   children: [
                     const SizedBox(height: 24),
-                    const Text(
+                    Text(
                       'Lembrete Amigo',
                       style: TextStyle(
                         fontSize: 28,
@@ -81,7 +81,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                             child: const AlexAvatar(size: 140),
                           ),
                           const SizedBox(height: 24),
-                          const Text(
+                          Text(
                             'Olá! Como vamos cuidar hoje?',
                             textAlign: TextAlign.center,
                             style: TextStyle(
@@ -92,7 +92,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                             ),
                           ),
                           const SizedBox(height: 12),
-                          const Text(
+                          Text(
                             'Escolha o seu perfil para acessar a plataforma personalizada para as suas necessidades.',
                             textAlign: TextAlign.center,
                             style: TextStyle(
@@ -309,7 +309,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: Column(
                         children: [
-                          const Text(
+                          Text(
                             'Precisa de ajuda com o aplicativo?',
                             style: TextStyle(
                               fontSize: 14,
@@ -335,7 +335,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                 icon: const Icon(Icons.support_agent, size: 20),
                                 label: const Text('Suporte'),
                               ),
-                              const Text(
+                              Text(
                                 '|',
                                 style: TextStyle(
                                   color: AppColors.outlineVariant,
@@ -356,7 +356,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                               ),
                             ],
                           ),
-                          const Text(
+                          Text(
                             'v1.0.0 • Lembrete Amigo',
                             style: TextStyle(
                               fontSize: 10,
@@ -395,9 +395,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         color: bgColor,
         border: Border.all(color: AppColors.outlineVariant),
         borderRadius: BorderRadius.circular(12),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Color(0xFFD1D1D1),
+            color: AppColors.outlineVariant,
             offset: Offset(0, 4),
             blurRadius: 0,
           ),

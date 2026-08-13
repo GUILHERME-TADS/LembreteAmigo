@@ -40,7 +40,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
   bool _validateStep1() {
     if (_selectedCategory == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('Selecione uma categoria para o lembrete.'),
           backgroundColor: AppColors.error,
         ),
@@ -54,7 +54,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
     final titulo = _titleController.text.trim();
     if (titulo.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('Por favor, digite o que lembrar'),
           backgroundColor: AppColors.error,
         ),
@@ -169,7 +169,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
               ),
               const SizedBox(height: 16),
               ListTile(
-                leading: const Icon(
+                leading: Icon(
                   Icons.photo_camera,
                   color: AppColors.primary,
                   size: 28,
@@ -184,7 +184,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                 },
               ),
               ListTile(
-                leading: const Icon(
+                leading: Icon(
                   Icons.photo_library,
                   color: AppColors.primary,
                   size: 28,
@@ -218,7 +218,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
 
       setState(() => _fotoPath = image.path);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('Foto do remédio vinculada com sucesso!'),
           backgroundColor: AppColors.tertiaryFixedDim,
         ),
@@ -247,7 +247,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
             width: 72,
             height: 72,
             fit: BoxFit.cover,
-            errorBuilder: (_, error, stackTrace) => const Icon(
+            errorBuilder: (_, error, stackTrace) => Icon(
               Icons.check_circle,
               color: AppColors.onTertiaryFixedVariant,
               size: 36,
@@ -258,7 +258,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
             width: 72,
             height: 72,
             fit: BoxFit.cover,
-            errorBuilder: (_, error, stackTrace) => const Icon(
+            errorBuilder: (_, error, stackTrace) => Icon(
               Icons.check_circle,
               color: AppColors.onTertiaryFixedVariant,
               size: 36,
@@ -382,7 +382,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Novo Lembrete',
                       style: TextStyle(
                         fontSize: 28,
@@ -391,7 +391,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
+                    Text(
                       'Configure um lembrete para garantir o bem-estar e a rotina do idoso.',
                       style: TextStyle(
                         fontSize: 18,
@@ -423,7 +423,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                       children: [
                         Row(
                           children: [
-                            const Text(
+                            Text(
                               'O QUE LEMBRAR?',
                               style: TextStyle(
                                 fontSize: 14,
@@ -442,7 +442,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                                 color: AppColors.error.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(4),
                               ),
-                              child: const Text(
+                              child: Text(
                                 'Obrigatório',
                                 style: TextStyle(
                                   fontSize: 10,
@@ -480,7 +480,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                         const SizedBox(height: 24),
                         Row(
                           children: [
-                            const Text(
+                            Text(
                               'HORÁRIO DO LEMBRETE',
                               style: TextStyle(
                                 fontSize: 14,
@@ -499,7 +499,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                                 color: AppColors.error.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(4),
                               ),
-                              child: const Text(
+                              child: Text(
                                 'Obrigatório',
                                 style: TextStyle(
                                   fontSize: 10,
@@ -540,7 +540,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                                   _selectedTime != null
                                       ? '${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}'
                                       : '--:--',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 40,
                                     fontWeight: FontWeight.w800,
                                     height: 1.2,
@@ -548,7 +548,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                                   ),
                                 ),
                                 const SizedBox(width: 16),
-                                const Icon(
+                                Icon(
                                   Icons.schedule,
                                   size: 32,
                                   color: AppColors.onSurfaceVariant,
@@ -668,7 +668,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                       ),
                     ),
                     if (!isActive)
-                      const Icon(
+                      Icon(
                         Icons.edit_note,
                         color: AppColors.outline,
                         size: 24,
@@ -681,7 +681,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                     padding: const EdgeInsets.only(left: 38),
                     child: Text(
                       summary,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
                         color: AppColors.primary,
                         fontWeight: FontWeight.bold,
@@ -731,18 +731,18 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
         return Container(
           height: 64,
           padding: const EdgeInsets.symmetric(horizontal: 20),
-          decoration: const BoxDecoration(color: AppColors.surface),
+          decoration: BoxDecoration(color: AppColors.surface),
           child: Row(
             children: [
               IconButton(
                 onPressed: () => Scaffold.of(context).openDrawer(),
-                icon: const Icon(
+                icon: Icon(
                   Icons.menu,
                   color: AppColors.primary,
                   size: 32,
                 ),
               ),
-              const Expanded(
+              Expanded(
                 child: Text(
                   'Lembrete Amigo',
                   textAlign: TextAlign.center,
@@ -777,13 +777,13 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
         children: [
           Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.auto_awesome,
                 color: AppColors.primary,
                 size: 26,
               ),
               const SizedBox(width: 8),
-              const Flexible(
+              Flexible(
                 child: Text(
                   'PREENCHIMENTO RÁPIDO COM IA',
                   style: TextStyle(
@@ -801,7 +801,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                   color: AppColors.primary.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(4),
                 ),
-                child: const Text(
+                child: Text(
                   'Opcional',
                   style: TextStyle(
                     fontSize: 10,
@@ -813,7 +813,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
             ],
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Tem uma receita médica ou caixinha de remédio? Toque abaixo para a Inteligência Artificial ler e preencher o formulário automaticamente para você.',
             style: TextStyle(fontSize: 14, color: AppColors.onSurfaceVariant),
           ),
@@ -863,7 +863,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                         }
                       });
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
+                        SnackBar(
                           content: Text('Campos preenchidos com sucesso!'),
                           backgroundColor: AppColors.tertiaryFixedDim,
                         ),
@@ -905,7 +905,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                         }
                       });
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
+                        SnackBar(
                           content: Text(
                             'Medicamento identificado por código de barras!',
                           ),
@@ -921,7 +921,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                   ),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.primary,
-                    side: const BorderSide(color: AppColors.primary, width: 2),
+                    side: BorderSide(color: AppColors.primary, width: 2),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -1045,7 +1045,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
       children: [
         Row(
           children: [
-            const Text(
+            Text(
               'CATEGORIA DO LEMBRETE',
               style: TextStyle(
                 fontSize: 14,
@@ -1061,7 +1061,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                 color: AppColors.error.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(4),
               ),
-              child: const Text(
+              child: Text(
                 'Obrigatório',
                 style: TextStyle(
                   fontSize: 10,
@@ -1110,7 +1110,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
       children: [
         Row(
           children: [
-            const Text(
+            Text(
               'FOTO REAL DO REMÉDIO',
               style: TextStyle(
                 fontSize: 14,
@@ -1126,7 +1126,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                 color: AppColors.onSurfaceVariant.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(4),
               ),
-              child: const Text(
+              child: Text(
                 'Opcional',
                 style: TextStyle(
                   fontSize: 10,
@@ -1138,7 +1138,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
           ],
         ),
         const SizedBox(height: 4),
-        const Text(
+        Text(
           'Tire uma foto da embalagem ou do comprimido real para facilitar a identificação.',
           style: TextStyle(fontSize: 13, color: AppColors.onSurfaceVariant),
         ),
@@ -1164,7 +1164,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                     children: [
                       _buildMedicationPhotoPreview(),
                       const SizedBox(width: 12),
-                      const Expanded(
+                      Expanded(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1188,7 +1188,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                           minimumSize: Size.zero,
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
-                        child: const Text(
+                        child: Text(
                           'Remover',
                           style: TextStyle(
                             color: AppColors.error,
@@ -1199,7 +1199,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                       ),
                     ],
                   )
-                : const Column(
+                : Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
@@ -1238,7 +1238,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
       children: [
         Row(
           children: [
-            const Text(
+            Text(
               'ÁUDIO DO IDOSO',
               style: TextStyle(
                 fontSize: 14,
@@ -1254,7 +1254,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                 color: AppColors.onSurfaceVariant.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(4),
               ),
-              child: const Text(
+              child: Text(
                 'Opcional',
                 style: TextStyle(
                   fontSize: 10,
@@ -1299,7 +1299,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
         ),
         const SizedBox(height: 16),
         if (_gerarAudioIA == true) ...[
-          const Center(
+          Center(
             child: Column(
               children: [
                 Icon(Icons.auto_awesome, color: AppColors.primary, size: 36),
@@ -1329,13 +1329,13 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(
+                Icon(
                   Icons.audiotrack,
                   color: AppColors.onTertiaryFixedVariant,
                   size: 28,
                 ),
                 const SizedBox(width: 8),
-                const Expanded(
+                Expanded(
                   child: Text(
                     'Voz de familiar vinculada',
                     style: TextStyle(
@@ -1353,7 +1353,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
-                  child: const Text(
+                  child: Text(
                     'Remover',
                     style: TextStyle(
                       color: AppColors.error,
@@ -1365,7 +1365,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
               ],
             ),
           ] else ...[
-            const Center(
+            Center(
               child: Text(
                 'Grave uma frase familiar. Ela será tocada automaticamente no horário.',
                 textAlign: TextAlign.center,
@@ -1391,7 +1391,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                 child: Container(
                   width: 72,
                   height: 72,
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     color: AppColors.secondaryContainer,
                     shape: BoxShape.circle,
                     boxShadow: [
@@ -1402,7 +1402,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                       ),
                     ],
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.mic,
                     size: 32,
                     color: AppColors.onSecondaryContainer,
@@ -1412,7 +1412,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
             ),
           ],
         ] else ...[
-          const Center(
+          Center(
             child: Column(
               children: [
                 Icon(Icons.info_outline, color: AppColors.outline, size: 36),
@@ -1457,7 +1457,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          children: const [
+          children: [
             Icon(Icons.repeat, color: AppColors.primary, size: 20),
             SizedBox(width: 8),
             Text(
@@ -1533,7 +1533,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
               ),
             ),
             child: Row(
-              children: const [
+              children: [
                 Icon(Icons.check_circle, color: AppColors.primary, size: 24),
                 SizedBox(width: 12),
                 Expanded(
@@ -1549,7 +1549,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Toque nos dias em que o lembrete deve tocar:',
                 style: TextStyle(
                   fontSize: 13,
@@ -1669,7 +1669,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
             ),
             child: Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.calendar_month,
                   color: AppColors.primary,
                   size: 28,
@@ -1679,7 +1679,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Data do Lembrete',
                         style: TextStyle(
                           fontSize: 12,
@@ -1710,7 +1710,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                       builder: (context, child) {
                         return Theme(
                           data: Theme.of(context).copyWith(
-                            colorScheme: const ColorScheme.light(
+                            colorScheme: ColorScheme.light(
                               primary: AppColors.primary,
                               onPrimary: Colors.white,
                               onSurface: AppColors.onSurface,
@@ -1749,12 +1749,12 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
           ),
           child: Row(
             children: [
-              const Icon(Icons.info_outline, color: AppColors.primary),
+              Icon(Icons.info_outline, color: AppColors.primary),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   _getRecurrenceDescription(),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
                     color: AppColors.primary,
@@ -1774,7 +1774,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
       children: [
         Row(
           children: [
-            const Text(
+            Text(
               'DURAÇÃO DO TRATAMENTO',
               style: TextStyle(
                 fontSize: 14,
@@ -1790,7 +1790,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                 color: AppColors.error.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(4),
               ),
-              child: const Text(
+              child: Text(
                 'Obrigatório',
                 style: TextStyle(
                   fontSize: 10,
@@ -1851,7 +1851,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Data Início',
                         style: TextStyle(
                           fontSize: 12,
@@ -1898,7 +1898,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Data Fim',
                           style: TextStyle(
                             fontSize: 12,
@@ -1943,7 +1943,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'ATENÇÃO E ESCALONAMENTO',
           style: TextStyle(
             fontSize: 14,
@@ -1952,7 +1952,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
           ),
         ),
         const SizedBox(height: 8),
-        const Text(
+        Text(
           'Defina quando o cuidador deve ser avisado se não houver resposta.',
           style: TextStyle(fontSize: 14, color: AppColors.onSurfaceVariant),
         ),
@@ -1983,7 +1983,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
           style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 4),
-        const Text(
+        Text(
           'A pessoa escolhe um destes tempos quando o aviso aparecer.',
           style: TextStyle(fontSize: 14, color: AppColors.onSurfaceVariant),
         ),
@@ -2129,7 +2129,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'DADOS DO MEDICAMENTO',
           style: TextStyle(
             fontSize: 14,
@@ -2138,7 +2138,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
           ),
         ),
         const SizedBox(height: 8),
-        const Text(
+        Text(
           'Ajuda a evitar enganos e a avisar quando o medicamento estiver acabando.',
           style: TextStyle(fontSize: 14, color: AppColors.onSurfaceVariant),
         ),
@@ -2208,7 +2208,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
   Widget _buildBottomBar() {
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.surfaceContainerLowest,
         border: Border(
           top: BorderSide(color: AppColors.outlineVariant, width: 2),
@@ -2251,7 +2251,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
     final titulo = _titleController.text.trim();
     if (titulo.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('Por favor, digite o que lembrar'),
           backgroundColor: AppColors.error,
         ),
@@ -2260,7 +2260,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
     }
     if (titulo.length > 80) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('Use um nome com até 80 caracteres.'),
           backgroundColor: AppColors.error,
         ),
@@ -2269,7 +2269,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
     }
     if (_selectedCategory == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('Selecione uma categoria para o lembrete.'),
           backgroundColor: AppColors.error,
         ),
@@ -2279,7 +2279,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
 
     if (_selectedTime == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('Por favor, selecione o horário do lembrete.'),
           backgroundColor: AppColors.error,
         ),
@@ -2297,7 +2297,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
             (medicationLowStock != null && medicationLowStock < 0) ||
             (medicationUnitsPerDose != null && medicationUnitsPerDose <= 0))) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
             'Confira os números de estoque e consumo do medicamento.',
           ),
@@ -2340,7 +2340,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
 
     if (_gerarAudioIA == false && _audioPath == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('Por favor, grave o áudio para o lembrete.'),
           backgroundColor: AppColors.error,
         ),
@@ -2355,7 +2355,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
         !isSingleReminder) {
       if (_dataFim == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(
               'Por favor, selecione a data de término do tratamento.',
             ),
@@ -2372,7 +2372,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
       final endDay = DateTime(_dataFim!.year, _dataFim!.month, _dataFim!.day);
       if (endDay.isBefore(startDay)) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(
               'A data de término deve ser posterior ou igual à data de início.',
             ),
@@ -2459,7 +2459,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
             builder: (context) => AlertDialog(
               icon: Icon(
                 Icons.warning_amber_rounded,
-                color: severity == 'severe' ? Colors.red : Colors.orange,
+                color: severity == 'severe' ? AppColors.error : AppColors.warning,
                 size: 48,
               ),
               title: const Text(
@@ -2473,12 +2473,12 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       if (showInteraction) ...[
-                        const Text(
+                        Text(
                           'Interação Medicamentosa:',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
-                            color: Colors.red,
+                            color: AppColors.error,
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -2489,12 +2489,12 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                         const SizedBox(height: 16),
                       ],
                       if (showConflict) ...[
-                        const Text(
+                        Text(
                           'Conflito de Horário / Polimedicação:',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
-                            color: Colors.orange,
+                            color: AppColors.warning,
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -2516,7 +2516,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                   onPressed: () => Navigator.pop(context, true),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: severity == 'severe'
-                        ? Colors.red
+                        ? AppColors.error
                         : AppColors.primary,
                     foregroundColor: Colors.white,
                   ),
@@ -2626,7 +2626,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
       debugPrint('Erro interno ao salvar lembrete: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
             'Não foi possível salvar o lembrete agora. Tente novamente.',
           ),

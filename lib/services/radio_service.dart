@@ -6,15 +6,17 @@ class RadioService {
   static final RadioService instance = RadioService._();
 
   final AudioPlayer _player = AudioPlayer();
-  
+
   // Notifica a UI se a rádio está tocando
   final ValueNotifier<bool> isPlayingNotifier = ValueNotifier<bool>(false);
 
   // Notifica o nome da estação (se aplicável)
-  final ValueNotifier<String?> currentStationNameNotifier = ValueNotifier<String?>(null);
+  final ValueNotifier<String?> currentStationNameNotifier =
+      ValueNotifier<String?>(null);
 
   // Notifica a URL da estação tocando (para destaque na UI)
-  final ValueNotifier<String?> currentStationUrlNotifier = ValueNotifier<String?>(null);
+  final ValueNotifier<String?> currentStationUrlNotifier =
+      ValueNotifier<String?>(null);
 
   // Lista de rádios premium 100% musicais com links HTTPS diretos e estáveis
   final List<Map<String, String>> stations = [
@@ -27,19 +29,22 @@ class RadioService {
     {
       'name': 'Nova Brasil FM',
       'subtitle': 'Música Popular Brasileira de qualidade',
-      'url': 'https://playerservices.streamtheworld.com/api/livestream-redirect/NOVABRASIL_SPAAC.aac',
+      'url':
+          'https://playerservices.streamtheworld.com/api/livestream-redirect/NOVABRASIL_SPAAC.aac',
       'genre': 'MPB',
     },
     {
       'name': 'Alpha FM',
       'subtitle': 'Pop leve, jazz e sucessos selecionados',
-      'url': 'https://playerservices.streamtheworld.com/api/livestream-redirect/RADIO_ALPHAFM_ADP.aac',
+      'url':
+          'https://playerservices.streamtheworld.com/api/livestream-redirect/RADIO_ALPHAFM_ADP.aac',
       'genre': 'Pop & Jazz',
     },
     {
       'name': 'Saudade FM',
       'subtitle': 'Boleros, flashback e grandes clássicos de ouro',
-      'url': 'https://playerservices.streamtheworld.com/api/livestream-redirect/SAUDADE_FMAAC.aac',
+      'url':
+          'https://playerservices.streamtheworld.com/api/livestream-redirect/SAUDADE_FMAAC.aac',
       'genre': 'Clássicos',
     },
     {
@@ -57,7 +62,8 @@ class RadioService {
     {
       'name': 'JB FM',
       'subtitle': 'MPB e sucessos inesquecíveis',
-      'url': 'https://playerservices.streamtheworld.com/api/livestream-redirect/JBFMAAC1.aac',
+      'url':
+          'https://playerservices.streamtheworld.com/api/livestream-redirect/JBFMAAC1.aac',
       'genre': 'Sucessos',
     },
   ];
@@ -87,8 +93,15 @@ class RadioService {
     } else {
       if (currentStationUrlNotifier.value != null) {
         final url = currentStationUrlNotifier.value!;
-        final matching = stations.firstWhere((s) => s['url'] == url, orElse: () => stations.first);
-        await playStation(matching['url']!, matching['name']!, matching['subtitle']);
+        final matching = stations.firstWhere(
+          (s) => s['url'] == url,
+          orElse: () => stations.first,
+        );
+        await playStation(
+          matching['url']!,
+          matching['name']!,
+          matching['subtitle'],
+        );
       } else {
         await playRadio();
       }
@@ -117,7 +130,8 @@ class RadioService {
       await _player.setAudioSource(source);
       _player.play();
     } catch (e) {
-      if (e.toString().contains('abort') || e.toString().contains('interrupted')) {
+      if (e.toString().contains('abort') ||
+          e.toString().contains('interrupted')) {
         return; // Usuário pulou a estação muito rápido, ignorar o erro
       }
       debugPrint('Erro ao tentar tocar a estação $name ($url): $e');
@@ -172,7 +186,9 @@ class RadioService {
         connected = true;
         break;
       } catch (e) {
-        debugPrint('Erro ao tentar tocar a estação $stationName ($streamUrl): $e');
+        debugPrint(
+          'Erro ao tentar tocar a estação $stationName ($streamUrl): $e',
+        );
         // Tenta a próxima estação da lista caso falhe
       }
     }
@@ -184,4 +200,3 @@ class RadioService {
     }
   }
 }
-

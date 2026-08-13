@@ -63,8 +63,8 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
 
   Future<void> _loadProfilePhoto() async {
     try {
-      final localFoto =
-          await ElderlyProfileRepository.instance.getCachedPhotoPath();
+      final localFoto = await ElderlyProfileRepository.instance
+          .getCachedPhotoPath();
       if (mounted) {
         setState(() {
           _fotoPath = localFoto;
@@ -274,7 +274,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                   ),
                   if (r.medicamentoInstrucoes != null &&
                       r.medicamentoInstrucoes!.isNotEmpty) ...[
-                    const Divider(
+                    Divider(
                       height: 1,
                       color: AppColors.outlineVariant,
                       thickness: 2,
@@ -286,7 +286,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.info_outline,
                             size: 20,
                             color: AppColors.primary,
@@ -295,7 +295,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                           Expanded(
                             child: Text(
                               'Como fazer: ${r.medicamentoInstrucoes}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
                                 color: AppColors.primary,
@@ -370,7 +370,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'Seus lembretes do dia',
                             style: TextStyle(
                               fontSize: 24,
@@ -380,7 +380,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                             ),
                           ),
                           const SizedBox(height: 4),
-                          const Text(
+                          Text(
                             'Separadas pela hora do dia',
                             style: TextStyle(
                               fontSize: 16,
@@ -398,12 +398,12 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                                 gradient: LinearGradient(
                                   colors: isAllDone
                                       ? [
-                                          const Color(0xFF003709),
+                                          AppColors.tertiaryContainer,
                                           AppColors.tertiary,
                                         ]
                                       : [
                                           AppColors.primary,
-                                          const Color(0xFF1E3A8A),
+                                          AppColors.primary,
                                         ],
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
@@ -521,7 +521,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Expanded(
+                                Expanded(
                                   child: Row(
                                     children: [
                                       Icon(
@@ -675,13 +675,13 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                             _buildPeriodSection(
                               'Madrugada',
                               Icons.nightlight_round,
-                              const Color(0xFF455A64),
+                              AppColors.onSurfaceVariant,
                               madrugadaList,
                             ),
                             _buildPeriodSection(
                               'Manhã',
                               Icons.wb_sunny,
-                              Colors.orange,
+                              AppColors.warning,
                               manhaList,
                             ),
                             _buildPeriodSection(
@@ -693,7 +693,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                             _buildPeriodSection(
                               'Noite',
                               Icons.bedtime,
-                              Colors.indigo,
+                              AppColors.primary,
                               noiteList,
                             ),
                           ] else if (filteredList.isNotEmpty &&
@@ -707,13 +707,13 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                                 ),
                                 child: Column(
                                   children: [
-                                    const Icon(
+                                    Icon(
                                       Icons.done_all,
                                       size: 64,
-                                      color: Colors.green,
+                                      color: AppColors.success,
                                     ),
                                     const SizedBox(height: 16),
-                                    const Text(
+                                    Text(
                                       'Todos os lembretes feitos!',
                                       style: TextStyle(
                                         fontSize: 20,
@@ -727,7 +727,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                                           ? 'Você concluiu todos os lembretes de hoje.'
                                           : 'Você já fez todos os lembretes desta categoria.',
                                       textAlign: TextAlign.center,
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 16,
                                         color: AppColors.onSurfaceVariant,
                                       ),
@@ -761,7 +761,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                                       color: AppColors.onSurfaceVariant,
                                     ),
                                     const SizedBox(width: 8),
-                                    const Text(
+                                    Text(
                                       'O que já foi feito',
                                       style: TextStyle(
                                         fontSize: 18,
@@ -781,7 +781,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                                       ),
                                       child: Text(
                                         '${completedList.length}',
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 12,
                                           fontWeight: FontWeight.bold,
                                           color: AppColors.onSurfaceVariant,
@@ -854,7 +854,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                                     _selectedCategory == 'todos'
                                         ? 'Nada para lembrar hoje'
                                         : 'Nada deste tipo',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 20,
                                       fontWeight: FontWeight.w600,
                                       color: AppColors.onSurfaceVariant,
@@ -866,7 +866,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                                         ? 'Aperte o botão de voz na tela inicial para criar um lembrete.'
                                         : 'Você não tem lembretes desta categoria.',
                                     textAlign: TextAlign.center,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 16,
                                       color: AppColors.onSurfaceVariant,
                                     ),
@@ -889,14 +889,14 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
   Widget _buildTopBar(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      decoration: const BoxDecoration(color: AppColors.surface),
+      decoration: BoxDecoration(color: AppColors.surface),
       child: Row(
         children: [
           const SizedBox(width: 48),
           const Spacer(),
           Column(
             mainAxisSize: MainAxisSize.min,
-            children: const [
+            children: [
               Text(
                 'Meus Lembretes',
                 style: TextStyle(

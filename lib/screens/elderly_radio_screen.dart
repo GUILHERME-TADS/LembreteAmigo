@@ -51,7 +51,8 @@ class _ElderlyRadioScreenState extends State<ElderlyRadioScreen>
 
   Future<void> _loadProfilePhoto() async {
     try {
-      final localFoto = await ElderlyProfileRepository.instance.getCachedPhotoPath();
+      final localFoto = await ElderlyProfileRepository.instance
+          .getCachedPhotoPath();
       if (mounted) {
         setState(() {
           _fotoPath = localFoto;
@@ -64,7 +65,8 @@ class _ElderlyRadioScreenState extends State<ElderlyRadioScreen>
 
   @override
   Widget build(BuildContext context) {
-    final isHighContrast = Theme.of(context).colorScheme.primary == Colors.black;
+    final isHighContrast =
+        Theme.of(context).colorScheme.primary == Colors.black;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -99,19 +101,32 @@ class _ElderlyRadioScreenState extends State<ElderlyRadioScreen>
                         );
                       },
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 18,
+                          vertical: 14,
+                        ),
                         decoration: BoxDecoration(
-                          color: isHighContrast ? Colors.yellow : AppColors.secondaryContainer,
+                          color: isHighContrast
+                              ? AppColors.secondaryContainer
+                              : AppColors.secondaryContainer,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: isHighContrast ? Colors.black : AppColors.primary,
+                            color: isHighContrast
+                                ? Colors.black
+                                : AppColors.primary,
                             width: 2.5,
                           ),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.volume_up_rounded, size: 30, color: isHighContrast ? Colors.black : AppColors.primary),
+                            Icon(
+                              Icons.volume_up_rounded,
+                              size: 30,
+                              color: isHighContrast
+                                  ? Colors.black
+                                  : AppColors.primary,
+                            ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Column(
@@ -122,7 +137,9 @@ class _ElderlyRadioScreenState extends State<ElderlyRadioScreen>
                                     style: TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.w900,
-                                      color: isHighContrast ? Colors.black : AppColors.primary,
+                                      color: isHighContrast
+                                          ? Colors.black
+                                          : AppColors.primary,
                                     ),
                                   ),
                                   const SizedBox(height: 2),
@@ -131,7 +148,9 @@ class _ElderlyRadioScreenState extends State<ElderlyRadioScreen>
                                     style: TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w600,
-                                      color: isHighContrast ? Colors.black87 : AppColors.onSecondaryContainer,
+                                      color: isHighContrast
+                                          ? Colors.black87
+                                          : AppColors.onSecondaryContainer,
                                     ),
                                   ),
                                 ],
@@ -147,7 +166,9 @@ class _ElderlyRadioScreenState extends State<ElderlyRadioScreen>
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.w800,
-                        color: isHighContrast ? Colors.black : AppColors.onBackground,
+                        color: isHighContrast
+                            ? Colors.black
+                            : AppColors.onBackground,
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -186,7 +207,7 @@ class _ElderlyRadioScreenState extends State<ElderlyRadioScreen>
                   'Rádio Amiga 🎶',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 26,
                     fontWeight: FontWeight.w800,
                     color: AppColors.primary,
@@ -228,13 +249,19 @@ class _ElderlyRadioScreenState extends State<ElderlyRadioScreen>
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
                 color: isPlaying
-                    ? (isHighContrast ? Colors.white : AppColors.primaryContainer)
-                    : (isHighContrast ? Colors.white : AppColors.surfaceContainerHigh),
+                    ? (isHighContrast
+                          ? Colors.white
+                          : AppColors.primaryContainer)
+                    : (isHighContrast
+                          ? Colors.white
+                          : AppColors.surfaceContainerHigh),
                 borderRadius: BorderRadius.circular(28),
                 border: Border.all(
                   color: isHighContrast
                       ? Colors.black
-                      : (isPlaying ? AppColors.primary : AppColors.outlineVariant),
+                      : (isPlaying
+                            ? AppColors.primary
+                            : AppColors.outlineVariant),
                   width: isPlaying ? 4 : 2,
                 ),
                 boxShadow: isHighContrast
@@ -259,7 +286,9 @@ class _ElderlyRadioScreenState extends State<ElderlyRadioScreen>
                         size: 28,
                         color: isHighContrast
                             ? Colors.black
-                            : (isPlaying ? AppColors.onPrimaryContainer : AppColors.primary),
+                            : (isPlaying
+                                  ? AppColors.onPrimaryContainer
+                                  : AppColors.primary),
                       ),
                       const SizedBox(width: 10),
                       Flexible(
@@ -271,7 +300,9 @@ class _ElderlyRadioScreenState extends State<ElderlyRadioScreen>
                             letterSpacing: 0.5,
                             color: isHighContrast
                                 ? Colors.black
-                                : (isPlaying ? AppColors.onPrimaryContainer : AppColors.primary),
+                                : (isPlaying
+                                      ? AppColors.onPrimaryContainer
+                                      : AppColors.primary),
                           ),
                         ),
                       ),
@@ -288,7 +319,9 @@ class _ElderlyRadioScreenState extends State<ElderlyRadioScreen>
                       fontWeight: FontWeight.w800,
                       color: isHighContrast
                           ? Colors.black
-                          : (isPlaying ? AppColors.onPrimaryContainer : AppColors.onSurface),
+                          : (isPlaying
+                                ? AppColors.onPrimaryContainer
+                                : AppColors.onSurface),
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -305,10 +338,23 @@ class _ElderlyRadioScreenState extends State<ElderlyRadioScreen>
                           height: 70,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: isHighContrast ? Colors.white : AppColors.surfaceContainerHighest,
-                            border: Border.all(color: isHighContrast ? Colors.black : AppColors.outlineVariant, width: 2),
+                            color: isHighContrast
+                                ? Colors.white
+                                : AppColors.surfaceContainerHighest,
+                            border: Border.all(
+                              color: isHighContrast
+                                  ? Colors.black
+                                  : AppColors.outlineVariant,
+                              width: 2,
+                            ),
                           ),
-                          child: Icon(Icons.skip_previous_rounded, size: 40, color: isHighContrast ? Colors.black : AppColors.primary),
+                          child: Icon(
+                            Icons.skip_previous_rounded,
+                            size: 40,
+                            color: isHighContrast
+                                ? Colors.black
+                                : AppColors.primary,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 24),
@@ -323,10 +369,14 @@ class _ElderlyRadioScreenState extends State<ElderlyRadioScreen>
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: isHighContrast
-                                ? (isPlaying ? Colors.black : Colors.yellow)
-                                : (isPlaying ? AppColors.primary : AppColors.secondaryContainer),
+                                ? (isPlaying ? Colors.black : AppColors.secondaryContainer)
+                                : (isPlaying
+                                      ? AppColors.primary
+                                      : AppColors.secondaryContainer),
                             border: Border.all(
-                              color: isHighContrast ? Colors.black : Colors.white,
+                              color: isHighContrast
+                                  ? Colors.black
+                                  : Colors.white,
                               width: 4,
                             ),
                             boxShadow: const [
@@ -338,11 +388,15 @@ class _ElderlyRadioScreenState extends State<ElderlyRadioScreen>
                             ],
                           ),
                           child: Icon(
-                            isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                            isPlaying
+                                ? Icons.pause_rounded
+                                : Icons.play_arrow_rounded,
                             size: 52,
                             color: isHighContrast
                                 ? (isPlaying ? Colors.white : Colors.black)
-                                : (isPlaying ? Colors.white : AppColors.onSecondaryContainer),
+                                : (isPlaying
+                                      ? Colors.white
+                                      : AppColors.onSecondaryContainer),
                           ),
                         ),
                       ),
@@ -357,10 +411,23 @@ class _ElderlyRadioScreenState extends State<ElderlyRadioScreen>
                           height: 70,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: isHighContrast ? Colors.white : AppColors.surfaceContainerHighest,
-                            border: Border.all(color: isHighContrast ? Colors.black : AppColors.outlineVariant, width: 2),
+                            color: isHighContrast
+                                ? Colors.white
+                                : AppColors.surfaceContainerHighest,
+                            border: Border.all(
+                              color: isHighContrast
+                                  ? Colors.black
+                                  : AppColors.outlineVariant,
+                              width: 2,
+                            ),
                           ),
-                          child: Icon(Icons.skip_next_rounded, size: 40, color: isHighContrast ? Colors.black : AppColors.primary),
+                          child: Icon(
+                            Icons.skip_next_rounded,
+                            size: 40,
+                            color: isHighContrast
+                                ? Colors.black
+                                : AppColors.primary,
+                          ),
                         ),
                       ),
                     ],
@@ -411,13 +478,17 @@ class _ElderlyRadioScreenState extends State<ElderlyRadioScreen>
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
                       color: isCurrent
-                          ? (isHighContrast ? Colors.yellow : AppColors.secondaryContainer)
+                          ? (isHighContrast
+                                ? AppColors.secondaryContainer
+                                : AppColors.secondaryContainer)
                           : (isHighContrast ? Colors.white : AppColors.surface),
                       borderRadius: BorderRadius.circular(22),
                       border: Border.all(
                         color: isHighContrast
                             ? Colors.black
-                            : (isCurrent ? AppColors.primary : AppColors.outlineVariant),
+                            : (isCurrent
+                                  ? AppColors.primary
+                                  : AppColors.outlineVariant),
                         width: isCurrent ? 3.5 : 1.5,
                       ),
                       boxShadow: isHighContrast
@@ -440,7 +511,9 @@ class _ElderlyRadioScreenState extends State<ElderlyRadioScreen>
                           decoration: BoxDecoration(
                             color: isCurrent
                                 ? AppColors.primary
-                                : AppColors.primaryContainer.withValues(alpha: 0.5),
+                                : AppColors.primaryContainer.withValues(
+                                    alpha: 0.5,
+                                  ),
                             borderRadius: BorderRadius.circular(16),
                           ),
                           child: Icon(
@@ -475,7 +548,9 @@ class _ElderlyRadioScreenState extends State<ElderlyRadioScreen>
                                     ),
                                     decoration: BoxDecoration(
                                       color: isCurrent
-                                          ? AppColors.primary.withValues(alpha: 0.15)
+                                          ? AppColors.primary.withValues(
+                                              alpha: 0.15,
+                                            )
                                           : AppColors.surfaceContainerHighest,
                                       borderRadius: BorderRadius.circular(999),
                                     ),

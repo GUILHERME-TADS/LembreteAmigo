@@ -128,7 +128,7 @@ class _MedicationConfirmationScreenState
     if (msg.contains('remédio') ||
         msg.contains('medicamento') ||
         msg.contains('medicação')) {
-      return const _ConfirmationConfig(
+      return _ConfirmationConfig(
         icon: Icons.medication,
         color: AppColors.medicationsColor,
         titleText: 'HORA DO REMÉDIO',
@@ -141,9 +141,9 @@ class _MedicationConfirmationScreenState
         msg.contains('hidratar') ||
         msg.contains('hidratação') ||
         msg.contains('hidratacao')) {
-      return const _ConfirmationConfig(
+      return _ConfirmationConfig(
         icon: Icons.water_drop,
-        color: Color(0xFF0288D1),
+        color: AppColors.info,
         titleText: 'HORA DA HIDRATAÇÃO',
         statusText: 'Água Bebida',
         tip: 'Parabéns por beber água!',
@@ -155,7 +155,7 @@ class _MedicationConfirmationScreenState
         msg.contains('comida') ||
         msg.contains('almoço') ||
         msg.contains('jantar')) {
-      return const _ConfirmationConfig(
+      return _ConfirmationConfig(
         icon: Icons.restaurant,
         color: AppColors.mealsColor,
         titleText: 'HORA DA REFEIÇÃO',
@@ -168,9 +168,9 @@ class _MedicationConfirmationScreenState
         msg.contains('atividade') ||
         msg.contains('caminhada') ||
         msg.contains('alongamento')) {
-      return const _ConfirmationConfig(
+      return _ConfirmationConfig(
         icon: Icons.directions_walk,
-        color: Color(0xFF2E7D32),
+        color: AppColors.success,
         titleText: 'HORA DO EXERCÍCIO',
         statusText: 'Exercício Feito',
         tip: 'Movimentar o corpo faz bem para o coração e mente!',
@@ -178,7 +178,7 @@ class _MedicationConfirmationScreenState
             'Muito bem! Você fez seu exercício. Parabéns por movimentar seu corpo! Agora, aperte no botão amarelo abaixo para voltar à tela inicial.',
       );
     } else {
-      return const _ConfirmationConfig(
+      return _ConfirmationConfig(
         icon: Icons.check_circle_outline,
         color: AppColors.primary,
         titleText: 'LEMBRETE CONCLUÍDO',
@@ -211,9 +211,9 @@ class _MedicationConfirmationScreenState
           textoExplicacao: cfg.detailedExplanation,
         ),
         body: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFFE8F5E9), Color(0xFFC8E6C9)],
+              colors: [AppColors.successContainer, AppColors.successContainer],
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
             ),
@@ -236,7 +236,7 @@ class _MedicationConfirmationScreenState
                               Text(
                                 cfg.titleText,
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 26,
                                   fontWeight: FontWeight.w700,
                                   height: 1.2,
@@ -269,7 +269,7 @@ class _MedicationConfirmationScreenState
                                 ),
                                 child: Column(
                                   children: [
-                                    const Text(
+                                    Text(
                                       'O QUE ACONTECEU:',
                                       style: TextStyle(
                                         fontSize: 16,
@@ -293,7 +293,7 @@ class _MedicationConfirmationScreenState
                                     Text(
                                       cfg.tip,
                                       textAlign: TextAlign.center,
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 20,
                                         fontWeight: FontWeight.w500,
                                         color: AppColors.onSurfaceVariant,
@@ -352,7 +352,7 @@ class _MedicationConfirmationScreenState
                                     ),
                                     style: OutlinedButton.styleFrom(
                                       foregroundColor: AppColors.primary,
-                                      side: const BorderSide(
+                                      side: BorderSide(
                                         color: AppColors.primary,
                                         width: 2,
                                       ),
@@ -419,7 +419,7 @@ class _MedicationConfirmationScreenState
       padding: const EdgeInsets.symmetric(horizontal: 20),
       height: 64,
       decoration: const BoxDecoration(color: Colors.transparent),
-      child: const Center(
+      child: Center(
         child: Text(
           'Lembrete Amigo',
           style: TextStyle(

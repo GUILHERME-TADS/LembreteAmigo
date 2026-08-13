@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import '../theme/app_theme.dart';
+import '../widgets/theme_mode_selector.dart';
 import '../services/session_role_service.dart';
 import '../services/lembrete_service.dart';
 import '../services/message_service.dart';
@@ -73,7 +74,7 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const SizedBox(height: 12),
-              const Text(
+              Text(
                 'Alterar Foto de Perfil',
                 style: TextStyle(
                   fontSize: 20,
@@ -83,10 +84,7 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
               ),
               const SizedBox(height: 12),
               ListTile(
-                leading: const Icon(
-                  Icons.photo_camera,
-                  color: AppColors.primary,
-                ),
+                leading: Icon(Icons.photo_camera, color: AppColors.primary),
                 title: const Text('Tirar Foto', style: TextStyle(fontSize: 18)),
                 onTap: () {
                   Navigator.pop(context);
@@ -94,10 +92,7 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
                 },
               ),
               ListTile(
-                leading: const Icon(
-                  Icons.photo_library,
-                  color: AppColors.primary,
-                ),
+                leading: Icon(Icons.photo_library, color: AppColors.primary),
                 title: const Text(
                   'Escolher da Galeria',
                   style: TextStyle(fontSize: 18),
@@ -109,8 +104,8 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
               ),
               if (_fotoPath != null && _fotoPath!.isNotEmpty)
                 ListTile(
-                  leading: const Icon(Icons.delete, color: AppColors.error),
-                  title: const Text(
+                  leading: Icon(Icons.delete, color: AppColors.error),
+                  title: Text(
                     'Remover Foto',
                     style: TextStyle(fontSize: 18, color: AppColors.error),
                   ),
@@ -268,7 +263,7 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
                                         : null,
                                   ),
                                   child: _fotoPath == null || _fotoPath!.isEmpty
-                                      ? const Icon(
+                                      ? Icon(
                                           Icons.person,
                                           size: 40,
                                           color: AppColors.onPrimaryContainer,
@@ -280,7 +275,7 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
                                   right: 0,
                                   child: Container(
                                     padding: const EdgeInsets.all(4),
-                                    decoration: const BoxDecoration(
+                                    decoration: BoxDecoration(
                                       color: AppColors.primary,
                                       shape: BoxShape.circle,
                                     ),
@@ -297,7 +292,7 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
                           const SizedBox(height: 12),
                           Text(
                             _userName,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.w700,
                               color: AppColors.onSurface,
@@ -305,7 +300,7 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
                           ),
                           Text(
                             _userEmail,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 16,
                               color: AppColors.onSurfaceVariant,
                             ),
@@ -313,6 +308,8 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
                         ],
                       ),
                     ),
+                    const SizedBox(height: 24),
+                    const ThemeModeSelector(),
                     const SizedBox(height: 24),
                     _settingsGroup('Ações e Preferências', [
                       _settingsTile(
@@ -332,8 +329,10 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
                             context: context,
                             barrierColor: Colors.black87,
                             barrierDismissible: false,
-                            builder: (_) => const Center(
-                              child: CircularProgressIndicator(color: AppColors.primary),
+                            builder: (_) => Center(
+                              child: CircularProgressIndicator(
+                                color: AppColors.primary,
+                              ),
                             ),
                           );
 
@@ -373,7 +372,7 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
           padding: const EdgeInsets.only(left: 4, bottom: 12),
           child: Text(
             title.toUpperCase(),
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.05,
@@ -405,7 +404,7 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             border: Border(
               bottom: BorderSide(color: AppColors.outlineVariant, width: 0.5),
             ),
@@ -420,7 +419,7 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 18,
                         color: AppColors.onSurface,
                       ),
@@ -428,7 +427,7 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
                     if (subtitle.isNotEmpty)
                       Text(
                         subtitle,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
                           color: AppColors.onSurfaceVariant,
                         ),
@@ -436,7 +435,7 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right, color: AppColors.outline),
+              Icon(Icons.chevron_right, color: AppColors.outline),
             ],
           ),
         ),
@@ -448,18 +447,14 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
     return Container(
       height: 64,
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      decoration: const BoxDecoration(color: AppColors.surface),
+      decoration: BoxDecoration(color: AppColors.surface),
       child: Row(
         children: [
           IconButton(
             onPressed: () => Navigator.pop(context),
-            icon: const Icon(
-              Icons.arrow_back,
-              color: AppColors.primary,
-              size: 32,
-            ),
+            icon: Icon(Icons.arrow_back, color: AppColors.primary, size: 32),
           ),
-          const Expanded(
+          Expanded(
             child: Text(
               'Configurações',
               textAlign: TextAlign.center,

@@ -38,8 +38,10 @@ class _AlexAvatarState extends State<AlexAvatar> with TickerProviderStateMixin {
     if (widget.animate) {
       TTSService.instance.speakingNotifier.addListener(_onSpeakingChanged);
     }
-    
-    final bool initialSpeaking = _shouldAnimateSpeaking(TTSService.instance.isSpeaking);
+
+    final bool initialSpeaking = _shouldAnimateSpeaking(
+      TTSService.instance.isSpeaking,
+    );
 
     if (widget.animate && initialSpeaking) {
       _animationController.repeat(reverse: true);
@@ -126,335 +128,355 @@ class _AlexAvatarState extends State<AlexAvatar> with TickerProviderStateMixin {
         return SizedBox(
           width: size,
           height: size,
-            child: Stack(
-              clipBehavior: Clip.none,
-              alignment: Alignment.center,
-              children: [
-                // 1. Headband do Headset (Arco superior)
-                Positioned(
-                  top: size * 0.02,
-                  left: size * 0.07,
-                  right: size * 0.07,
-                  height: size * 0.45,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: AppColors.primary,
-                        width: size * 0.05,
-                      ),
-                      borderRadius: BorderRadius.vertical(
-                        top: Radius.circular(size * 0.45),
-                      ),
-                    ),
-                  ),
-                ),
-
-                // 2. Protetores Auriculares do Headset (Earcups laterais)
-                // Lado Esquerdo
-                Positioned(
-                  left: size * 0.01,
-                  top: size * 0.28,
-                  width: size * 0.12,
-                  height: size * 0.35,
-                  child: Container(
-                    decoration: BoxDecoration(
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
+            children: [
+              // 1. Headband do Headset (Arco superior)
+              Positioned(
+                top: size * 0.02,
+                left: size * 0.07,
+                right: size * 0.07,
+                height: size * 0.45,
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(
                       color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(size * 0.04),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.15),
-                          blurRadius: size * 0.03,
-                          offset: Offset(-size * 0.01, size * 0.01),
-                        ),
-                      ],
+                      width: size * 0.05,
                     ),
-                    child: Center(
-                      child: Container(
-                        width: size * 0.04,
-                        height: size * 0.12,
-                        decoration: BoxDecoration(
-                          color: borderColor,
-                          borderRadius: BorderRadius.circular(size * 0.02),
-                        ),
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(size * 0.45),
+                    ),
+                  ),
+                ),
+              ),
+
+              // 2. Protetores Auriculares do Headset (Earcups laterais)
+              // Lado Esquerdo
+              Positioned(
+                left: size * 0.01,
+                top: size * 0.28,
+                width: size * 0.12,
+                height: size * 0.35,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(size * 0.04),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.15),
+                        blurRadius: size * 0.03,
+                        offset: Offset(-size * 0.01, size * 0.01),
+                      ),
+                    ],
+                  ),
+                  child: Center(
+                    child: Container(
+                      width: size * 0.04,
+                      height: size * 0.12,
+                      decoration: BoxDecoration(
+                        color: borderColor,
+                        borderRadius: BorderRadius.circular(size * 0.02),
                       ),
                     ),
                   ),
                 ),
+              ),
 
-                // Lado Direito
-                Positioned(
-                  right: size * 0.01,
-                  top: size * 0.28,
-                  width: size * 0.12,
-                  height: size * 0.35,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(size * 0.04),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.15),
-                          blurRadius: size * 0.03,
-                          offset: Offset(size * 0.01, size * 0.01),
-                        ),
-                      ],
-                    ),
-                    child: Center(
-                      child: Container(
-                        width: size * 0.04,
-                        height: size * 0.12,
-                        decoration: BoxDecoration(
-                          color: borderColor,
-                          borderRadius: BorderRadius.circular(size * 0.02),
-                        ),
+              // Lado Direito
+              Positioned(
+                right: size * 0.01,
+                top: size * 0.28,
+                width: size * 0.12,
+                height: size * 0.35,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(size * 0.04),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.15),
+                        blurRadius: size * 0.03,
+                        offset: Offset(size * 0.01, size * 0.01),
+                      ),
+                    ],
+                  ),
+                  child: Center(
+                    child: Container(
+                      width: size * 0.04,
+                      height: size * 0.12,
+                      decoration: BoxDecoration(
+                        color: borderColor,
+                        borderRadius: BorderRadius.circular(size * 0.02),
                       ),
                     ),
                   ),
                 ),
+              ),
 
-                // 3. Rosto (Círculo Central)
+              // 3. Rosto (Círculo Central)
+              Positioned(
+                left: size * 0.11,
+                right: size * 0.11,
+                top: size * 0.11,
+                bottom: size * 0.11,
+                child: AnimatedBuilder(
+                  animation: _animationController,
+                  builder: (context, child) {
+                    final scale = _animationController.value;
+                    final double glowIntensity = isSpeaking ? scale : 0.0;
+                    return AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Color(0xFFFFFFFF), Color(0xFFF3F7FA)],
+                        ),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: borderColor,
+                          width: size * 0.05,
+                        ),
+                        boxShadow: [
+                          // Thin dark outline to increase contrast of the status border
+                          BoxShadow(
+                            color: const Color(0xFF0F1A2C),
+                            spreadRadius: 1.5,
+                            blurRadius: 0,
+                          ),
+                          BoxShadow(
+                            color: widget.isListening
+                                ? const Color(
+                                    0xFF0061A4,
+                                  ).withValues(alpha: 0.35)
+                                : isSpeaking
+                                ? const Color(0xFFFCD400).withValues(
+                                    alpha: 0.35 + (glowIntensity * 0.25),
+                                  )
+                                : Colors.black.withValues(alpha: 0.08),
+                            blurRadius: isActiveState
+                                ? size * (0.12 + (glowIntensity * 0.08))
+                                : size * 0.06,
+                            spreadRadius: isActiveState
+                                ? size * (0.02 + (glowIntensity * 0.03))
+                                : 0,
+                            offset: Offset(0, size * 0.03),
+                          ),
+                        ],
+                      ),
+                      child: child,
+                    );
+                  },
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // Olhos do Alex
+                      Positioned(
+                        top: size * 0.22,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _buildEye(isSpeaking, widget.isListening, size),
+                            SizedBox(width: size * 0.16),
+                            _buildEye(isSpeaking, widget.isListening, size),
+                          ],
+                        ),
+                      ),
+
+                      // Bochechas rosadas (Blushing)
+                      Positioned(
+                        top: size * 0.33,
+                        left: size * 0.10,
+                        child: Container(
+                          width: size * 0.11,
+                          height: size * 0.055,
+                          decoration: BoxDecoration(
+                            color: const Color(
+                              0xFFFFB5B5,
+                            ).withValues(alpha: 0.55),
+                            borderRadius: BorderRadius.all(
+                              Radius.circular(size * 0.03),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        top: size * 0.33,
+                        right: size * 0.10,
+                        child: Container(
+                          width: size * 0.11,
+                          height: size * 0.055,
+                          decoration: BoxDecoration(
+                            color: const Color(
+                              0xFFFFB5B5,
+                            ).withValues(alpha: 0.55),
+                            borderRadius: BorderRadius.all(
+                              Radius.circular(size * 0.03),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // Boca do Alex
+                      Positioned(
+                        bottom: size * 0.16,
+                        child: AnimatedBuilder(
+                          animation: _animationController,
+                          builder: (context, child) {
+                            final scale = _animationController.value;
+                            return _buildMouth(
+                              isSpeaking,
+                              widget.isListening,
+                              scale,
+                              size,
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // 3.5. Braço do Microfone (Boom arm) - Renderizado por cima do rosto, começa no fone externo e entra bem no rosto
+              Positioned(
+                left: size * 0.07,
+                top: size * 0.44,
+                width: size * 0.35,
+                height: size * 0.25,
+                child: CustomPaint(
+                  painter: _MicArmPainter(
+                    color: AppColors.primary,
+                    strokeWidth: size * 0.025,
+                    borderColor: borderColor,
+                    size: size,
+                  ),
+                ),
+              ),
+
+              // 4. Tag status - Ouvindo / Falando (Só exibe para tamanhos >= 100)
+              if (size >= 100) ...[
+                if (widget.isListening)
+                  Positioned(
+                    top: -size * 0.02,
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: size * 0.08,
+                        vertical: size * 0.02,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0061A4),
+                        borderRadius: BorderRadius.circular(size * 0.1),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.15),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.hearing,
+                            color: Colors.white,
+                            size: size * 0.08,
+                          ),
+                          SizedBox(width: size * 0.02),
+                          Text(
+                            'Ouvindo',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: size * 0.07,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                if (isSpeaking && !widget.isListening)
+                  Positioned(
+                    top: -size * 0.02,
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: size * 0.08,
+                        vertical: size * 0.02,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFCD400),
+                        borderRadius: BorderRadius.circular(size * 0.1),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.15),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.volume_up,
+                            color: const Color(0xFF6E5C00),
+                            size: size * 0.08,
+                          ),
+                          SizedBox(width: size * 0.02),
+                          Text(
+                            'Falando',
+                            style: TextStyle(
+                              color: const Color(0xFF6E5C00),
+                              fontSize: size * 0.07,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+              // 5. Ondas sonoras laterais (Somente quando falante)
+              if (isSpeaking) ...[
+                // Ondas do lado esquerdo
                 Positioned(
-                  left: size * 0.11,
-                  right: size * 0.11,
-                  top: size * 0.11,
-                  bottom: size * 0.11,
+                  left: -size * 0.16,
+                  top: size * 0.38,
                   child: AnimatedBuilder(
                     animation: _animationController,
                     builder: (context, child) {
-                      final scale = _animationController.value;
-                      final double glowIntensity = isSpeaking ? scale : 0.0;
-                      return AnimatedContainer(
-                        duration: const Duration(milliseconds: 250),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              Color(0xFFFFFFFF),
-                              Color(0xFFF3F7FA),
-                            ],
-                          ),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: borderColor,
-                            width: size * 0.05,
-                          ),
-                          boxShadow: [
-                            // Thin dark outline to increase contrast of the status border
-                            BoxShadow(
-                              color: const Color(0xFF0F1A2C),
-                              spreadRadius: 1.5,
-                              blurRadius: 0,
-                            ),
-                            BoxShadow(
-                              color: widget.isListening
-                                  ? const Color(0xFF0061A4).withValues(alpha: 0.35)
-                                  : isSpeaking
-                                      ? const Color(0xFFFCD400).withValues(
-                                          alpha: 0.35 + (glowIntensity * 0.25),
-                                        )
-                                      : Colors.black.withValues(alpha: 0.08),
-                              blurRadius: isActiveState
-                                  ? size * (0.12 + (glowIntensity * 0.08))
-                                  : size * 0.06,
-                              spreadRadius: isActiveState
-                                  ? size * (0.02 + (glowIntensity * 0.03))
-                                  : 0,
-                              offset: Offset(0, size * 0.03),
-                            ),
-                          ],
-                        ),
-                        child: child,
+                      return _SoundwaveBars(
+                        size: size,
+                        animationValue: _animationController.value,
+                        color: borderColor,
+                        isLeft: true,
                       );
                     },
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        // Olhos do Alex
-                        Positioned(
-                          top: size * 0.22,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              _buildEye(isSpeaking, widget.isListening, size),
-                              SizedBox(width: size * 0.16),
-                              _buildEye(isSpeaking, widget.isListening, size),
-                            ],
-                          ),
-                        ),
-
-                        // Bochechas rosadas (Blushing)
-                        Positioned(
-                          top: size * 0.33,
-                          left: size * 0.10,
-                          child: Container(
-                            width: size * 0.11,
-                            height: size * 0.055,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFFB5B5).withValues(alpha: 0.55),
-                              borderRadius: BorderRadius.all(Radius.circular(size * 0.03)),
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          top: size * 0.33,
-                          right: size * 0.10,
-                          child: Container(
-                            width: size * 0.11,
-                            height: size * 0.055,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFFB5B5).withValues(alpha: 0.55),
-                              borderRadius: BorderRadius.all(Radius.circular(size * 0.03)),
-                            ),
-                          ),
-                        ),
-
-                        // Boca do Alex
-                        Positioned(
-                          bottom: size * 0.16,
-                          child: AnimatedBuilder(
-                            animation: _animationController,
-                            builder: (context, child) {
-                              final scale = _animationController.value;
-                              return _buildMouth(isSpeaking, widget.isListening, scale, size);
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
                   ),
                 ),
-
-                // 3.5. Braço do Microfone (Boom arm) - Renderizado por cima do rosto, começa no fone externo e entra bem no rosto
+                // Ondas do lado direito
                 Positioned(
-                  left: size * 0.07,
-                  top: size * 0.44,
-                  width: size * 0.35,
-                  height: size * 0.25,
-                  child: CustomPaint(
-                    painter: _MicArmPainter(
-                      color: AppColors.primary,
-                      strokeWidth: size * 0.025,
-                      borderColor: borderColor,
-                      size: size,
-                    ),
+                  right: -size * 0.16,
+                  top: size * 0.38,
+                  child: AnimatedBuilder(
+                    animation: _animationController,
+                    builder: (context, child) {
+                      return _SoundwaveBars(
+                        size: size,
+                        animationValue: _animationController.value,
+                        color: borderColor,
+                        isLeft: false,
+                      );
+                    },
                   ),
                 ),
-
-                // 4. Tag status - Ouvindo / Falando (Só exibe para tamanhos >= 100)
-                if (size >= 100) ...[
-                  if (widget.isListening)
-                    Positioned(
-                      top: -size * 0.02,
-                      child: Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: size * 0.08,
-                          vertical: size * 0.02,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF0061A4),
-                          borderRadius: BorderRadius.circular(size * 0.1),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.15),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.hearing, color: Colors.white, size: size * 0.08),
-                            SizedBox(width: size * 0.02),
-                            Text(
-                              'Ouvindo',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: size * 0.07,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  if (isSpeaking && !widget.isListening)
-                    Positioned(
-                      top: -size * 0.02,
-                      child: Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: size * 0.08,
-                          vertical: size * 0.02,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFCD400),
-                          borderRadius: BorderRadius.circular(size * 0.1),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.15),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.volume_up, color: const Color(0xFF6E5C00), size: size * 0.08),
-                            SizedBox(width: size * 0.02),
-                            Text(
-                              'Falando',
-                              style: TextStyle(
-                                color: const Color(0xFF6E5C00),
-                                fontSize: size * 0.07,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                ],
-                // 5. Ondas sonoras laterais (Somente quando falante)
-                if (isSpeaking) ...[
-                  // Ondas do lado esquerdo
-                  Positioned(
-                    left: -size * 0.16,
-                    top: size * 0.38,
-                    child: AnimatedBuilder(
-                      animation: _animationController,
-                      builder: (context, child) {
-                        return _SoundwaveBars(
-                          size: size,
-                          animationValue: _animationController.value,
-                          color: borderColor,
-                          isLeft: true,
-                        );
-                      },
-                    ),
-                  ),
-                  // Ondas do lado direito
-                  Positioned(
-                    right: -size * 0.16,
-                    top: size * 0.38,
-                    child: AnimatedBuilder(
-                      animation: _animationController,
-                      builder: (context, child) {
-                        return _SoundwaveBars(
-                          size: size,
-                          animationValue: _animationController.value,
-                          color: borderColor,
-                          isLeft: false,
-                        );
-                      },
-                    ),
-                  ),
-                ],
               ],
-            ),
-          );
-        },
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -522,7 +544,12 @@ class _AlexAvatarState extends State<AlexAvatar> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildMouth(bool isSpeaking, bool isListening, double scale, double size) {
+  Widget _buildMouth(
+    bool isSpeaking,
+    bool isListening,
+    double scale,
+    double size,
+  ) {
     if (isListening) {
       return Container(
         width: size * 0.11,
@@ -530,7 +557,10 @@ class _AlexAvatarState extends State<AlexAvatar> with TickerProviderStateMixin {
         decoration: BoxDecoration(
           color: const Color(0xFFBA1A1A),
           shape: BoxShape.circle,
-          border: Border.all(color: const Color(0xFF0F1A2C), width: size * 0.02),
+          border: Border.all(
+            color: const Color(0xFF0F1A2C),
+            width: size * 0.02,
+          ),
         ),
       );
     }
@@ -543,7 +573,10 @@ class _AlexAvatarState extends State<AlexAvatar> with TickerProviderStateMixin {
         decoration: BoxDecoration(
           color: const Color(0xFFBA1A1A),
           borderRadius: BorderRadius.circular(size * 0.06),
-          border: Border.all(color: const Color(0xFF0F1A2C), width: size * 0.02),
+          border: Border.all(
+            color: const Color(0xFF0F1A2C),
+            width: size * 0.02,
+          ),
         ),
       );
     }
@@ -653,7 +686,8 @@ class _MicArmPainter extends CustomPainter {
 
     // Desenha a cápsula do microfone na ponta
     final paintTip = Paint()
-      ..color = borderColor // Usa a cor de status (azul/amarelo/etc) para a ponta brilhar!
+      ..color =
+          borderColor // Usa a cor de status (azul/amarelo/etc) para a ponta brilhar!
       ..style = PaintingStyle.fill;
 
     canvas.drawCircle(

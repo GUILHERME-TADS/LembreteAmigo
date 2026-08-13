@@ -516,7 +516,9 @@ class OfflineSyncService {
         if (remoteUrl != null) {
           data['audioPath'] = remoteUrl;
         } else if (kIsWeb && audioPath.startsWith('blob:')) {
-          debugPrint('Descartando audioPath blob: inacessível para permitir sincronização da fila: $audioPath');
+          debugPrint(
+            'Descartando audioPath blob: inacessível para permitir sincronização da fila: $audioPath',
+          );
           data['audioPath'] = null;
         }
       }

@@ -29,11 +29,7 @@ class _ElderlyBottomNavState extends State<ElderlyBottomNav> {
     try {
       _stopAllAudioAndTts();
       if (routeName == '/elderly-home') {
-        Navigator.pushNamedAndRemoveUntil(
-          context,
-          routeName,
-          (route) => false,
-        );
+        Navigator.pushNamedAndRemoveUntil(context, routeName, (route) => false);
       } else {
         Navigator.pushNamed(context, routeName);
       }

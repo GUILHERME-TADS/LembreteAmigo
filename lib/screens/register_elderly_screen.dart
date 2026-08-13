@@ -112,7 +112,7 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
+        title: Text(
           'Desconectar Aparelho?',
           style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.error),
         ),
@@ -130,7 +130,7 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text(
+            child: Text(
               'SIM, DESCONECTAR',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
@@ -233,7 +233,7 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          title: const Text(
+          title: Text(
             'Vínculo Realizado (Simulado)!',
             style: TextStyle(
               fontSize: 24,
@@ -241,10 +241,10 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
               color: AppColors.primary,
             ),
           ),
-          content: const Column(
+          content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.check_circle, size: 64, color: Colors.green),
+              Icon(Icons.check_circle, size: 64, color: AppColors.success),
               SizedBox(height: 16),
               Text(
                 'O dispositivo do idoso foi vinculado com sucesso ao seu painel (modo simulado).',
@@ -304,7 +304,7 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          title: const Text(
+          title: Text(
             'Vínculo Realizado!',
             style: TextStyle(
               fontSize: 24,
@@ -312,10 +312,10 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
               color: AppColors.primary,
             ),
           ),
-          content: const Column(
+          content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.check_circle, size: 64, color: Colors.green),
+              Icon(Icons.check_circle, size: 64, color: AppColors.success),
               SizedBox(height: 16),
               Text(
                 'O dispositivo do idoso foi vinculado com sucesso ao seu painel de controle.',
@@ -393,7 +393,7 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
               cursorColor: AppColors.primary,
               cursorWidth: 2.5,
               cursorHeight: 28,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
                 color: AppColors.primary,
@@ -468,13 +468,13 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
                         ),
                         child: Column(
                           children: [
-                            const Icon(
+                            Icon(
                               Icons.link,
                               size: 64,
-                              color: Colors.green,
+                              color: AppColors.success,
                             ),
                             const SizedBox(height: 12),
-                            const Text(
+                            Text(
                               'Celular Conectado',
                               style: TextStyle(
                                 fontSize: 22,
@@ -486,7 +486,7 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
                             Text(
                               _pairedIdosoName ?? 'Idoso Conectado',
                               textAlign: TextAlign.center,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 18,
                                 color: AppColors.onSurface,
                                 fontWeight: FontWeight.w600,
@@ -525,7 +525,7 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
                       ),
                       const SizedBox(height: 24),
                     ] else ...[
-                      const Text(
+                      Text(
                         'Conectar Celular do Idoso',
                         style: TextStyle(
                           fontSize: 32,
@@ -535,7 +535,7 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      const Text(
+                      Text(
                         'Insira o código de conexão de 6 dígitos que está sendo exibido na tela do idoso para vincular o dispositivo ao seu painel.',
                         style: TextStyle(
                           fontSize: 18,
@@ -595,18 +595,18 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
     return Container(
       height: 64,
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      decoration: const BoxDecoration(color: AppColors.surface),
+      decoration: BoxDecoration(color: AppColors.surface),
       child: Row(
         children: [
           IconButton(
             onPressed: () => Navigator.pop(context),
-            icon: const Icon(
+            icon: Icon(
               Icons.arrow_back,
               color: AppColors.primary,
               size: 32,
             ),
           ),
-          const Expanded(
+          Expanded(
             child: Text(
               'Lembrete Amigo',
               textAlign: TextAlign.center,

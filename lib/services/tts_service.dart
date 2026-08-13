@@ -109,14 +109,20 @@ class TTSService {
     _activeSessionToken = sessionToken;
     await _applyProfileSettings();
     for (var i = 0; i < textos.length; i++) {
-      if (_cancelSpeech || _activeCaller != caller || _activeSessionToken != sessionToken) break;
+      if (_cancelSpeech ||
+          _activeCaller != caller ||
+          _activeSessionToken != sessionToken)
+        break;
       _completer = Completer<void>();
       speakingNotifier.value = true;
       await _tts.speak(textos[i]);
       try {
         await _completer!.future;
       } catch (_) {}
-      if (_cancelSpeech || _activeCaller != caller || _activeSessionToken != sessionToken) break;
+      if (_cancelSpeech ||
+          _activeCaller != caller ||
+          _activeSessionToken != sessionToken)
+        break;
       if (i < textos.length - 1) {
         await Future.delayed(const Duration(milliseconds: 500));
       }
@@ -141,12 +147,14 @@ class TTSService {
       final dir = await getApplicationDocumentsDirectory();
       final extension = Platform.isIOS ? 'caf' : 'wav';
       final filePath = '${dir.path}/tts_lembrete_$idLembrete.$extension';
-      
+
       final result = await _tts.synthesizeToFile(texto, filePath);
       if (result == 1) {
         return filePath;
       } else {
-        debugPrint('Erro ao sintetizar arquivo de áudio para o lembrete $idLembrete');
+        debugPrint(
+          'Erro ao sintetizar arquivo de áudio para o lembrete $idLembrete',
+        );
         return null;
       }
     } catch (e) {

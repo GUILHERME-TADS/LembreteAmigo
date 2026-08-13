@@ -126,126 +126,330 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
 
   String? _detectarCategoriaAutomaticamente(String texto) {
     final lower = texto.toLowerCase();
-    
+
     final medicacaoKeywords = [
       // 1. Termos e formas farmacêuticas gerais
-      'remédio', 'remedio', 'comprimido', 'cápsula', 'capsula', 'gotas', 'pomada',
-      'medicamento', 'vitamina', 'analgésico', 'analgesico', 'antibiótico', 'antibiotico',
-      'colírio', 'colirio', 'insulina', 'vacina', 'injeção', 'injecao', 'xarope',
-      'inalador', 'bombinha', 'calmante', 'anti-inflamatório', 'antiinflamatorio',
-      'pastilha', 'pílula', 'pilula', 'suplemento', 'creme', 'gel', 'spray', 'flaconete',
+      'remédio',
+      'remedio',
+      'comprimido',
+      'cápsula',
+      'capsula',
+      'gotas',
+      'pomada',
+      'medicamento',
+      'vitamina',
+      'analgésico',
+      'analgesico',
+      'antibiótico',
+      'antibiotico',
+      'colírio',
+      'colirio',
+      'insulina',
+      'vacina',
+      'injeção',
+      'injecao',
+      'xarope',
+      'inalador',
+      'bombinha',
+      'calmante',
+      'anti-inflamatório',
+      'antiinflamatorio',
+      'pastilha',
+      'pílula',
+      'pilula',
+      'suplemento',
+      'creme',
+      'gel',
+      'spray',
+      'flaconete',
       'ampola', 'drágea', 'dragea', 'elixir', 'suspensão', 'suspensao', 'soro',
-      'solução oral', 'ferro', 'cálcio', 'calcio', 'ômega', 'omega', 'probiótico',
-      'probiotico', 'colágeno', 'colageno', 'antigripal', 'antialérgico', 'antialergico',
+      'solução oral',
+      'ferro',
+      'cálcio',
+      'calcio',
+      'ômega',
+      'omega',
+      'probiótico',
+      'probiotico',
+      'colágeno',
+      'colageno',
+      'antigripal',
+      'antialérgico',
+      'antialergico',
       'antidepressivo', 'anti-hipertensivo', 'dose', 'medicação', 'medicacao',
 
       // 2. Analgésicos, antitérmicos, relaxantes e anti-inflamatórios
-      'dipirona', 'novalgina', 'paracetamol', 'tylenol', 'ibuprofeno', 'alivium',
-      'aspirina', 'aas', 'dorflex', 'tandrilax', 'neosaldina', 'neosa', 'toragesic',
-      'trometamol', 'cetorolaco', 'nimesulida', 'scimflam', 'diclofenaco', 'cataflam',
-      'voltaren', 'meloxicam', 'piroxicam', 'celecoxibe', 'naproxeno', 'flurbiprofeno',
-      'ketoprofeno', 'cetoprofeno', 'lisador', 'cimegripe', 'benegrip', 'resfenol',
+      'dipirona',
+      'novalgina',
+      'paracetamol',
+      'tylenol',
+      'ibuprofeno',
+      'alivium',
+      'aspirina',
+      'aas',
+      'dorflex',
+      'tandrilax',
+      'neosaldina',
+      'neosa',
+      'toragesic',
+      'trometamol',
+      'cetorolaco',
+      'nimesulida',
+      'scimflam',
+      'diclofenaco',
+      'cataflam',
+      'voltaren',
+      'meloxicam',
+      'piroxicam',
+      'celecoxibe',
+      'naproxeno',
+      'flurbiprofeno',
+      'ketoprofeno',
+      'cetoprofeno',
+      'lisador',
+      'cimegripe',
+      'benegrip',
+      'resfenol',
       'coristina', 'vick', 'multigrip', 'mioflex', 'trimed',
 
       // 3. Saúde cardiovascular (pressão arterial, colesterol, circulação)
-      'losartana', 'aradois', 'valsartana', 'candesartana', 'olmesartana', 'telmisartana',
-      'enalapril', 'captopril', 'ramipril', 'lisinopril', 'atenolol', 'propranolol',
-      'metoprolol', 'selozok', 'bisoprolol', 'carvedilol', 'anlodipino', 'nifedipino',
+      'losartana',
+      'aradois',
+      'valsartana',
+      'candesartana',
+      'olmesartana',
+      'telmisartana',
+      'enalapril',
+      'captopril',
+      'ramipril',
+      'lisinopril',
+      'atenolol',
+      'propranolol',
+      'metoprolol',
+      'selozok',
+      'bisoprolol',
+      'carvedilol',
+      'anlodipino',
+      'nifedipino',
       'diltiazem', 'verapamil', 'hidroclorotiazida', 'furosemida', 'lasix',
-      'espironolactona', 'aldactone', 'clortalidona', 'indapamida', 'sinvastatina',
+      'espironolactona',
+      'aldactone',
+      'clortalidona',
+      'indapamida',
+      'sinvastatina',
       'atorvastatina', 'rosuvastatina', 'ezetimiba', 'clopidogrel', 'plavix',
-      'somalgin', 'varfarina', 'marevan', 'xarelto', 'rivaroxabana', 'apixabana',
+      'somalgin',
+      'varfarina',
+      'marevan',
+      'xarelto',
+      'rivaroxabana',
+      'apixabana',
       'eliquis', 'daflon', 'diosmina', 'hesperidina', 'vasopril', 'concor',
 
       // 4. Diabetes e metabolismo
       'metformina', 'glifage', 'glibenclamida', 'gliclazida', 'diamicron',
       'glimepirida', 'sitagliptina', 'januvia', 'vildagliptina', 'galvus',
       'dapagliflozina', 'forxiga', 'empagliflozina', 'jardiance', 'dulaglutida',
-      'trulicity', 'semaglutida', 'ozempic', 'rybelsus', 'liraglutida', 'saxenda',
+      'trulicity',
+      'semaglutida',
+      'ozempic',
+      'rybelsus',
+      'liraglutida',
+      'saxenda',
       'victoza', 'lantus', 'tresiba', 'humalog', 'novorapid', 'nph', 'regular',
 
       // 5. Sistema digestivo e gástrico (estômago, enjoo, intestino)
       'omeprazol', 'pantoprazol', 'esomeprazol', 'rabeprazol', 'lansoprazol',
-      'ranitidina', 'famotidina', 'domperidona', 'motilium', 'plasil', 'metoclopramida',
-      'dramin', 'dimenidrato', 'vonau', 'ondansetrona', 'buscopan', 'escopolamina',
-      'simeticona', 'luftal', 'estomazil', 'eno', 'sonrisal', 'lactulona', 'lactulose',
+      'ranitidina',
+      'famotidina',
+      'domperidona',
+      'motilium',
+      'plasil',
+      'metoclopramida',
+      'dramin',
+      'dimenidrato',
+      'vonau',
+      'ondansetrona',
+      'buscopan',
+      'escopolamina',
+      'simeticona',
+      'luftal',
+      'estomazil',
+      'eno',
+      'sonrisal',
+      'lactulona',
+      'lactulose',
       'tamarine', 'bisacodil', 'dulcolax', 'imosec', 'loperamida', 'floratil',
 
       // 6. Sistema nervoso, sono, psiquiatria e ansiedade
       'rivotril', 'clonazepam', 'diazepam', 'valium', 'alprazolam', 'frontal',
       'bromazepam', 'lexotan', 'lorazepam', 'zolpidem', 'stilnox', 'zopiclona',
       'melatonina', 'amitriptilina', 'nortriptilina', 'sertralina', 'zoloft',
-      'fluoxetina', 'prozac', 'escitalopram', 'lexapro', 'citalopram', 'venlafaxina',
+      'fluoxetina',
+      'prozac',
+      'escitalopram',
+      'lexapro',
+      'citalopram',
+      'venlafaxina',
       'desvenlafaxina', 'duloxetina', 'trazodona', 'donaren', 'mirtazapina',
       'pregabalina', 'lyrica', 'gabapentina', 'quetiapina', 'risperidona',
       'olanzapina', 'aripiprazol', 'lítio', 'litio', 'carbolitium', 'biotonico',
 
       // 7. Respiratório, alergia e colírios
       'loratadina', 'claritin', 'desloratadina', 'cetirizina', 'fexofenadina',
-      'allegra', 'dexclorfeniramina', 'polaramine', 'hidrocortisona', 'prednisona',
+      'allegra',
+      'dexclorfeniramina',
+      'polaramine',
+      'hidrocortisona',
+      'prednisona',
       'meticorten', 'prednisolona', 'dexametasona', 'decadron', 'betametasona',
       'budesonida', 'busonid', 'fluticasona', 'avamys', 'berotec', 'atrovent',
-      'aerolin', 'salbutamol', 'symbicort', 'alenia', 'seretide', 'montelucaste',
-      'singular', 'neosoro', 'sorine', 'rinoro', 'hyabak', 'systane', 'lacrifilm', 'optive',
+      'aerolin',
+      'salbutamol',
+      'symbicort',
+      'alenia',
+      'seretide',
+      'montelucaste',
+      'singular',
+      'neosoro',
+      'sorine',
+      'rinoro',
+      'hyabak',
+      'systane',
+      'lacrifilm',
+      'optive',
 
       // 8. Tireoide e ossos
-      'levotiroxina', 'puran', 'euthyrox', 'synthroid', 'tapazol', 'alendronato',
+      'levotiroxina',
+      'puran',
+      'euthyrox',
+      'synthroid',
+      'tapazol',
+      'alendronato',
       'ibandronato', 'bonviva', 'risedronato', 'actonel', 'calcitriol',
 
       // 9. Antibióticos e antifúngicos
-      'amoxicilina', 'clavulanato', 'azitromicina', 'astro', 'cefalexina', 'keflex',
-      'ciprofloxacino', 'levofloxacino', 'norfloxacino', 'sulfametoxazol', 'bactrim',
-      'metronidazol', 'fluconazol', 'itraconazol', 'nistatina', 'miconazol', 'cetoconazol'
+      'amoxicilina',
+      'clavulanato',
+      'azitromicina',
+      'astro',
+      'cefalexina',
+      'keflex',
+      'ciprofloxacino',
+      'levofloxacino',
+      'norfloxacino',
+      'sulfametoxazol',
+      'bactrim',
+      'metronidazol',
+      'fluconazol',
+      'itraconazol',
+      'nistatina',
+      'miconazol',
+      'cetoconazol',
     ];
-    
+
     final refeicoesKeywords = [
       // 1. Refeições principais e rotina de alimentação
       'almoço', 'almoco', 'jantar', 'café', 'cafe', 'refeição', 'refeicao',
       'comer', 'comida', 'lanche', 'café da manhã', 'cafedamanha', 'janta',
       'alimentar', 'merenda', 'ceia', 'desjejum', 'sobremesa', 'refeicoes',
       'almoçar', 'almocar', 'lanchar', 'tomar café', 'tomar cafe', 'merendar',
-      'banquete', 'marmita', 'quentinha', 'alimento', 'alimentação', 'alimentacao',
+      'banquete',
+      'marmita',
+      'quentinha',
+      'alimento',
+      'alimentação',
+      'alimentacao',
 
       // 2. Alimentos, lanches e preparações caseiras
       'fruta', 'sopa', 'chá', 'cha', 'suco', 'leite', 'biscoito', 'pão', 'pao',
       'mingau', 'papa', 'caldo', 'canja', 'gelatina', 'iogurte', 'queijo',
-      'bolacha', 'bolo', 'tapioca', 'cuzcuz', 'cuscuz', 'aveia', 'vitamina de fruta',
+      'bolacha',
+      'bolo',
+      'tapioca',
+      'cuzcuz',
+      'cuscuz',
+      'aveia',
+      'vitamina de fruta',
       'purê', 'pure', 'arroz', 'feijão', 'feijao', 'salada', 'carne', 'frango',
       'peixe', 'ovo', 'ovos', 'omelete', 'torrada', 'banana', 'maçã', 'maca',
 
       // 3. Suplementação nutricional e dietas
       'ensure', 'nutren', 'sustagen', 'papinha', 'sonda', 'dieta', 'jejum',
-      'pós-refeição', 'pos-refeicao', 'antes de comer', 'depois de comer'
+      'pós-refeição', 'pos-refeicao', 'antes de comer', 'depois de comer',
     ];
-    
+
     final exercicioKeywords = [
       // 1. Atividades físicas gerais e caminhada
-      'caminhar', 'caminhada', 'exercício', 'exercicio', 'alongamento', 'fisioterapia',
+      'caminhar',
+      'caminhada',
+      'exercício',
+      'exercicio',
+      'alongamento',
+      'fisioterapia',
       'andar', 'academia', 'alongar', 'treino', 'treinar', 'passeio', 'passear',
-      'correr', 'corrida', 'fisio', 'ginástica', 'ginastica', 'mexer', 'exercitar',
-      'hidroginástica', 'hidroginastica', 'pilates', 'yoga', 'ioga', 'alongar-se',
-      'dar uma volta', 'movimentar', 'movimento', 'fazer exercício', 'fazer exercicio', 'praticar',
+      'correr',
+      'corrida',
+      'fisio',
+      'ginástica',
+      'ginastica',
+      'mexer',
+      'exercitar',
+      'hidroginástica',
+      'hidroginastica',
+      'pilates',
+      'yoga',
+      'ioga',
+      'alongar-se',
+      'dar uma volta',
+      'movimentar',
+      'movimento',
+      'fazer exercício',
+      'fazer exercicio',
+      'praticar',
 
       // 2. Reabilitação, fisioterapia e mobilidade para idosos
       'bicicleta', 'ergométrica', 'ergometrica', 'esteira', 'pesinho', 'halter',
       'agachamento', 'mobilidade', 'postura', 'equilíbrio', 'equilibrio',
-      'coordenação', 'coordenacao', 'respiratório', 'respiratorio', 'exercício pulmonar',
+      'coordenação',
+      'coordenacao',
+      'respiratório',
+      'respiratorio',
+      'exercício pulmonar',
       'exercicio pulmonar', 'exercício para perna', 'exercicio para perna',
-      'exercício para o joelho', 'alongar coluna', 'exercitar braço', 'subir escada',
-      'fortalecimento', 'motor', 'motora'
+      'exercício para o joelho',
+      'alongar coluna',
+      'exercitar braço',
+      'subir escada',
+      'fortalecimento', 'motor', 'motora',
     ];
-    
+
     final hidratacaoKeywords = [
       // 1. Água e consumo diário de líquidos
       'água', 'agua', 'beber', 'copo', 'hidratar', 'hidratacao', 'hidratação',
-      'líquido', 'liquido', 'garrafa', 'copinho', 'gole', 'beber água', 'beber agua',
-      'sede', 'hidratando', 'copo d\'água', 'copo d\'agua', 'tomar água', 'tomar agua',
-      'garrafinha', 'se hidratar', 'hidratar o corpo', 'mais água', 'goles de água',
+      'líquido',
+      'liquido',
+      'garrafa',
+      'copinho',
+      'gole',
+      'beber água',
+      'beber agua',
+      'sede',
+      'hidratando',
+      'copo d\'água',
+      'copo d\'agua',
+      'tomar água',
+      'tomar agua',
+      'garrafinha',
+      'se hidratar',
+      'hidratar o corpo',
+      'mais água',
+      'goles de água',
 
       // 2. Reidratação, água de coco e soro
       'água de coco', 'agua de coco', 'soro caseiro', 'soro oral', 'reidratar',
       'reidratação', 'reidratacao', 'isotônico', 'isotonico', 'beber líquido',
-      'beber liquido', 'tomar líquido', 'tomar liquido'
+      'beber liquido', 'tomar líquido', 'tomar liquido',
     ];
 
     for (final kw in medicacaoKeywords) {
@@ -272,12 +476,34 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
   }
 
   static const Map<String, int> _numerosPorExtenso = {
-    'zero': 0, 'um': 1, 'uma': 1, 'dois': 2, 'duas': 2, 'três': 3, 'tres': 3,
-    'quatro': 4, 'cinco': 5, 'seis': 6, 'sete': 7, 'oito': 8,
-    'nove': 9, 'dez': 10, 'onze': 11, 'doze': 12, 'treze': 13,
-    'quatorze': 14, 'catorze': 14, 'quinze': 15, 'dezesseis': 16,
-    'dezasseis': 16, 'dezessete': 17, 'dezoito': 18,
-    'dezenove': 19, 'vinte': 20, 'trinta': 30, 'quarenta': 40,
+    'zero': 0,
+    'um': 1,
+    'uma': 1,
+    'dois': 2,
+    'duas': 2,
+    'três': 3,
+    'tres': 3,
+    'quatro': 4,
+    'cinco': 5,
+    'seis': 6,
+    'sete': 7,
+    'oito': 8,
+    'nove': 9,
+    'dez': 10,
+    'onze': 11,
+    'doze': 12,
+    'treze': 13,
+    'quatorze': 14,
+    'catorze': 14,
+    'quinze': 15,
+    'dezesseis': 16,
+    'dezasseis': 16,
+    'dezessete': 17,
+    'dezoito': 18,
+    'dezenove': 19,
+    'vinte': 20,
+    'trinta': 30,
+    'quarenta': 40,
     'cinquenta': 50,
   };
 
@@ -289,16 +515,32 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
 
     // 1. Substituir dezenas compostas (ex: "vinte e dois" -> "22")
     final dezenas = {
-      'vinte': 20, 'trinta': 30, 'quarenta': 40, 'cinquenta': 50
+      'vinte': 20,
+      'trinta': 30,
+      'quarenta': 40,
+      'cinquenta': 50,
     };
     final unidades = {
-      'um': 1, 'uma': 1, 'dois': 2, 'duas': 2, 'três': 3, 'tres': 3,
-      'quatro': 4, 'cinco': 5, 'seis': 6, 'sete': 7, 'oito': 8, 'nove': 9
+      'um': 1,
+      'uma': 1,
+      'dois': 2,
+      'duas': 2,
+      'três': 3,
+      'tres': 3,
+      'quatro': 4,
+      'cinco': 5,
+      'seis': 6,
+      'sete': 7,
+      'oito': 8,
+      'nove': 9,
     };
 
     for (final dezena in dezenas.keys) {
       for (final unidade in unidades.keys) {
-        final regex = RegExp('\\b$dezena\\s+e\\s+$unidade\\b', caseSensitive: false);
+        final regex = RegExp(
+          '\\b$dezena\\s+e\\s+$unidade\\b',
+          caseSensitive: false,
+        );
         final valor = dezenas[dezena]! + unidades[unidade]!;
         res = res.replaceAll(regex, valor.toString());
       }
@@ -306,7 +548,8 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
 
     // 2. Substituir números simples (ex: "oito" -> "8", "vinte" -> "20")
     // Ordenar as chaves por comprimento decrescente para não substituir substrings incorretamente
-    final chavesOrdenadas = _numerosPorExtenso.keys.toList()..sort((a, b) => b.length.compareTo(a.length));
+    final chavesOrdenadas = _numerosPorExtenso.keys.toList()
+      ..sort((a, b) => b.length.compareTo(a.length));
 
     for (final chave in chavesOrdenadas) {
       final regex = RegExp('\\b$chave\\b', caseSensitive: false);
@@ -328,8 +571,14 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
     String? matchedString;
 
     // 1. Verificar meio-dia e meia-noite
-    final regexMeioDia = RegExp(r'(?:^|\s+)meio[\s-]dia\b', caseSensitive: false);
-    final regexMeiaNoite = RegExp(r'(?:^|\s+)meia[\s-]noite\b', caseSensitive: false);
+    final regexMeioDia = RegExp(
+      r'(?:^|\s+)meio[\s-]dia\b',
+      caseSensitive: false,
+    );
+    final regexMeiaNoite = RegExp(
+      r'(?:^|\s+)meia[\s-]noite\b',
+      caseSensitive: false,
+    );
 
     if (regexMeioDia.hasMatch(textoLower)) {
       hour = 12;
@@ -343,7 +592,9 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
       // 2. Tentar padrões de horário (usando (?:^|\s+) em vez de \b para suportar caracteres com acento como à)
       final padroes = [
         // hh e mm (ex: "8 e 20", "18 e 45")
-        RegExp(r'(?:^|\s+)(?:[àa]s?\s+)?([0-2]?\d)\s*(?:horas?)?\s+e\s+([0-5]\d)\b'),
+        RegExp(
+          r'(?:^|\s+)(?:[àa]s?\s+)?([0-2]?\d)\s*(?:horas?)?\s+e\s+([0-5]\d)\b',
+        ),
         // hh:mm ou hhhmm (ex: "08:20", "18h45")
         RegExp(r'(?:^|\s+)(?:[àa]s?\s+)?([0-2]?\d)[:h](\d{2})\b'),
         // hh horas (ex: "8 horas", "18h")
@@ -351,7 +602,9 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
         // às hh (ex: "às 8", "as 10")
         RegExp(r'(?:^|\s+)(?:[àa]s)\s+([0-2]?\d)\b'),
         // hh da noite/manhã (ex: "8 da noite", "10 de manha")
-        RegExp(r'(?:^|\s+)([0-2]?\d)\s*(?:da|de|pela|do)\s+(?:madrugada|manh[ãa]|tarde|noite)\b'),
+        RegExp(
+          r'(?:^|\s+)([0-2]?\d)\s*(?:da|de|pela|do)\s+(?:madrugada|manh[ãa]|tarde|noite)\b',
+        ),
       ];
 
       for (final regex in padroes) {
@@ -396,16 +649,34 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
 
     // Remover o padrão do horário encontrado (case insensitive)
     if (matchedString != null) {
-      limpo = limpo.replaceFirst(RegExp(RegExp.escape(matchedString), caseSensitive: false), '');
+      limpo = limpo.replaceFirst(
+        RegExp(RegExp.escape(matchedString), caseSensitive: false),
+        '',
+      );
     }
 
     // Remover a preposição "às" ou "as" especificamente (lidando com acentos sem quebrar limites de palavras)
-    limpo = limpo.replaceAll(RegExp(r'(?:^|\s+)[àa]s(?:\s+|$)', caseSensitive: false), ' ');
+    limpo = limpo.replaceAll(
+      RegExp(r'(?:^|\s+)[àa]s(?:\s+|$)', caseSensitive: false),
+      ' ',
+    );
 
     // Remover quaisquer preposições de tempo e palavras de turnos restantes
     limpo = limpo
-        .replaceAll(RegExp(r'\b(?:ao|de|da|do|pela|pelo|no|na|turno\s+da|turno\s+de|per[ií]odo\s+da|per[ií]odo\s+de)\b', caseSensitive: false), '')
-        .replaceAll(RegExp(r'\b(?:madrugada|manh[ãa]|tarde|noite|horas?|h)\b', caseSensitive: false), '')
+        .replaceAll(
+          RegExp(
+            r'\b(?:ao|de|da|do|pela|pelo|no|na|turno\s+da|turno\s+de|per[ií]odo\s+da|per[ií]odo\s+de)\b',
+            caseSensitive: false,
+          ),
+          '',
+        )
+        .replaceAll(
+          RegExp(
+            r'\b(?:madrugada|manh[ãa]|tarde|noite|horas?|h)\b',
+            caseSensitive: false,
+          ),
+          '',
+        )
         .replaceAll(RegExp(r'\bmanhã(?:\b|\s+|$)', caseSensitive: false), '')
         .trim()
         .replaceAll(RegExp(r'\s+'), ' ');
@@ -415,11 +686,36 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
 
   Widget _buildCategorySelector() {
     final categories = [
-      {'icon': Icons.medication, 'label': 'Medicação', 'key': 'medicacao', 'color': AppColors.medicationsColor},
-      {'icon': Icons.restaurant, 'label': 'Refeições', 'key': 'refeicoes', 'color': AppColors.mealsColor},
-      {'icon': Icons.directions_walk, 'label': 'Exercício', 'key': 'exercicio', 'color': AppColors.tertiaryContainer},
-      {'icon': Icons.water_drop, 'label': 'Hidratação', 'key': 'hidratacao', 'color': AppColors.voiceFeedbackBlue},
-      {'icon': Icons.notifications, 'label': 'Personalizado', 'key': 'personalizado', 'color': AppColors.customColor},
+      {
+        'icon': Icons.medication,
+        'label': 'Medicação',
+        'key': 'medicacao',
+        'color': AppColors.medicationsColor,
+      },
+      {
+        'icon': Icons.restaurant,
+        'label': 'Refeições',
+        'key': 'refeicoes',
+        'color': AppColors.mealsColor,
+      },
+      {
+        'icon': Icons.directions_walk,
+        'label': 'Exercício',
+        'key': 'exercicio',
+        'color': AppColors.tertiaryContainer,
+      },
+      {
+        'icon': Icons.water_drop,
+        'label': 'Hidratação',
+        'key': 'hidratacao',
+        'color': AppColors.voiceFeedbackBlue,
+      },
+      {
+        'icon': Icons.notifications,
+        'label': 'Personalizado',
+        'key': 'personalizado',
+        'color': AppColors.customColor,
+      },
     ];
     return Container(
       width: double.infinity,
@@ -432,9 +728,14 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Categoria do lembrete',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: AppColors.onSurfaceVariant),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.05,
+              color: AppColors.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 12),
           Center(
@@ -447,13 +748,19 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
                 final color = cat['color'] as Color;
                 final selected = _selectedCategory == key;
                 return GestureDetector(
-                  onTap: () => setState(() => _selectedCategory = selected ? null : key),
+                  onTap: () =>
+                      setState(() => _selectedCategory = selected ? null : key),
                   child: Container(
                     width: 95,
                     height: 115,
-                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 8,
+                      horizontal: 4,
+                    ),
                     decoration: BoxDecoration(
-                      color: selected ? color.withValues(alpha: 0.2) : AppColors.surfaceContainerLowest,
+                      color: selected
+                          ? color.withValues(alpha: 0.2)
+                          : AppColors.surfaceContainerLowest,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                         color: selected ? color : Colors.transparent,
@@ -467,10 +774,16 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
                           width: 48,
                           height: 48,
                           decoration: BoxDecoration(
-                            color: selected ? color : color.withValues(alpha: 0.15),
+                            color: selected
+                                ? color
+                                : color.withValues(alpha: 0.15),
                             shape: BoxShape.circle,
                           ),
-                          child: Icon(cat['icon'] as IconData, size: 24, color: selected ? Colors.white : color),
+                          child: Icon(
+                            cat['icon'] as IconData,
+                            size: 24,
+                            color: selected ? Colors.white : color,
+                          ),
                         ),
                         const SizedBox(height: 8),
                         Text(
@@ -507,14 +820,21 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.schedule, size: 18, color: AppColors.onPrimaryContainer),
+          Icon(Icons.schedule, size: 18, color: AppColors.onPrimaryContainer),
           const SizedBox(width: 8),
           Text(
             '${horario.$1.toString().padLeft(2, '0')}:${horario.$2.toString().padLeft(2, '0')}',
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.onPrimaryContainer),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: AppColors.onPrimaryContainer,
+            ),
           ),
           const SizedBox(width: 8),
-          const Text('encontrado', style: TextStyle(fontSize: 14, color: AppColors.onPrimaryContainer)),
+          Text(
+            'encontrado',
+            style: TextStyle(fontSize: 14, color: AppColors.onPrimaryContainer),
+          ),
         ],
       ),
     );
@@ -526,7 +846,10 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
       final hour = extraido.$1;
       final minute = extraido.$2;
       final titulo = extraido.$3.isNotEmpty ? extraido.$3 : _transcricao;
-      final spokenTime = PeriodHelper.getSpokenTimeWithPreposition(hour, minute);
+      final spokenTime = PeriodHelper.getSpokenTimeWithPreposition(
+        hour,
+        minute,
+      );
       final texto = 'Entendi: $titulo $spokenTime. Está correto?';
       TTSService.instance.falar(texto, caller: this);
     } else {
@@ -544,7 +867,10 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
       _hasRecorded = false;
       _selectedCategory = null;
     });
-    await TTSService.instance.falar('Tudo bem, pode falar novamente.', caller: this);
+    await TTSService.instance.falar(
+      'Tudo bem, pode falar novamente.',
+      caller: this,
+    );
     _toggleListening();
   }
 
@@ -610,7 +936,7 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
                   ),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFD32F2F),
+                  backgroundColor: AppColors.error,
                   foregroundColor: Colors.white,
                   elevation: 4,
                   shape: RoundedRectangleBorder(
@@ -632,11 +958,14 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
                   child: Text(
                     _isSaving ? 'SALVANDO...' : 'SIM, SALVAR',
                     maxLines: 1,
-                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2E7D32),
+                  backgroundColor: AppColors.success,
                   foregroundColor: Colors.white,
                   elevation: 4,
                   shape: RoundedRectangleBorder(
@@ -664,7 +993,7 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
             ),
           ),
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFFD32F2F),
+            backgroundColor: AppColors.error,
             foregroundColor: Colors.white,
             elevation: 4,
             shape: RoundedRectangleBorder(
@@ -679,9 +1008,7 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
   Widget _buildTopBar(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-      ),
+      decoration: BoxDecoration(color: AppColors.surface),
       child: Row(
         children: [
           IconButton(
@@ -689,13 +1016,13 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
               TTSService.instance.parar(caller: this);
               Navigator.pop(context);
             },
-            icon: const Icon(
+            icon: Icon(
               Icons.arrow_back,
               color: AppColors.primary,
               size: 36,
             ),
           ),
-          const Expanded(
+          Expanded(
             child: Text(
               'Gravar Lembrete',
               textAlign: TextAlign.center,
@@ -731,14 +1058,17 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
             _buildTopBar(context),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
                 child: Column(
                   children: [
                     Expanded(
                       child: SingleChildScrollView(
                         child: Column(
                           children: [
-                            const Text(
+                            Text(
                               'Fale o lembrete e a hora dele',
                               textAlign: TextAlign.center,
                               style: TextStyle(
@@ -748,7 +1078,7 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
                               ),
                             ),
                             const SizedBox(height: 6),
-                            const Text(
+                            Text(
                               'Exemplo: "Tomar remédio às duas da tarde"',
                               textAlign: TextAlign.center,
                               style: TextStyle(
@@ -788,7 +1118,10 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
                                                 ? AppColors.voiceFeedbackBlue
                                                 : AppColors.secondaryContainer,
                                             shape: BoxShape.circle,
-                                            border: Border.all(color: Colors.white, width: 4),
+                                            border: Border.all(
+                                              color: Colors.white,
+                                              width: 4,
+                                            ),
                                             boxShadow: const [
                                               BoxShadow(
                                                 color: Colors.black26,
@@ -798,10 +1131,13 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
                                             ],
                                           ),
                                           child: Icon(
-                                            _isListening ? Icons.stop : Icons.mic,
+                                            _isListening
+                                                ? Icons.stop
+                                                : Icons.mic,
                                             color: _isListening
                                                 ? Colors.white
-                                                : AppColors.onSecondaryContainer,
+                                                : AppColors
+                                                      .onSecondaryContainer,
                                             size: 36,
                                           ),
                                         ),
@@ -810,10 +1146,14 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
                                   ),
                                   const SizedBox(height: 16),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 20,
+                                      vertical: 10,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: _isListening
-                                          ? AppColors.voiceFeedbackBlue.withValues(alpha: 0.12)
+                                          ? AppColors.voiceFeedbackBlue
+                                                .withValues(alpha: 0.12)
                                           : AppColors.surfaceContainerLow,
                                       borderRadius: BorderRadius.circular(9999),
                                       border: Border.all(
@@ -829,7 +1169,12 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
                                           if (_isListening) ...[
-                                            const Icon(Icons.mic, color: AppColors.voiceFeedbackBlue, size: 24),
+                                            Icon(
+                                              Icons.mic,
+                                              color:
+                                                  AppColors.voiceFeedbackBlue,
+                                              size: 24,
+                                            ),
                                             const SizedBox(width: 8),
                                           ],
                                           Text(
@@ -850,14 +1195,14 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
                                   ),
                                   if (_isListening) ...[
                                     const SizedBox(height: 16),
-                                    AudioWaveformIndicator(isListening: _isListening),
+                                    AudioWaveformIndicator(
+                                      isListening: _isListening,
+                                    ),
                                   ],
                                 ],
                               ),
                             ),
                             const SizedBox(height: 24),
-
-
 
                             // ENTIDADES RECONHECIDAS EM CHIPS DE ALTO CONTRASTE
                             if (_transcricao.isNotEmpty)
@@ -867,7 +1212,10 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
                                 decoration: BoxDecoration(
                                   color: Colors.white,
                                   borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(color: AppColors.primaryContainer, width: 2),
+                                  border: Border.all(
+                                    color: AppColors.primaryContainer,
+                                    width: 2,
+                                  ),
                                   boxShadow: const [
                                     BoxShadow(
                                       color: Colors.black12,
@@ -878,10 +1226,15 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
                                 ),
                                 child: Column(
                                   children: [
-                                    const Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
                                       children: [
-                                        Icon(Icons.record_voice_over, color: AppColors.primary, size: 26),
+                                        Icon(
+                                          Icons.record_voice_over,
+                                          color: AppColors.primary,
+                                          size: 26,
+                                        ),
                                         SizedBox(width: 8),
                                         Text(
                                           'O que eu entendi:',
@@ -896,7 +1249,7 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
                                     const SizedBox(height: 12),
                                     Text(
                                       '"$_transcricao"',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 22,
                                         fontWeight: FontWeight.w700,
                                         color: AppColors.onSurface,
@@ -915,17 +1268,30 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
                                         }
                                         _falarConfirmacao();
                                       },
-                                      icon: const Icon(Icons.volume_up, size: 28),
+                                      icon: const Icon(
+                                        Icons.volume_up,
+                                        size: 28,
+                                      ),
                                       label: const Text(
                                         'Ouvir o que falei',
-                                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: AppColors.primaryContainer,
-                                        foregroundColor: AppColors.onPrimaryContainer,
-                                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                        backgroundColor:
+                                            AppColors.primaryContainer,
+                                        foregroundColor:
+                                            AppColors.onPrimaryContainer,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 20,
+                                          vertical: 12,
+                                        ),
                                         shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(16),
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -966,7 +1332,8 @@ class _PulsingWaves extends StatefulWidget {
   State<_PulsingWaves> createState() => _PulsingWavesState();
 }
 
-class _PulsingWavesState extends State<_PulsingWaves> with SingleTickerProviderStateMixin {
+class _PulsingWavesState extends State<_PulsingWaves>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
   @override
@@ -1011,7 +1378,10 @@ class _PulsingWavesState extends State<_PulsingWaves> with SingleTickerProviderS
             Transform.scale(
               scale: 1.0 + (((_controller.value + 0.5) % 1.0) * 0.3),
               child: Opacity(
-                opacity: (1.0 - ((_controller.value + 0.5) % 1.0)).clamp(0.0, 1.0),
+                opacity: (1.0 - ((_controller.value + 0.5) % 1.0)).clamp(
+                  0.0,
+                  1.0,
+                ),
                 child: Container(
                   width: widget.size,
                   height: widget.size,

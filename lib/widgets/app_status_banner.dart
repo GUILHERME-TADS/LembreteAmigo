@@ -81,7 +81,7 @@ class _StatusCard extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   message.message,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.onSurface,
                     fontSize: 13,
                     height: 1.25,

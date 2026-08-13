@@ -10,7 +10,8 @@ import 'audio_manager.dart';
 import 'alex_avatar.dart';
 
 class AudioPlayerCard extends StatefulWidget {
-  final Color accentColor;
+  final Color? _accentColor;
+  Color get accentColor => _accentColor ?? AppColors.primary;
   final String subtitle;
   final String? audioPath;
   final List<String>? textsToSpeak;
@@ -19,13 +20,13 @@ class AudioPlayerCard extends StatefulWidget {
 
   const AudioPlayerCard({
     super.key,
-    this.accentColor = AppColors.primary,
+    Color? accentColor,
     this.subtitle = 'Ouça todos os lembretes do dia',
     this.audioPath,
     this.textsToSpeak,
     this.isChatDesign = false,
     this.defaultDuration,
-  });
+  }) : _accentColor = accentColor;
 
   @override
   State<AudioPlayerCard> createState() => _AudioPlayerCardState();
@@ -67,7 +68,9 @@ class _AudioPlayerCardState extends State<AudioPlayerCard>
 
     // Preload source to fetch and display audio duration immediately on screen
     if (_hasAudio) {
-      _audioPlayer.setSource(audioSourceForPath(widget.audioPath!)).catchError((e) {
+      _audioPlayer.setSource(audioSourceForPath(widget.audioPath!)).catchError((
+        e,
+      ) {
         debugPrint('Erro ao definir fonte de áudio inicial no init: $e');
       });
     }
@@ -82,9 +85,13 @@ class _AudioPlayerCardState extends State<AudioPlayerCard>
         _duration = widget.defaultDuration ?? Duration.zero;
       });
       if (_hasAudio) {
-        _audioPlayer.setSource(audioSourceForPath(widget.audioPath!)).catchError((e) {
-          debugPrint('Erro ao atualizar fonte de áudio no didUpdateWidget: $e');
-        });
+        _audioPlayer
+            .setSource(audioSourceForPath(widget.audioPath!))
+            .catchError((e) {
+              debugPrint(
+                'Erro ao atualizar fonte de áudio no didUpdateWidget: $e',
+              );
+            });
       }
     } else if (oldWidget.defaultDuration != widget.defaultDuration) {
       setState(() {
@@ -180,9 +187,7 @@ class _AudioPlayerCardState extends State<AudioPlayerCard>
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text(
-              'Não encontrei o som. Grave de novo.',
-            ),
+            content: const Text('Não encontrei o som. Grave de novo.'),
             backgroundColor: AppColors.error,
           ),
         );
@@ -204,7 +209,7 @@ class _AudioPlayerCardState extends State<AudioPlayerCard>
           _waveController.reset();
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text('Não consegui tocar o som. Tente de novo.'),
             backgroundColor: AppColors.error,
           ),
@@ -261,7 +266,9 @@ class _AudioPlayerCardState extends State<AudioPlayerCard>
               children: [
                 IconButton(
                   icon: Icon(
-                    _isPlaying ? Icons.pause_circle_filled : Icons.play_circle_fill,
+                    _isPlaying
+                        ? Icons.pause_circle_filled
+                        : Icons.play_circle_fill,
                     color: widget.accentColor,
                     size: playIconSize,
                   ),
@@ -278,12 +285,20 @@ class _AudioPlayerCardState extends State<AudioPlayerCard>
                       SliderTheme(
                         data: SliderTheme.of(context).copyWith(
                           trackHeight: trackHeight,
-                          thumbShape: RoundSliderThumbShape(enabledThumbRadius: thumbRadius),
-                          overlayShape: RoundSliderOverlayShape(overlayRadius: overlayRadius),
+                          thumbShape: RoundSliderThumbShape(
+                            enabledThumbRadius: thumbRadius,
+                          ),
+                          overlayShape: RoundSliderOverlayShape(
+                            overlayRadius: overlayRadius,
+                          ),
                           activeTrackColor: widget.accentColor,
-                          inactiveTrackColor: widget.accentColor.withValues(alpha: 0.2),
+                          inactiveTrackColor: widget.accentColor.withValues(
+                            alpha: 0.2,
+                          ),
                           thumbColor: widget.accentColor,
-                          overlayColor: widget.accentColor.withValues(alpha: 0.1),
+                          overlayColor: widget.accentColor.withValues(
+                            alpha: 0.1,
+                          ),
                           padding: EdgeInsets.zero,
                         ),
                         child: Slider(
@@ -292,10 +307,11 @@ class _AudioPlayerCardState extends State<AudioPlayerCard>
                               ? _duration.inMilliseconds.toDouble()
                               : 1.0,
                           value: _position.inMilliseconds.toDouble().clamp(
-                              0.0,
-                              _duration.inMilliseconds.toDouble() > 0.0
-                                  ? _duration.inMilliseconds.toDouble()
-                                  : 1.0),
+                            0.0,
+                            _duration.inMilliseconds.toDouble() > 0.0
+                                ? _duration.inMilliseconds.toDouble()
+                                : 1.0,
+                          ),
                           onChanged: (value) async {
                             final pos = Duration(milliseconds: value.toInt());
                             await _audioPlayer.seek(pos);
@@ -320,11 +336,7 @@ class _AudioPlayerCardState extends State<AudioPlayerCard>
                   ),
                 ),
                 const SizedBox(width: 8),
-                Icon(
-                  Icons.mic,
-                  color: widget.accentColor,
-                  size: micIconSize,
-                ),
+                Icon(Icons.mic, color: widget.accentColor, size: micIconSize),
               ],
             ),
           ],
@@ -365,7 +377,7 @@ class _AudioPlayerCardState extends State<AudioPlayerCard>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'ESCUTE OS LEMBRETES',
                         style: TextStyle(
                           fontSize: 16,
@@ -377,7 +389,7 @@ class _AudioPlayerCardState extends State<AudioPlayerCard>
                       const SizedBox(height: 4),
                       Text(
                         widget.subtitle,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                           color: AppColors.onSurfaceVariant,

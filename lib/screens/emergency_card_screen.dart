@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
 import 'package:intl/intl.dart';
 import 'package:qr/qr.dart';
 import 'package:share_plus/share_plus.dart';
@@ -146,14 +147,14 @@ class _EmergencyCardScreenState extends State<EmergencyCardScreen> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.amber.shade50,
+        color: AppColors.warningContainer,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.amber.shade300),
+        border: Border.all(color: AppColors.secondaryContainer),
       ),
-      child: const Row(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.lock_outline, color: Colors.brown),
+          Icon(Icons.lock_outline, color: AppColors.onWarningContainer),
           SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -173,15 +174,15 @@ class _EmergencyCardScreenState extends State<EmergencyCardScreen> {
           width: double.infinity,
           padding: const EdgeInsets.all(22),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFFB3261E), Color(0xFFE85D4A)],
+            gradient: LinearGradient(
+              colors: [AppColors.error, AppColors.errorContainer],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(24),
-            boxShadow: const [
+            boxShadow: [
               BoxShadow(
-                color: Color(0x33000000),
+                color: AppColors.shadow,
                 blurRadius: 18,
                 offset: Offset(0, 8),
               ),

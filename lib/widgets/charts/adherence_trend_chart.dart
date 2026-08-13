@@ -1,5 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import '../../../theme/app_theme.dart';
 
 import 'chart_colors.dart';
 
@@ -51,7 +52,7 @@ class AdherenceTrendChart extends StatelessWidget {
                 drawVerticalLine: false,
                 horizontalInterval: 25,
                 getDrawingHorizontalLine: (value) => FlLine(
-                  color: Colors.grey.withValues(alpha: 0.15),
+                  color: AppColors.outline.withValues(alpha: 0.15),
                   strokeWidth: 1,
                 ),
               ),
@@ -65,7 +66,7 @@ class AdherenceTrendChart extends StatelessWidget {
                       if (value == 0) return const SizedBox.shrink();
                       return Text(
                         '${value.toInt()}%',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 10,
                           color: ChartColors.onSurfaceVariant,
                         ),
@@ -84,9 +85,19 @@ class AdherenceTrendChart extends StatelessWidget {
                         return const SizedBox.shrink();
                       }
                       final day = DateTime(
-                        now.year, now.month, now.day - (daysToShow - 1 - index),
+                        now.year,
+                        now.month,
+                        now.day - (daysToShow - 1 - index),
                       );
-                      final labels = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'];
+                      final labels = [
+                        'Dom',
+                        'Seg',
+                        'Ter',
+                        'Qua',
+                        'Qui',
+                        'Sex',
+                        'Sab',
+                      ];
                       return Padding(
                         padding: const EdgeInsets.only(top: 6),
                         child: Text(
@@ -147,7 +158,9 @@ class AdherenceTrendChart extends StatelessWidget {
                     return touchedSpots.map((spot) {
                       final index = spot.x.toInt();
                       final day = DateTime(
-                        now.year, now.month, now.day - (daysToShow - 1 - index),
+                        now.year,
+                        now.month,
+                        now.day - (daysToShow - 1 - index),
                       );
                       final dateStr =
                           '${day.day.toString().padLeft(2, '0')}/${day.month.toString().padLeft(2, '0')}';
@@ -175,7 +188,7 @@ class AdherenceTrendChart extends StatelessWidget {
           children: [
             _legendDot(ChartColors.primary),
             const SizedBox(width: 4),
-            const Text(
+            Text(
               'Adesão diária',
               style: TextStyle(
                 fontSize: 11,
@@ -189,7 +202,7 @@ class AdherenceTrendChart extends StatelessWidget {
   }
 
   Widget _emptyState() {
-    return const SizedBox(
+    return SizedBox(
       height: 200,
       child: Center(
         child: Column(

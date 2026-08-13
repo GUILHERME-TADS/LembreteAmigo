@@ -354,7 +354,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
       debugPrint('Erro ao concluir lembrete: $error');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text('Nao consegui marcar como feito. Tente de novo.'),
             backgroundColor: AppColors.error,
           ),
@@ -408,7 +408,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
       if (!LembreteService.instance.podeAdiar(reminder.id)) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
+            SnackBar(
               content: Text(
                 'O limite de adiamentos acabou. Conclua ou peca ajuda.',
               ),
@@ -427,7 +427,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
       if (!mounted) return;
       if (!ok) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text('Nao consegui adiar este lembrete.'),
             backgroundColor: AppColors.error,
           ),
@@ -531,13 +531,13 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(
+                Icon(
                   Icons.error_outline,
                   color: AppColors.error,
                   size: 72,
                 ),
                 const SizedBox(height: 16),
-                const Text(
+                Text(
                   'Lembrete não encontrado',
                   textAlign: TextAlign.center,
                   style: TextStyle(
@@ -547,7 +547,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                   ),
                 ),
                 const SizedBox(height: 12),
-                const Text(
+                Text(
                   'Não consegui abrir este lembrete. Volte para o início e tente de novo.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
@@ -596,7 +596,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
   Widget build(BuildContext context) {
     if (_notFound) return _buildMissingReminderScaffold();
     if (lembrete == null) {
-      return const Scaffold(
+      return Scaffold(
         backgroundColor: AppColors.background,
         body: Center(
           child: CircularProgressIndicator(color: AppColors.primary),
@@ -706,14 +706,14 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                             Builder(
                               builder: (context) {
                                 final border = isHighContrast
-                                    ? Border.all(color: Colors.red, width: 4)
-                                    : Border.all(color: Colors.red, width: 6);
+                                    ? Border.all(color: AppColors.error, width: 4)
+                                    : Border.all(color: AppColors.error, width: 6);
 
                                 final shadow = isHighContrast
                                     ? null
                                     : [
                                         BoxShadow(
-                                          color: Colors.red.withValues(
+                                          color: AppColors.error.withValues(
                                             alpha: 0.25,
                                           ),
                                           blurRadius: 24,
@@ -846,7 +846,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: isHighContrast
                                       ? Colors.black
-                                      : const Color(0xFF2E7D32),
+                                      : AppColors.success,
                                   foregroundColor: Colors.white,
                                   elevation: 6,
                                   shape: RoundedRectangleBorder(
@@ -896,11 +896,11 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                 ),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: isHighContrast
-                                      ? Colors.yellow
-                                      : const Color(0xFFFFD54F),
+                                      ? AppColors.secondaryContainer
+                                      : AppColors.secondaryContainer,
                                   foregroundColor: isHighContrast
                                       ? Colors.black
-                                      : const Color(0xFF5D4037),
+                                      : AppColors.onWarningContainer,
                                   elevation: 4,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(24),
@@ -996,7 +996,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                   size: 30,
                                   color: _isPaired
                                       ? Colors.white
-                                      : Colors.grey.shade600,
+                                      : AppColors.onSurfaceVariant,
                                 ),
                                 label: FittedBox(
                                   fit: BoxFit.scaleDown,
@@ -1008,15 +1008,15 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                       fontWeight: FontWeight.w800,
                                       color: _isPaired
                                           ? Colors.white
-                                          : Colors.grey.shade600,
+                                          : AppColors.onSurfaceVariant,
                                     ),
                                   ),
                                 ),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: isHighContrast
-                                      ? Colors.red
-                                      : const Color(0xFFD32F2F),
-                                  disabledBackgroundColor: Colors.grey.shade300,
+                                      ? AppColors.error
+                                      : AppColors.error,
+                                  disabledBackgroundColor: AppColors.outlineVariant,
                                   foregroundColor: Colors.white,
                                   elevation: _isPaired ? 4 : 0,
                                   shape: RoundedRectangleBorder(
@@ -1033,7 +1033,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                             ),
                             if (!_isPaired) ...[
                               const SizedBox(height: 8),
-                              const Text(
+                              Text(
                                 'Precisa de um cuidador conectado para pedir ajuda',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(

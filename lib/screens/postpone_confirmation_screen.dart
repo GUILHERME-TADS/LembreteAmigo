@@ -100,7 +100,7 @@ class _PostponeConfirmationScreenState extends State<PostponeConfirmationScreen>
       case 'hidratacao':
         return _CategoryConfig(
           icon: Icons.water_drop,
-          color: const Color(0xFF0288D1),
+          color: AppColors.info,
           titleText: 'HORA DA HIDRATAÇÃO',
           message: isDificuldade
               ? 'Tudo bem, não se preocupe! Já enviei um recado para o seu cuidador avisando que você precisa de ajuda para beber água.'
@@ -115,7 +115,7 @@ class _PostponeConfirmationScreenState extends State<PostponeConfirmationScreen>
       case 'exercicio':
         return _CategoryConfig(
           icon: Icons.directions_walk,
-          color: const Color(0xFF2E7D32),
+          color: AppColors.success,
           titleText: 'HORA DO EXERCÍCIO',
           message: isDificuldade
               ? 'Tudo bem, não se preocupe! Já enviei um recado para o seu cuidador avisando que você precisa de ajuda com o seu exercício.'
@@ -150,8 +150,8 @@ class _PostponeConfirmationScreenState extends State<PostponeConfirmationScreen>
     final cfg = _config;
     final isDificuldade = _tipo == 'dificuldade';
     final gradientColors = isDificuldade
-        ? const [Color(0xFFFFEBEE), Color(0xFFFFCDD2)] // soft red
-        : const [Color(0xFFFFF8E1), Color(0xFFFFE082)]; // soft yellow
+        ? [AppColors.errorContainer, AppColors.errorContainer] // soft red
+        : [AppColors.warningContainer, AppColors.secondaryContainer]; // soft yellow
 
     return PopScope(
       canPop: false,
@@ -195,7 +195,7 @@ class _PostponeConfirmationScreenState extends State<PostponeConfirmationScreen>
                               Text(
                                 cfg.titleText,
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 26,
                                   fontWeight: FontWeight.w700,
                                   height: 1.2,
@@ -228,7 +228,7 @@ class _PostponeConfirmationScreenState extends State<PostponeConfirmationScreen>
                                 ),
                                 child: Column(
                                   children: [
-                                    const Text(
+                                    Text(
                                       'O QUE ACONTECEU:',
                                       style: TextStyle(
                                         fontSize: 16,
@@ -254,7 +254,7 @@ class _PostponeConfirmationScreenState extends State<PostponeConfirmationScreen>
                                     Text(
                                       cfg.tip,
                                       textAlign: TextAlign.center,
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 20,
                                         fontWeight: FontWeight.w500,
                                         color: AppColors.onSurfaceVariant,
@@ -320,7 +320,7 @@ class _PostponeConfirmationScreenState extends State<PostponeConfirmationScreen>
       padding: const EdgeInsets.symmetric(horizontal: 20),
       height: 64,
       decoration: const BoxDecoration(color: Colors.transparent),
-      child: const Center(
+      child: Center(
         child: Text(
           'Lembrete Amigo',
           style: TextStyle(
@@ -364,7 +364,7 @@ class _PostponeConfirmationScreenState extends State<PostponeConfirmationScreen>
                 _tipo == 'dificuldade'
                     ? Icons.warning_amber_rounded
                     : Icons.access_time_rounded,
-                color: _tipo == 'dificuldade' ? Colors.red : Colors.amber,
+                color: _tipo == 'dificuldade' ? AppColors.error : AppColors.warning,
                 size: 22,
               ),
             ),

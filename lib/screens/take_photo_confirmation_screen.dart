@@ -157,7 +157,7 @@ class _TakePhotoConfirmationScreenState
     if (_cameraController == null || !_cameraController!.value.isInitialized) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text('Não consegui usar a câmera. Tente de novo.'),
             backgroundColor: AppColors.error,
           ),
@@ -321,7 +321,7 @@ class _TakePhotoConfirmationScreenState
       );
     }
     if (!_isCameraInitialized || _cameraController == null) {
-      return const Center(
+      return Center(
         child: CircularProgressIndicator(color: AppColors.secondaryContainer),
       );
     }
@@ -423,7 +423,7 @@ class _TakePhotoConfirmationScreenState
                 size: 72,
               ),
               const SizedBox(height: 12),
-              const Icon(Icons.circle, color: Colors.redAccent, size: 32),
+              Icon(Icons.circle, color: AppColors.error, size: 32),
               const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.symmetric(
@@ -484,11 +484,11 @@ class _TakePhotoConfirmationScreenState
                   child: Container(
                     width: compact ? 54 : 68,
                     height: compact ? 54 : 68,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: AppColors.secondaryContainer,
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.camera_alt,
                       color: AppColors.onSecondaryContainer,
                       size: 36,
@@ -548,7 +548,7 @@ class _TakePhotoConfirmationScreenState
                     ),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFD32F2F),
+                    backgroundColor: AppColors.error,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
@@ -651,7 +651,7 @@ class _TakePhotoConfirmationScreenState
                               );
                             } else {
                               scaffoldMessenger.showSnackBar(
-                                const SnackBar(
+                                SnackBar(
                                   content: Text(
                                     'Não consegui achar este lembrete. Volte e abra de novo.',
                                   ),
@@ -700,7 +700,7 @@ class _TakePhotoConfirmationScreenState
                     ),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2E7D32),
+                    backgroundColor: AppColors.success,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),

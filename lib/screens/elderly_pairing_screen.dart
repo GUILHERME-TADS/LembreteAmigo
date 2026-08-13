@@ -301,7 +301,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
                               }
                             },
                             borderRadius: BorderRadius.circular(12),
-                            child: const Padding(
+                            child: Padding(
                               padding: EdgeInsets.symmetric(
                                 horizontal: 8,
                                 vertical: 4,
@@ -313,7 +313,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
                               ),
                             ),
                           ),
-                          const Expanded(
+                          Expanded(
                             child: Text(
                               'Lembrete Amigo',
                               textAlign: TextAlign.center,
@@ -330,7 +330,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
                       const SizedBox(height: 12),
                       if (_showModeSelection) ...[
                         const SizedBox(height: 32),
-                        const Text(
+                        Text(
                           'Como você vai usar?',
                           textAlign: TextAlign.center,
                           style: TextStyle(
@@ -341,7 +341,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        const Text(
+                        Text(
                           'Escolha uma das opções abaixo para começar.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
@@ -375,7 +375,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
                         const SizedBox(height: 24),
                       ] else ...[
                         const SizedBox(height: 24),
-                        const Text(
+                        Text(
                           'Conectar com Cuidador',
                           textAlign: TextAlign.center,
                           style: TextStyle(
@@ -402,7 +402,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
                               color: AppColors.secondaryContainer,
                               borderRadius: BorderRadius.circular(16),
                             ),
-                            child: const Row(
+                            child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(
@@ -425,7 +425,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
                         ),
                         const SizedBox(height: 24),
                         if (_isLoading)
-                          const Center(
+                          Center(
                             child: CircularProgressIndicator(
                               color: AppColors.primary,
                             ),
@@ -453,7 +453,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
                                   ),
                                   child: Text(
                                     _pairingCode![index],
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 40,
                                       fontWeight: FontWeight.w900,
                                       color: AppColors.primary,
@@ -469,7 +469,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
                           Text(
                             _errorMessage!,
                             textAlign: TextAlign.center,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 16,
                               color: AppColors.error,
                               fontWeight: FontWeight.bold,
@@ -478,7 +478,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
                         ],
                         const SizedBox(height: 40),
                         if (!_isLoading) ...[
-                          const Center(
+                          Center(
                             child: Text(
                               'Aguardando o cuidador digitar o código...',
                               textAlign: TextAlign.center,
@@ -513,7 +513,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
                               ),
                             ),
                             style: OutlinedButton.styleFrom(
-                              side: const BorderSide(
+                              side: BorderSide(
                                 color: AppColors.primary,
                                 width: 2,
                               ),

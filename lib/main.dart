@@ -220,6 +220,23 @@ class _RouteTracker extends NavigatorObserver {
   }
 }
 
+class _NoPageTransitionsBuilder extends PageTransitionsBuilder {
+  const _NoPageTransitionsBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    return child;
+  }
+}
+
+const _noPageTransitions = _NoPageTransitionsBuilder();
+
 Future<void> _activateAppCheck() async {
   const webSiteKey = String.fromEnvironment(
     'FIREBASE_APP_CHECK_WEB_KEY',
@@ -257,6 +274,7 @@ Future<void> _activateAppCheck() async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await AppThemeController.load();
   runApp(const _StartupApp());
 
   try {
@@ -457,7 +475,9 @@ class _StartupApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: AppTheme.theme,
-      home: const Scaffold(
+      darkTheme: AppTheme.darkTheme,
+      themeMode: AppThemeController.mode.value,
+      home: Scaffold(
         backgroundColor: AppColors.surface,
         body: SafeArea(
           child: Center(
@@ -531,6 +551,7 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     _reminderNotificationActionInProgress = false;
+    AppThemeController.mode.addListener(_onThemeModeChanged);
     WidgetsBinding.instance.addObserver(this);
     unawaited(OfflineSyncService.instance.startAutoSync());
     _loadAccessibilityPreferences();
@@ -709,6 +730,10 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
     }
   }
 
+  void _onThemeModeChanged() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _lifecycleState = state;
@@ -779,6 +804,7 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
     OfflineSyncService.instance.stopAutoSync();
     PresenceService.instance.stopHeartbeat();
     LembreteService.instance.notifier.removeListener(_openDueReminderIfNeeded);
+    AppThemeController.mode.removeListener(_onThemeModeChanged);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -876,6 +902,56 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
     return interval;
   }
 
+  ThemeData _configuredTheme(ThemeData base) {
+    final spacious = _largeButtons || SessionRoleService.isElderly;
+    final buttonSize = spacious ? const Size(64, 64) : const Size(48, 52);
+    final buttonPadding = spacious
+        ? const EdgeInsets.symmetric(horizontal: 32, vertical: 22)
+        : const EdgeInsets.symmetric(horizontal: 24, vertical: 16);
+    return base.copyWith(
+      pageTransitionsTheme: _reduceAnimations
+          ? const PageTransitionsTheme(
+              builders: {
+                TargetPlatform.android: _noPageTransitions,
+                TargetPlatform.fuchsia: _noPageTransitions,
+                TargetPlatform.iOS: _noPageTransitions,
+                TargetPlatform.linux: _noPageTransitions,
+                TargetPlatform.macOS: _noPageTransitions,
+                TargetPlatform.windows: _noPageTransitions,
+              },
+            )
+          : base.pageTransitionsTheme,
+      splashFactory: _reduceAnimations
+          ? NoSplash.splashFactory
+          : base.splashFactory,
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: base.elevatedButtonTheme.style?.copyWith(
+          padding: WidgetStatePropertyAll(buttonPadding),
+          minimumSize: WidgetStatePropertyAll(buttonSize),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: base.filledButtonTheme.style?.copyWith(
+          padding: WidgetStatePropertyAll(buttonPadding),
+          minimumSize: WidgetStatePropertyAll(buttonSize),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: base.outlinedButtonTheme.style?.copyWith(
+          padding: WidgetStatePropertyAll(buttonPadding),
+          minimumSize: WidgetStatePropertyAll(buttonSize),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: base.textButtonTheme.style?.copyWith(
+          minimumSize: WidgetStatePropertyAll(
+            spacious ? const Size(64, 48) : const Size(48, 44),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -889,42 +965,14 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: const [Locale('pt', 'BR')],
-      theme: AppTheme.theme.copyWith(
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            padding: _largeButtons
-                ? const EdgeInsets.symmetric(horizontal: 32, vertical: 24)
-                : const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            minimumSize: _largeButtons
-                ? const Size(64, 64)
-                : const Size(48, 48),
-          ),
-        ),
-        outlinedButtonTheme: OutlinedButtonThemeData(
-          style: OutlinedButton.styleFrom(
-            padding: _largeButtons
-                ? const EdgeInsets.symmetric(horizontal: 32, vertical: 24)
-                : const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            minimumSize: _largeButtons
-                ? const Size(64, 64)
-                : const Size(48, 48),
-          ),
-        ),
-        textButtonTheme: TextButtonThemeData(
-          style: TextButton.styleFrom(
-            padding: _largeButtons
-                ? const EdgeInsets.symmetric(horizontal: 24, vertical: 18)
-                : const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            minimumSize: _largeButtons
-                ? const Size(64, 48)
-                : const Size(48, 36),
-          ),
-        ),
-      ),
+      theme: _configuredTheme(AppTheme.light(highContrast: _highContrast)),
+      darkTheme: _configuredTheme(AppTheme.dark(highContrast: _highContrast)),
+      themeMode: AppThemeController.mode.value,
       builder: (context, child) {
         final mediaQuery = MediaQuery.of(context);
         final systemScale = mediaQuery.textScaler.scale(1.0);
-        final scaleFactor = systemScale * (_largeText ? 1.15 : 1.0);
+        final roleScale = SessionRoleService.isElderly ? 1.05 : 1.0;
+        final scaleFactor = systemScale * roleScale * (_largeText ? 1.15 : 1.0);
         return MediaQuery(
           data: mediaQuery.copyWith(
             textScaler: TextScaler.linear(scaleFactor.clamp(1.0, 2.5)),
@@ -1342,7 +1390,7 @@ class _AppStartupState extends State<_AppStartup> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
       backgroundColor: AppColors.background,
       body: Center(
         child: Column(

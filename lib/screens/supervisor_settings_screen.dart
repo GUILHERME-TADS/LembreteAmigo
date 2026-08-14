@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import '../theme/app_theme.dart';
 import '../widgets/theme_mode_selector.dart';
+import '../services/care_preferences_service.dart';
 import '../services/session_role_service.dart';
 import '../services/lembrete_service.dart';
 import '../services/message_service.dart';
@@ -24,6 +25,8 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
   String _userName = 'Carregando...';
   String _userEmail = '';
   String? _fotoPath;
+  bool _dailySummaryEnabled = true;
+  TimeOfDay _dailySummaryTime = const TimeOfDay(hour: 20, minute: 0);
 
   @override
   void initState() {
@@ -32,6 +35,16 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
   }
 
   Future<void> _loadPreferences() async {
+    final carePreferences = await CarePreferencesService.instance.load();
+    if (mounted) {
+      setState(() {
+        _dailySummaryEnabled = carePreferences.dailySummaryEnabled;
+        _dailySummaryTime = TimeOfDay(
+          hour: carePreferences.dailySummaryHour,
+          minute: carePreferences.dailySummaryMinute,
+        );
+      });
+    }
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       setState(() {
@@ -56,6 +69,38 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
         debugPrint('Erro ao buscar dados do supervisor no Firestore: $e');
       }
     }
+  }
+
+  Future<void> _setDailySummaryEnabled(bool enabled) async {
+    setState(() => _dailySummaryEnabled = enabled);
+    await CarePreferencesService.instance.setDailySummary(
+      enabled: enabled,
+      hour: _dailySummaryTime.hour,
+      minute: _dailySummaryTime.minute,
+    );
+  }
+
+  Future<void> _pickDailySummaryTime() async {
+    final selected = await showTimePicker(
+      context: context,
+      initialTime: _dailySummaryTime,
+      helpText: 'HORÁRIO DO RESUMO DIÁRIO',
+    );
+    if (selected == null || !mounted) return;
+    setState(() => _dailySummaryTime = selected);
+    await CarePreferencesService.instance.setDailySummary(
+      enabled: _dailySummaryEnabled,
+      hour: selected.hour,
+      minute: selected.minute,
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Resumo diário programado para ${selected.format(context)}.',
+        ),
+      ),
+    );
   }
 
   Future<void> _changePhoto() async {
@@ -310,6 +355,39 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
                     ),
                     const SizedBox(height: 24),
                     const ThemeModeSelector(),
+                    const SizedBox(height: 24),
+                    _settingsGroup('Resumo e treinamento', [
+                      SwitchListTile(
+                        secondary: Icon(
+                          Icons.summarize_outlined,
+                          color: AppColors.primary,
+                        ),
+                        title: const Text(
+                          'Lembrete do resumo diário',
+                          style: TextStyle(fontSize: 18),
+                        ),
+                        subtitle: const Text(
+                          'Receba um aviso para revisar pendências e confirmações.',
+                        ),
+                        value: _dailySummaryEnabled,
+                        onChanged: _setDailySummaryEnabled,
+                      ),
+                      _settingsTile(
+                        Icons.schedule,
+                        'Horário do resumo',
+                        _dailySummaryTime.format(context),
+                        onTap: _dailySummaryEnabled
+                            ? _pickDailySummaryTime
+                            : null,
+                      ),
+                      _settingsTile(
+                        Icons.school_outlined,
+                        'Modo de treinamento',
+                        'Pratique confirmações sem alterar dados reais',
+                        onTap: () =>
+                            Navigator.pushNamed(context, '/practice-mode'),
+                      ),
+                    ]),
                     const SizedBox(height: 24),
                     _settingsGroup('Ações e Preferências', [
                       _settingsTile(

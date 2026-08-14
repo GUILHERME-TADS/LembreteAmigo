@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../theme/app_theme.dart';
 import '../models/lembrete.dart';
 import '../services/lembrete_service.dart';
+import '../services/medication_safety_service.dart';
 import '../widgets/supervisor_bottom_nav.dart';
 import '../widgets/custom_time_picker.dart';
 import '../widgets/supervisor_drawer.dart';
@@ -668,11 +669,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                       ),
                     ),
                     if (!isActive)
-                      Icon(
-                        Icons.edit_note,
-                        color: AppColors.outline,
-                        size: 24,
-                      ),
+                      Icon(Icons.edit_note, color: AppColors.outline, size: 24),
                   ],
                 ),
                 if (!isActive && summary != null && summary.isNotEmpty) ...[
@@ -736,11 +733,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
             children: [
               IconButton(
                 onPressed: () => Scaffold.of(context).openDrawer(),
-                icon: Icon(
-                  Icons.menu,
-                  color: AppColors.primary,
-                  size: 32,
-                ),
+                icon: Icon(Icons.menu, color: AppColors.primary, size: 32),
               ),
               Expanded(
                 child: Text(
@@ -777,11 +770,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
         children: [
           Row(
             children: [
-              Icon(
-                Icons.auto_awesome,
-                color: AppColors.primary,
-                size: 26,
-              ),
+              Icon(Icons.auto_awesome, color: AppColors.primary, size: 26),
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
@@ -1669,11 +1658,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
             ),
             child: Row(
               children: [
-                Icon(
-                  Icons.calendar_month,
-                  color: AppColors.primary,
-                  size: 28,
-                ),
+                Icon(Icons.calendar_month, color: AppColors.primary, size: 28),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
@@ -2246,6 +2231,87 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
     );
   }
 
+  Future<bool> _confirmMedicationSafety(String title) async {
+    final time = _selectedTime;
+    if (_selectedCategory != 'medicacao' || time == null) return true;
+    final oneTime = _selectedSingleDate != null || _selectedDiasSemana.isEmpty;
+    final startDate = _selectedSingleDate ?? _dataInicio;
+    final endDate = oneTime ? startDate : (_isUsoContinuo ? null : _dataFim);
+    final warnings = MedicationSafetyService.findScheduleConflicts(
+      title: title,
+      hour: time.hour,
+      minute: time.minute,
+      weekDays: _selectedDiasSemana,
+      existingReminders: LembreteService.instance.lembretes,
+      editingReminderId: widget.lembrete?.id,
+      startDate: startDate,
+      endDate: endDate,
+      oneTime: oneTime,
+    );
+    if (warnings.isEmpty || !mounted) return true;
+
+    final hasCritical = warnings.any(
+      (warning) => warning.severity == MedicationSafetySeverity.critical,
+    );
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: Icon(
+          hasCritical ? Icons.block : Icons.warning_amber_rounded,
+          color: hasCritical ? AppColors.error : AppColors.warning,
+          size: 48,
+        ),
+        title: Text(
+          hasCritical
+              ? 'Dose duplicada bloqueada'
+              : 'Confira os horários dos medicamentos',
+        ),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: warnings
+                  .map(
+                    (warning) => ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(
+                        warning.severity == MedicationSafetySeverity.critical
+                            ? Icons.error
+                            : Icons.info,
+                        color:
+                            warning.severity ==
+                                MedicationSafetySeverity.critical
+                            ? AppColors.error
+                            : AppColors.warning,
+                      ),
+                      title: Text(
+                        warning.title,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text(warning.message),
+                    ),
+                  )
+                  .toList(growable: false),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Voltar e corrigir'),
+          ),
+          if (!hasCritical)
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Horários conferidos'),
+            ),
+        ],
+      ),
+    );
+    return result == true;
+  }
+
   void _salvarLembrete() async {
     if (_isSaving) return;
     final titulo = _titleController.text.trim();
@@ -2383,6 +2449,11 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
       }
     }
 
+    if (!await _confirmMedicationSafety(titulo)) {
+      return;
+    }
+    if (!mounted) return;
+
     if (mounted) {
       setState(() => _isSaving = true);
     }
@@ -2459,7 +2530,9 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
             builder: (context) => AlertDialog(
               icon: Icon(
                 Icons.warning_amber_rounded,
-                color: severity == 'severe' ? AppColors.error : AppColors.warning,
+                color: severity == 'severe'
+                    ? AppColors.error
+                    : AppColors.warning,
                 size: 48,
               ),
               title: const Text(

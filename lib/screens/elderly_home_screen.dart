@@ -6,6 +6,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/lembrete.dart';
+import '../services/care_preferences_service.dart';
 import '../services/lembrete_service.dart';
 import '../services/session_role_service.dart';
 import '../services/tts_service.dart';
@@ -44,6 +45,8 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
 
   bool _rotinaDoDiaOnly = false;
   bool _isProcessingAction = false;
+  bool _simpleHomeEnabled = true;
+  bool _showFullRoutine = false;
   String? _fotoPath;
   AnimationController? _pulseController;
   Animation<double>? _pulseAnimation;
@@ -66,6 +69,14 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
       _onElderlyConnectionChanged,
     );
     SessionRoleService.watchElderlyConnection();
+    CarePreferencesService.instance.notifier.addListener(
+      _onCarePreferencesChanged,
+    );
+    CarePreferencesService.instance.load().then((preferences) {
+      if (mounted) {
+        setState(() => _simpleHomeEnabled = preferences.simpleHomeEnabled);
+      }
+    });
     _checkConnection();
     _loadProfilePhoto();
     if (widget.speakText != null) {
@@ -77,6 +88,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
       const Duration(seconds: 30),
       (_) => _checkConnection(),
     );
+    unawaited(CarePreferencesService.instance.restoreDailySummarySchedule());
 
     // Pulse Controller Setup
     _pulseController = AnimationController(
@@ -123,6 +135,15 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     }
   }
 
+  void _onCarePreferencesChanged() {
+    if (!mounted) return;
+    setState(() {
+      _simpleHomeEnabled =
+          CarePreferencesService.instance.value.simpleHomeEnabled;
+      if (!_simpleHomeEnabled) _showFullRoutine = true;
+    });
+  }
+
   void _syncReminderState(Iterable<Lembrete> lembretes) {
     _lembretes = ReminderStateHelper.activeTodaySorted(lembretes);
     _ultimoLembrete = ReminderStateHelper.nextReminder(_lembretes);
@@ -136,6 +157,9 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     LembreteService.instance.notifier.removeListener(_onLembretesChanged);
     SessionRoleService.elderlyConnectionNotifier.removeListener(
       _onElderlyConnectionChanged,
+    );
+    CarePreferencesService.instance.notifier.removeListener(
+      _onCarePreferencesChanged,
     );
     TTSService.instance.parar(caller: this);
     _audioPlayer.dispose();
@@ -494,9 +518,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
               child: Container(
                 padding: const EdgeInsets.all(2),
                 decoration: BoxDecoration(
-                  color: isHighContrast
-                      ? Colors.black
-                      : AppColors.success,
+                  color: isHighContrast ? Colors.black : AppColors.success,
                   shape: BoxShape.circle,
                   boxShadow: const [
                     BoxShadow(
@@ -1492,10 +1514,30 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                         ),
                         const SizedBox(height: 16),
                         _buildNextReminderBanner(),
-                        const SizedBox(height: 24),
-                        _buildRotinaToggle(),
-                        const SizedBox(height: 24),
-                        _buildTimeline(_lembretes),
+                        if (!_simpleHomeEnabled || _showFullRoutine) ...[
+                          const SizedBox(height: 24),
+                          _buildRotinaToggle(),
+                          const SizedBox(height: 24),
+                          _buildTimeline(_lembretes),
+                        ] else ...[
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 58,
+                            child: OutlinedButton.icon(
+                              onPressed: () =>
+                                  setState(() => _showFullRoutine = true),
+                              icon: const Icon(Icons.calendar_view_day),
+                              label: const Text(
+                                'Ver rotina completa',
+                                style: TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 24),
                         _buildMoreOptions(),
                         const SizedBox(height: 24),
@@ -1702,6 +1744,20 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     );
   }
 
+  Widget _buildPracticeShortcut() {
+    return ListTile(
+      minVerticalPadding: 14,
+      onTap: () => Navigator.pushNamed(context, '/practice-mode'),
+      leading: const Icon(Icons.school_outlined, size: 30),
+      title: const Text(
+        'Treinar o aplicativo',
+        style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+      ),
+      subtitle: const Text('Pratique sem alterar dados reais'),
+      trailing: const Icon(Icons.chevron_right),
+    );
+  }
+
   Widget _buildMoreOptions() {
     return Card(
       elevation: 0,
@@ -1719,6 +1775,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
         children: [
           _buildDeviceReadinessShortcut(),
           _buildCaregiverNetworkShortcut(),
+          _buildPracticeShortcut(),
         ],
       ),
     );
@@ -1762,7 +1819,9 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
           child: FilledButton(
             onPressed: () => _postponeFocusedReminder(lembrete),
             style: style(
-              highContrast ? AppColors.secondaryContainer : AppColors.secondaryContainer,
+              highContrast
+                  ? AppColors.secondaryContainer
+                  : AppColors.secondaryContainer,
               highContrast ? Colors.black : AppColors.onSecondaryContainer,
             ),
             child: const Column(

@@ -52,4 +52,19 @@ class CrashlyticsService {
       await FirebaseCrashlytics.instance.setUserIdentifier(id);
     } catch (_) {}
   }
+
+  Future<void> setCustomKey(String key, Object value) async {
+    if (!_initialized) return;
+    try {
+      await FirebaseCrashlytics.instance.setCustomKey(key, value);
+    } catch (_) {}
+  }
+
+  Future<void> setSessionContext({
+    required String role,
+    required bool firebaseAvailable,
+  }) async {
+    await setCustomKey('active_role', role);
+    await setCustomKey('firebase_available', firebaseAvailable);
+  }
 }

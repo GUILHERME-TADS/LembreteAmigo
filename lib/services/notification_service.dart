@@ -24,6 +24,8 @@ class NotificationService {
   static const String _messagePayloadPrefix = 'app_message:';
   static const String _missedCallPayloadPrefix = 'missed_call:';
   static const String _supervisorAlertPayloadPrefix = 'supervisor_alert:';
+  static const String _dailySummaryPayload = 'daily_care_summary';
+  static const int _dailySummaryNotificationId = 990201;
   static const String callAcceptAction = 'call_accept';
   static const String callDeclineAction = 'call_decline';
   static const String messageOpenAction = 'message_open';
@@ -291,6 +293,11 @@ class NotificationService {
             ? '/video-call-history'
             : '/supervisor-dashboard',
       );
+      return;
+    }
+
+    if (payload == _dailySummaryPayload) {
+      _navigatorKey?.currentState?.pushNamed('/supervisor-dashboard');
       return;
     }
 
@@ -608,6 +615,59 @@ class NotificationService {
     _scheduledReminderIds.clear();
     _scheduledReminderSignatures.clear();
     await _saveScheduledRegistry();
+  }
+
+  Future<void> scheduleDailySummary({
+    required int hour,
+    required int minute,
+  }) async {
+    if (kIsWeb || !_initialized) return;
+    final now = tz.TZDateTime.now(tz.local);
+    var scheduled = tz.TZDateTime(
+      tz.local,
+      now.year,
+      now.month,
+      now.day,
+      hour.clamp(0, 23),
+      minute.clamp(0, 59),
+    );
+    if (!scheduled.isAfter(now)) {
+      scheduled = scheduled.add(const Duration(days: 1));
+    }
+
+    const androidDetails = AndroidNotificationDetails(
+      'care_daily_summary_v1',
+      'Resumo diário do cuidado',
+      channelDescription:
+          'Lembrete para revisar o resumo diário da pessoa acompanhada',
+      importance: Importance.defaultImportance,
+      priority: Priority.defaultPriority,
+      category: AndroidNotificationCategory.status,
+      visibility: NotificationVisibility.private,
+    );
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+      threadIdentifier: 'care_daily_summary',
+    );
+    await _plugin.zonedSchedule(
+      _dailySummaryNotificationId,
+      'Resumo do dia disponível',
+      'Veja confirmações, pendências, pedidos de ajuda e estoque.',
+      scheduled,
+      const NotificationDetails(android: androidDetails, iOS: iosDetails),
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.time,
+      payload: _dailySummaryPayload,
+    );
+  }
+
+  Future<void> cancelDailySummary() async {
+    if (kIsWeb || !_initialized) return;
+    await _plugin.cancel(_dailySummaryNotificationId);
   }
 
   Future<void> mostrarAlertaCuidador(SmartAlert alert) async {

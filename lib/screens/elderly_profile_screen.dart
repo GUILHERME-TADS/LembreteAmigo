@@ -12,6 +12,7 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../theme/app_theme.dart';
 import '../services/tts_service.dart';
 import '../services/lembrete_service.dart';
+import '../services/care_preferences_service.dart';
 import '../services/session_role_service.dart';
 import '../services/offline_sync_service.dart';
 import '../services/durable_media_service.dart';
@@ -19,6 +20,7 @@ import '../services/secure_cache_service.dart';
 import '../widgets/index.dart';
 import '../widgets/theme_mode_selector.dart';
 import '../widgets/custom_time_picker.dart';
+import '../widgets/critical_action_guard.dart';
 import '../models/lembrete.dart';
 import '../utils/period_helper.dart';
 import '../utils/firebase_helper.dart';
@@ -290,6 +292,14 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
     );
 
     if (confirm != true) return;
+    if (!context.mounted) return;
+    final authorized = await CriticalActionGuard.confirm(
+      context,
+      title: 'Confirmar desconexão do cuidador',
+      message:
+          'Depois desta ação, o cuidador não receberá pedidos de ajuda nem alertas deste celular.',
+    );
+    if (!authorized || !context.mounted) return;
 
     setState(() => _isLoading = true);
 
@@ -1102,6 +1112,63 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
 
                                 const SizedBox(height: 16),
                                 const ThemeModeSelector(large: true),
+                                const SizedBox(height: 16),
+                                ValueListenableBuilder<CarePreferences>(
+                                  valueListenable:
+                                      CarePreferencesService.instance.notifier,
+                                  builder: (context, preferences, _) {
+                                    return Card(
+                                      child: SwitchListTile(
+                                        value: preferences.simpleHomeEnabled,
+                                        onChanged: (enabled) async {
+                                          await CarePreferencesService.instance
+                                              .setSimpleHomeEnabled(enabled);
+                                          final message = enabled
+                                              ? 'Tela inicial simples ativada.'
+                                              : 'Rotina completa ativada.';
+                                          await TTSService.instance.falar(
+                                            message,
+                                            caller: this,
+                                          );
+                                        },
+                                        secondary: Icon(
+                                          Icons.visibility_outlined,
+                                          color: AppColors.primary,
+                                          size: 30,
+                                        ),
+                                        title: const Text(
+                                          'TELA INICIAL SIMPLES',
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                        subtitle: const Text(
+                                          'Mostra primeiro somente a próxima ação.',
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                                const SizedBox(height: 16),
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 64,
+                                  child: OutlinedButton.icon(
+                                    onPressed: () => Navigator.pushNamed(
+                                      context,
+                                      '/practice-mode',
+                                    ),
+                                    icon: const Icon(Icons.school, size: 28),
+                                    label: const Text(
+                                      'TREINAR O APLICATIVO',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ),
+                                ),
                                 const SizedBox(height: 16),
                                 SizedBox(
                                   width: double.infinity,

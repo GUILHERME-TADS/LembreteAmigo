@@ -13,6 +13,8 @@ import '../models/lembrete_evento.dart';
 import '../models/smart_alert.dart';
 import '../services/device_barrier_service.dart';
 import '../services/supervisor_ai_service.dart';
+import '../services/daily_care_summary_service.dart';
+import '../services/care_preferences_service.dart';
 import '../services/lembrete_service.dart';
 import '../services/session_role_service.dart';
 import '../services/elderly_profile_repository.dart';
@@ -92,6 +94,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     try {
       await _checkSupervisorConnection();
       if (_isConnected) {
+        await CarePreferencesService.instance.restoreDailySummarySchedule();
         await _loadLembretesAndProfile();
         unawaited(_startDeviceBarrierWatcher());
         LembreteService.instance.notifier.removeListener(_onLembretesChanged);
@@ -460,6 +463,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                           children: [
                             _buildQuickActionsBar(),
                             const SizedBox(height: 20),
+                            _buildDailySummaryCard(),
+                            const SizedBox(height: 20),
                             _buildAISummarySection(),
                             const SizedBox(height: 24),
                             AttentionCenter(
@@ -682,6 +687,158 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDailySummaryCard() {
+    final summary = DailyCareSummaryService.build(
+      reminders: LembreteService.instance.lembretes,
+      events: LembreteService.instance.eventos,
+    );
+    final color = summary.needsAttention
+        ? AppColors.warning
+        : AppColors.success;
+    final percentage = (summary.adherence * 100).round();
+
+    Widget metric(
+      IconData icon,
+      String value,
+      String label,
+      Color metricColor,
+    ) {
+      return Container(
+        constraints: const BoxConstraints(minWidth: 120),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: metricColor.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: metricColor.withValues(alpha: 0.35)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: metricColor, size: 24),
+            const SizedBox(width: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                Text(label, style: const TextStyle(fontSize: 12)),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: color.withValues(alpha: 0.14),
+                  child: Icon(
+                    summary.needsAttention
+                        ? Icons.notification_important
+                        : Icons.fact_check,
+                    color: color,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'RESUMO DE HOJE',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                      Text(
+                        summary.headline.replaceFirst(
+                          'Tudo',
+                          '$_nomeIdoso: tudo',
+                        ),
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  '$percentage%',
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            LinearProgressIndicator(
+              value: summary.adherence.clamp(0, 1),
+              minHeight: 10,
+              borderRadius: BorderRadius.circular(99),
+              color: color,
+            ),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                metric(
+                  Icons.check_circle,
+                  '${summary.completed}',
+                  'concluídas',
+                  AppColors.success,
+                ),
+                metric(
+                  Icons.schedule,
+                  '${summary.pending + summary.postponed}',
+                  'pendentes',
+                  AppColors.warning,
+                ),
+                metric(
+                  Icons.medication,
+                  '${summary.medicationsCompleted}/${summary.medications}',
+                  'medicamentos',
+                  AppColors.primary,
+                ),
+                if (summary.needsHelp > 0)
+                  metric(
+                    Icons.sos,
+                    '${summary.needsHelp}',
+                    'pedidos de ajuda',
+                    AppColors.error,
+                  ),
+                if (summary.lowStockMedications > 0)
+                  metric(
+                    Icons.inventory_2,
+                    '${summary.lowStockMedications}',
+                    'estoques baixos',
+                    AppColors.error,
+                  ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1790,10 +1947,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
               _showChartsAccordion
                   ? 'Toque para recolher os gráficos'
                   : 'Toque para ver adesão, comparação e categorias',
-              style: TextStyle(
-                fontSize: 13,
-                color: AppColors.onSurfaceVariant,
-              ),
+              style: TextStyle(fontSize: 13, color: AppColors.onSurfaceVariant),
             ),
             trailing: Icon(
               _showChartsAccordion
@@ -2421,10 +2575,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                     ),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.primary,
-                      side: BorderSide(
-                        color: AppColors.primary,
-                        width: 1.5,
-                      ),
+                      side: BorderSide(color: AppColors.primary, width: 1.5),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -2454,10 +2605,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
           children: [
             Text(
               label,
-              style: TextStyle(
-                fontSize: 12,
-                color: AppColors.onSurfaceVariant,
-              ),
+              style: TextStyle(fontSize: 12, color: AppColors.onSurfaceVariant),
             ),
             const SizedBox(height: 4),
             Text(

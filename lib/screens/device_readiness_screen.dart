@@ -6,6 +6,9 @@ import '../models/lembrete.dart';
 import '../services/alarm_service.dart';
 import '../services/app_permission_service.dart';
 import '../services/device_barrier_service.dart';
+import '../services/lembrete_service.dart';
+import '../services/notification_service.dart';
+import '../services/offline_sync_service.dart';
 import '../theme/app_theme.dart';
 
 class DeviceReadinessScreen extends StatefulWidget {
@@ -18,6 +21,7 @@ class DeviceReadinessScreen extends StatefulWidget {
 class _DeviceReadinessScreenState extends State<DeviceReadinessScreen> {
   bool _loading = true;
   bool _testingAlarm = false;
+  bool _repairing = false;
   List<AppPermissionItem> _permissions = const [];
   DeviceDiagnostics _diagnostics = const DeviceDiagnostics(barriers: []);
 
@@ -49,6 +53,38 @@ class _DeviceReadinessScreenState extends State<DeviceReadinessScreen> {
     await _refresh();
   }
 
+  Future<void> _repairAll() async {
+    if (_repairing) return;
+    setState(() => _repairing = true);
+    try {
+      await AppPermissionService.instance.requestAll();
+      await OfflineSyncService.instance.retryFailedWrites();
+      await LembreteService.instance.carregar();
+      await NotificationService.instance.agendarTodos(
+        LembreteService.instance.lembretes,
+      );
+      await _refresh();
+      if (!mounted) return;
+      final message = _ready
+          ? 'Pronto. Permissões, agenda e sincronização foram verificadas.'
+          : 'A verificação terminou. Alguns itens ainda precisam ser liberados nas configurações.';
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Não foi possível concluir o reparo. Tente novamente ou abra as configurações.',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _repairing = false);
+    }
+  }
+
   Future<void> _testAlarm() async {
     if (_testingAlarm) return;
     setState(() => _testingAlarm = true);
@@ -64,13 +100,26 @@ class _DeviceReadinessScreenState extends State<DeviceReadinessScreen> {
         lembreteUnico: true,
         dataInicio: now,
       );
-      await AlarmService.instance.agendarAlarmeLembrete(
+      final scheduled = await AlarmService.instance.agendarAlarmeLembrete(
         reminder,
         now.add(const Duration(seconds: 5)),
         'assets/alarm.mp3',
         testId,
       );
       if (!mounted) return;
+      if (!scheduled) {
+        await DeviceBarrierService.instance.recordAlarmTest(successful: false);
+        await _refresh();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'O celular bloqueou o teste. Use Reparar agora e libere notificações e alarmes exatos.',
+            ),
+          ),
+        );
+        return;
+      }
       final successful = await showDialog<bool>(
         context: context,
         barrierDismissible: false,
@@ -124,6 +173,10 @@ class _DeviceReadinessScreenState extends State<DeviceReadinessScreen> {
             _buildSummary(),
             const SizedBox(height: 20),
             _buildAlarmTest(),
+            const SizedBox(height: 10),
+            _buildRepairButton(),
+            const SizedBox(height: 10),
+            _buildSyncStatus(),
             if (_diagnostics.lastAlarmTestAt != null) ...[
               const SizedBox(height: 8),
               Card(
@@ -265,6 +318,63 @@ class _DeviceReadinessScreenState extends State<DeviceReadinessScreen> {
           style: const TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
         ),
       ),
+    );
+  }
+
+  Widget _buildRepairButton() {
+    return SizedBox(
+      height: 64,
+      child: OutlinedButton.icon(
+        onPressed: _loading || _repairing ? null : _repairAll,
+        icon: _repairing
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.auto_fix_high, size: 28),
+        label: Text(
+          _repairing ? 'Reparando...' : 'Reparar agora',
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSyncStatus() {
+    return ValueListenableBuilder<int>(
+      valueListenable: OfflineSyncService.instance.pendingCount,
+      builder: (context, pending, _) {
+        final synced = pending == 0;
+        return Card(
+          child: ListTile(
+            leading: Icon(
+              synced ? Icons.cloud_done : Icons.cloud_upload,
+              color: synced ? AppColors.success : AppColors.warning,
+              size: 32,
+            ),
+            title: Text(
+              synced
+                  ? 'Dados sincronizados'
+                  : '$pending ação(ões) aguardando envio',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Text(
+              synced
+                  ? 'As confirmações deste celular estão atualizadas.'
+                  : 'Nada será perdido. O envio acontece quando a internet voltar.',
+            ),
+            trailing: synced
+                ? null
+                : TextButton(
+                    onPressed: _repairing
+                        ? null
+                        : OfflineSyncService.instance.retryFailedWrites,
+                    child: const Text('Enviar'),
+                  ),
+          ),
+        );
+      },
     );
   }
 

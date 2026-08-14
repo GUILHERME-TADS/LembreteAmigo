@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../services/session_role_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/critical_action_guard.dart';
 
 class CaregiverNetworkScreen extends StatefulWidget {
   const CaregiverNetworkScreen({super.key});
@@ -150,6 +151,14 @@ class _CaregiverNetworkScreenState extends State<CaregiverNetworkScreen> {
       ),
     );
     if (confirmed != true || _elderlyId == null) return;
+    if (!mounted) return;
+    final authorized = await CriticalActionGuard.confirm(
+      context,
+      title: 'Confirmar remoção do cuidador',
+      message:
+          'Esta pessoa deixará de receber lembretes, pedidos de ajuda e alertas de segurança.',
+    );
+    if (!authorized || !mounted) return;
 
     try {
       await FirebaseFunctions.instance.httpsCallable('unlinkElderly').call({

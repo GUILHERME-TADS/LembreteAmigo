@@ -57,6 +57,7 @@ import 'screens/supervisor_login_screen.dart';
 import 'screens/supervisor_register_screen.dart';
 import 'screens/supervisor_reminder_detail_screen.dart';
 import 'screens/supervisor_settings_screen.dart';
+import 'screens/practice_mode_screen.dart';
 import 'screens/take_photo_confirmation_screen.dart';
 import 'screens/voice_settings_screen.dart';
 import 'screens/welcome_screen.dart';
@@ -64,6 +65,7 @@ import 'services/lembrete_service.dart';
 import 'services/message_service.dart';
 import 'services/notification_service.dart';
 import 'services/offline_sync_service.dart';
+import 'services/care_preferences_service.dart';
 import 'services/session_role_service.dart';
 import 'services/crashlytics_service.dart';
 import 'services/push_notification_service.dart';
@@ -193,6 +195,10 @@ class _RouteTracker extends NavigatorObserver {
       try {
         getIt<AnalyticsService>().logScreenView(screenName: name);
       } catch (_) {}
+      CrashlyticsService.instance.log('screen:$name');
+      unawaited(
+        CrashlyticsService.instance.setCustomKey('current_screen', name),
+      );
     }
     if (name != '/elderly-radio') {
       try {
@@ -309,6 +315,17 @@ void main() async {
     );
   }
   await SessionRoleService.load();
+  await CarePreferencesService.instance.load();
+  await CrashlyticsService.instance.setSessionContext(
+    role: SessionRoleService.activeRole ?? 'not_selected',
+    firebaseAvailable: FirebaseHelper.isInitialized,
+  );
+  if (FirebaseHelper.isInitialized) {
+    final crashUser = FirebaseAuth.instance.currentUser;
+    if (crashUser != null) {
+      await CrashlyticsService.instance.setUserId(crashUser.uid);
+    }
+  }
   try {
     await TTSService.instance.init();
   } catch (e) {
@@ -457,6 +474,15 @@ void main() async {
         'Erro ao inicializar push notifications. Continuando sem FCM: $e',
       );
     }
+  }
+  try {
+    await CarePreferencesService.instance.restoreDailySummarySchedule();
+  } catch (error, stack) {
+    CrashlyticsService.instance.recordError(
+      error,
+      stack,
+      reason: 'daily-summary-schedule',
+    );
   }
 
   runApp(
@@ -1035,6 +1061,9 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
             break;
           case '/caregiver-network':
             page = const CaregiverNetworkScreen();
+            break;
+          case '/practice-mode':
+            page = const PracticeModeScreen();
             break;
           case '/wellbeing':
           case '/supervisor-wellbeing':

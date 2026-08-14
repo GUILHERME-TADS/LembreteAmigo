@@ -463,6 +463,31 @@ void main() {
       expect(l.isActiveOn(DateTime(2026, 7, 5)), isFalse);
     });
 
+    test(
+      'classifica recorrencia sem confiar em flags antigas conflitantes',
+      () {
+        final unicoCriadoPorVoz = Lembrete(
+          id: 'voice-once',
+          titulo: 'Consulta',
+          horarioHour: 8,
+          horarioMinute: 0,
+          recorrencia: 'unico',
+        );
+        final intervaloLegado = Lembrete(
+          id: 'legacy-interval',
+          titulo: 'Beber agua',
+          horarioHour: 8,
+          horarioMinute: 0,
+          recorrencia: 'intervalo',
+          repeteTodosOsDias: false,
+          recorrenciaIntervalo: false,
+        );
+
+        expect(unicoCriadoPorVoz.isRecorrente, isFalse);
+        expect(intervaloLegado.isRecorrente, isTrue);
+      },
+    );
+
     test('quinzenal segue ciclo de 15 dias', () {
       final l = Lembrete(
         id: '5',

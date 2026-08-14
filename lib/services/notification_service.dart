@@ -110,6 +110,8 @@ class NotificationService {
     await prefs.setString(_scheduledRegistryKey, jsonEncode(data));
   }
 
+  Future<void> prepareReminderRegistry() => _loadScheduledRegistry();
+
   Future<void> requestAlarmPermissions() async {
     if (kIsWeb || !_initialized) return;
     final androidPlugin = _plugin
@@ -819,7 +821,10 @@ class NotificationService {
           now: now,
         );
         final oldIds = _scheduledReminderIds[l.id] ?? const <int>{};
-        if (l.concluido) {
+        if (ReminderSchedulePolicy.shouldCancelCompletedSchedule(
+          completed: l.concluido,
+          recurring: l.isRecorrente,
+        )) {
           _queueCancellations(oldIds);
           _scheduledReminderIds.remove(l.id);
           _scheduledReminderSignatures.remove(l.id);

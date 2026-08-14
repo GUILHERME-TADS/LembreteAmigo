@@ -4,8 +4,6 @@
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
-	<key>CFBundleDisplayName</key>
-	<string>Lembretes App</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -48,7 +46,7 @@
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Este aplicativo precisa da camera para medir seus batimentos cardiacos pela ponta do seu dedo.</string>
+	<string>Este aplicativo usa a camera para fotografar medicamentos, confirmar atividades e ler codigos de barras.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Este aplicativo precisa acessar sua galeria para escolher fotos de perfil e imagens de medicamentos.</string>
 	<key>NSMicrophoneUsageDescription</key>

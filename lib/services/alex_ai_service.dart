@@ -107,36 +107,47 @@ class AlexAIService {
       );
     }
 
-    // 1. Desejo de Conclusão / Já tomei
-    if (normalized.contains('tomei') ||
-        normalized.contains('feito') ||
-        normalized.contains('pronto') ||
-        normalized.contains('conclui') ||
-        normalized.contains('concluido') ||
-        normalized.contains('botei pra dentro') ||
-        normalized.contains('ja fiz') ||
-        normalized.contains('fiz')) {
+    // Emergência sempre tem prioridade sobre ações rotineiras.
+    if (RegExp(
+      r'\b(?:socorro|ajuda|dor|mal|sos|ligar|cuidador|ajudante)\b',
+    ).hasMatch(normalized)) {
       return _localResponse(
-        'Tudo bem! Já marquei esse lembrete como feito e avisei seu cuidador.',
+        'Vou abrir os botões de emergência para você.',
+        'emergency',
+        confidence: 0.9,
+      );
+    }
+
+    // Uma negação nunca pode concluir a atividade.
+    final deniesCompletion = RegExp(
+      r'\b(?:nao|nunca)\s+(?:(?:cheguei|consegui|pude)\s+)?(?:tomei|fiz|conclui|concluido)\b',
+    ).hasMatch(normalized);
+    if (!deniesCompletion &&
+        (RegExp(
+              r'\b(?:tomei|feito|pronto|conclui|concluido|fiz)\b',
+            ).hasMatch(normalized) ||
+            normalized.contains('botei pra dentro') ||
+            normalized.contains('ja fiz'))) {
+      return _localResponse(
+        'Vou confirmar o lembrete que está no horário atual.',
         'complete_reminder',
         confidence: 0.9,
       );
     }
 
-    // 2. Desejo de Adiar / Mais tarde
-    if (normalized.contains('depois') ||
-        normalized.contains('mais tarde') ||
-        normalized.contains('adiar') ||
-        normalized.contains('dormir') ||
-        normalized.contains('espera')) {
+    // Desejo de adiar / mais tarde.
+    if (RegExp(
+          r'\b(?:depois|adiar|dormir|espera|esperar)\b',
+        ).hasMatch(normalized) ||
+        normalized.contains('mais tarde')) {
       return _localResponse(
-        'Entendido. Vou deixar esse lembrete para mais tarde e aviso você daqui a pouco.',
+        'Vou verificar se o lembrete atual pode ser adiado.',
         'postpone_reminder',
         confidence: 0.9,
       );
     }
 
-    // 3. Desejo de Explicação
+    // Desejo de explicação.
     if (normalized.contains('explica') ||
         normalized.contains('diz ai') ||
         normalized.contains('fala de novo') ||
@@ -146,22 +157,6 @@ class AlexAIService {
       return _localResponse(
         'Eu vou ler os lembretes para você. Se quiser ouvir os detalhes de algum, aperte em cima dele.',
         'list_reminders',
-        confidence: 0.9,
-      );
-    }
-
-    // 4. Emergência / Socorro
-    if (normalized.contains('socorro') ||
-        normalized.contains('ajuda') ||
-        normalized.contains('dor') ||
-        normalized.contains('mal') ||
-        normalized.contains('sos') ||
-        normalized.contains('ligar') ||
-        normalized.contains('cuidador') ||
-        normalized.contains('ajudante')) {
-      return _localResponse(
-        'Estou abrindo os botões de emergência na tela. Fique calmo, já estou te ajudando.',
-        'emergency',
         confidence: 0.9,
       );
     }

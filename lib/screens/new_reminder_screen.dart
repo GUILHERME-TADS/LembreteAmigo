@@ -103,10 +103,12 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
       _titleController.text = l.titulo;
       _selectedTime = TimeOfDay(hour: l.horarioHour, minute: l.horarioMinute);
       _selectedDiasSemana = List<int>.from(l.diasSemana);
-      if (_selectedDiasSemana.isEmpty && l.repeteTodosOsDias) {
+      if (_selectedDiasSemana.isEmpty &&
+          l.isRecorrente &&
+          (l.repeteTodosOsDias || l.recorrencia == 'diario')) {
         _selectedDiasSemana = [1, 2, 3, 4, 5, 6, 7];
       }
-      _selectedSingleDate = l.lembreteUnico ? l.dataInicio : null;
+      _selectedSingleDate = !l.isRecorrente ? l.dataInicio : null;
       _isUsoContinuo = l.isUsoContinuo;
       _dataInicio = l.dataInicio ?? DateTime.now();
       _dataFim = l.dataFim;

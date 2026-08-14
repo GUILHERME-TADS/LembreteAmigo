@@ -29,6 +29,8 @@ class AlwaysListeningService {
   bool _commandTriggeredForSession = false;
   bool _awaitingCommand = false;
 
+  Future<String> Function(AlexAIResponse response, String command)? onAction;
+
   Future<void> initialize() async {
     if (_initialized) return;
     _initialized = true;
@@ -328,7 +330,13 @@ class AlwaysListeningService {
   Future<void> _routeCommand(String command) async {
     try {
       final response = await AlexAIService.instance.processMessage(command);
-      if (response.reply.isNotEmpty) {
+      final actionHandler = onAction;
+      if (response.actionType != 'general') {
+        final actionReply = actionHandler == null
+            ? 'Essa ação não está disponível agora.'
+            : await actionHandler(response, command);
+        await TTSService.instance.falar(actionReply);
+      } else if (response.reply.isNotEmpty) {
         await TTSService.instance.falar(response.reply);
       } else {
         await TTSService.instance.falar(

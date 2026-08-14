@@ -11,6 +11,7 @@ import 'package:alarm/alarm.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'models/lembrete.dart';
+import 'models/reminder_completion_result.dart';
 import 'models/video_call.dart';
 import 'screens/active_reminder_screen.dart';
 import 'screens/activity_history_screen.dart';
@@ -72,6 +73,8 @@ import 'services/push_notification_service.dart';
 import 'services/video_call_service.dart';
 import 'services/tts_service.dart';
 import 'services/always_listening_service.dart';
+import 'services/alex_ai_service.dart';
+import 'services/alex_reminder_action_policy.dart';
 import 'services/voice_notification_service.dart';
 import 'services/radio_service.dart';
 import 'services/analytics_service.dart';
@@ -93,6 +96,126 @@ final _RouteTracker _routeTracker = _RouteTracker();
 bool _reminderNotificationActionInProgress = false;
 const String _lastNotificationLaunchKey = 'last_notification_launch_key';
 const String _lastNotificationLaunchAtKey = 'last_notification_launch_at';
+
+Future<String> _executeAlexAction(
+  AlexAIResponse response,
+  String command,
+) async {
+  if (SessionRoleService.isSupervisor) {
+    return 'Os comandos de voz para lembretes estão disponíveis no modo idoso.';
+  }
+
+  if (response.isEmergency) {
+    final navigator = navigatorKey.currentState;
+    if (navigator == null) {
+      return 'Não consegui abrir a tela de ajuda agora. Use o botão de socorro na tela inicial.';
+    }
+    if (_routeTracker.currentRouteName != '/elderly-help') {
+      navigator.pushNamed('/elderly-help');
+    }
+    return 'Abri os botões de emergência. Escolha na tela como quer pedir ajuda.';
+  }
+
+  await LembreteService.instance.carregar();
+  final now = DateTime.now();
+  final reminders = LembreteService.instance.lembretes;
+
+  if (response.isListReminders) {
+    final pending =
+        reminders
+            .where(
+              (reminder) =>
+                  reminder.isActiveOn(now) &&
+                  !reminder.concluido &&
+                  reminder.status != LembreteStatus.perdido &&
+                  reminder.status != LembreteStatus.precisaDeAjuda,
+            )
+            .toList()
+          ..sort((a, b) {
+            final aMinutes = a.horarioHour * 60 + a.horarioMinute;
+            final bMinutes = b.horarioHour * 60 + b.horarioMinute;
+            return aMinutes.compareTo(bMinutes);
+          });
+    if (pending.isEmpty) {
+      return 'Você não tem lembretes pendentes para hoje.';
+    }
+    final spoken = pending
+        .take(4)
+        .map(
+          (reminder) => '${reminder.titulo}, às ${reminder.horarioFormatado}',
+        )
+        .join('; ');
+    final remaining = pending.length - 4;
+    return remaining > 0
+        ? 'Seus próximos lembretes são: $spoken; e mais $remaining.'
+        : 'Seus lembretes pendentes são: $spoken.';
+  }
+
+  if (!response.isCompleteReminder && !response.isPostponeReminder) {
+    return response.reply.isNotEmpty
+        ? response.reply
+        : 'Não consegui identificar essa ação.';
+  }
+
+  final selection = AlexReminderActionPolicy.selectActionable(
+    reminders,
+    now: now,
+    command: command,
+  );
+  if (selection.ambiguous) {
+    return 'Há mais de um lembrete nesse horário. Diga também o nome do lembrete.';
+  }
+  final reminder = selection.reminder;
+  if (reminder == null) {
+    return 'Não encontrei um lembrete no horário atual para alterar.';
+  }
+
+  if (response.isPostponeReminder) {
+    if (!LembreteService.instance.podeAdiar(reminder.id, now: now)) {
+      return 'Esse lembrete não pode mais ser adiado.';
+    }
+    final minutes = _alexRequestedPostponeMinutes(command, reminder);
+    if (minutes == null) {
+      final choices = reminder.opcoesAdiamentoMinutos.join(', ');
+      return 'Esse tempo não está disponível. Você pode adiar por $choices minutos.';
+    }
+    final postponed = await LembreteService.instance.adiar(
+      reminder.id,
+      minutes,
+    );
+    return postponed
+        ? '${reminder.titulo} foi adiado por $minutes minutos.'
+        : 'Não consegui adiar ${reminder.titulo}.';
+  }
+
+  final result = await LembreteService.instance.confirmarOcorrencia(
+    reminder.id,
+    method: 'voz',
+    now: now,
+  );
+  if (result.outcome == ReminderCompletionOutcome.requiresPhoto ||
+      result.outcome == ReminderCompletionOutcome.requiresCaregiver) {
+    navigatorKey.currentState?.pushNamed(
+      '/active-reminder',
+      arguments: reminder.id,
+    );
+    return result.message;
+  }
+  if (result.outcome == ReminderCompletionOutcome.completed ||
+      result.outcome == ReminderCompletionOutcome.alreadyCompleted) {
+    return '${reminder.titulo} foi confirmado.';
+  }
+  return result.message;
+}
+
+int? _alexRequestedPostponeMinutes(String command, Lembrete reminder) {
+  final match = RegExp(
+    r'\b(\d{1,3})\s*(?:minuto|minutos|min)\b',
+  ).firstMatch(command.toLowerCase());
+  if (match == null) return reminder.opcoesAdiamentoMinutos.firstOrNull;
+  final requested = int.tryParse(match.group(1)!);
+  return reminder.opcoesAdiamentoMinutos.contains(requested) ? requested : null;
+}
 
 Future<bool> _consumeNotificationLaunch(
   String payload,
@@ -288,6 +411,11 @@ void main() async {
   } catch (e) {
     debugPrint('Erro ao inicializar alarmes. Continuando sem alarmes: $e');
   }
+  try {
+    await NotificationService.instance.prepareReminderRegistry();
+  } catch (e) {
+    debugPrint('Erro ao carregar o registro local de alarmes: $e');
+  }
   AlarmService.instance.init();
   configureDependencies();
   try {
@@ -333,6 +461,7 @@ void main() async {
   }
 
   try {
+    AlwaysListeningService.instance.onAction = _executeAlexAction;
     await AlwaysListeningService.instance.initialize();
   } catch (e) {
     debugPrint('Erro ao inicializar AlwaysListeningService: $e');

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:alarm/alarm.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../models/lembrete.dart';
 import '../services/notification_service.dart';
@@ -64,6 +63,22 @@ class AlarmService {
       return false;
     }
 
+    final alarmSettings = buildReminderAlarmSettings(
+      lembrete: lembrete,
+      date: date,
+      audioPath: audioPath,
+      id: id,
+    );
+    return Alarm.set(alarmSettings: alarmSettings);
+  }
+
+  @visibleForTesting
+  AlarmSettings buildReminderAlarmSettings({
+    required Lembrete lembrete,
+    required DateTime date,
+    required String audioPath,
+    required int id,
+  }) {
     final isMedication =
         LembreteCategoria.normalizar(lembrete.categoria) ==
         LembreteCategoria.medicacao;
@@ -78,12 +93,14 @@ class AlarmService {
         ? '${lembrete.horarioFormatado} • ${lembrete.titulo}\nInstruções: ${lembrete.medicamentoInstrucoes}\nToque para abrir'
         : '${lembrete.horarioFormatado} • ${lembrete.titulo}\nToque para abrir';
 
-    final alarmSettings = AlarmSettings(
+    return AlarmSettings(
       id: id,
       dateTime: date,
       assetAudioPath: audioPath,
       loopAudio: true,
       vibrate: true,
+      allowSameSecondScheduling: true,
+      allowAlarmOverlap: false,
       volumeSettings: VolumeSettings.fade(
         volume: 1.0,
         fadeDuration: const Duration(seconds: 3),
@@ -96,7 +113,6 @@ class AlarmService {
       warningNotificationOnKill: defaultTargetPlatform == TargetPlatform.iOS,
       androidFullScreenIntent: false,
     );
-    return Alarm.set(alarmSettings: alarmSettings);
   }
 
   Future<void> cancelar(int id) async {

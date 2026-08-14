@@ -255,6 +255,23 @@ class Lembrete {
     return '$h:$m';
   }
 
+  bool get isRecorrente {
+    if (recorrencia == 'unico' || lembreteUnico) return false;
+    if (const {
+      'diario',
+      'semanal',
+      'mensal',
+      'quinzenal',
+      'intervalo',
+    }.contains(recorrencia)) {
+      return true;
+    }
+    return repeteTodosOsDias ||
+        recorrenciaSemanal ||
+        recorrenciaMensal ||
+        recorrenciaIntervalo;
+  }
+
   Lembrete copyWith({
     String? id,
     String? titulo,

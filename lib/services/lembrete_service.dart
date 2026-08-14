@@ -671,16 +671,6 @@ class LembreteService {
         for (int i = 0; i < _lembretes.length; i++) {
           final lembrete = _lembretes[i];
 
-          final isRecorrente =
-              lembrete.repeteTodosOsDias ||
-              lembrete.recorrenciaSemanal ||
-              lembrete.recorrenciaMensal ||
-              lembrete.recorrenciaIntervalo ||
-              lembrete.recorrencia == 'diario' ||
-              lembrete.recorrencia == 'semanal' ||
-              lembrete.recorrencia == 'mensal' ||
-              lembrete.recorrencia == 'quinzenal';
-
           final originalHour =
               lembrete.originalHorarioHour ?? lembrete.horarioHour;
           final originalMinute =
@@ -689,7 +679,7 @@ class LembreteService {
               lembrete.horarioHour != originalHour ||
               lembrete.horarioMinute != originalMinute;
 
-          if (isRecorrente &&
+          if (lembrete.isRecorrente &&
               (lembrete.concluido ||
                   lembrete.concluidoComFoto ||
                   lembrete.status == LembreteStatus.adiado ||

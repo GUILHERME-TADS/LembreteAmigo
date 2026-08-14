@@ -7,6 +7,7 @@ import '../services/tts_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/period_helper.dart';
 import '../utils/voice_reminder_parser.dart';
+import '../utils/voice_reminder_schedule_policy.dart';
 import '../widgets/index.dart';
 
 class RecordingAudioScreen extends StatefulWidget {
@@ -881,8 +882,13 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
     final titulo = extraido.$3.isNotEmpty ? extraido.$3 : _transcricao;
 
     final parsedInfo = VoiceReminderParser.parse(_transcricao);
-    final dataInicio = parsedInfo?.dataInicio ?? now;
-    final recorrencia = parsedInfo?.recorrencia ?? 'unico';
+    final schedule = VoiceReminderSchedulePolicy.resolve(
+      now: now,
+      hour: extraido.$1,
+      minute: extraido.$2,
+      parsedStartDate: parsedInfo?.dataInicio,
+      parsedRecurrence: parsedInfo?.recorrencia,
+    );
     final diasSemana = parsedInfo?.diasSemana ?? const [];
 
     final lembrete = Lembrete(
@@ -891,8 +897,15 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
       horarioHour: extraido.$1,
       horarioMinute: extraido.$2,
       categoria: _selectedCategory ?? 'personalizado',
-      dataInicio: dataInicio,
-      recorrencia: recorrencia,
+      dataInicio: schedule.startDate,
+      dataFim: schedule.endDate,
+      isUsoContinuo: schedule.continuousUse,
+      recorrencia: schedule.recurrence,
+      repeteTodosOsDias: schedule.repeatsEveryDay,
+      recorrenciaSemanal: schedule.weekly,
+      recorrenciaMensal: schedule.monthly,
+      recorrenciaIntervalo: schedule.interval,
+      lembreteUnico: schedule.oneTime,
       diasSemana: diasSemana,
     );
     try {

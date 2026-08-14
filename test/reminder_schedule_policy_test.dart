@@ -49,5 +49,22 @@ void main() {
         isFalse,
       );
     });
+
+    test('mantem a agenda futura de lembrete recorrente concluido', () {
+      expect(
+        ReminderSchedulePolicy.shouldCancelCompletedSchedule(
+          completed: true,
+          recurring: true,
+        ),
+        isFalse,
+      );
+      expect(
+        ReminderSchedulePolicy.shouldCancelCompletedSchedule(
+          completed: true,
+          recurring: false,
+        ),
+        isTrue,
+      );
+    });
   });
 }

@@ -23,4 +23,11 @@ class ReminderSchedulePolicy {
     }
     return registeredAlarmIds.every(activeAlarmIds.contains);
   }
+
+  static bool shouldCancelCompletedSchedule({
+    required bool completed,
+    required bool recurring,
+  }) {
+    return completed && !recurring;
+  }
 }

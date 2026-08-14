@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -197,33 +196,19 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                   });
                 } else {
                   setDialogState(() {
-                    isRecording = true;
+                    isRecording = false;
                     recordedFilePath = null;
-                    statusMsg = 'Gravando...';
-                  });
-                  Future.delayed(const Duration(seconds: 4), () async {
-                    if (context.mounted && isRecording) {
-                      final file = File(path);
-                      await file.writeAsBytes([0, 1, 2, 3]);
-                      setDialogState(() {
-                        isRecording = false;
-                        recordedFilePath = path;
-                        statusMsg = 'Recado gravado!';
-                      });
-                    }
+                    statusMsg =
+                        'Permissão do microfone negada. Autorize o microfone nas configurações do celular.';
                   });
                 }
               } catch (e) {
                 debugPrint('Erro ao iniciar gravacao de mensagem: $e');
-                final tempDir = await getTemporaryDirectory();
-                final path =
-                    '${tempDir.path}/mensagem_audio_mock_${DateTime.now().millisecondsSinceEpoch}.m4a';
-                final file = File(path);
-                await file.writeAsBytes([0, 1, 2, 3]);
                 setDialogState(() {
                   isRecording = false;
-                  recordedFilePath = path;
-                  statusMsg = 'Recado gravado!';
+                  recordedFilePath = null;
+                  statusMsg =
+                      'Não foi possível iniciar a gravação. Verifique o microfone e tente novamente.';
                 });
               } finally {
                 isBusy = false;
@@ -241,17 +226,24 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                   setDialogState(() {
                     isRecording = false;
                     recordedFilePath = path;
-                    statusMsg = 'Recado gravado!\nToque no botão de ouvir.';
+                    statusMsg = path == null
+                        ? 'A gravação não foi salva. Tente novamente.'
+                        : 'Recado gravado!\nToque no botão de ouvir.';
                   });
                 } else {
                   setDialogState(() {
                     isRecording = false;
+                    recordedFilePath = null;
+                    statusMsg = 'Nenhuma gravação estava em andamento.';
                   });
                 }
               } catch (e) {
                 debugPrint('Erro ao parar gravacao: $e');
                 setDialogState(() {
                   isRecording = false;
+                  recordedFilePath = null;
+                  statusMsg =
+                      'Não foi possível finalizar a gravação. Tente novamente.';
                 });
               } finally {
                 isBusy = false;

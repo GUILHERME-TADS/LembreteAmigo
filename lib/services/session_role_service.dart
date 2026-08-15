@@ -49,6 +49,9 @@ class SessionRoleService {
     return ids.take(8).toList();
   }
 
+  static bool isElderlyProfileConnected(Map<String, dynamic>? data) =>
+      data?['status'] == 'active' && caregiverIdsFromProfile(data).isNotEmpty;
+
   static bool isCaregiverInProfile(
     Map<String, dynamic>? data,
     String caregiverId,
@@ -111,6 +114,76 @@ class SessionRoleService {
     } catch (e) {
       debugPrint('Erro ao restaurar vinculo do cuidador: $e');
       return false;
+    }
+  }
+
+  static Future<bool?> restoreElderlyConnection() async {
+    if (!isElderly || Firebase.apps.isEmpty) return null;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return false;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('paired_idoso_id', user.uid);
+    _lastVerificationFailedByError = false;
+
+    try {
+      final document = await FirebaseFirestore.instance
+          .collection('idoso_perfil')
+          .doc(user.uid)
+          .get()
+          .timeout(const Duration(seconds: 5));
+      final profile = document.data();
+      final connected = document.exists && isElderlyProfileConnected(profile);
+
+      if (profile != null) {
+        final cachedJson = await SecureCacheService.instance
+            .readElderlyProfile();
+        final cachedProfile = <String, dynamic>{};
+        if (cachedJson != null) {
+          try {
+            cachedProfile.addAll(
+              Map<String, dynamic>.from(
+                jsonDecode(cachedJson) as Map<String, dynamic>,
+              ),
+            );
+          } catch (_) {}
+        }
+        cachedProfile.addAll(profile);
+        cachedProfile.remove('pairingCode');
+        cachedProfile.remove('pairingCodeExpires');
+        await SecureCacheService.instance.writeElderlyProfile(
+          jsonEncode(cachedProfile),
+        );
+
+        final photoPath = profile['fotoPath'] as String?;
+        if (photoPath != null && photoPath.isNotEmpty) {
+          await prefs.setString('idoso_foto_path', photoPath);
+        }
+        await syncVoiceAndListeningSettings(profile);
+      }
+
+      await prefs.setBool('elderly_autonomous_mode', !connected);
+      elderlyConnectionNotifier.value = connected;
+      return connected;
+    } catch (error) {
+      _lastVerificationFailedByError = true;
+      debugPrint('Erro ao restaurar vinculo do idoso: $error');
+
+      final cachedJson = await SecureCacheService.instance.readElderlyProfile();
+      if (cachedJson != null) {
+        try {
+          final cachedProfile = Map<String, dynamic>.from(
+            jsonDecode(cachedJson) as Map<String, dynamic>,
+          );
+          if (isElderlyProfileConnected(cachedProfile)) {
+            await prefs.setBool('elderly_autonomous_mode', false);
+            elderlyConnectionNotifier.value = true;
+            return true;
+          }
+        } catch (_) {}
+      }
+      elderlyConnectionNotifier.value = null;
+      return null;
     }
   }
 
@@ -230,28 +303,41 @@ class SessionRoleService {
 
   static Future<bool> isElderlyConnectedToSupervisor() async {
     final prefs = await SharedPreferences.getInstance();
-    final idosoId = prefs.getString('paired_idoso_id');
+    var idosoId = prefs.getString('paired_idoso_id');
     if (FirebaseHelper.isDemoRecording && idosoId == 'idoso_simulado') {
       return true;
     }
-    if (isLocalOnlyIdosoId(idosoId)) {
-      return false;
-    }
 
+    final user = Firebase.apps.isNotEmpty
+        ? FirebaseAuth.instance.currentUser
+        : null;
+    if (isElderly && user != null && idosoId != user.uid) {
+      idosoId = user.uid;
+      await prefs.setString('paired_idoso_id', user.uid);
+    }
+    if (isLocalOnlyIdosoId(idosoId)) return false;
+
+    var cachedConnected = false;
     final jsonStr = await SecureCacheService.instance.readElderlyProfile();
     if (jsonStr != null) {
       try {
-        final data = jsonDecode(jsonStr) as Map<String, dynamic>;
-        final status = data['status'] as String?;
-        if (status == 'active' && caregiverIdsFromProfile(data).isNotEmpty) {
-          await prefs.setBool('elderly_autonomous_mode', false);
-          return true;
-        }
-        if (status != null) return false;
+        final data = Map<String, dynamic>.from(
+          jsonDecode(jsonStr) as Map<String, dynamic>,
+        );
+        cachedConnected = isElderlyProfileConnected(data);
       } catch (_) {}
     }
 
-    return !(prefs.getBool('elderly_autonomous_mode') ?? false);
+    if (isElderly && user != null && Firebase.apps.isNotEmpty) {
+      final restored = await restoreElderlyConnection();
+      if (restored != null) return restored;
+    }
+
+    if (cachedConnected) {
+      await prefs.setBool('elderly_autonomous_mode', false);
+      return true;
+    }
+    return false;
   }
 
   static Future<bool> canSyncElderlyPrivateData() async {

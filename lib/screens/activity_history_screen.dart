@@ -8,7 +8,6 @@ import '../models/lembrete.dart';
 import '../models/lembrete_evento.dart';
 import '../services/lembrete_service.dart';
 import '../services/effectiveness_service.dart';
-import '../services/supervisor_ai_service.dart';
 import '../utils/debounce.dart';
 import '../widgets/supervisor_bottom_nav.dart';
 import '../widgets/supervisor_drawer.dart';
@@ -27,8 +26,6 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
   String _searchQuery = '';
   String _selectedCategory = 'Todos';
   String _selectedStatus = 'Todos';
-  SupervisorInsights? _aiPatterns;
-  bool _aiPatternsLoading = false;
   final Debouncer _searchDebouncer = Debouncer(
     delay: Duration(milliseconds: 300),
   );
@@ -289,10 +286,6 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
                         ),
                         const SizedBox(height: 16),
                         _buildStatsHeader(occurrenceReminders),
-                        _buildPatternAnalysisButton(occurrenceReminders),
-                        if (_aiPatterns != null) ...[
-                          _buildPatternAnalysisResults(),
-                        ],
                         _buildSearchAndFilters(),
                         const SizedBox(height: 10),
                         if (list.isEmpty)
@@ -333,216 +326,6 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
         ),
       ),
     );
-  }
-
-  Widget _buildPatternAnalysisButton(List<Lembrete> todos) {
-    if (todos.isEmpty) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: SizedBox(
-        width: double.infinity,
-        child: OutlinedButton.icon(
-          onPressed: _aiPatternsLoading ? null : () => _analyzePatterns(todos),
-          icon: _aiPatternsLoading
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.auto_awesome, size: 18),
-          label: Text(
-            _aiPatternsLoading
-                ? 'Analisando padrões...'
-                : 'Analisar Padrões com IA',
-          ),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: AppColors.primary,
-            side: BorderSide(color: AppColors.primary.withValues(alpha: 0.4)),
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPatternAnalysisResults() {
-    final p = _aiPatterns!;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 20),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.primaryContainer.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppColors.primary.withValues(alpha: 0.25),
-          width: 1.5,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.auto_awesome, size: 18, color: AppColors.primary),
-              const SizedBox(width: 8),
-              Text(
-                'PADRÕES IDENTIFICADOS (IA)',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.primary,
-                  letterSpacing: 0.5,
-                ),
-              ),
-              const Spacer(),
-              GestureDetector(
-                onTap: () => setState(() => _aiPatterns = null),
-                child: Icon(
-                  Icons.close,
-                  size: 18,
-                  color: AppColors.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            p.summary,
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              height: 1.4,
-              color: AppColors.onSurface,
-            ),
-          ),
-          if (p.insights.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            ...p.insights.map(
-              (i) => Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '• ',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                    Expanded(
-                      child: Text(
-                        i,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: AppColors.onSurfaceVariant,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-          if (p.attentionPoints.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Text(
-              'ATENÇÃO',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                color: AppColors.error,
-                letterSpacing: 0.5,
-              ),
-            ),
-            const SizedBox(height: 6),
-            ...p.attentionPoints.map(
-              (a) => Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(
-                      Icons.warning_amber_rounded,
-                      size: 16,
-                      color: AppColors.error,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        a,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: AppColors.error,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-          if (p.suggestions.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Text(
-              'SUGESTÕES',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                color: AppColors.primary,
-                letterSpacing: 0.5,
-              ),
-            ),
-            const SizedBox(height: 6),
-            ...p.suggestions.map(
-              (s) => Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(
-                      Icons.lightbulb_outline,
-                      size: 16,
-                      color: AppColors.primary,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        s,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: AppColors.onSurfaceVariant,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Future<void> _analyzePatterns(List<Lembrete> todos) async {
-    if (_aiPatternsLoading) return;
-    setState(() => _aiPatternsLoading = true);
-    try {
-      final insights = await SupervisorAIService.instance.getDailySummary();
-      if (mounted) {
-        setState(() {
-          _aiPatterns = insights;
-          _aiPatternsLoading = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) setState(() => _aiPatternsLoading = false);
-    }
   }
 
   Widget _buildStatsHeader(List<Lembrete> todos) {

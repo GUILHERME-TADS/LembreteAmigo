@@ -83,12 +83,16 @@ class PhotoGalleryScreen extends StatelessWidget {
           Icon(Icons.photo_library, color: AppColors.primary, size: 28),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(
-              'Galeria de Fotos',
-              style: TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.w700,
-                color: AppColors.primary,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Galeria de Fotos',
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
+                ),
               ),
             ),
           ),

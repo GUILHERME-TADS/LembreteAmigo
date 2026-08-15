@@ -80,7 +80,7 @@ class _VoiceSettingsScreenState extends State<VoiceSettingsScreen> {
         },
         borderRadius: BorderRadius.circular(16),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 6),
           decoration: BoxDecoration(
             color: isSelected
                 ? AppColors.primary.withValues(alpha: 0.08)
@@ -105,14 +105,18 @@ class _VoiceSettingsScreenState extends State<VoiceSettingsScreen> {
             children: [
               Text(emoji, style: const TextStyle(fontSize: 36)),
               const SizedBox(height: 8),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w900,
-                  color: isSelected
-                      ? AppColors.primary
-                      : AppColors.onSurfaceVariant,
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                    color: isSelected
+                        ? AppColors.primary
+                        : AppColors.onSurfaceVariant,
+                  ),
                 ),
               ),
             ],
@@ -144,12 +148,15 @@ class _VoiceSettingsScreenState extends State<VoiceSettingsScreen> {
             size: 36,
           ),
         ),
-        title: Text(
-          'Voz do Alex',
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.w700,
-            color: AppColors.primary,
+        title: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            'Voz do Alex',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w700,
+              color: AppColors.primary,
+            ),
           ),
         ),
       ),
@@ -184,52 +191,64 @@ class _VoiceSettingsScreenState extends State<VoiceSettingsScreen> {
             ),
 
             const SizedBox(height: 48),
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: OutlinedButton(
-                onPressed: _testVoice,
-                style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: AppColors.outline),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+            ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 52),
+              child: SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: _testVoice,
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: AppColors.outline),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
-                ),
-                child: const Text(
-                  'TESTAR VOZ',
-                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                  child: const FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      'TESTAR VOZ',
+                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                    ),
+                  ),
                 ),
               ),
             ),
             const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: ElevatedButton(
-                onPressed: _saving ? null : _save,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: AppColors.onPrimary,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+            ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 52),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _saving ? null : _save,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: AppColors.onPrimary,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
+                  child: _saving
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            'SALVAR',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
                 ),
-                child: _saving
-                    ? const SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Text(
-                        'SALVAR',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 16,
-                        ),
-                      ),
               ),
             ),
           ],

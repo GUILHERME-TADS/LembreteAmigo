@@ -133,12 +133,15 @@ class _CustomTimePickerDialogState extends State<CustomTimePickerDialog> {
                   // Dois pontos separadores piscando levemente
                   Container(
                     margin: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Text(
-                      ':',
-                      style: TextStyle(
-                        fontSize: 54,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.primary,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        ':',
+                        style: TextStyle(
+                          fontSize: 54,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.primary,
+                        ),
                       ),
                     ),
                   ),
@@ -333,12 +336,18 @@ class _CustomTimePickerDialogState extends State<CustomTimePickerDialog> {
             child: Stack(
               children: [
                 Center(
-                  child: Text(
-                    value.toString().padLeft(2, '0'),
-                    style: TextStyle(
-                      fontSize: 48,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.primary,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        value.toString().padLeft(2, '0'),
+                        style: TextStyle(
+                          fontSize: 48,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.primary,
+                        ),
+                      ),
                     ),
                   ),
                 ),

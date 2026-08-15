@@ -162,10 +162,7 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
                 Opacity(
                   opacity: _isConnected ? 1.0 : 0.4,
                   child: ListTile(
-                    leading: Icon(
-                      Icons.task_alt,
-                      color: AppColors.primary,
-                    ),
+                    leading: Icon(Icons.task_alt, color: AppColors.primary),
                     title: const Text(
                       'Central de Pendências',
                       style: TextStyle(
@@ -211,10 +208,7 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
                   ),
                 ),
                 ListTile(
-                  leading: Icon(
-                    Icons.person_add,
-                    color: AppColors.primary,
-                  ),
+                  leading: Icon(Icons.person_add, color: AppColors.primary),
                   title: const Text(
                     'Cadastrar/Emparelhar Idoso',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -236,23 +230,6 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
                       context,
                       '/supervisor-edit-elderly-profile',
                     ),
-                  ),
-                ),
-                Opacity(
-                  opacity: _isConnected ? 1.0 : 0.4,
-                  child: ListTile(
-                    leading: Icon(
-                      Icons.edit_calendar,
-                      color: AppColors.primary,
-                    ),
-                    title: const Text(
-                      'Editar Lembretes do Idoso',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    onTap: () => _navigateTo(context, '/activity-history'),
                   ),
                 ),
                 Opacity(
@@ -290,10 +267,7 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
                 Opacity(
                   opacity: _isConnected ? 1.0 : 0.4,
                   child: ListTile(
-                    leading: Icon(
-                      Icons.analytics,
-                      color: AppColors.primary,
-                    ),
+                    leading: Icon(Icons.analytics, color: AppColors.primary),
                     title: const Text(
                       'Relatórios Mensais',
                       style: TextStyle(
@@ -307,10 +281,7 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
                 Opacity(
                   opacity: _isConnected ? 1.0 : 0.4,
                   child: ListTile(
-                    leading: Icon(
-                      Icons.favorite,
-                      color: AppColors.primary,
-                    ),
+                    leading: Icon(Icons.favorite, color: AppColors.primary),
                     title: const Text(
                       'Efetividade do Tratamento',
                       style: TextStyle(
@@ -325,12 +296,9 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
                 Opacity(
                   opacity: _isConnected ? 1.0 : 0.4,
                   child: ListTile(
-                    leading: Icon(
-                      Icons.history,
-                      color: AppColors.primary,
-                    ),
+                    leading: Icon(Icons.history, color: AppColors.primary),
                     title: const Text(
-                      'Histórico Detalhado',
+                      'Histórico de Atividades',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,

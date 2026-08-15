@@ -76,7 +76,6 @@ dependencies:
   google_sign_in: ^7.2.0
   alarm: ^5.5.0
   intl: ^0.20.2
-  google_generative_ai: ^0.4.7
   http: ^1.6.0
   just_audio: ^0.10.6
   wakelock_plus: ^1.7.0

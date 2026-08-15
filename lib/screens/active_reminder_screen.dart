@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:alarm/alarm.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
 import '../models/lembrete.dart';
 import '../models/reminder_completion_result.dart';
@@ -521,6 +520,60 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
     super.dispose();
   }
 
+  Future<void> _confirmLeaveReminder() async {
+    if (_isProcessingAction || !mounted) return;
+    setState(() => _isProcessingAction = true);
+    try {
+      final leave = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => AlertDialog(
+          icon: Icon(
+            Icons.notifications_active_outlined,
+            color: AppColors.primary,
+            size: 48,
+          ),
+          title: const Text(
+            'Este lembrete ainda não foi concluído',
+            textAlign: TextAlign.center,
+          ),
+          content: const Text(
+            'Você pode continuar nesta tela ou voltar ao início. O lembrete continuará pendente.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 18),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Continuar lembrete'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Voltar ao início'),
+            ),
+          ],
+        ),
+      );
+
+      if (leave != true || !mounted) return;
+      _isSpeakingLoopActive = false;
+      _isLoopPaused = false;
+      _urgencyReinforcementTimer?.cancel();
+      _noResponseTimer?.cancel();
+      await VibrationService.stopVibration();
+      await _familyAudioPlayer.stop();
+      await TTSService.instance.parar(caller: this);
+      if (!mounted) return;
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        '/elderly-home',
+        (route) => false,
+      );
+    } finally {
+      if (mounted) setState(() => _isProcessingAction = false);
+    }
+  }
+
   Widget _buildMissingReminderScaffold() {
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -531,11 +584,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  Icons.error_outline,
-                  color: AppColors.error,
-                  size: 72,
-                ),
+                Icon(Icons.error_outline, color: AppColors.error, size: 72),
                 const SizedBox(height: 16),
                 Text(
                   'Lembrete não encontrado',
@@ -660,7 +709,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
         TTSService.instance.parar();
-        SystemNavigator.pop();
+        unawaited(_confirmLeaveReminder());
       },
       child: Scaffold(
         backgroundColor: isHighContrast ? Colors.white : AppColors.background,
@@ -706,8 +755,14 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                             Builder(
                               builder: (context) {
                                 final border = isHighContrast
-                                    ? Border.all(color: AppColors.error, width: 4)
-                                    : Border.all(color: AppColors.error, width: 6);
+                                    ? Border.all(
+                                        color: AppColors.error,
+                                        width: 4,
+                                      )
+                                    : Border.all(
+                                        color: AppColors.error,
+                                        width: 6,
+                                      );
 
                                 final shadow = isHighContrast
                                     ? null
@@ -1016,7 +1071,8 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                   backgroundColor: isHighContrast
                                       ? AppColors.error
                                       : AppColors.error,
-                                  disabledBackgroundColor: AppColors.outlineVariant,
+                                  disabledBackgroundColor:
+                                      AppColors.outlineVariant,
                                   foregroundColor: Colors.white,
                                   elevation: _isPaired ? 4 : 0,
                                   shape: RoundedRectangleBorder(

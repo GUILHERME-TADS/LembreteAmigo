@@ -367,7 +367,6 @@ async function assertSupervisorAccount(uid) {
 
 const RATE_LIMITS = {
   alexChat: {maxCalls: 30, windowMs: 60000},
-  supervisorChat: {maxCalls: 20, windowMs: 60000},
   identifyMedication: {maxCalls: 10, windowMs: 60000},
   parsePrescription: {maxCalls: 10, windowMs: 60000},
   parseVoiceReminder: {maxCalls: 20, windowMs: 60000},
@@ -869,115 +868,6 @@ exports.alexChat = onCall(GEMINI_CALL_OPTIONS, async (request) => {
   };
 });
 
-// =============================================================================
-// SUPERVISOR CHAT (Daily Summary)
-// =============================================================================
-
-/* eslint-disable max-len */
-const supervisorPrompt = `Voce e o assistente virtual especialista em saude geriatrica e analise de rotina para cuidadores.
-Sua funcao e analisar os dados diarios do idoso e entregar um relatorio executivo altamente util, claro e objetivo.
-
-Sempre responda APENAS com JSON valido no seguinte formato:
-{
-  "overallStatus": "VERDE" | "AMARELO" | "VERMELHO", // VERDE: tudo normal; AMARELO: pequenos atrasos; VERMELHO: remedios criticos perdidos ou pedido de ajuda.
-  "summary": "Resumo acolhedor do dia do idoso em 2-3 frases claras.",
-  "insights": [
-    "Padrao observado na rotina (ex: idoso costuma tomar o remedio da manha no horario certo)"
-  ],
-  "suggestions": [
-    "Recomendacao pratica e acionavel para o cuidador facilitando a rotina"
-  ],
-  "attentionPoints": [
-    "Ponto de atencao importante (se houver remedio perdido, bateria fraca ou pedido de ajuda)"
-  ]
-}
-
-Regras:
-- Nao invente dados. Baseie-se estritamente nos dados fornecidos.
-- Se nao houver dados suficientes, informe educadamente.
-- Seja sempre empatico com o idoso e extremamente funcional para o cuidador.`;
-/* eslint-enable max-len */
-
-exports.supervisorChat = onCall(GEMINI_CALL_OPTIONS, async (request) => {
-  const uid = requireAuth(request);
-  await checkRateLimit(uid, "supervisorChat");
-
-  const elderlyId = validateFirestoreId(request.data?.elderlyId, "elderlyId");
-  if (!(await isLinkedSupervisor(elderlyId, uid))) {
-    throw new HttpsError(
-        "permission-denied",
-        "Voce nao pode analisar dados deste idoso.",
-    );
-  }
-
-  const {elderlyData} = request.data;
-
-  if (!elderlyData || typeof elderlyData !== "object") {
-    return {
-      summary: "Sem dados do idoso para analisar.",
-      insights: [],
-      suggestions: [],
-      attentionPoints: [],
-    };
-  }
-
-  try {
-    const model = createGeminiModel("gemini-flash-lite-latest", {
-      generationConfig: {
-        temperature: 0.5,
-        topP: 0.9,
-        maxOutputTokens: 2048,
-      },
-    });
-
-    const serialized = JSON.stringify(elderlyData, null, 2).slice(0, 50000);
-
-    const chat = model.startChat({
-      systemInstruction: {
-        role: "system",
-        parts: [{text: supervisorPrompt}],
-      },
-    });
-
-    const result = await chat.sendMessage(
-        `Dados do idoso para analisar:\n${serialized}`,
-    );
-    const responseText = result.response.text();
-
-    const cleaned = cleanJsonResponse(responseText);
-
-    let parsed;
-    try {
-      parsed = JSON.parse(cleaned);
-    } catch (e) {
-      return {
-        summary: responseText || "Nao foi possivel gerar resumo agora.",
-        insights: [],
-        suggestions: [],
-        attentionPoints: [],
-      };
-    }
-
-    return {
-      summary: String(parsed.summary || "Resumo nao disponivel.").slice(
-          0,
-          2000,
-      ),
-      insights: Array.isArray(parsed.insights) ?
-        parsed.insights.slice(0, 10).map(String) :
-        [],
-      suggestions: Array.isArray(parsed.suggestions) ?
-        parsed.suggestions.slice(0, 10).map(String) :
-        [],
-      attentionPoints: Array.isArray(parsed.attentionPoints) ?
-        parsed.attentionPoints.slice(0, 10).map(String) :
-        [],
-    };
-  } catch (error) {
-    console.error("supervisorChat error:", error);
-    throw new HttpsError("internal", "Erro ao analisar dados do idoso.");
-  }
-});
 
 // =============================================================================
 // REPORT INSIGHTS GENERATOR

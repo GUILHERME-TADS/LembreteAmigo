@@ -1421,7 +1421,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
           backgroundColor: bgColor,
           floatingActionButton: AlexFloatingHelpButton(
             textoExplicacao:
-                'Tela principal. Toque em Falar para conversar comigo ou ouça os seus lembretes do dia abaixo.',
+                'Tela principal. Toque em Criar lembrete para falar um novo lembrete ou ouça os seus lembretes do dia abaixo.',
             onTapped: _stopAllAudioAndTts,
           ),
           body: SafeArea(
@@ -1447,7 +1447,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                             HapticFeedback.mediumImpact();
                             _stopAllAudioAndTts();
                             TTSService.instance.falar(
-                              'Esta é a tela principal. Toque no grande círculo para falar comigo ou ouça os seus lembretes do dia abaixo.',
+                              'Esta é a tela principal. Toque no grande círculo para criar um lembrete falando ou ouça os seus lembretes do dia abaixo.',
                               caller: this,
                             );
                           },
@@ -1567,14 +1567,17 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  'Lembrete Amigo',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primary,
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    'Lembrete Amigo',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
+                    ),
                   ),
                 ),
               ],
@@ -1612,8 +1615,8 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     return Center(
       child: Semantics(
         button: true,
-        label: 'Falar com o assistente Alex',
-        hint: 'Toque duas vezes para iniciar a conversa',
+        label: 'Criar lembrete falando',
+        hint: 'Toque duas vezes e diga o lembrete e o horário',
         child: GestureDetector(
           onTap: _abrirGravacao,
           child: Container(
@@ -1650,9 +1653,10 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Falar',
+                  'Criar\nlembrete',
+                  textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 26,
+                    fontSize: 23,
                     fontWeight: FontWeight.w800,
                     color: isHighContrast
                         ? Colors.black

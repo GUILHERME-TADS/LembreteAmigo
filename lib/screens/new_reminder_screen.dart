@@ -62,6 +62,15 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
       );
       return false;
     }
+    if (_selectedTime == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Selecione o horário do lembrete.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return false;
+    }
     return true;
   }
 
@@ -566,7 +575,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                     // Passo 3: Repetição e Avisos
                     _buildStepCard(
                       stepNumber: 3,
-                      title: 'Áudio e Duração',
+                      title: 'Repetição, Áudio e Segurança',
                       summary: _getRecurrenceDescription(),
                       children: [
                         _buildAudioSection(),
@@ -2193,6 +2202,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
   }
 
   Widget _buildBottomBar() {
+    final isFinalStep = _activeStep == 3;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -2205,18 +2215,26 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
         width: double.infinity,
         height: 64,
         child: ElevatedButton.icon(
-          onPressed: _isSaving ? null : _salvarLembrete,
+          onPressed: _isSaving
+              ? null
+              : isFinalStep
+              ? _salvarLembrete
+              : () => _goToStep(_activeStep + 1),
           icon: _isSaving
               ? const SizedBox(
                   width: 24,
                   height: 24,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Icon(Icons.send),
+              : Icon(isFinalStep ? Icons.save : Icons.arrow_forward),
           label: FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(
-              _isSaving ? 'Salvando...' : 'Salvar e Enviar',
+              _isSaving
+                  ? 'Salvando...'
+                  : isFinalStep
+                  ? 'Salvar lembrete'
+                  : 'Continuar',
               maxLines: 1,
               style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
             ),
@@ -2538,7 +2556,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                 size: 48,
               ),
               title: const Text(
-                'Alerta Clínico de IA',
+                'Verificação automatizada de segurança',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               content: Scrollbar(
@@ -2547,6 +2565,21 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      const Text(
+                        'Esta análise automática não substitui a orientação de um médico ou farmacêutico.',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 16),
+                      if (severity == 'severe') ...[
+                        Text(
+                          'O lembrete não pode ser salvo enquanto este alerta grave não for corrigido.',
+                          style: TextStyle(
+                            color: AppColors.error,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
                       if (showInteraction) ...[
                         Text(
                           'Interação Medicamentosa:',
@@ -2587,16 +2620,15 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                   onPressed: () => Navigator.pop(context, false),
                   child: const Text('Ajustar Lembrete'),
                 ),
-                ElevatedButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: severity == 'severe'
-                        ? AppColors.error
-                        : AppColors.primary,
-                    foregroundColor: Colors.white,
+                if (severity != 'severe')
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Salvar mesmo assim'),
                   ),
-                  child: const Text('Ignorar e Salvar'),
-                ),
               ],
             ),
           );

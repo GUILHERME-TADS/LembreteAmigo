@@ -1044,7 +1044,7 @@ class LembreteService {
           'reminderId': reminder.id,
           'occurrenceKey': occurrenceKey,
           'method': method,
-          if (finalPhotoPath != null) 'photoPath': finalPhotoPath,
+          'photoPath': ?finalPhotoPath,
         });
         final data = Map<String, dynamic>.from(response.data as Map);
         final registeredAt =
@@ -1288,7 +1288,7 @@ class LembreteService {
         'status': LembreteStatus.pendente.storageValue,
         'concluido': false,
         'concluidoComFoto': false,
-        if (restoredStock != null) 'medicamentoEstoque': restoredStock,
+        'medicamentoEstoque': ?restoredStock,
       });
       await OfflineSyncService.instance.setOrQueue(
         'lembrete_eventos',

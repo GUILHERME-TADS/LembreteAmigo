@@ -131,25 +131,30 @@ class _RequiredPermissionsScreenState extends State<RequiredPermissionsScreen>
                     label: const Text('Abrir configurações'),
                   ),
                 const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  height: 64,
-                  child: ElevatedButton.icon(
-                    onPressed: _requesting ? null : _requestAll,
-                    icon: _requesting
-                        ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(strokeWidth: 3),
-                          )
-                        : Icon(
-                            granted ? Icons.arrow_forward : Icons.verified_user,
+                ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 56),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _requesting ? null : _requestAll,
+                      icon: _requesting
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(strokeWidth: 3),
+                            )
+                          : Icon(
+                              granted ? Icons.arrow_forward : Icons.verified_user,
+                            ),
+                      label: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          granted ? 'Continuar' : 'Autorizar permissões',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
                           ),
-                    label: Text(
-                      granted ? 'Continuar' : 'Autorizar permissões',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ),
                   ),

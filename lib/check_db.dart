@@ -8,27 +8,22 @@ void main() async {
   final superDocs = await FirebaseFirestore.instance
       .collection('supervisores')
       .get();
-  print('Supervisors count: ' + superDocs.docs.length.toString());
+  debugPrint('Supervisors count: ${superDocs.docs.length}');
   for (var d in superDocs.docs) {
-    print('Supervisor ID: ' + d.id);
+    debugPrint('Supervisor ID: ${d.id}');
   }
   final idososDocs = await FirebaseFirestore.instance
       .collection('idoso_perfil')
       .get();
-  print('Idosos Profiles count: ' + idososDocs.docs.length.toString());
+  debugPrint('Idosos Profiles count: ${idososDocs.docs.length}');
   for (var d in idososDocs.docs) {
-    print(
-      'Idoso ID: ' +
-          d.id +
-          ', SupervisorId: ' +
-          d.data()['supervisorId'].toString() +
-          ', Status: ' +
-          d.data()['status'].toString(),
+    debugPrint(
+      'Idoso ID: ${d.id}, SupervisorId: ${d.data()['supervisorId']}, Status: ${d.data()['status']}',
     );
     final lembretes = await FirebaseFirestore.instance
         .collection('lembretes')
         .where('idosoId', isEqualTo: d.id)
         .get();
-    print('  -> Lembretes count: ' + lembretes.docs.length.toString());
+    debugPrint('  -> Lembretes count: ${lembretes.docs.length}');
   }
 }

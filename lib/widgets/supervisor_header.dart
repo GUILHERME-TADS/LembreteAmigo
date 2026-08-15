@@ -23,28 +23,36 @@ class SupervisorHeader extends StatelessWidget {
           ),
           onPressed: onBackPressed ?? () => Navigator.pop(context),
         ),
-        const Spacer(),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.health_and_safety,
-              size: 40,
-              color: AppColors.primary,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.w800,
-                height: 1.2,
+        Expanded(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.health_and_safety,
+                size: 36,
                 color: AppColors.primary,
               ),
-            ),
-          ],
+              const SizedBox(width: 8),
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.w800,
+                      height: 1.2,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-        const Spacer(),
         const SizedBox(width: 48),
       ],
     );

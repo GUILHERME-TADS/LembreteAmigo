@@ -46,7 +46,7 @@ class _ElderlyBottomNavState extends State<ElderlyBottomNav> {
       top: false,
       child: Container(
         margin: const EdgeInsets.only(left: 16, right: 16, bottom: 12),
-        height: 88,
+        constraints: const BoxConstraints(minHeight: 76),
         decoration: BoxDecoration(
           color: AppColors.surfaceContainerLowest,
           borderRadius: BorderRadius.circular(24),
@@ -63,7 +63,7 @@ class _ElderlyBottomNavState extends State<ElderlyBottomNav> {
           ],
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
@@ -93,7 +93,7 @@ class _ElderlyBottomNavState extends State<ElderlyBottomNav> {
               ),
               _ElderlyNavItem(
                 icon: Icons.help_center,
-                label: 'Ajuda',
+                label: 'Contato',
                 showMessageBadge: true,
                 selected: widget.selected == ElderlyNavDestination.help,
                 onTap: widget.selected == ElderlyNavDestination.help
@@ -131,7 +131,7 @@ class _ElderlyNavItem extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
           decoration: BoxDecoration(
             color: selected ? AppColors.secondaryContainer : Colors.transparent,
             borderRadius: BorderRadius.circular(16),
@@ -147,14 +147,17 @@ class _ElderlyNavItem extends StatelessWidget {
               else
                 Icon(icon, size: 28, color: itemColor),
               const SizedBox(height: 4),
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w900,
-                  color: itemColor,
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w900,
+                    color: itemColor,
+                  ),
                 ),
               ),
             ],

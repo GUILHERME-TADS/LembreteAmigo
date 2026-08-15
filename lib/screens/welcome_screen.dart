@@ -26,7 +26,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       TTSService.instance.falar(
-        'Aperte o botão amarelo se você for o idoso. Aperte o botão branco se você ajuda o idoso.',
+        'Aperte o botão amarelo se você for o idoso e entre com a conta Google dele. Aperte o botão branco se você ajuda o idoso.',
         caller: this,
       );
     });
@@ -45,7 +45,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       floatingActionButton: !SessionRoleService.isSupervisor
           ? const AlexFloatingHelpButton(
               textoExplicacao:
-                  'Olá! Esta é a tela para começar. Aperte o botão amarelo se você for o idoso. Aperte o botão branco se você ajuda o idoso.',
+                  'Olá! Esta é a tela para começar. Aperte o botão amarelo se você for o idoso e entre com a conta Google dele. Aperte o botão branco se você ajuda o idoso.',
             )
           : null,
       body: SafeArea(
@@ -74,7 +74,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                           GestureDetector(
                             onTap: () {
                               TTSService.instance.falar(
-                                'Aperte o botão amarelo se você for o idoso. Aperte o botão branco se você ajuda o idoso.',
+                                'Aperte o botão amarelo se você for o idoso e entre com a conta Google dele. Aperte o botão branco se você ajuda o idoso.',
                                 caller: this,
                               );
                             },
@@ -110,7 +110,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                           _buildProfileButton(
                             icon: Icons.elderly,
                             title: 'Sou o Idoso',
-                            subtitle: 'Acesso fácil e simplificado',
+                            subtitle: 'Entrar com a conta Google do idoso',
                             bgColor: AppColors.secondaryContainer,
                             textColor: AppColors.onSecondaryFixed,
                             iconBgColor: AppColors.surfaceContainerLowest,
@@ -220,6 +220,14 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                     'offline_write_queue_elderly_anonymous_idoso_sem_vinculo',
                                   );
                                 }
+                                final restoredConnection =
+                                    await SessionRoleService.restoreElderlyConnection();
+                                if (restoredConnection == null) {
+                                  throw StateError(
+                                    'Não foi possível verificar o vínculo com o cuidador. Confira a internet e tente novamente.',
+                                  );
+                                }
+
                                 await prefs.setString(
                                   'paired_idoso_id',
                                   user.uid,
@@ -227,18 +235,26 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                 await PushNotificationService.instance
                                     .saveCurrentToken();
                                 if (!context.mounted) return;
-                                if (previousId == user.uid) {
-                                  final isPaired =
-                                      await SessionRoleService.isElderlyConnectedToSupervisor();
-                                  if (!context.mounted) return;
+
+                                if (restoredConnection) {
                                   Navigator.pushNamedAndRemoveUntil(
                                     context,
                                     '/elderly-home',
                                     (route) => false,
-                                    arguments: {'connected': isPaired},
+                                    arguments: {
+                                      'connected': true,
+                                      'speak':
+                                          'Seu cuidador já está conectado. Bem-vindo de volta.',
+                                    },
+                                  );
+                                } else if (previousId == user.uid) {
+                                  Navigator.pushNamedAndRemoveUntil(
+                                    context,
+                                    '/elderly-home',
+                                    (route) => false,
+                                    arguments: {'connected': false},
                                   );
                                 } else {
-                                  if (!context.mounted) return;
                                   Navigator.pushNamed(
                                     context,
                                     '/elderly-onboarding',
@@ -261,7 +277,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text(
-                                      'Nao foi possivel entrar com Google: $e',
+                                      'Não foi possível abrir o modo idoso: $e',
                                     ),
                                   ),
                                 );

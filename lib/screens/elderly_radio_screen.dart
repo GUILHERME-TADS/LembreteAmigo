@@ -45,8 +45,11 @@ class _ElderlyRadioScreenState extends State<ElderlyRadioScreen>
     }
   }
 
-  void _stopAllAudioAndTts() {
-    TTSService.instance.parar();
+  Future<void> _stopAllAudioAndTts() async {
+    await Future.wait([
+      RadioService.instance.stopRadio(),
+      TTSService.instance.parar(),
+    ]);
   }
 
   Future<void> _loadProfilePhoto() async {

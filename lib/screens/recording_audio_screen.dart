@@ -1029,11 +1029,7 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
               TTSService.instance.parar(caller: this);
               Navigator.pop(context);
             },
-            icon: Icon(
-              Icons.arrow_back,
-              color: AppColors.primary,
-              size: 36,
-            ),
+            icon: Icon(Icons.arrow_back, color: AppColors.primary, size: 36),
           ),
           Expanded(
             child: Text(

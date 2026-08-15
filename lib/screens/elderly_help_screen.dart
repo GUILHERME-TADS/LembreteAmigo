@@ -729,10 +729,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                       height: 110,
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        border: Border.all(
-                          color: AppColors.success,
-                          width: 3,
-                        ),
+                        border: Border.all(color: AppColors.success, width: 3),
                         borderRadius: BorderRadius.circular(AppRadius.lg),
                       ),
                       child: Column(
@@ -850,10 +847,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                       height: 110,
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        border: Border.all(
-                          color: AppColors.info,
-                          width: 3,
-                        ),
+                        border: Border.all(color: AppColors.info, width: 3),
                         borderRadius: BorderRadius.circular(AppRadius.lg),
                       ),
                       child: Column(
@@ -912,10 +906,7 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
                       height: 110,
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        border: Border.all(
-                          color: AppColors.info,
-                          width: 3,
-                        ),
+                        border: Border.all(color: AppColors.info, width: 3),
                         borderRadius: BorderRadius.circular(AppRadius.lg),
                       ),
                       child: Column(
@@ -975,7 +966,10 @@ class _ElderlyHelpScreenState extends State<ElderlyHelpScreen> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
               decoration: BoxDecoration(
-                border: Border.all(color: AppColors.onCustomContainer, width: 3),
+                border: Border.all(
+                  color: AppColors.onCustomContainer,
+                  width: 3,
+                ),
                 borderRadius: BorderRadius.circular(AppRadius.lg),
               ),
               child: Row(

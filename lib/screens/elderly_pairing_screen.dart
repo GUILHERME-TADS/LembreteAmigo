@@ -29,6 +29,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
   StreamSubscription<DocumentSnapshot>? _profileSubscription;
   bool _isLoading = false;
   String? _errorMessage;
+  bool _checkingExistingConnection = true;
 
   bool get _useFirebase => FirebaseHelper.isInitialized;
 
@@ -36,7 +37,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _speakWelcome();
+      unawaited(_checkExistingConnectionOnStart());
     });
   }
 
@@ -54,6 +55,62 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
     }
   }
 
+  Future<void> _checkExistingConnectionOnStart() async {
+    final result = await _checkExistingConnection();
+    if (result == false) _speakWelcome();
+  }
+
+  Future<bool?> _checkExistingConnection() async {
+    final result = await SessionRoleService.restoreElderlyConnection();
+    if (!mounted) return result;
+
+    if (result == true) {
+      await _openExistingConnection();
+      return true;
+    }
+    if (result == null) {
+      const message =
+          'Não consegui verificar sua conexão com o cuidador. Confira a internet e tente novamente.';
+      setState(() {
+        _checkingExistingConnection = true;
+        _isLoading = false;
+        _errorMessage = message;
+      });
+      await TTSService.instance.falar(message, caller: this);
+      return null;
+    }
+
+    setState(() {
+      _checkingExistingConnection = false;
+      _errorMessage = null;
+    });
+    return false;
+  }
+
+  Future<void> _openExistingConnection() async {
+    TTSService.instance.parar(caller: this);
+    try {
+      await PushNotificationService.instance.saveCurrentToken();
+    } catch (error) {
+      debugPrint('Erro ao atualizar token depois de restaurar vinculo: $error');
+    }
+    try {
+      await OfflineSyncService.instance.syncPendingWrites();
+    } catch (error) {
+      debugPrint('Erro ao sincronizar depois de restaurar vinculo: $error');
+    }
+    if (!mounted) return;
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      '/elderly-home',
+      (route) => false,
+      arguments: {
+        'connected': true,
+        'speak': 'Seu cuidador já está conectado. Bem-vindo de volta.',
+      },
+    );
+  }
+
   @override
   void dispose() {
     _profileSubscription?.cancel();
@@ -64,6 +121,9 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
   Future<void> _entrarSemSupervisor() async {
     setState(() => _isLoading = true);
     try {
+      final existingConnection = await _checkExistingConnection();
+      if (existingConnection != false) return;
+
       final prefs = await SharedPreferences.getInstance();
       final idosoId = await SessionRoleService.ensureStableElderlyId();
       await prefs.setBool('elderly_autonomous_mode', true);
@@ -140,6 +200,12 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
     }
 
     try {
+      final existingConnection = await _checkExistingConnection();
+      if (existingConnection != false) {
+        if (mounted) setState(() => _isLoading = false);
+        return;
+      }
+
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
         throw StateError('Entre com Google para gerar o código de conexão.');
@@ -328,7 +394,52 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
                         ],
                       ),
                       const SizedBox(height: 12),
-                      if (_showModeSelection) ...[
+                      if (_checkingExistingConnection) ...[
+                        const SizedBox(height: 56),
+                        if (_errorMessage == null)
+                          CircularProgressIndicator(color: AppColors.primary)
+                        else
+                          Icon(
+                            Icons.cloud_off_outlined,
+                            color: AppColors.error,
+                            size: 64,
+                          ),
+                        const SizedBox(height: 20),
+                        Text(
+                          _errorMessage ??
+                              'Verificando sua conexão com o cuidador...',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: _errorMessage == null
+                                ? AppColors.primary
+                                : AppColors.error,
+                          ),
+                        ),
+                        if (_errorMessage != null) ...[
+                          const SizedBox(height: 24),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 64,
+                            child: OutlinedButton.icon(
+                              onPressed: () {
+                                setState(() => _errorMessage = null);
+                                unawaited(_checkExistingConnectionOnStart());
+                              },
+                              icon: const Icon(Icons.refresh, size: 28),
+                              label: const Text(
+                                'Tentar novamente',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 40),
+                      ] else if (_showModeSelection) ...[
                         const SizedBox(height: 32),
                         Text(
                           'Como você vai usar?',

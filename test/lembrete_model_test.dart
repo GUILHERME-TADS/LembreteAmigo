@@ -4,7 +4,6 @@ import 'package:lembretes_app/models/app_message.dart';
 import 'package:lembretes_app/models/lembrete.dart';
 import 'package:lembretes_app/models/offline_write.dart';
 import 'package:lembretes_app/models/smart_alert.dart';
-import 'package:lembretes_app/services/supervisor_ai_service.dart';
 import 'package:lembretes_app/services/offline_sync_service.dart';
 import 'package:lembretes_app/services/session_role_service.dart';
 import 'package:lembretes_app/services/smart_alert_service.dart';
@@ -331,6 +330,36 @@ void main() {
       SessionRoleService.unpairedIdosoId,
     );
   });
+  test('reconhece apenas perfil ativo com cuidador vinculado', () {
+    expect(
+      SessionRoleService.isElderlyProfileConnected({
+        'status': 'active',
+        'supervisorId': 'cuidador-1',
+      }),
+      isTrue,
+    );
+    expect(
+      SessionRoleService.isElderlyProfileConnected({
+        'status': 'active',
+        'caregiverIds': ['cuidador-2'],
+      }),
+      isTrue,
+    );
+    expect(
+      SessionRoleService.isElderlyProfileConnected({
+        'status': 'pending',
+        'caregiverIds': ['cuidador-2'],
+      }),
+      isFalse,
+    );
+    expect(
+      SessionRoleService.isElderlyProfileConnected({
+        'status': 'active',
+        'caregiverIds': <String>[],
+      }),
+      isFalse,
+    );
+  });
 
   test(
     'enfileira escrita offline quando firebase nao esta disponivel',
@@ -555,17 +584,6 @@ void main() {
 
       // Apos a data de fim (deve continuar ativo por ser de uso continuo)
       expect(l.isActiveOn(DateTime(2026, 7, 18)), isTrue);
-    });
-  });
-
-  group('SupervisorInsights', () {
-    test('hasContent retorna true quando tem conteudo', () {
-      expect(const SupervisorInsights(summary: '').hasContent, isFalse);
-      expect(const SupervisorInsights(summary: 'Resumo').hasContent, isTrue);
-      expect(
-        const SupervisorInsights(summary: '', insights: ['ok']).hasContent,
-        isTrue,
-      );
     });
   });
 

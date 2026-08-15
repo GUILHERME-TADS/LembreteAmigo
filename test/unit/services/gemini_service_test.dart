@@ -4,11 +4,11 @@ import 'package:lembretes_app/services/gemini_service.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('GeminiService - Cache & Multi-Key Pool', () {
-    test('retorna mensagem de aviso se nao houver chaves configuradas', () async {
-      final res = await GeminiService.explicarMedicamento('Dipirona');
-      expect(res, isNotNull);
-      expect(res.isNotEmpty, true);
+  group('GeminiService - validação local', () {
+    test('não consulta o servidor quando o nome está vazio', () async {
+      final result = await GeminiService.explicarMedicamento('   ');
+
+      expect(result, 'Não encontrei o nome do remédio para explicar.');
     });
   });
 }

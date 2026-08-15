@@ -111,8 +111,9 @@ class TTSService {
     for (var i = 0; i < textos.length; i++) {
       if (_cancelSpeech ||
           _activeCaller != caller ||
-          _activeSessionToken != sessionToken)
+          _activeSessionToken != sessionToken) {
         break;
+      }
       _completer = Completer<void>();
       speakingNotifier.value = true;
       await _tts.speak(textos[i]);
@@ -121,8 +122,9 @@ class TTSService {
       } catch (_) {}
       if (_cancelSpeech ||
           _activeCaller != caller ||
-          _activeSessionToken != sessionToken)
+          _activeSessionToken != sessionToken) {
         break;
+      }
       if (i < textos.length - 1) {
         await Future.delayed(const Duration(milliseconds: 500));
       }

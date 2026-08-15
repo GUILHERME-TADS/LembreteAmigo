@@ -12,7 +12,6 @@ import '../models/lembrete.dart';
 import '../models/lembrete_evento.dart';
 import '../models/smart_alert.dart';
 import '../services/device_barrier_service.dart';
-import '../services/supervisor_ai_service.dart';
 import '../services/daily_care_summary_service.dart';
 import '../services/care_preferences_service.dart';
 import '../services/lembrete_service.dart';
@@ -57,9 +56,6 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   bool _showChartsAccordion = false;
   bool _refortIsLoading = false;
   bool _callIsLoading = false;
-  SupervisorInsights? _aiInsights;
-  bool _aiLoading = false;
-  bool _aiLoaded = false;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   List<SmartAlert> _smartAlerts = [];
   Map<DateTime, double> _dailyAdherence = {};
@@ -315,21 +311,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
           _smartAlerts = SmartAlertService.instance.alerts;
         });
       }
-      _loadAIInsights();
     } catch (_) {}
-  }
-
-  Future<void> _loadAIInsights() async {
-    if (_aiLoaded || _aiLoading) return;
-    setState(() => _aiLoading = true);
-    final insights = await SupervisorAIService.instance.getDailySummary();
-    if (mounted) {
-      setState(() {
-        _aiInsights = insights;
-        _aiLoading = false;
-        _aiLoaded = true;
-      });
-    }
   }
 
   Future<void> _initiateCall(String callType) async {
@@ -465,8 +447,6 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                             const SizedBox(height: 20),
                             _buildDailySummaryCard(),
                             const SizedBox(height: 20),
-                            _buildAISummarySection(),
-                            const SizedBox(height: 24),
                             AttentionCenter(
                               alerts: _smartAlerts,
                               barriers: _deviceBarriers,
@@ -638,13 +618,16 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
             icon: Icon(Icons.menu, color: AppColors.primary, size: 32),
           ),
           Expanded(
-            child: Text(
-              'Lembrete Amigo',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.w700,
-                color: AppColors.primary,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                'Lembrete Amigo',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
+                ),
               ),
             ),
           ),
@@ -837,160 +820,6 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   ),
               ],
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAISummarySection() {
-    if (_aiLoading) {
-      return Card(
-        color: AppColors.surfaceContainerLow,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Gerando resumo inteligente...',
-                style: TextStyle(color: AppColors.onSurfaceVariant),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    if (_aiInsights == null || !_aiInsights!.hasContent) {
-      return const SizedBox.shrink();
-    }
-
-    final insights = _aiInsights!;
-    return Card(
-      color: AppColors.primaryFixed.withValues(alpha: 0.5),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.auto_awesome, size: 18, color: AppColors.primary),
-                const SizedBox(width: 8),
-                Text(
-                  'RESUMO INTELIGENTE',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.primary,
-                    letterSpacing: 1,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              insights.summary,
-              style: const TextStyle(fontSize: 15, height: 1.4),
-            ),
-            if (insights.insights.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              ...insights.insights.map(
-                (i) => Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '• ',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.onPrimaryFixedVariant,
-                        ),
-                      ),
-                      Expanded(
-                        child: Text(i, style: const TextStyle(fontSize: 14)),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-            if (insights.attentionPoints.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              Text(
-                'ATENCAO',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.error,
-                  letterSpacing: 1,
-                ),
-              ),
-              const SizedBox(height: 4),
-              ...insights.attentionPoints.map(
-                (a) => Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(
-                        Icons.warning_amber_rounded,
-                        size: 16,
-                        color: AppColors.error,
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          a,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: AppColors.error,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-            if (insights.suggestions.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              Text(
-                'SUGESTOES',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.onPrimaryFixedVariant,
-                  letterSpacing: 1,
-                ),
-              ),
-              ...insights.suggestions.map(
-                (s) => Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(
-                        Icons.lightbulb_outline,
-                        size: 16,
-                        color: AppColors.secondary,
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(s, style: const TextStyle(fontSize: 14)),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
           ],
         ),
       ),

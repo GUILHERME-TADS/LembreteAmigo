@@ -330,11 +330,11 @@ class _MedicationBulkConfirmationScreenState
                         child: ElevatedButton.icon(
                           onPressed: _isSaving ? null : _salvarLembretes,
                           icon: _isSaving
-                              ? const SizedBox(
+                              ? SizedBox(
                                   width: 24,
                                   height: 24,
                                   child: CircularProgressIndicator(
-                                    color: Colors.white,
+                                    color: AppColors.onPrimary,
                                     strokeWidth: 2.5,
                                   ),
                                 )
@@ -351,7 +351,7 @@ class _MedicationBulkConfirmationScreenState
                           ),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
-                            foregroundColor: Colors.white,
+                            foregroundColor: AppColors.onPrimary,
                             padding: const EdgeInsets.symmetric(
                               horizontal: 16,
                               vertical: 12,

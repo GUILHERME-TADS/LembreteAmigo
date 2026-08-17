@@ -283,6 +283,7 @@ class LembreteService {
     _eventosSubscription = FirebaseFirestore.instance
         .collection('lembrete_eventos')
         .where('idosoId', isEqualTo: idosoId)
+        .limit(100)
         .snapshots()
         .listen(
           (snapshot) async {
@@ -923,6 +924,12 @@ class LembreteService {
       _eventos[index] = event;
     }
     _eventos.sort((a, b) => b.registradoEm.compareTo(a.registradoEm));
+  }
+
+  Future<void> registrarEvento(LembreteEvento evento) async {
+    _upsertEventLocal(evento);
+    await _salvarEventosLocais();
+    eventosNotifier.value = List.unmodifiable(_eventos);
   }
 
   LembreteStatus _completionStatusForMethod(String method) {

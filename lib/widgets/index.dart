@@ -20,3 +20,8 @@ export 'charts/weekly_comparison_chart.dart';
 export 'supervisor_header.dart';
 export 'info_bottom_sheet.dart';
 export 'google_sign_in_button.dart';
+export 'hydration_prompt_dialog.dart';
+export 'elderly_daily_timeline.dart';
+export 'hold_to_activate_button.dart';
+export 'celebration_overlay.dart';
+export 'blister_reminder_card.dart';

@@ -1,6 +1,9 @@
 import 'dart:io';
 import 'dart:async';
+import 'dart:convert';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
@@ -9,8 +12,10 @@ import '../models/lembrete.dart';
 import '../services/care_preferences_service.dart';
 import '../services/lembrete_service.dart';
 import '../services/session_role_service.dart';
+import '../services/secure_cache_service.dart';
 import '../services/tts_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/app_image_helper.dart';
 import '../utils/audio_path_helper.dart';
 import '../utils/period_helper.dart';
 import '../services/elderly_profile_repository.dart';
@@ -40,7 +45,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
   String? _playingAudioPath;
   bool _isBannerSpeaking = false;
   bool _isOnline = true;
-  Timer? _connectivityTimer;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   StreamSubscription? _audioSubscription;
 
   bool _rotinaDoDiaOnly = false;
@@ -77,18 +82,20 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
         setState(() => _simpleHomeEnabled = preferences.simpleHomeEnabled);
       }
     });
-    _checkConnection();
+    Connectivity().checkConnectivity().then(_updateOnlineStatus);
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen(
+      _updateOnlineStatus,
+    );
     _loadProfilePhoto();
     if (widget.speakText != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         TTSService.instance.falar(widget.speakText!, caller: this);
       });
     }
-    _connectivityTimer = Timer.periodic(
-      const Duration(seconds: 30),
-      (_) => _checkConnection(),
-    );
     unawaited(CarePreferencesService.instance.restoreDailySummarySchedule());
+    if (widget.speakText == null) {
+      unawaited(_checkProactiveMorningGreeting());
+    }
 
     // Pulse Controller Setup
     _pulseController = AnimationController(
@@ -151,7 +158,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
 
   @override
   void dispose() {
-    _connectivityTimer?.cancel();
+    _connectivitySubscription?.cancel();
     _pulseController?.dispose();
     _audioSubscription?.cancel();
     LembreteService.instance.notifier.removeListener(_onLembretesChanged);
@@ -164,6 +171,36 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     TTSService.instance.parar(caller: this);
     _audioPlayer.dispose();
     super.dispose();
+  }
+
+  Future<void> _checkProactiveMorningGreeting() async {
+    final now = DateTime.now();
+    if (now.hour >= 6 && now.hour < 12) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final todayStr = '${now.year}-${now.month}-${now.day}';
+        final lastGreeted = prefs.getString('last_morning_greeting_date');
+        if (lastGreeted != todayStr) {
+          await prefs.setString('last_morning_greeting_date', todayStr);
+          final profileJson =
+              await SecureCacheService.instance.readElderlyProfile();
+          String name = '';
+          if (profileJson != null) {
+            try {
+              final profile = jsonDecode(profileJson) as Map<String, dynamic>;
+              if (profile['nome'] != null && profile['nome'].toString().isNotEmpty) {
+                name = ', ${profile['nome']}';
+              }
+            } catch (_) {}
+          }
+          final greeting =
+              'Bom dia$name! Que você tenha um ótimo dia. Seus lembretes e remédios de hoje já estão organizados.';
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            TTSService.instance.falar(greeting, caller: this);
+          });
+        }
+      } catch (_) {}
+    }
   }
 
   Future<void> _loadProfilePhoto() async {
@@ -324,31 +361,17 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     );
   }
 
-  Future<void> _checkConnection() async {
-    if (kIsWeb) {
-      if (mounted && !_isOnline) {
-        setState(() {
-          _isOnline = true;
-        });
-      }
-      return;
-    }
-    try {
-      final result = await InternetAddress.lookup(
-        'example.com',
-      ).timeout(const Duration(seconds: 3));
-      final bool hasNet = result.isNotEmpty && result[0].rawAddress.isNotEmpty;
-      if (mounted && _isOnline != hasNet) {
-        setState(() {
-          _isOnline = hasNet;
-        });
-      }
-    } catch (_) {
-      if (mounted && _isOnline) {
-        setState(() {
-          _isOnline = false;
-        });
-      }
+  void _updateOnlineStatus(List<ConnectivityResult> results) {
+    final bool hasNet = results.any(
+      (r) =>
+          r == ConnectivityResult.wifi ||
+          r == ConnectivityResult.mobile ||
+          r == ConnectivityResult.ethernet,
+    );
+    if (mounted && _isOnline != hasNet) {
+      setState(() {
+        _isOnline = hasNet;
+      });
     }
   }
 
@@ -573,10 +596,12 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     final titleColor = isHighContrast
         ? Colors.black
         : (lembrete.concluido
-              ? AppColors.onTertiaryFixedVariant
+              ? AppColors.onSuccessContainer
               : lembrete.status == LembreteStatus.adiado
-              ? AppColors.onSecondaryFixedVariant
-              : accentColor);
+              ? AppColors.onWarningContainer
+              : isAtrasado
+              ? AppColors.onErrorContainer
+              : AppColors.onSurface);
 
     final String barText = lembrete.concluido
         ? 'Pronto!'
@@ -709,8 +734,10 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                       'http',
                                     )
                                   ? NetworkImage(lembrete.medicamentoFotoPath!)
-                                  : FileImage(
+                                  : AppImageHelper.resizedFileImage(
                                       File(lembrete.medicamentoFotoPath!),
+                                      maxWidth: 400,
+                                      maxHeight: 400,
                                     ),
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) {
@@ -778,8 +805,13 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                               fontWeight: FontWeight.w500,
                               color: isHighContrast
                                   ? Colors.black
-                                  : (lembrete.status == LembreteStatus.adiado
-                                        ? AppColors.onSecondaryFixedVariant
+                                  : (lembrete.concluido
+                                        ? AppColors.onSuccessContainer
+                                        : lembrete.status ==
+                                              LembreteStatus.adiado
+                                        ? AppColors.onWarningContainer
+                                        : isAtrasado
+                                        ? AppColors.onErrorContainer
                                         : AppColors.onSurfaceVariant),
                             ),
                           ),
@@ -1411,141 +1443,173 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
 
   @override
   Widget build(BuildContext context) {
-    final bgColor = AppColors.background;
     final isHighContrast =
         Theme.of(context).colorScheme.primary == Colors.black;
+    final nowHour = DateTime.now().hour;
+    final atmosphereGradient = isHighContrast
+        ? null
+        : (nowHour >= 5 && nowHour < 12
+            ? AppColors.morningAtmosphere
+            : nowHour >= 12 && nowHour < 18
+                ? AppColors.afternoonAtmosphere
+                : AppColors.nightAtmosphere);
 
     return Stack(
       children: [
         Scaffold(
-          backgroundColor: bgColor,
+          backgroundColor: AppColors.background,
           floatingActionButton: AlexFloatingHelpButton(
             textoExplicacao:
                 'Tela principal. Toque em Criar lembrete para falar um novo lembrete ou ouça os seus lembretes do dia abaixo.',
             onTapped: _stopAllAudioAndTts,
           ),
-          body: SafeArea(
-            child: Column(
-              children: [
-                const VolumeWarningBanner(),
-                _buildTopBar(),
-                const DeviceBarrierBanner(),
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-                    child: Column(
-                      children: [
-                        if (_isConnected) ...[
-                          _buildConnectedBadge(),
-                          const SizedBox(height: 12),
-                        ],
+          body: Container(
+            decoration: BoxDecoration(
+              gradient: atmosphereGradient,
+            ),
+            child: SafeArea(
+              child: Column(
+                children: [
+                  const VolumeWarningBanner(),
+                  _buildTopBar(),
+                  const DeviceBarrierBanner(),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                      child: Column(
+                        children: [
+                          if (_isConnected) ...[
+                            _buildConnectedBadge(),
+                            const SizedBox(height: 12),
+                          ],
 
-                        _buildActionButtons(),
-                        const SizedBox(height: 16),
-                        GestureDetector(
-                          onTap: () {
-                            HapticFeedback.mediumImpact();
-                            _stopAllAudioAndTts();
-                            TTSService.instance.falar(
-                              'Esta é a tela principal. Toque no grande círculo para criar um lembrete falando ou ouça os seus lembretes do dia abaixo.',
-                              caller: this,
-                            );
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 18,
-                              vertical: 14,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isHighContrast
-                                  ? AppColors.secondaryContainer
-                                  : AppColors.secondaryContainer,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: isHighContrast
-                                    ? Colors.black
-                                    : AppColors.primary,
-                                width: 2.5,
+                          _buildActionButtons(),
+                          const SizedBox(height: 16),
+                          GestureDetector(
+                            onTap: () {
+                              HapticFeedback.mediumImpact();
+                              _stopAllAudioAndTts();
+                              TTSService.instance.falar(
+                                'Esta é a tela principal. Toque no grande círculo para criar um lembrete falando ou ouça os seus lembretes do dia abaixo.',
+                                caller: this,
+                              );
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 18,
+                                vertical: 14,
                               ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.volume_up_rounded,
-                                  size: 30,
+                              decoration: BoxDecoration(
+                                color: isHighContrast
+                                    ? Colors.white
+                                    : AppColors.secondaryContainer,
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
                                   color: isHighContrast
                                       ? Colors.black
                                       : AppColors.primary,
+                                  width: 2.5,
                                 ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'OUVIR ORIENTAÇÕES DA TELA',
-                                        style: TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w900,
-                                          color: isHighContrast
-                                              ? Colors.black
-                                              : AppColors.primary,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        'Toque aqui se precisar de ajuda',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600,
-                                          color: isHighContrast
-                                              ? Colors.black87
-                                              : AppColors.onSecondaryContainer,
-                                        ),
-                                      ),
-                                    ],
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppColors.shadow.withValues(alpha: 0.08),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
                                   ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        _buildNextReminderBanner(),
-                        if (!_simpleHomeEnabled || _showFullRoutine) ...[
-                          const SizedBox(height: 24),
-                          _buildRotinaToggle(),
-                          const SizedBox(height: 24),
-                          _buildTimeline(_lembretes),
-                        ] else ...[
-                          const SizedBox(height: 16),
-                          SizedBox(
-                            width: double.infinity,
-                            height: 58,
-                            child: OutlinedButton.icon(
-                              onPressed: () =>
-                                  setState(() => _showFullRoutine = true),
-                              icon: const Icon(Icons.calendar_view_day),
-                              label: const Text(
-                                'Ver rotina completa',
-                                style: TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.volume_up_rounded,
+                                    size: 30,
+                                    color: isHighContrast
+                                        ? Colors.black
+                                        : AppColors.primary,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'OUVIR ORIENTAÇÕES DA TELA',
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w900,
+                                            color: isHighContrast
+                                                ? Colors.black
+                                                : AppColors.primary,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          'Toque aqui se precisar de ajuda',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                            color: isHighContrast
+                                                ? Colors.black87
+                                                : AppColors.onSecondaryContainer,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
+                          const SizedBox(height: 16),
+                          _buildNextReminderBanner(),
+                          const SizedBox(height: 12),
+                          ElderlyDailyTimeline(lembretes: _lembretes),
+                          if (!_simpleHomeEnabled || _showFullRoutine) ...[
+                            const SizedBox(height: 24),
+                            _buildRotinaToggle(),
+                            const SizedBox(height: 24),
+                            _buildTimeline(_lembretes),
+                          ] else ...[
+                            const SizedBox(height: 16),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 58,
+                              child: OutlinedButton.icon(
+                                onPressed: () =>
+                                    setState(() => _showFullRoutine = true),
+                                icon: const Icon(Icons.calendar_view_day),
+                                label: const Text(
+                                  'Ver rotina completa',
+                                  style: TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 24),
+                          // Botão de Segurança e Emergência com Salvaguarda de 3s
+                          HoldToActivateButton(
+                            label: 'PEDIR AJUDA / SOS',
+                            activeLabel: 'Mantenha pressionado...',
+                            icon: Icons.emergency_rounded,
+                            backgroundColor: AppColors.error,
+                            textColor: Colors.white,
+                            onTriggered: () {
+                              _stopAllAudioAndTts();
+                              Navigator.pushNamed(context, '/emergency-card');
+                            },
+                          ),
+                          const SizedBox(height: 20),
                         ],
-                        const SizedBox(height: 24),
-                        _buildMoreOptions(),
-                        const SizedBox(height: 24),
-                      ],
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
           bottomNavigationBar: const ElderlyBottomNav(
@@ -1557,27 +1621,47 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
   }
 
   Widget _buildTopBar() {
+    final isHighContrast =
+        Theme.of(context).colorScheme.primary == Colors.black;
+    final hour = DateTime.now().hour;
+    final greeting = hour >= 5 && hour < 12
+        ? 'Bom dia ☀️'
+        : hour >= 12 && hour < 18
+            ? 'Boa tarde 🌤️'
+            : 'Boa noite 🌙';
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      decoration: BoxDecoration(color: AppColors.surface),
+      decoration: BoxDecoration(
+        color: isHighContrast ? Colors.white : Colors.transparent,
+      ),
       child: Row(
         children: [
-          const SizedBox(width: 56),
           Expanded(
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    'Lembrete Amigo',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
-                    ),
+                Text(
+                  greeting,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: isHighContrast
+                        ? Colors.black87
+                        : AppColors.onSurfaceVariant,
+                  ),
+                ),
+                Text(
+                  'Lembrete Amigo',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w900,
+                    color: isHighContrast
+                        ? Colors.black
+                        : AppColors.primary,
                   ),
                 ),
               ],
@@ -1625,10 +1709,12 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: isHighContrast
-                  ? AppColors.secondaryContainer
+                  ? Colors.white
                   : AppColors.secondaryContainer,
               border: Border.all(
-                color: isHighContrast ? Colors.black : Colors.white,
+                color: isHighContrast
+                    ? Colors.black
+                    : Colors.white,
                 width: 6,
               ),
               boxShadow: isHighContrast
@@ -1722,68 +1808,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     );
   }
 
-  Widget _buildDeviceReadinessShortcut() {
-    return ListTile(
-      minVerticalPadding: 14,
-      onTap: () => Navigator.pushNamed(context, '/device-readiness'),
-      leading: const Icon(Icons.health_and_safety_outlined, size: 30),
-      title: const Text(
-        'Verificar se o celular está pronto',
-        style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
-      ),
-      trailing: const Icon(Icons.chevron_right),
-    );
-  }
 
-  Widget _buildCaregiverNetworkShortcut() {
-    return ListTile(
-      minVerticalPadding: 14,
-      onTap: () => Navigator.pushNamed(context, '/caregiver-network'),
-      leading: const Icon(Icons.groups_2_outlined, size: 30),
-      title: const Text(
-        'Minha rede de cuidado',
-        style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
-      ),
-      trailing: const Icon(Icons.chevron_right),
-    );
-  }
-
-  Widget _buildPracticeShortcut() {
-    return ListTile(
-      minVerticalPadding: 14,
-      onTap: () => Navigator.pushNamed(context, '/practice-mode'),
-      leading: const Icon(Icons.school_outlined, size: 30),
-      title: const Text(
-        'Treinar o aplicativo',
-        style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
-      ),
-      subtitle: const Text('Pratique sem alterar dados reais'),
-      trailing: const Icon(Icons.chevron_right),
-    );
-  }
-
-  Widget _buildMoreOptions() {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: AppColors.outlineVariant),
-      ),
-      child: ExpansionTile(
-        leading: const Icon(Icons.more_horiz, size: 30),
-        title: const Text(
-          'Outras opções',
-          style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
-        ),
-        subtitle: const Text('Celular e rede de cuidado'),
-        children: [
-          _buildDeviceReadinessShortcut(),
-          _buildCaregiverNetworkShortcut(),
-          _buildPracticeShortcut(),
-        ],
-      ),
-    );
-  }
 
   Widget _buildFocusActions(Lembrete lembrete, {required bool highContrast}) {
     ButtonStyle style(Color background, Color foreground) =>
@@ -1813,7 +1838,13 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(Icons.check_circle_outline, size: 28),
-                Text('Fazer', style: TextStyle(fontWeight: FontWeight.bold)),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    'Fazer',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
               ],
             ),
           ),
@@ -1824,7 +1855,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
             onPressed: () => _postponeFocusedReminder(lembrete),
             style: style(
               highContrast
-                  ? AppColors.secondaryContainer
+                  ? Colors.white
                   : AppColors.secondaryContainer,
               highContrast ? Colors.black : AppColors.onSecondaryContainer,
             ),
@@ -1832,10 +1863,12 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(Icons.snooze, size: 28),
-                Text(
-                  'Mais tarde',
-                  maxLines: 1,
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    'Mais tarde',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ),
               ],
             ),
@@ -1853,7 +1886,13 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(Icons.support_agent, size: 28),
-                Text('Ajuda', style: TextStyle(fontWeight: FontWeight.bold)),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    'Ajuda',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
               ],
             ),
           ),
@@ -2036,11 +2075,13 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                               ? NetworkImage(
                                                   lembrete.medicamentoFotoPath!,
                                                 )
-                                              : FileImage(
+                                              : AppImageHelper.resizedFileImage(
                                                   File(
                                                     lembrete
                                                         .medicamentoFotoPath!,
                                                   ),
+                                                  maxWidth: 400,
+                                                  maxHeight: 400,
                                                 ),
                                           fit: BoxFit.cover,
                                           errorBuilder:
@@ -2130,7 +2171,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                 fontWeight: FontWeight.w900,
                                 color: isHighContrast
                                     ? Colors.black
-                                    : AppColors.primary,
+                                    : AppColors.onSurface,
                                 height: 1.2,
                               ),
                             ),
@@ -2157,7 +2198,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                                   ),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: isHighContrast
-                                        ? AppColors.secondaryContainer
+                                        ? Colors.white
                                         : AppColors.secondaryContainer,
                                     foregroundColor: isHighContrast
                                         ? Colors.black

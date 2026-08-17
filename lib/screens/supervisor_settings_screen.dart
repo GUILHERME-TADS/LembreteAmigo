@@ -6,7 +6,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import '../theme/app_theme.dart';
-import '../widgets/theme_mode_selector.dart';
 import '../services/care_preferences_service.dart';
 import '../services/session_role_service.dart';
 import '../services/lembrete_service.dart';
@@ -354,8 +353,6 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    const ThemeModeSelector(),
-                    const SizedBox(height: 24),
                     _settingsGroup('Resumo e treinamento', [
                       SwitchListTile(
                         secondary: Icon(
@@ -386,6 +383,22 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
                         'Pratique confirmações sem alterar dados reais',
                         onTap: () =>
                             Navigator.pushNamed(context, '/practice-mode'),
+                      ),
+                    ]),
+                    const SizedBox(height: 24),
+                    _settingsGroup('Ferramentas & Opções de Teste', [
+                      _settingsTile(
+                        Icons.science_outlined,
+                        'Central de Testes & Simulações',
+                        'Simular alarmes, emergência, chamadas e dados de teste',
+                        onTap: () => Navigator.pushNamed(context, '/test-hub'),
+                      ),
+                      _settingsTile(
+                        Icons.checklist_rtl_outlined,
+                        'Prontidão do Aparelho',
+                        'Verificar permissões, som, alarme exato e bateria',
+                        onTap: () =>
+                            Navigator.pushNamed(context, '/device-readiness'),
                       ),
                     ]),
                     const SizedBox(height: 24),

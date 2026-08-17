@@ -11,6 +11,7 @@ import '../services/effectiveness_service.dart';
 import '../utils/debounce.dart';
 import '../widgets/supervisor_bottom_nav.dart';
 import '../widgets/supervisor_drawer.dart';
+import '../utils/app_image_helper.dart';
 
 class ActivityHistoryScreen extends StatefulWidget {
   const ActivityHistoryScreen({super.key});
@@ -136,10 +137,49 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
     }
   }
 
-  void _showPhotoDialog(BuildContext context, Lembrete lembrete) {
-    final photoPath = lembrete.medicamentoFotoPath;
-    if (photoPath == null) return;
+  Widget _buildPhotoWidget(String photoPath) {
+    ImageProvider imageProvider;
+    if (photoPath.startsWith('assets/')) {
+      imageProvider = AssetImage(photoPath);
+    } else if (kIsWeb || photoPath.startsWith('http')) {
+      imageProvider = NetworkImage(photoPath);
+    } else {
+      imageProvider = AppImageHelper.resizedFileImage(
+        File(photoPath),
+        maxWidth: 800,
+        maxHeight: 800,
+      );
+    }
 
+    return Image(
+      image: imageProvider,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        return Container(
+          height: 120,
+          color: AppColors.surfaceContainerHigh,
+          alignment: Alignment.center,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.broken_image, size: 36, color: AppColors.outline),
+              const SizedBox(height: 4),
+              Text(
+                'Foto indisponível',
+                style: TextStyle(fontSize: 12, color: AppColors.outline),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showPhotoPathDialog(
+    BuildContext context,
+    String photoPath, {
+    String title = 'Foto de Confirmação',
+  }) {
     showDialog(
       context: context,
       builder: (context) {
@@ -149,7 +189,11 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
         } else if (kIsWeb || photoPath.startsWith('http')) {
           imageProvider = NetworkImage(photoPath);
         } else {
-          imageProvider = FileImage(File(photoPath));
+          imageProvider = AppImageHelper.resizedFileImage(
+            File(photoPath),
+            maxWidth: 800,
+            maxHeight: 800,
+          );
         }
 
         return Dialog(
@@ -160,9 +204,9 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               AppBar(
-                title: const Text(
-                  'Foto do Lembrete',
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                title: Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 automaticallyImplyLeading: false,
                 actions: [
@@ -194,23 +238,12 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
                               size: 48,
                               color: AppColors.outline,
                             ),
-                            SizedBox(height: 8),
-                            Text('Não foi possível carregar a imagem'),
+                            const SizedBox(height: 8),
+                            const Text('Não foi possível carregar a imagem'),
                           ],
                         ),
                       );
                     },
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: Text(
-                  lembrete.titulo,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
@@ -722,6 +755,297 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
         );
   }
 
+  void _showEventDetailsSheet(BuildContext context, LembreteEvento evento) {
+    final lembrete = _reminderForEvent(evento);
+    final color = _categoriaColor(lembrete.categoria);
+    final icon = _categoriaIcon(lembrete.categoria);
+    final categoryLabel = _categoriaLabel(lembrete.categoria);
+
+    final statusColor = switch (evento.status) {
+      LembreteStatus.concluido => AppColors.success,
+      LembreteStatus.concluidoComFoto => AppColors.success,
+      LembreteStatus.confirmadoPeloCuidador => AppColors.primary,
+      LembreteStatus.adiado => AppColors.warning,
+      LembreteStatus.precisaDeAjuda => AppColors.error,
+      LembreteStatus.perdido => AppColors.error,
+      LembreteStatus.pendente => AppColors.outline,
+    };
+
+    final statusIcon = switch (evento.status) {
+      LembreteStatus.concluido => Icons.check_circle_rounded,
+      LembreteStatus.concluidoComFoto => Icons.camera_alt_rounded,
+      LembreteStatus.confirmadoPeloCuidador => Icons.verified_user_rounded,
+      LembreteStatus.adiado => Icons.update_rounded,
+      LembreteStatus.precisaDeAjuda => Icons.sos_rounded,
+      LembreteStatus.perdido => Icons.cancel_rounded,
+      LembreteStatus.pendente => Icons.hourglass_empty_rounded,
+    };
+
+    final statusLabel = switch (evento.status) {
+      LembreteStatus.concluido => 'Concluído',
+      LembreteStatus.concluidoComFoto => 'Concluído com foto',
+      LembreteStatus.confirmadoPeloCuidador => 'Confirmado pelo cuidador',
+      LembreteStatus.adiado => 'Adiado',
+      LembreteStatus.precisaDeAjuda => 'Precisou de ajuda',
+      LembreteStatus.perdido => 'Não realizado / Perdido',
+      LembreteStatus.pendente => 'Pendente',
+    };
+
+    final d = evento.registradoEm;
+    final dataFormatada =
+        '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year} às ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+
+    final fotoPath =
+        evento.fotoConfirmacaoPath ?? lembrete.medicamentoFotoPath;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Handle superior
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppColors.outlineVariant,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Cabeçalho com Ícone, Título e Categoria
+                  Row(
+                    children: [
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Icon(icon, color: color, size: 26),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              evento.titulo,
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              categoryLabel,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: color,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded),
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Card de Status e Horário do Registro
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: statusColor.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: statusColor.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(statusIcon, color: statusColor, size: 28),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                statusLabel,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: statusColor,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Registrado em $dataFormatada',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: AppColors.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Foto de comprovação (se houver)
+                  if (fotoPath != null && fotoPath.isNotEmpty) ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Foto de Confirmação',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        TextButton.icon(
+                          onPressed: () =>
+                              _showPhotoPathDialog(context, fotoPath),
+                          icon: const Icon(Icons.zoom_in, size: 18),
+                          label: const Text('Ampliar'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    GestureDetector(
+                      onTap: () => _showPhotoPathDialog(context, fotoPath),
+                      child: Container(
+                        height: 160,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: AppColors.outlineVariant),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(14),
+                          child: _buildPhotoWidget(fotoPath),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // Observação / Motivo (se houver)
+                  if (evento.observacao != null &&
+                      evento.observacao!.trim().isNotEmpty) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceContainerHigh,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Observações:',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            evento.observacao!,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: AppColors.onSurface,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // Botão para ver configurações do lembrete (caso o supervisor queira editar a regra matriz)
+                  Center(
+                    child: TextButton.icon(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        Navigator.pushNamed(
+                          context,
+                          '/supervisor-reminder-detail',
+                          arguments: {
+                            'title': lembrete.titulo,
+                            'time': lembrete.horarioFormatado,
+                            'iconData': icon,
+                            'accentColor': color,
+                            'category': categoryLabel,
+                            'lembrete': lembrete,
+                          },
+                        );
+                      },
+                      icon: const Icon(Icons.settings_outlined, size: 18),
+                      label: const Text('Ver configurações deste lembrete'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        textStyle:
+                            const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Botão Fechar
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'Fechar',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _activityCard(LembreteEvento evento) {
     final lembrete = _reminderForEvent(evento);
     final eventTime =
@@ -745,20 +1069,7 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
     };
 
     return GestureDetector(
-      onTap: () {
-        Navigator.pushNamed(
-          context,
-          '/supervisor-reminder-detail',
-          arguments: {
-            'title': lembrete.titulo,
-            'time': eventTime,
-            'iconData': icon,
-            'accentColor': color,
-            'category': categoryLabel,
-            'lembrete': lembrete,
-          },
-        );
-      },
+      onTap: () => _showEventDetailsSheet(context, evento),
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         decoration: BoxDecoration(
@@ -875,11 +1186,18 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
                                       ),
                                     ],
                                   ),
-                                  if (concluidoComFoto &&
-                                      lembrete.medicamentoFotoPath != null) ...[
+                                  if ((concluidoComFoto ||
+                                          evento.fotoConfirmacaoPath !=
+                                              null) &&
+                                      (evento.fotoConfirmacaoPath != null ||
+                                          lembrete.medicamentoFotoPath !=
+                                              null)) ...[
                                     GestureDetector(
-                                      onTap: () =>
-                                          _showPhotoDialog(context, lembrete),
+                                      onTap: () => _showPhotoPathDialog(
+                                        context,
+                                        evento.fotoConfirmacaoPath ??
+                                            lembrete.medicamentoFotoPath!,
+                                      ),
                                       child: Container(
                                         padding: const EdgeInsets.symmetric(
                                           horizontal: 8,

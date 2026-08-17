@@ -175,78 +175,86 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
         return text.replaceAll(RegExp(r'[^\x20-\x7E\xA0-\xFF]'), '');
       }
 
+      final lembretes = LembreteService.instance.lembretes;
+
+      final medRows = <List<String>>[];
+      for (final l in lembretes.where((e) => e.categoria == 'medicacao')) {
+        final hora = '${l.horarioHour.toString().padLeft(2, '0')}:${l.horarioMinute.toString().padLeft(2, '0')}';
+        final status = l.concluido ? 'Concluido' : (l.isActiveOn(DateTime.now()) ? 'Ativo' : 'Pausado');
+        final estoque = l.medicamentoEstoque != null ? '${l.medicamentoEstoque} un.' : '-';
+        medRows.add([hora, sanitize(l.titulo), estoque, status]);
+      }
+
       pdf.addPage(
-        pw.Page(
+        pw.MultiPage(
           theme: pdfTheme,
           pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(32),
           build: (pw.Context context) {
-            return pw.Padding(
-              padding: const pw.EdgeInsets.all(32),
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Text(
-                    'RELATORIO FAMILIAR - LEMBRETE AMIGO',
-                    style: pw.TextStyle(
-                      fontSize: 22,
-                      fontWeight: pw.FontWeight.bold,
+            return [
+              pw.Header(
+                level: 0,
+                child: pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text(
+                      'RELATORIO CLINICO DE ACOMPANHAMENTO',
+                      style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
                     ),
-                  ),
-                  pw.SizedBox(height: 16),
-                  pw.Text('Paciente: ${sanitize(_idosoName)}'),
-                  pw.Text(
-                    'Gerado em: ${DateTime.now().toIso8601String().substring(0, 10)}',
-                  ),
-                  pw.SizedBox(height: 20),
-                  pw.Text(
-                    'RESUMO DA SEMANA',
-                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                  ),
-                  pw.Divider(),
-                  pw.Bullet(text: 'Adesao semanal: $weeklyPct%'),
-                  pw.Bullet(text: 'Atividades registradas: $_weeklyTotal'),
-                  pw.Bullet(text: 'Atividades concluidas: $_weeklyDone'),
-                  pw.Bullet(text: 'Atividades nao feitas: $_weeklyMissed'),
-                  pw.Bullet(
-                    text: 'Resumo familiar: ${sanitize(_weeklyHumanSummary)}',
-                  ),
-                  pw.Bullet(
-                    text: 'Ponto de atencao: ${sanitize(_weeklyAttention)}',
-                  ),
-                  pw.SizedBox(height: 20),
-                  pw.Text(
-                    'ADERENCIA POR CATEGORIA',
-                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                  ),
-                  pw.Divider(),
-                  pw.Bullet(text: 'Medicamentos: $_medicacaoPct%'),
-                  pw.Bullet(text: 'Refeicoes: $_refeicoesPct%'),
-                  pw.Bullet(text: 'Exercicios: $_exercicioPct%'),
-                  pw.Bullet(text: 'Hidratacao: $_hidratacaoPct%'),
-                  pw.SizedBox(height: 12),
-                  pw.Text(
-                    'Desempenho geral: $_geralPct%',
-                    style: pw.TextStyle(
-                      fontSize: 16,
-                      fontWeight: pw.FontWeight.bold,
+                    pw.Text(
+                      'Lembrete Amigo',
+                      style: pw.TextStyle(fontSize: 12, color: PdfColors.blueGrey800),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            );
+              pw.SizedBox(height: 12),
+              pw.Text('Paciente: ${sanitize(_idosoName)}', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+              pw.Text('Data de emissao: ${DateTime.now().toIso8601String().substring(0, 10)}', style: const pw.TextStyle(fontSize: 11)),
+              pw.SizedBox(height: 16),
+              pw.Text('INDICADORES DE ADESAO DA ROTINA', style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold)),
+              pw.Divider(thickness: 1),
+              pw.Bullet(text: 'Taxa de adesao geral na semana: $weeklyPct%'),
+              pw.Bullet(text: 'Total de atividades programadas: $_weeklyTotal (Concluidas: $_weeklyDone, Nao concluidas: $_weeklyMissed)'),
+              pw.Bullet(text: 'Adesao por categoria: Medicamentos ($_medicacaoPct%), Refeicoes ($_refeicoesPct%), Exercicios ($_exercicioPct%), Hidratacao ($_hidratacaoPct%)'),
+              pw.Bullet(text: 'Observacoes clinicas: ${sanitize(_weeklyHumanSummary)}'),
+              pw.SizedBox(height: 20),
+              pw.Text('GRADE ATUAL DE MEDICAMENTOS', style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold)),
+              pw.Divider(thickness: 1),
+              if (medRows.isEmpty)
+                pw.Text('Nenhum medicamento ativo cadastrado.')
+              else
+                pw.TableHelper.fromTextArray(
+                  headers: ['Horario', 'Medicamento', 'Estoque', 'Situacao'],
+                  data: medRows,
+                  headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10),
+                  cellStyle: const pw.TextStyle(fontSize: 9),
+                  cellAlignment: pw.Alignment.centerLeft,
+                  headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
+                ),
+              pw.SizedBox(height: 24),
+              pw.Container(
+                padding: const pw.EdgeInsets.all(10),
+                decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.grey400), borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6))),
+                child: pw.Text(
+                  'Documento gerado para suporte a consultas medicas e planejamento do cuidado familiar.',
+                  style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
+                ),
+              ),
+            ];
           },
         ),
       );
 
       final output = await getTemporaryDirectory();
-      final file = File('${output.path}/relatorio_familiar_$_idosoName.pdf');
+      final file = File('${output.path}/relatorio_medico_${sanitize(_idosoName)}.pdf');
       await file.writeAsBytes(await pdf.save());
 
       await SharePlus.instance.share(
         ShareParams(
           files: [XFile(file.path)],
-          text: 'Relatorio familiar de saude e rotina de $_idosoName',
-          subject: 'Relatorio Familiar - Lembrete Amigo',
+          text: 'Relatório médico e de rotina de $_idosoName - Lembrete Amigo',
+          subject: 'Relatório Médico - $_idosoName',
         ),
       );
     } catch (e) {
@@ -366,18 +374,18 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
       height: 52,
       child: ElevatedButton.icon(
         onPressed: _exportarRelatorioPDF,
-        icon: const Icon(Icons.ios_share),
+        icon: const Icon(Icons.picture_as_pdf_rounded),
         label: const FittedBox(
           fit: BoxFit.scaleDown,
           child: Text(
-            'COMPARTILHAR PDF COM A FAMILIA',
+            'GERAR RELATÓRIO MÉDICO (PDF)',
             maxLines: 1,
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
           ),
         ),
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.secondaryContainer,
-          foregroundColor: AppColors.onSecondaryContainer,
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),

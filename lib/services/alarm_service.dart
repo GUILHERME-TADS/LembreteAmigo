@@ -1,9 +1,12 @@
 import 'dart:async';
 import 'package:alarm/alarm.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../models/lembrete.dart';
 import '../services/notification_service.dart';
+import '../services/session_role_service.dart';
+import '../services/lembrete_service.dart';
 import '../main.dart';
 
 class AlarmService {
@@ -11,6 +14,10 @@ class AlarmService {
   static final AlarmService instance = AlarmService._();
 
   StreamSubscription<AlarmSettings>? _ringSubscription;
+  final List<String> _pendingActiveReminderQueue = [];
+  bool _isNavigatingToReminder = false;
+
+  List<String> get pendingQueue => List.unmodifiable(_pendingActiveReminderQueue);
 
   void init() {
     _ringSubscription?.cancel();
@@ -22,12 +29,64 @@ class AlarmService {
       final lembreteId = NotificationService.instance
           .getLembreteIdByNotificationId(settings.id);
       if (lembreteId != null) {
-        navigatorKey.currentState?.pushNamed(
-          '/active-reminder',
-          arguments: lembreteId,
-        );
+        showOrEnqueueReminder(lembreteId);
       }
     });
+  }
+
+  void showOrEnqueueReminder(String lembreteId) {
+    if (SessionRoleService.isSupervisor) return;
+
+    final isReminderRouteActive = RouteTracker.instance.isReminderRouteActive;
+
+    if (isReminderRouteActive || _isNavigatingToReminder) {
+      if (!_pendingActiveReminderQueue.contains(lembreteId)) {
+        _pendingActiveReminderQueue.add(lembreteId);
+        debugPrint('Lembrete $lembreteId adicionado à fila de espera de alarmes.');
+      }
+      return;
+    }
+
+    _isNavigatingToReminder = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final nav = navigatorKey.currentState;
+      if (nav == null) {
+        _isNavigatingToReminder = false;
+        return;
+      }
+      nav
+          .pushNamed('/active-reminder', arguments: lembreteId)
+          .then((_) {
+            _isNavigatingToReminder = false;
+            processNextPendingReminder();
+          })
+          .catchError((error) {
+            debugPrint('Erro ao navegar para o lembrete ativo: $error');
+            _isNavigatingToReminder = false;
+          });
+    });
+  }
+
+  void processNextPendingReminder() {
+    if (_pendingActiveReminderQueue.isEmpty || _isNavigatingToReminder) return;
+    if (RouteTracker.instance.isReminderRouteActive) return;
+
+    final nextId = _pendingActiveReminderQueue.removeAt(0);
+
+    // Checa se o lembrete já foi concluído enquanto esperava
+    final lembretes = LembreteService.instance.lembretes;
+    final match = lembretes.where((l) => l.id == nextId);
+    if (match.isNotEmpty && match.first.concluido) {
+      processNextPendingReminder();
+      return;
+    }
+
+    showOrEnqueueReminder(nextId);
+  }
+
+  void clearQueue() {
+    _pendingActiveReminderQueue.clear();
+    _isNavigatingToReminder = false;
   }
 
   Future<bool> canScheduleReminders() async {

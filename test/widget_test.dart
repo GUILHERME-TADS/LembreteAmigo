@@ -17,6 +17,7 @@ void main() {
     expect(isElderlyOnlyRoute('/take-photo-confirmation'), isTrue);
 
     expect(isElderlyOnlyRoute('/messages'), isFalse);
+    expect(isElderlyOnlyRoute('/elderly-radio'), isFalse);
     expect(isElderlyOnlyRoute('/emergency-alert'), isFalse);
     expect(isElderlyOnlyRoute('/supervisor-dashboard'), isFalse);
   });

@@ -5,6 +5,7 @@ import '../models/lembrete.dart';
 import '../services/lembrete_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/supervisor_bottom_nav.dart';
+import 'digital_photo_frame_screen.dart';
 
 class PhotoGalleryScreen extends StatelessWidget {
   const PhotoGalleryScreen({super.key});
@@ -95,6 +96,18 @@ class PhotoGalleryScreen extends StatelessWidget {
                 ),
               ),
             ),
+          ),
+          IconButton(
+            icon: Icon(Icons.slideshow_rounded, color: AppColors.primary, size: 32),
+            tooltip: 'Porta-Retratos Digital',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const DigitalPhotoFrameScreen(),
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -279,57 +292,83 @@ class PhotoGalleryScreen extends StatelessWidget {
 
     showDialog(
       context: context,
-      barrierColor: Colors.black87,
-      builder: (ctx) => GestureDetector(
-        onTap: () => Navigator.of(ctx).pop(),
-        child: Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.all(12),
+      barrierColor: Colors.black.withValues(alpha: 0.35),
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        insetPadding: const EdgeInsets.all(20),
+        child: Padding(
+          padding: const EdgeInsets.all(18),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Align(
-                alignment: Alignment.topRight,
-                child: IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white, size: 32),
-                  onPressed: () => Navigator.of(ctx).pop(),
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.photo_library_rounded, color: AppColors.primary, size: 24),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Comprovante',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.close_rounded, color: AppColors.onSurfaceVariant, size: 28),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                  ),
+                ],
               ),
+              const SizedBox(height: 10),
               ClipRRect(
                 borderRadius: BorderRadius.circular(16),
-                child: isLocalFile && File(path).existsSync()
-                    ? Image.file(File(path), fit: BoxFit.contain)
-                    : path.startsWith('http')
-                    ? Image.network(path, fit: BoxFit.contain)
-                    : _photoPlaceholder(),
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: AppColors.outlineVariant),
+                  ),
+                  child: isLocalFile && File(path).existsSync()
+                      ? Image.file(File(path), fit: BoxFit.contain)
+                      : path.startsWith('http')
+                      ? Image.network(path, fit: BoxFit.contain)
+                      : _photoPlaceholder(),
+                ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               Container(
+                width: double.infinity,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
-                  vertical: 10,
+                  vertical: 12,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.black54,
-                  borderRadius: BorderRadius.circular(12),
+                  color: AppColors.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.6)),
                 ),
                 child: Column(
                   children: [
                     Text(
                       lembrete.titulo,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
+                      style: TextStyle(
+                        color: AppColors.onSurface,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${lembrete.criadoEm.day.toString().padLeft(2, '0')}/${lembrete.criadoEm.month.toString().padLeft(2, '0')}/${lembrete.criadoEm.year}  ${lembrete.horarioFormatado}',
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 13,
+                      'Confirmado em ${lembrete.criadoEm.day.toString().padLeft(2, '0')}/${lembrete.criadoEm.month.toString().padLeft(2, '0')}/${lembrete.criadoEm.year} às ${lembrete.horarioFormatado}',
+                      style: TextStyle(
+                        color: AppColors.onSurfaceVariant,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],

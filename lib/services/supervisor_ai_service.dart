@@ -48,4 +48,37 @@ class SupervisorAIService {
       return null;
     }
   }
+
+  List<String> detectAnomalies({
+    required List<dynamic> eventos,
+    required List<dynamic> lembretes,
+  }) {
+    final insights = <String>[];
+    final now = DateTime.now();
+    final recent = eventos.where((e) {
+      final reg = e.registradoEm as DateTime?;
+      return reg != null && now.difference(reg).inDays <= 7;
+    }).toList();
+
+    // 1. Verificar adiamentos frequentes
+    final adiados = recent.where((e) => e.status.toString().contains('adiado')).length;
+    if (adiados >= 3) {
+      insights.add('⚠️ Padrão detectado: $adiados adiamentos nos últimos 7 dias. Vale verificar se os horários estão convenientes.');
+    }
+
+    // 2. Verificar lembretes perdidos
+    final perdidos = recent.where((e) => e.status.toString().contains('perdido')).length;
+    if (perdidos >= 2) {
+      insights.add('🚨 Alerta: $perdidos lembretes não foram concluídos recentemente.');
+    }
+
+    // 3. Boa adesão
+    final concluidos = recent.where((e) => e.status.toString().contains('concluido') || e.status.toString().contains('sucesso')).length;
+    if (recent.isNotEmpty && (concluidos / recent.length) >= 0.85) {
+      insights.add('🌟 Excelente adesão! Mais de 85% das atividades concluídas no prazo esta semana.');
+    }
+
+    return insights;
+  }
 }
+

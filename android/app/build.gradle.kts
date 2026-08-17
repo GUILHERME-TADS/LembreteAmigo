@@ -56,6 +56,12 @@ android {
 
     buildTypes {
         release {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
             // Release builds stay unsigned until android/key.properties is configured.
             if (hasReleaseSigning) {
                 signingConfig = signingConfigs.getByName("release")

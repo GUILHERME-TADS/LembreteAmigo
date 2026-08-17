@@ -18,12 +18,12 @@ import '../services/offline_sync_service.dart';
 import '../services/durable_media_service.dart';
 import '../services/secure_cache_service.dart';
 import '../widgets/index.dart';
-import '../widgets/theme_mode_selector.dart';
 import '../widgets/custom_time_picker.dart';
 import '../widgets/critical_action_guard.dart';
 import '../models/lembrete.dart';
 import '../utils/period_helper.dart';
 import '../utils/firebase_helper.dart';
+import '../utils/app_image_helper.dart';
 
 class ElderlyProfileScreen extends StatefulWidget {
   const ElderlyProfileScreen({super.key});
@@ -643,630 +643,23 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                       padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
                       child: Column(
                         children: [
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(24),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  AppColors.primary,
-                                  AppColors.info, // Royal Blue
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              borderRadius: BorderRadius.circular(24),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppColors.primary.withValues(
-                                    alpha: 0.15,
-                                  ),
-                                  blurRadius: 16,
-                                  offset: const Offset(0, 8),
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              children: [
-                                GestureDetector(
-                                  onTap: _selectProfilePhotoOptions,
-                                  child: Container(
-                                    width: 110,
-                                    height: 110,
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: Colors.white,
-                                        width: 4,
-                                      ),
-                                      boxShadow: const [
-                                        BoxShadow(
-                                          color: Colors.black12,
-                                          blurRadius: 10,
-                                          offset: Offset(0, 4),
-                                        ),
-                                      ],
-                                      image:
-                                          _fotoPath != null &&
-                                              !_fotoPath!.startsWith('avatar_')
-                                          ? (_fotoPath!.startsWith('http')
-                                                ? DecorationImage(
-                                                    image: NetworkImage(
-                                                      _fotoPath!,
-                                                    ),
-                                                    fit: BoxFit.cover,
-                                                  )
-                                                : (File(_fotoPath!).existsSync()
-                                                      ? DecorationImage(
-                                                          image: FileImage(
-                                                            File(_fotoPath!),
-                                                          ),
-                                                          fit: BoxFit.cover,
-                                                        )
-                                                      : null))
-                                          : null,
-                                    ),
-                                    child:
-                                        _fotoPath == null ||
-                                            _fotoPath!.startsWith('avatar_') ||
-                                            (!_fotoPath!.startsWith('http') &&
-                                                !File(_fotoPath!).existsSync())
-                                        ? _buildAvatarIconChild()
-                                        : null,
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                                ElevatedButton.icon(
-                                  onPressed: _selectProfilePhotoOptions,
-                                  icon: Icon(
-                                    Icons.edit,
-                                    size: 16,
-                                    color: AppColors.primary,
-                                  ),
-                                  label: const Text(
-                                    'Alterar Foto',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.white,
-                                    foregroundColor: AppColors.primary,
-                                    elevation: 0,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 6,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                GestureDetector(
-                                  onTap: () =>
-                                      _falarInfo('Nome completo', _nome),
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        _nome.toUpperCase(),
-                                        textAlign: TextAlign.center,
-                                        style: const TextStyle(
-                                          fontSize: 26,
-                                          fontWeight: FontWeight.w900,
-                                          letterSpacing: 1.1,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 6),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                          vertical: 4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.white.withValues(
-                                            alpha: 0.25,
-                                          ),
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                        ),
-                                        child: const Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Icon(
-                                              Icons.volume_up,
-                                              size: 16,
-                                              color: Colors.white,
-                                            ),
-                                            SizedBox(width: 4),
-                                            Text(
-                                              'Ouvir nome',
-                                              style: TextStyle(
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.white,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                InkWell(
-                                  onTap: () => _falarInfo(
-                                    'Data de nascimento',
-                                    _dataNasc,
-                                  ),
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withValues(
-                                        alpha: 0.15,
-                                      ),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Icon(
-                                          Icons.cake,
-                                          size: 18,
-                                          color: Colors.white70,
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          _dataNasc,
-                                          style: const TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w700,
-                                            color: Colors.white70,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                          _buildHeaderCard(),
+                          const SizedBox(height: 20),
+                          _buildPersonalDataCard(),
+                          const SizedBox(height: 20),
+                          _buildCareAndSafetyCard(),
+                          const SizedBox(height: 20),
+                          _buildAccessibilityCard(),
+                          const SizedBox(height: 20),
+                          _buildHelpAndPracticeCard(),
+                          const SizedBox(height: 20),
+                          _buildRemindersSummaryCard(
+                            medicamentosReais: medicamentosReais,
+                            lembretesReais: lembretesReais,
                           ),
+                          const SizedBox(height: 20),
+                          _buildExitButton(),
                           const SizedBox(height: 32),
-                          _sectionTitle('Telefone e Endereço'),
-                          const SizedBox(height: 12),
-                          _infoRow(Icons.phone, 'Meu telefone', _telefone),
-                          _infoRow(
-                            Icons.location_on,
-                            'Meu endereço',
-                            _endereco,
-                          ),
-                          _sectionTitle('Meus Remédios'),
-                          const SizedBox(height: 12),
-                          if (medicamentosReais.isEmpty)
-                            _buildEmptyState(
-                              'Nenhum remédio para lembrar agora.',
-                              Icons.medication_outlined,
-                            )
-                          else
-                            ...medicamentosReais.map((med) {
-                              return _medicationItem(med);
-                            }),
-                          const SizedBox(height: 24),
-                          _sectionTitle('Lembretes do Dia'),
-                          const SizedBox(height: 12),
-                          if (lembretesReais.isEmpty)
-                            _buildEmptyState(
-                              'Nenhum outro lembrete para agora.',
-                              Icons.notifications_off_outlined,
-                            )
-                          else
-                            ...lembretesReais.map((lembrete) {
-                              return _reminderItem(lembrete);
-                            }),
-                          const SizedBox(height: 32),
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: AppColors.surfaceContainerLowest,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: AppColors.outlineVariant,
-                              ),
-                            ),
-                            child: Column(
-                              children: [
-                                if (!_isConnectionActive) ...[
-                                  SizedBox(
-                                    width: double.infinity,
-                                    height: 64,
-                                    child: ElevatedButton(
-                                      onPressed: () async {
-                                        TTSService.instance.parar(caller: this);
-                                        await Navigator.pushNamed(
-                                          context,
-                                          '/elderly-pairing',
-                                        );
-                                        _loadProfile();
-                                      },
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: AppColors.primary,
-                                        foregroundColor: Colors.white,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                        ),
-                                        elevation: 4,
-                                      ),
-                                      child: const Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Icon(Icons.link, size: 28),
-                                          SizedBox(width: 12),
-                                          Flexible(
-                                            child: Text(
-                                              'CONECTAR COM CUIDADOR',
-                                              textAlign: TextAlign.center,
-                                              style: TextStyle(
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 16),
-                                ] else ...[
-                                  SizedBox(
-                                    width: double.infinity,
-                                    height: 64,
-                                    child: ElevatedButton.icon(
-                                      onPressed: () =>
-                                          _desvincularAjudante(context),
-                                      icon: const Icon(
-                                        Icons.link_off,
-                                        size: 28,
-                                        color: Colors.white,
-                                      ),
-                                      label: const Text(
-                                        'DESCONECTAR CUIDADOR',
-                                        style: TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: AppColors.error,
-                                        foregroundColor: Colors.white,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 16),
-                                ],
-                                SizedBox(
-                                  width: double.infinity,
-                                  height: 64,
-                                  child: ElevatedButton(
-                                    onPressed: () async {
-                                      TTSService.instance.parar(caller: this);
-                                      final result = await Navigator.pushNamed(
-                                        context,
-                                        '/edit-profile',
-                                      );
-                                      if (result == true) {
-                                        _loadProfile();
-                                      }
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor:
-                                          AppColors.secondaryContainer,
-                                      foregroundColor:
-                                          AppColors.onSecondaryFixed,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                    child: const Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Icon(Icons.edit, size: 28),
-                                        SizedBox(width: 12),
-                                        Flexible(
-                                          child: Text(
-                                            'ALTERAR MEUS DADOS',
-                                            textAlign: TextAlign.center,
-                                            style: TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                SizedBox(
-                                  width: double.infinity,
-                                  height: 64,
-                                  child: ElevatedButton.icon(
-                                    onPressed: () {
-                                      TTSService.instance.parar(caller: this);
-                                      Navigator.pushNamed(
-                                        context,
-                                        '/wellbeing',
-                                      );
-                                    },
-                                    icon: const Icon(Icons.mood, size: 28),
-                                    label: const Text(
-                                      'COMO ESTOU HOJE',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor:
-                                          AppColors.successContainer,
-                                      foregroundColor:
-                                          AppColors.onSuccessContainer,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                SizedBox(
-                                  width: double.infinity,
-                                  height: 64,
-                                  child: ElevatedButton.icon(
-                                    onPressed: () {
-                                      TTSService.instance.parar(caller: this);
-                                      Navigator.pushNamed(
-                                        context,
-                                        '/emergency-card',
-                                      );
-                                    },
-                                    icon: const Icon(
-                                      Icons.health_and_safety,
-                                      size: 28,
-                                    ),
-                                    label: const Text(
-                                      'CARTÃO DE EMERGÊNCIA',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppColors.errorContainer,
-                                      foregroundColor:
-                                          AppColors.onErrorContainer,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                SizedBox(
-                                  width: double.infinity,
-                                  height: 64,
-                                  child: ElevatedButton(
-                                    onPressed: () async {
-                                      TTSService.instance.parar(caller: this);
-                                      await Navigator.pushNamed(
-                                        context,
-                                        '/voice-settings',
-                                      );
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppColors.primaryFixed,
-                                      foregroundColor: AppColors.onPrimaryFixed,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                    child: const Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Icon(Icons.record_voice_over, size: 28),
-                                        SizedBox(width: 12),
-                                        Flexible(
-                                          child: Text(
-                                            'VELOCIDADE DA VOZ',
-                                            textAlign: TextAlign.center,
-                                            style: TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-
-                                const SizedBox(height: 16),
-                                const ThemeModeSelector(large: true),
-                                const SizedBox(height: 16),
-                                ValueListenableBuilder<CarePreferences>(
-                                  valueListenable:
-                                      CarePreferencesService.instance.notifier,
-                                  builder: (context, preferences, _) {
-                                    return Card(
-                                      child: SwitchListTile(
-                                        value: preferences.simpleHomeEnabled,
-                                        onChanged: (enabled) async {
-                                          await CarePreferencesService.instance
-                                              .setSimpleHomeEnabled(enabled);
-                                          final message = enabled
-                                              ? 'Tela inicial simples ativada.'
-                                              : 'Rotina completa ativada.';
-                                          await TTSService.instance.falar(
-                                            message,
-                                            caller: this,
-                                          );
-                                        },
-                                        secondary: Icon(
-                                          Icons.visibility_outlined,
-                                          color: AppColors.primary,
-                                          size: 30,
-                                        ),
-                                        title: const Text(
-                                          'TELA INICIAL SIMPLES',
-                                          style: TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                        ),
-                                        subtitle: const Text(
-                                          'Mostra primeiro somente a próxima ação.',
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                                const SizedBox(height: 16),
-                                SizedBox(
-                                  width: double.infinity,
-                                  height: 64,
-                                  child: OutlinedButton.icon(
-                                    onPressed: () => Navigator.pushNamed(
-                                      context,
-                                      '/practice-mode',
-                                    ),
-                                    icon: const Icon(Icons.school, size: 28),
-                                    label: const Text(
-                                      'TREINAR O APLICATIVO',
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                SizedBox(
-                                  width: double.infinity,
-                                  height: 64,
-                                  child: OutlinedButton(
-                                    onPressed: () async {
-                                      TTSService.instance.parar(caller: this);
-                                      final confirm = await showDialog<bool>(
-                                        context: context,
-                                        builder: (ctx) => AlertDialog(
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              16,
-                                            ),
-                                          ),
-                                          title: const Text(
-                                            'Sair do Modo Idoso?',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          content: const Text(
-                                            'Deseja voltar para a tela de entrada? Seus dados e lembretes continuarão salvos.',
-                                            style: TextStyle(fontSize: 18),
-                                          ),
-                                          actions: [
-                                            TextButton(
-                                              onPressed: () =>
-                                                  Navigator.pop(ctx, false),
-                                              child: const Text(
-                                                'NÃO',
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 16,
-                                                ),
-                                              ),
-                                            ),
-                                            TextButton(
-                                              onPressed: () =>
-                                                  Navigator.pop(ctx, true),
-                                              child: Text(
-                                                'SIM, SAIR',
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 16,
-                                                  color: AppColors.error,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      );
-                                      if (confirm == true) {
-                                        await SessionRoleService.exitElderlyModeOnly();
-                                        await LembreteService.instance.reset();
-                                        if (context.mounted) {
-                                          Navigator.pushNamedAndRemoveUntil(
-                                            context,
-                                            '/',
-                                            (route) => false,
-                                          );
-                                        }
-                                      }
-                                    },
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: AppColors.onSurface,
-                                      side: BorderSide(
-                                        color: AppColors.outlineVariant,
-                                        width: 2,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                    child: const Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Icon(Icons.swap_horiz, size: 28),
-                                        SizedBox(width: 12),
-                                        Flexible(
-                                          child: Text(
-                                            'SAIR DO MODO IDOSO',
-                                            textAlign: TextAlign.center,
-                                            style: TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 24),
                         ],
                       ),
                     ),
@@ -1274,6 +667,659 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildSectionCard({
+    required String title,
+    required IconData icon,
+    required Color color,
+    required List<Widget> children,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: AppColors.outlineVariant.withValues(alpha: 0.7),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: color, size: 24),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  title.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.5,
+                    color: AppColors.onSurface,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeaderCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [AppColors.primary, AppColors.info],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.2),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          GestureDetector(
+            onTap: _selectProfilePhotoOptions,
+            child: Container(
+              width: 110,
+              height: 110,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 4),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 10,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+                image: _fotoPath != null && !_fotoPath!.startsWith('avatar_')
+                    ? (_fotoPath!.startsWith('http')
+                        ? DecorationImage(
+                            image: NetworkImage(_fotoPath!),
+                            fit: BoxFit.cover,
+                          )
+                        : (File(_fotoPath!).existsSync()
+                            ? DecorationImage(
+                                image: AppImageHelper.resizedFileImage(
+                                  File(_fotoPath!),
+                                  maxWidth: 400,
+                                  maxHeight: 400,
+                                ),
+                                fit: BoxFit.cover,
+                              )
+                            : null))
+                    : null,
+              ),
+              child: _fotoPath == null ||
+                      _fotoPath!.startsWith('avatar_') ||
+                      (!_fotoPath!.startsWith('http') &&
+                          !File(_fotoPath!).existsSync())
+                  ? _buildAvatarIconChild()
+                  : null,
+            ),
+          ),
+          const SizedBox(height: 12),
+          ElevatedButton.icon(
+            onPressed: _selectProfilePhotoOptions,
+            icon: Icon(Icons.edit, size: 16, color: AppColors.primary),
+            label: const Text(
+              'Alterar Foto',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: AppColors.primary,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          GestureDetector(
+            onTap: () => _falarInfo('Nome completo', _nome),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _nome.toUpperCase(),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.1,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.25),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.volume_up, size: 16, color: Colors.white),
+                      SizedBox(width: 4),
+                      Text(
+                        'Ouvir nome',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          InkWell(
+            onTap: () => _falarInfo('Data de nascimento', _dataNasc),
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.cake, size: 18, color: Colors.white70),
+                  const SizedBox(width: 8),
+                  Text(
+                    _dataNasc,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white70,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required VoidCallback onPressed,
+    required IconData icon,
+    required String label,
+    required Color backgroundColor,
+    required Color foregroundColor,
+    bool isOutlined = false,
+    Color? borderColor,
+  }) {
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(16),
+      side: isOutlined || borderColor != null
+          ? BorderSide(color: borderColor ?? AppColors.outlineVariant, width: 2)
+          : BorderSide.none,
+    );
+
+    final content = Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(icon, size: 28, color: foregroundColor),
+        const SizedBox(width: 12),
+        Flexible(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: foregroundColor,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+
+    return SizedBox(
+      width: double.infinity,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 62),
+        child: isOutlined
+            ? OutlinedButton(
+                onPressed: onPressed,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: foregroundColor,
+                  side: BorderSide(
+                    color: borderColor ?? AppColors.outlineVariant,
+                    width: 2,
+                  ),
+                  shape: shape,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                ),
+                child: content,
+              )
+            : ElevatedButton(
+                onPressed: onPressed,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: backgroundColor,
+                  foregroundColor: foregroundColor,
+                  elevation: 0,
+                  shape: shape,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                ),
+                child: content,
+              ),
+      ),
+    );
+  }
+
+  Widget _buildPersonalDataCard() {
+    return _buildSectionCard(
+      title: 'Meus Dados Pessoais',
+      icon: Icons.person_outline,
+      color: AppColors.primary,
+      children: [
+        _infoRow(Icons.phone, 'Meu telefone', _telefone),
+        _infoRow(Icons.location_on, 'Meu endereço', _endereco),
+        const SizedBox(height: 12),
+        _buildActionButton(
+          onPressed: () async {
+            TTSService.instance.parar(caller: this);
+            final result = await Navigator.pushNamed(
+              context,
+              '/edit-profile',
+            );
+            if (result == true) {
+              _loadProfile();
+            }
+          },
+          icon: Icons.edit,
+          label: 'ALTERAR MEUS DADOS',
+          backgroundColor: AppColors.secondaryContainer,
+          foregroundColor: AppColors.onSecondaryFixed,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCareAndSafetyCard() {
+    return _buildSectionCard(
+      title: 'Cuidador e Segurança',
+      icon: Icons.shield_outlined,
+      color: AppColors.tertiary,
+      children: [
+        if (!_isConnectionActive) ...[
+          _buildActionButton(
+            onPressed: () async {
+              TTSService.instance.parar(caller: this);
+              await Navigator.pushNamed(context, '/elderly-pairing');
+              _loadProfile();
+            },
+            icon: Icons.link,
+            label: 'CONECTAR COM CUIDADOR',
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+          ),
+          const SizedBox(height: 12),
+        ] else ...[
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.successContainer.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppColors.success.withValues(alpha: 0.4),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.check_circle, color: AppColors.success, size: 24),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Conectado ao seu cuidador',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.onSuccessContainer,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildActionButton(
+            onPressed: () => _desvincularAjudante(context),
+            icon: Icons.link_off,
+            label: 'DESCONECTAR CUIDADOR',
+            backgroundColor: AppColors.error,
+            foregroundColor: Colors.white,
+          ),
+          const SizedBox(height: 12),
+        ],
+        _buildActionButton(
+          onPressed: () {
+            TTSService.instance.parar(caller: this);
+            Navigator.pushNamed(context, '/caregiver-network');
+          },
+          icon: Icons.groups_2_outlined,
+          label: 'MINHA REDE DE CUIDADO',
+          backgroundColor: AppColors.tertiaryContainer,
+          foregroundColor: AppColors.onTertiaryContainer,
+        ),
+        const SizedBox(height: 12),
+        _buildActionButton(
+          onPressed: () {
+            TTSService.instance.parar(caller: this);
+            Navigator.pushNamed(context, '/emergency-card');
+          },
+          icon: Icons.health_and_safety,
+          label: 'CARTÃO DE EMERGÊNCIA',
+          backgroundColor: AppColors.errorContainer,
+          foregroundColor: AppColors.onErrorContainer,
+        ),
+        const SizedBox(height: 12),
+        _buildActionButton(
+          onPressed: () {
+            TTSService.instance.parar(caller: this);
+            Navigator.pushNamed(context, '/wellbeing');
+          },
+          icon: Icons.mood,
+          label: 'COMO ESTOU HOJE',
+          backgroundColor: AppColors.successContainer,
+          foregroundColor: AppColors.onSuccessContainer,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAccessibilityCard() {
+    return _buildSectionCard(
+      title: 'Voz e Acessibilidade',
+      icon: Icons.tune,
+      color: AppColors.voiceFeedbackBlue,
+      children: [
+        _buildActionButton(
+          onPressed: () async {
+            TTSService.instance.parar(caller: this);
+            await Navigator.pushNamed(context, '/voice-settings');
+          },
+          icon: Icons.record_voice_over,
+          label: 'VELOCIDADE DA VOZ',
+          backgroundColor: AppColors.primaryFixed,
+          foregroundColor: AppColors.onPrimaryFixed,
+        ),
+        const SizedBox(height: 14),
+        ValueListenableBuilder<CarePreferences>(
+          valueListenable: CarePreferencesService.instance.notifier,
+          builder: (context, preferences, _) {
+            return Card(
+              elevation: 0,
+              color: AppColors.surfaceContainerLow,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+                side: BorderSide(color: AppColors.outlineVariant),
+              ),
+              child: SwitchListTile(
+                value: preferences.simpleHomeEnabled,
+                onChanged: (enabled) async {
+                  await CarePreferencesService.instance.setSimpleHomeEnabled(
+                    enabled,
+                  );
+                  final message = enabled
+                      ? 'Tela inicial simples ativada.'
+                      : 'Rotina completa ativada.';
+                  await TTSService.instance.falar(message, caller: this);
+                },
+                secondary: Icon(
+                  Icons.visibility_outlined,
+                  color: AppColors.primary,
+                  size: 28,
+                ),
+                title: const Text(
+                  'TELA INICIAL SIMPLES',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                ),
+                subtitle: const Text('Mostra primeiro somente a próxima ação.'),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHelpAndPracticeCard() {
+    return _buildSectionCard(
+      title: 'Ajuda e Treinamento',
+      icon: Icons.help_outline,
+      color: AppColors.secondary,
+      children: [
+        _buildActionButton(
+          onPressed: () {
+            TTSService.instance.parar(caller: this);
+            Navigator.pushNamed(context, '/device-readiness');
+          },
+          icon: Icons.health_and_safety_outlined,
+          label: 'VERIFICAR CELULAR',
+          backgroundColor: AppColors.secondaryContainer,
+          foregroundColor: AppColors.onSecondaryContainer,
+        ),
+        const SizedBox(height: 12),
+        _buildActionButton(
+          onPressed: () {
+            TTSService.instance.parar(caller: this);
+            Navigator.pushNamed(context, '/practice-mode');
+          },
+          icon: Icons.school,
+          label: 'TREINAR O APLICATIVO',
+          backgroundColor: Colors.transparent,
+          foregroundColor: AppColors.onSurface,
+          isOutlined: true,
+          borderColor: AppColors.outlineVariant,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRemindersSummaryCard({
+    required List<Lembrete> medicamentosReais,
+    required List<Lembrete> lembretesReais,
+  }) {
+    final total = medicamentosReais.length + lembretesReais.length;
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: AppColors.outlineVariant.withValues(alpha: 0.7),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: ExpansionTile(
+          shape: const Border(),
+          collapsedShape: const Border(),
+          tilePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          leading: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.medicationsColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              Icons.calendar_month,
+              color: AppColors.medicationsColor,
+              size: 24,
+            ),
+          ),
+          title: Text(
+            'MEUS REMÉDIOS E LEMBRETES',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.5,
+              color: AppColors.onSurface,
+            ),
+          ),
+          subtitle: Text(
+            '$total item(ns) cadastrados no total',
+            style: TextStyle(
+              fontSize: 14,
+              color: AppColors.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          children: [
+            const Divider(),
+            const SizedBox(height: 8),
+            _sectionTitle('Remédios (${medicamentosReais.length})'),
+            const SizedBox(height: 8),
+            if (medicamentosReais.isEmpty)
+              _buildEmptyState(
+                'Nenhum remédio cadastrado.',
+                Icons.medication_outlined,
+              )
+            else
+              ...medicamentosReais.map((med) => _medicationItem(med)),
+            const SizedBox(height: 16),
+            _sectionTitle('Outros Lembretes (${lembretesReais.length})'),
+            const SizedBox(height: 8),
+            if (lembretesReais.isEmpty)
+              _buildEmptyState(
+                'Nenhum outro lembrete cadastrado.',
+                Icons.notifications_off_outlined,
+              )
+            else
+              ...lembretesReais.map((lembrete) => _reminderItem(lembrete)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExitButton() {
+    return _buildActionButton(
+      onPressed: () async {
+        TTSService.instance.parar(caller: this);
+        final confirm = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: const Text(
+              'Sair do Modo Idoso?',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            content: const Text(
+              'Deseja voltar para a tela de entrada? Seus dados e lembretes continuarão salvos.',
+              style: TextStyle(fontSize: 18),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text(
+                  'NÃO',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text(
+                  'SIM, SAIR',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: AppColors.error,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+        if (confirm == true) {
+          await SessionRoleService.exitElderlyModeOnly();
+          await LembreteService.instance.reset();
+          if (context.mounted) {
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              '/',
+              (route) => false,
+            );
+          }
+        }
+      },
+      icon: Icons.swap_horiz,
+      label: 'SAIR DO MODO IDOSO',
+      backgroundColor: Colors.transparent,
+      foregroundColor: AppColors.onSurface,
+      isOutlined: true,
+      borderColor: AppColors.outlineVariant,
     );
   }
 

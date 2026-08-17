@@ -125,13 +125,14 @@ class _AlexAvatarState extends State<AlexAvatar> with TickerProviderStateMixin {
         final borderColor = _getBorderColor(isSpeaking);
         final bool isActiveState = widget.isListening || isSpeaking;
 
-        return SizedBox(
-          width: size,
-          height: size,
-          child: Stack(
-            clipBehavior: Clip.none,
-            alignment: Alignment.center,
-            children: [
+        return RepaintBoundary(
+          child: SizedBox(
+            width: size,
+            height: size,
+            child: Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.center,
+              children: [
               // 1. Headband do Headset (Arco superior)
               Positioned(
                 top: size * 0.02,
@@ -475,9 +476,10 @@ class _AlexAvatarState extends State<AlexAvatar> with TickerProviderStateMixin {
               ],
             ],
           ),
-        );
-      },
-    );
+        ),
+      );
+    },
+  );
   }
 
   Widget _buildEye(bool isSpeaking, bool isListening, double size) {

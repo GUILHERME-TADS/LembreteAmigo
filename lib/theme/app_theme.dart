@@ -1,49 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-class AppThemeController {
-  AppThemeController._();
-
-  static const _preferenceKey = 'appearance_theme_mode';
-  static final ValueNotifier<ThemeMode> mode = ValueNotifier(ThemeMode.system);
-
-  static Future<void> load() async {
-    final preferences = await SharedPreferences.getInstance();
-    final saved = preferences.getString(_preferenceKey);
-    mode.value = ThemeMode.values.firstWhere(
-      (item) => item.name == saved,
-      orElse: () => ThemeMode.system,
-    );
-  }
-
-  static Future<void> setMode(ThemeMode value) async {
-    if (mode.value == value) return;
-    mode.value = value;
-    final preferences = await SharedPreferences.getInstance();
-    await preferences.setString(_preferenceKey, value.name);
-  }
-
-  static Brightness get resolvedBrightness {
-    switch (mode.value) {
-      case ThemeMode.light:
-        return Brightness.light;
-      case ThemeMode.dark:
-        return Brightness.dark;
-      case ThemeMode.system:
-        return WidgetsBinding.instance.platformDispatcher.platformBrightness;
-    }
-  }
-}
-
-/// Tokens de compatibilidade. Todas as telas antigas passam a responder ao
-/// modo claro/escuro sem manter uma segunda paleta local.
+/// Tokens de design e cores do aplicativo Lembrete Amigo.
 class AppColors {
   AppColors._();
 
-  static ColorScheme get _scheme =>
-      AppTheme.schemeFor(AppThemeController.resolvedBrightness);
-  static bool get _dark =>
-      AppThemeController.resolvedBrightness == Brightness.dark;
+  static ColorScheme get _scheme => AppTheme.scheme;
 
   static Color get surface => _scheme.surface;
   static Color get surfaceDim => _scheme.surfaceDim;
@@ -63,8 +24,7 @@ class AppColors {
   static Color get onPrimaryContainer => _scheme.onPrimaryContainer;
   static Color get inversePrimary => _scheme.inversePrimary;
   static Color get primaryFixed => _scheme.primaryContainer;
-  static Color get primaryFixedDim =>
-      _dark ? const Color(0xFFABC7FF) : const Color(0xFFABC7FF);
+  static Color get primaryFixedDim => const Color(0xFF1565C0);
   static Color get onPrimaryFixed => _scheme.onPrimaryContainer;
   static Color get onPrimaryFixedVariant => _scheme.primary;
   static Color get secondary => _scheme.secondary;
@@ -72,8 +32,7 @@ class AppColors {
   static Color get secondaryContainer => _scheme.secondaryContainer;
   static Color get onSecondaryContainer => _scheme.onSecondaryContainer;
   static Color get secondaryFixed => _scheme.secondaryContainer;
-  static Color get secondaryFixedDim =>
-      _dark ? const Color(0xFFE9C400) : const Color(0xFFE9C400);
+  static Color get secondaryFixedDim => const Color(0xFFF57F17);
   static Color get onSecondaryFixed => _scheme.onSecondaryContainer;
   static Color get onSecondaryFixedVariant => _scheme.secondary;
   static Color get tertiary => _scheme.tertiary;
@@ -81,39 +40,27 @@ class AppColors {
   static Color get tertiaryContainer => _scheme.tertiaryContainer;
   static Color get onTertiaryContainer => _scheme.onTertiaryContainer;
   static Color get tertiaryFixed => _scheme.tertiaryContainer;
-  static Color get tertiaryFixedDim =>
-      _dark ? const Color(0xFF88D982) : const Color(0xFF88D982);
+  static Color get tertiaryFixedDim => const Color(0xFF2E7D32);
   static Color get onTertiaryFixed => _scheme.onTertiaryContainer;
   static Color get onTertiaryFixedVariant => _scheme.tertiary;
   static Color get error => _scheme.error;
   static Color get onError => _scheme.onError;
   static Color get errorContainer => _scheme.errorContainer;
   static Color get onErrorContainer => _scheme.onErrorContainer;
-  static Color get success =>
-      _dark ? const Color(0xFF88D982) : const Color(0xFF2E7D32);
-  static Color get warning =>
-      _dark ? const Color(0xFFFFB77D) : const Color(0xFFB94E00);
+  static Color get success => const Color(0xFF2E7D32);
+  static Color get warning => const Color(0xFFE65100);
   static Color get surfaceTint => _scheme.surfaceTint;
-  static Color get successContainer =>
-      _dark ? const Color(0xFF005313) : const Color(0xFFE8F5E9);
-  static Color get onSuccessContainer =>
-      _dark ? const Color(0xFFA3F69C) : const Color(0xFF124A19);
-  static Color get warningContainer =>
-      _dark ? const Color(0xFF633200) : const Color(0xFFFFE8D6);
-  static Color get onWarningContainer =>
-      _dark ? const Color(0xFFFFDCC5) : const Color(0xFF4A2500);
+  static Color get successContainer => const Color(0xFFE8F5E9);
+  static Color get onSuccessContainer => const Color(0xFF124A19);
+  static Color get warningContainer => const Color(0xFFFFE8D6);
+  static Color get onWarningContainer => const Color(0xFF4A2500);
   static Color get info => voiceFeedbackBlue;
-  static Color get infoContainer =>
-      _dark ? const Color(0xFF004A71) : const Color(0xFFE3F2FD);
-  static Color get onInfoContainer =>
-      _dark ? const Color(0xFFCDE5FF) : const Color(0xFF004A71);
-  static Color get medicationContainer =>
-      _dark ? const Color(0xFF542469) : const Color(0xFFF3E5F5);
+  static Color get infoContainer => const Color(0xFFE3F2FD);
+  static Color get onInfoContainer => const Color(0xFF004A71);
+  static Color get medicationContainer => const Color(0xFFF3E5F5);
   static Color get onMedicationContainer => medicationsColor;
-  static Color get customContainer =>
-      _dark ? const Color(0xFF294A48) : const Color(0xFFE0F2F1);
-  static Color get onCustomContainer =>
-      _dark ? const Color(0xFFA9D6D1) : const Color(0xFF00695C);
+  static Color get customContainer => const Color(0xFFE0F2F1);
+  static Color get onCustomContainer => const Color(0xFF00695C);
   static Color get chatIncoming => surfaceContainerLowest;
   static Color get chatOutgoing => primaryContainer;
   static Color get cameraSurface => const Color(0xFF050607);
@@ -126,14 +73,226 @@ class AppColors {
   static Color get inverseOnSurface => _scheme.onInverseSurface;
   static Color get background => _scheme.surface;
   static Color get onBackground => _scheme.onSurface;
-  static Color get voiceFeedbackBlue =>
-      _dark ? const Color(0xFF9ECAFF) : const Color(0xFF0061A4);
-  static Color get mealsColor =>
-      _dark ? const Color(0xFFFFB77D) : const Color(0xFF9A4E0F);
-  static Color get medicationsColor =>
-      _dark ? const Color(0xFFE7B5FF) : const Color(0xFF7B1FA2);
-  static Color get customColor =>
-      _dark ? const Color(0xFFB8C8D0) : const Color(0xFF546E7A);
+  static Color get voiceFeedbackBlue => const Color(0xFF0061A4);
+  static Color get mealsColor => const Color(0xFFE65100);
+  static Color get medicationsColor => const Color(0xFF7B1FA2);
+  static Color get customColor => const Color(0xFF546E7A);
+
+  // Períodos do Dia para Orientação Visual de Baixo Letramento
+  static Color get morning => const Color(0xFFE65100);
+  static Color get morningContainer => const Color(0xFFFFF3E0);
+  static Color get onMorningContainer => const Color(0xFFE65100);
+
+  static Color get afternoon => const Color(0xFF0061A4);
+  static Color get afternoonContainer => const Color(0xFFE1F5FE);
+  static Color get onAfternoonContainer => const Color(0xFF01579B);
+
+  static Color get night => const Color(0xFF311B92);
+  static Color get nightContainer => const Color(0xFFEDE7F6);
+  static Color get onNightContainer => const Color(0xFF311B92);
+
+  // Status Vitais e Diagnósticos do Dispositivo
+  static Color get vitalHealthy => const Color(0xFF2E7D32);
+  static Color get vitalHealthyContainer => const Color(0xFFE8F5E9);
+  static Color get vitalWarning => const Color(0xFFE65100);
+  static Color get vitalWarningContainer => const Color(0xFFFFE8D6);
+  static Color get vitalCritical => const Color(0xFFD32F2F);
+  static Color get vitalCriticalContainer => const Color(0xFFFFDAD6);
+
+  // Gradientes Atmosféricos por Período
+  static LinearGradient get morningAtmosphere => const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Color(0xFFFFF8F0), Color(0xFFF8F9FA)],
+      );
+
+  static LinearGradient get afternoonAtmosphere => const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Color(0xFFF0F7FF), Color(0xFFF8F9FA)],
+      );
+
+  static LinearGradient get nightAtmosphere => const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Color(0xFFF3F0FA), Color(0xFFF8F9FA)],
+      );
+}
+
+class AppDecorations {
+  AppDecorations._();
+
+  /// Decoração com micro-relevo tátil (Soft Skeuomorphism) para botões sênior
+  static BoxDecoration tactileButton({
+    required Color color,
+    required Color borderColor,
+    double borderRadius = AppRadius.xl,
+    bool isPressed = false,
+  }) {
+    return BoxDecoration(
+      color: color,
+      borderRadius: BorderRadius.circular(borderRadius),
+      border: Border.all(
+        color: borderColor,
+        width: 2.0,
+      ),
+      boxShadow: isPressed
+          ? [
+              BoxShadow(
+                color: AppColors.shadow.withValues(alpha: 0.1),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ]
+          : [
+              BoxShadow(
+                color: AppColors.shadow.withValues(alpha: 0.22),
+                blurRadius: 10,
+                offset: const Offset(0, 5),
+              ),
+              BoxShadow(
+                color: Colors.white.withValues(alpha: 0.6),
+                blurRadius: 2,
+                offset: const Offset(0, -1),
+              ),
+            ],
+    );
+  }
+
+  /// Decoração de Hero Card para destacar o próximo lembrete do dia
+  static BoxDecoration heroCard({
+    required Color backgroundColor,
+    required Color accentColor,
+    double borderRadius = AppRadius.xl,
+  }) {
+    return BoxDecoration(
+      color: backgroundColor,
+      borderRadius: BorderRadius.circular(borderRadius),
+      border: Border.all(
+        color: accentColor.withValues(alpha: 0.4),
+        width: 2.5,
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: accentColor.withValues(alpha: 0.18),
+          blurRadius: 18,
+          offset: const Offset(0, 8),
+        ),
+        BoxShadow(
+          color: Colors.white.withValues(alpha: 0.8),
+          blurRadius: 0,
+          offset: const Offset(0, 1),
+        ),
+      ],
+    );
+  }
+
+  /// Decoração de Blíster/Frasco para o controle de estoque
+  static BoxDecoration blisterCard({
+    required Color statusColor,
+    double borderRadius = AppRadius.lg,
+  }) {
+    return BoxDecoration(
+      color: AppColors.surfaceContainerLowest,
+      borderRadius: BorderRadius.circular(borderRadius),
+      border: Border.all(
+        color: statusColor.withValues(alpha: 0.3),
+        width: 1.5,
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: AppColors.shadow.withValues(alpha: 0.06),
+          blurRadius: 10,
+          offset: const Offset(0, 4),
+        ),
+      ],
+    );
+  }
+
+  /// Barra de diagnóstico e prontidão do dispositivo
+  static BoxDecoration deviceStatusCard() {
+    return BoxDecoration(
+      color: AppColors.surfaceContainerLowest,
+      borderRadius: BorderRadius.circular(AppRadius.lg),
+      border: Border.all(
+        color: AppColors.outlineVariant.withValues(alpha: 0.5),
+        width: 1.5,
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: AppColors.shadow.withValues(alpha: 0.05),
+          blurRadius: 8,
+          offset: const Offset(0, 3),
+        ),
+      ],
+    );
+  }
+
+  /// Decoração moderna estilo Bento Grid para módulos do Dashboard do Supervisor
+  static BoxDecoration bentoCard({
+    Color? backgroundColor,
+    Color? borderColor,
+    double borderRadius = AppRadius.lg,
+    bool elevated = false,
+  }) {
+    final bg = backgroundColor ?? AppColors.surfaceContainerLowest;
+    final border =
+        borderColor ?? AppColors.outlineVariant.withValues(alpha: 0.5);
+    return BoxDecoration(
+      color: bg,
+      borderRadius: BorderRadius.circular(borderRadius),
+      border: Border.all(color: border, width: 1.5),
+      boxShadow: elevated
+          ? [
+              BoxShadow(
+                color: AppColors.shadow.withValues(alpha: 0.08),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+              BoxShadow(
+                color: Colors.white.withValues(alpha: 0.7),
+                blurRadius: 0,
+                offset: const Offset(0, 1),
+              ),
+            ]
+          : [
+              BoxShadow(
+                color: AppColors.shadow.withValues(alpha: 0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+    );
+  }
+
+  /// Hero Banner "Paz de Espírito" no Dashboard
+  static BoxDecoration peaceOfMindCard({
+    required Color statusColor,
+    double borderRadius = AppRadius.xl,
+  }) {
+    return BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          statusColor.withValues(alpha: 0.12),
+          AppColors.surfaceContainerLowest,
+        ],
+      ),
+      borderRadius: BorderRadius.circular(borderRadius),
+      border: Border.all(
+        color: statusColor.withValues(alpha: 0.35),
+        width: 2.0,
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: statusColor.withValues(alpha: 0.15),
+          blurRadius: 16,
+          offset: const Offset(0, 6),
+        ),
+      ],
+    );
+  }
 }
 
 class AppTypography {
@@ -206,6 +365,7 @@ class AppRadius {
   static const md = 12.0;
   static const lg = 16.0;
   static const xl = 24.0;
+  static const xxl = 32.0;
   static const full = 9999.0;
 }
 
@@ -311,84 +471,92 @@ class AppTheme {
 
   static const _brandSeed = Color(0xFF002D62);
 
-  static ColorScheme schemeFor(Brightness brightness) {
-    final dark = brightness == Brightness.dark;
+  static ColorScheme get scheme => schemeFor();
+
+  static ColorScheme schemeFor([Brightness brightness = Brightness.light]) {
+    if (brightness == Brightness.dark) {
+      return ColorScheme.fromSeed(
+        seedColor: _brandSeed,
+        brightness: Brightness.dark,
+      ).copyWith(
+        primary: const Color(0xFFADC6FF),
+        onPrimary: const Color(0xFF002E69),
+        primaryContainer: const Color(0xFF004494),
+        onPrimaryContainer: const Color(0xFFD7E2FF),
+        secondary: const Color(0xFFE5C448),
+        onSecondary: const Color(0xFF3B2F00),
+        secondaryContainer: const Color(0xFF554400),
+        onSecondaryContainer: const Color(0xFFFFE16D),
+        tertiary: const Color(0xFF87D983),
+        onTertiary: const Color(0xFF003A09),
+        tertiaryContainer: const Color(0xFF005313),
+        onTertiaryContainer: const Color(0xFFA3F69C),
+        error: const Color(0xFFFFB4AB),
+        onError: const Color(0xFF690005),
+        errorContainer: const Color(0xFF93000A),
+        onErrorContainer: const Color(0xFFFFDAD6),
+        surface: const Color(0xFF111418),
+        onSurface: const Color(0xFFE1E3E8),
+        onSurfaceVariant: const Color(0xFFC4C6D0),
+        outline: const Color(0xFF8E9099),
+        outlineVariant: const Color(0xFF43474E),
+        surfaceDim: const Color(0xFF111418),
+        surfaceBright: const Color(0xFF37393E),
+        surfaceContainerLowest: const Color(0xFF0C0E11),
+        surfaceContainerLow: const Color(0xFF191C20),
+        surfaceContainer: const Color(0xFF1D2024),
+        surfaceContainerHigh: const Color(0xFF282A2F),
+        surfaceContainerHighest: const Color(0xFF33353A),
+      );
+    }
     return ColorScheme.fromSeed(
       seedColor: _brandSeed,
-      brightness: brightness,
+      brightness: Brightness.light,
     ).copyWith(
-      primary: dark ? const Color(0xFFABC7FF) : const Color(0xFF00193C),
-      onPrimary: dark ? const Color(0xFF002F65) : Colors.white,
-      primaryContainer: dark
-          ? const Color(0xFF24467C)
-          : const Color(0xFFD7E2FF),
-      onPrimaryContainer: dark
-          ? const Color(0xFFD7E2FF)
-          : const Color(0xFF001B3F),
-      secondary: dark ? const Color(0xFFE9C400) : const Color(0xFF705D00),
-      onSecondary: dark ? const Color(0xFF3A3000) : Colors.white,
-      secondaryContainer: dark
-          ? const Color(0xFF544600)
-          : const Color(0xFFFFE16D),
-      onSecondaryContainer: dark
-          ? const Color(0xFFFFE16D)
-          : const Color(0xFF221B00),
-      tertiary: dark ? const Color(0xFF88D982) : const Color(0xFF006E1C),
-      onTertiary: dark ? const Color(0xFF003909) : Colors.white,
-      tertiaryContainer: dark
-          ? const Color(0xFF005312)
-          : const Color(0xFFA3F69C),
-      onTertiaryContainer: dark
-          ? const Color(0xFFA3F69C)
-          : const Color(0xFF002204),
-      error: dark ? const Color(0xFFFFB4AB) : const Color(0xFFBA1A1A),
-      onError: dark ? const Color(0xFF690005) : Colors.white,
-      errorContainer: dark ? const Color(0xFF93000A) : const Color(0xFFFFDAD6),
-      onErrorContainer: dark
-          ? const Color(0xFFFFDAD6)
-          : const Color(0xFF410002),
-      surface: dark ? const Color(0xFF101418) : const Color(0xFFF8F9FA),
-      onSurface: dark ? const Color(0xFFE2E2E7) : const Color(0xFF191C1D),
-      onSurfaceVariant: dark
-          ? const Color(0xFFC4C6D0)
-          : const Color(0xFF43474F),
-      outline: dark ? const Color(0xFF8E909A) : const Color(0xFF747781),
-      outlineVariant: dark ? const Color(0xFF44474F) : const Color(0xFFC4C6D1),
-      surfaceDim: dark ? const Color(0xFF101418) : const Color(0xFFD9DADB),
-      surfaceBright: dark ? const Color(0xFF363A3F) : const Color(0xFFFFFFFF),
-      surfaceContainerLowest: dark
-          ? const Color(0xFF0B0F13)
-          : const Color(0xFFFFFFFF),
-      surfaceContainerLow: dark
-          ? const Color(0xFF181C20)
-          : const Color(0xFFF3F4F5),
-      surfaceContainer: dark
-          ? const Color(0xFF1C2024)
-          : const Color(0xFFEDEEEF),
-      surfaceContainerHigh: dark
-          ? const Color(0xFF272B30)
-          : const Color(0xFFE7E8E9),
-      surfaceContainerHighest: dark
-          ? const Color(0xFF32363B)
-          : const Color(0xFFE1E3E4),
+      primary: const Color(0xFF00193C),
+      onPrimary: Colors.white,
+      primaryContainer: const Color(0xFFD7E2FF),
+      onPrimaryContainer: const Color(0xFF001B3F),
+      secondary: const Color(0xFF705D00),
+      onSecondary: Colors.white,
+      secondaryContainer: const Color(0xFFFFE16D),
+      onSecondaryContainer: const Color(0xFF221B00),
+      tertiary: const Color(0xFF2E7D32),
+      onTertiary: Colors.white,
+      tertiaryContainer: const Color(0xFFA3F69C),
+      onTertiaryContainer: const Color(0xFF002204),
+      error: const Color(0xFFD32F2F),
+      onError: Colors.white,
+      errorContainer: const Color(0xFFFFDAD6),
+      onErrorContainer: const Color(0xFF410002),
+      surface: const Color(0xFFF8F9FA),
+      onSurface: const Color(0xFF191C1D),
+      onSurfaceVariant: const Color(0xFF43474F),
+      outline: const Color(0xFF747781),
+      outlineVariant: const Color(0xFFC4C6D1),
+      surfaceDim: const Color(0xFFD9DADB),
+      surfaceBright: const Color(0xFFFFFFFF),
+      surfaceContainerLowest: const Color(0xFFFFFFFF),
+      surfaceContainerLow: const Color(0xFFF3F4F5),
+      surfaceContainer: const Color(0xFFEDEEEF),
+      surfaceContainerHigh: const Color(0xFFE7E8E9),
+      surfaceContainerHighest: const Color(0xFFE1E3E4),
     );
   }
 
   static ThemeData get theme => light();
-  static ThemeData get darkTheme => dark();
-  static ThemeData light({bool highContrast = false}) =>
-      _build(Brightness.light, highContrast);
-  static ThemeData dark({bool highContrast = false}) =>
-      _build(Brightness.dark, highContrast);
+  static ThemeData light({bool highContrast = false}) => _build(highContrast, Brightness.light);
+  static ThemeData dark({bool highContrast = false}) => _build(highContrast, Brightness.dark);
 
-  static ThemeData _build(Brightness brightness, bool highContrast) {
+  static ThemeData _build(bool highContrast, [Brightness brightness = Brightness.light]) {
     var scheme = schemeFor(brightness);
-    final dark = brightness == Brightness.dark;
     if (highContrast) {
       scheme = scheme.copyWith(
-        outline: dark ? const Color(0xFFDDE1EA) : const Color(0xFF343840),
-        outlineVariant: dark
-            ? const Color(0xFFAEB1BB)
+        outline: brightness == Brightness.dark
+            ? const Color(0xFFE1E3E8)
+            : const Color(0xFF343840),
+        outlineVariant: brightness == Brightness.dark
+            ? const Color(0xFFC4C6D0)
             : const Color(0xFF656870),
       );
     }
@@ -662,25 +830,17 @@ class AppTheme {
       ),
       extensions: <ThemeExtension<dynamic>>[
         AppSemanticColors(
-          success: dark ? const Color(0xFF88D982) : const Color(0xFF2E7D32),
-          successContainer: dark
-              ? const Color(0xFF005313)
-              : const Color(0xFFE8F5E9),
-          onSuccessContainer: dark
-              ? const Color(0xFFA3F69C)
-              : const Color(0xFF124A19),
-          warning: dark ? const Color(0xFFFFB77D) : const Color(0xFFB94E00),
-          warningContainer: dark
-              ? const Color(0xFF633200)
-              : const Color(0xFFFFE8D6),
-          onWarningContainer: dark
-              ? const Color(0xFFFFDCC5)
-              : const Color(0xFF4A2500),
+          success: const Color(0xFF2E7D32),
+          successContainer: const Color(0xFFE8F5E9),
+          onSuccessContainer: const Color(0xFF124A19),
+          warning: const Color(0xFFE65100),
+          warningContainer: const Color(0xFFFFE8D6),
+          onWarningContainer: const Color(0xFF4A2500),
           chatIncoming: scheme.surfaceContainerHigh,
           chatOutgoing: scheme.primaryContainer,
-          medication: dark ? const Color(0xFFE7B5FF) : const Color(0xFF7B1FA2),
-          meal: dark ? const Color(0xFFFFB77D) : const Color(0xFF9A4E0F),
-          voice: dark ? const Color(0xFF9ECAFF) : const Color(0xFF0061A4),
+          medication: const Color(0xFF7B1FA2),
+          meal: const Color(0xFFE65100),
+          voice: const Color(0xFF0061A4),
         ),
       ],
     );

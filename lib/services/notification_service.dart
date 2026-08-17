@@ -309,10 +309,7 @@ class NotificationService {
     }
 
     await onNotificationTapped?.call(payload);
-    _navigatorKey?.currentState?.pushNamed(
-      '/active-reminder',
-      arguments: payload,
-    );
+    AlarmService.instance.showOrEnqueueReminder(payload);
   }
 
   Future<void> _runOnce(String key, FutureOr<void> Function() operation) async {

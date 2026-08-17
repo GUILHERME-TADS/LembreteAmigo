@@ -2,37 +2,16 @@ import 'dart:async';
 import 'dart:math';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
-import '../models/lembrete.dart';
+import 'package:flutter/services.dart';
 import '../services/tts_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/audio_path_helper.dart';
 import '../utils/period_helper.dart';
 import '../utils/reminder_state_helper.dart';
 import 'audio_manager.dart';
-import 'reminder_status_badge.dart';
 import 'alex_avatar.dart';
 
 export '../utils/reminder_state_helper.dart';
-
-LembreteStatus _getLembreteStatus(ReminderStatus status) {
-  switch (status) {
-    case ReminderStatus.done:
-      return LembreteStatus.concluido;
-    case ReminderStatus.doneWithPhoto:
-      return LembreteStatus.concluidoComFoto;
-    case ReminderStatus.caregiverConfirmed:
-      return LembreteStatus.confirmadoPeloCuidador;
-    case ReminderStatus.late:
-    case ReminderStatus.missed:
-      return LembreteStatus.perdido;
-    case ReminderStatus.needsHelp:
-      return LembreteStatus.precisaDeAjuda;
-    case ReminderStatus.postponed:
-      return LembreteStatus.adiado;
-    case ReminderStatus.scheduled:
-      return LembreteStatus.pendente;
-  }
-}
 
 class ReminderWithAudio extends StatefulWidget {
   final IconData icon;
@@ -47,6 +26,11 @@ class ReminderWithAudio extends StatefulWidget {
   Color get accentColor => _accentColor ?? AppColors.primary;
   final String? audioPath;
   final String? ttsText;
+  final String? dosage;
+  final String? instructions;
+  final bool requiresPhoto;
+  final String? relativeTime;
+  final VoidCallback? onPostpone;
 
   const ReminderWithAudio({
     super.key,
@@ -61,6 +45,11 @@ class ReminderWithAudio extends StatefulWidget {
     Color? accentColor,
     this.audioPath,
     this.ttsText,
+    this.dosage,
+    this.instructions,
+    this.requiresPhoto = false,
+    this.relativeTime,
+    this.onPostpone,
   }) : _accentColor = accentColor;
 
   @override
@@ -219,8 +208,6 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
 
   @override
   Widget build(BuildContext context) {
-    final isHighContrast =
-        Theme.of(context).colorScheme.primary == Colors.black;
     final isDoneStatus =
         widget.status == ReminderStatus.done ||
         widget.status == ReminderStatus.doneWithPhoto ||
@@ -230,330 +217,522 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
         widget.status == ReminderStatus.late ||
         widget.status == ReminderStatus.missed ||
         widget.status == ReminderStatus.needsHelp;
+
     final Color sideBarColor = isDoneStatus
-        ? AppColors.tertiaryFixedDim
+        ? AppColors.success
         : isAttentionStatus
         ? AppColors.error
         : isPostponed
-        ? AppColors.secondaryFixedDim
+        ? AppColors.warning
         : widget.accentColor;
 
+    final Color cardBg = isDoneStatus
+        ? AppColors.successContainer.withValues(alpha: 0.35)
+        : isPostponed
+        ? AppColors.warningContainer.withValues(alpha: 0.35)
+        : isAttentionStatus
+        ? AppColors.errorContainer.withValues(alpha: 0.35)
+        : AppColors.surfaceContainerLowest;
+
     return Container(
+      margin: const EdgeInsets.symmetric(vertical: 4),
       decoration: BoxDecoration(
-        color: isDoneStatus
-            ? AppColors.successContainer
-            : isPostponed
-            ? AppColors.warningContainer
-            : isAttentionStatus
-            ? AppColors.errorContainer
-            : AppColors.surfaceContainerLowest,
+        color: cardBg,
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: isDoneStatus
-              ? AppColors.tertiaryFixedDim.withValues(alpha: 0.5)
+              ? AppColors.success.withValues(alpha: 0.4)
               : isAttentionStatus
               ? AppColors.error
               : isPostponed
-              ? AppColors.secondaryFixedDim.withValues(alpha: 0.5)
-              : widget.accentColor.withValues(alpha: 0.5),
-          width: 2,
+              ? AppColors.warning.withValues(alpha: 0.5)
+              : widget.accentColor.withValues(alpha: 0.25),
+          width: isAttentionStatus ? 2.5 : 1.5,
         ),
-        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(18),
         child: IntrinsicHeight(
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(width: 12, color: sideBarColor),
+              // Barra de Cor Lateral
+              Container(width: 8, color: sideBarColor),
+
+              // Conteúdo do Card
               Expanded(
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Área Superior do Card
                     Padding(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
                       child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          // Ícone da Categoria
                           GestureDetector(
                             onTap: widget.onTap,
-                            behavior: HitTestBehavior.opaque,
                             child: Container(
-                              padding: const EdgeInsets.all(12),
+                              width: 50,
+                              height: 50,
                               decoration: BoxDecoration(
                                 color: isDoneStatus
-                                    ? AppColors.tertiaryFixedDim.withValues(
-                                        alpha: 0.3,
-                                      )
+                                    ? AppColors.success.withValues(alpha: 0.15)
                                     : isAttentionStatus
                                     ? AppColors.error.withValues(alpha: 0.15)
                                     : isPostponed
-                                    ? AppColors.secondaryFixed.withValues(
-                                        alpha: 0.3,
-                                      )
-                                    : widget.iconBg,
+                                    ? AppColors.warning.withValues(alpha: 0.15)
+                                    : widget.iconBg.withValues(alpha: 0.18),
                                 shape: BoxShape.circle,
                               ),
                               child: Icon(
                                 widget.icon,
                                 color: isDoneStatus
-                                    ? AppColors.onTertiaryFixedVariant
+                                    ? AppColors.success
                                     : isAttentionStatus
                                     ? AppColors.error
                                     : isPostponed
-                                    ? AppColors.onSecondaryFixedVariant
-                                    : widget.iconColor,
-                                size: 32,
+                                    ? AppColors.warning
+                                    : widget.accentColor,
+                                size: 28,
                               ),
                             ),
                           ),
-                          const SizedBox(width: 16),
+                          const SizedBox(width: 12),
+
+                          // Título e Badges
                           Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                GestureDetector(
-                                  onTap: widget.onTap,
-                                  behavior: HitTestBehavior.opaque,
-                                  child: Row(
+                            child: GestureDetector(
+                              onTap: widget.onTap,
+                              behavior: HitTestBehavior.opaque,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Título do Lembrete
+                                  Text(
+                                    widget.title,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w800,
+                                      height: 1.25,
+                                      color: isDoneStatus
+                                          ? AppColors.onSurfaceVariant
+                                          : isAttentionStatus
+                                          ? AppColors.error
+                                          : AppColors.onSurface,
+                                      decoration: isDoneStatus
+                                          ? TextDecoration.lineThrough
+                                          : null,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+
+                                  // Linha de Chips / Badges
+                                  Wrap(
+                                    spacing: 6,
+                                    runSpacing: 6,
                                     children: [
-                                      Expanded(
-                                        child: Text(
-                                          widget.title,
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            fontSize: 28,
-                                            fontWeight: FontWeight.w700,
-                                            height: 1.3,
-                                            color: isDoneStatus
-                                                ? AppColors.onSurfaceVariant
-                                                : isPostponed
-                                                ? AppColors
-                                                      .onSecondaryFixedVariant
-                                                : isAttentionStatus
-                                                ? AppColors.error
-                                                : widget.accentColor,
+                                      // Chip Horário + Período
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.surfaceContainerHigh,
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(
+                                            color: AppColors.outlineVariant,
+                                            width: 1,
                                           ),
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: [
-                                    Expanded(
-                                      child: GestureDetector(
-                                        onTap: widget.onTap,
-                                        behavior: HitTestBehavior.opaque,
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            Row(
-                                              children: [
-                                                Icon(
-                                                  PeriodHelper.getPeriodIconFromStr(
-                                                    widget.time,
-                                                  ),
-                                                  size: 32,
-                                                  color:
-                                                      PeriodHelper.getPeriodColorFromStr(
-                                                        widget.time,
-                                                        widget.accentColor,
-                                                      ),
-                                                ),
-                                                const SizedBox(width: 8),
-                                                Container(
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 10,
-                                                        vertical: 4,
-                                                      ),
-                                                  decoration: BoxDecoration(
-                                                    color:
-                                                        PeriodHelper.getPeriodColorFromStr(
-                                                          widget.time,
-                                                          widget.accentColor,
-                                                        ).withValues(
-                                                          alpha: 0.12,
-                                                        ),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          8,
-                                                        ),
-                                                  ),
-                                                  child: Text(
-                                                    widget.time,
-                                                    style: TextStyle(
-                                                      fontSize: 16,
-                                                      fontWeight:
-                                                          FontWeight.w700,
-                                                      color:
-                                                          PeriodHelper.getPeriodColorFromStr(
-                                                            widget.time,
-                                                            widget.accentColor,
-                                                          ),
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            const SizedBox(height: 8),
-                                            ReminderStatusBadge(
-                                              status: _getLembreteStatus(
-                                                widget.status,
+                                            Icon(
+                                              PeriodHelper.getPeriodIconFromStr(
+                                                widget.time,
                                               ),
-                                              compact: true,
-                                              accentColor: widget.accentColor,
+                                              size: 15,
+                                              color: PeriodHelper.getPeriodColorFromStr(
+                                                widget.time,
+                                                widget.accentColor,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              widget.time,
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w800,
+                                                color: AppColors.onSurface,
+                                              ),
                                             ),
                                           ],
                                         ),
                                       ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        GestureDetector(
-                                          onTap: _togglePlay,
-                                          child: Container(
-                                            width: 56,
-                                            height: 56,
-                                            decoration: BoxDecoration(
-                                              color: _isPlaying || _isSpeaking
-                                                  ? (isDoneStatus
-                                                        ? AppColors
-                                                              .tertiaryFixedDim
-                                                        : isPostponed
-                                                        ? AppColors
-                                                              .secondaryFixed
-                                                        : isAttentionStatus
-                                                        ? AppColors.error
-                                                              .withValues(
-                                                                alpha: 0.2,
-                                                              )
-                                                        : widget.accentColor
-                                                              .withValues(
-                                                                alpha: 0.2,
-                                                              ))
-                                                  : widget.accentColor
-                                                        .withValues(alpha: 0.1),
-                                              shape: BoxShape.rectangle,
-                                              borderRadius:
-                                                  BorderRadius.circular(14),
-                                              border: Border.all(
-                                                color: isDoneStatus
-                                                    ? AppColors
-                                                          .onTertiaryFixedVariant
-                                                    : isPostponed
-                                                    ? AppColors
-                                                          .onSecondaryFixedVariant
-                                                    : isAttentionStatus
-                                                    ? AppColors.error
-                                                    : widget.accentColor,
-                                                width: 3,
-                                              ),
-                                            ),
-                                            child: Icon(
-                                              _isPlaying || _isSpeaking
-                                                  ? Icons.stop
-                                                  : Icons.play_arrow,
-                                              color: isDoneStatus
-                                                  ? AppColors
-                                                        .onTertiaryFixedVariant
-                                                  : isPostponed
-                                                  ? AppColors
-                                                        .onSecondaryFixedVariant
-                                                  : isAttentionStatus
-                                                  ? AppColors.error
-                                                  : widget.accentColor,
-                                              size: 32,
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 12),
+
+                                      // Chip Tempo Relativo
+                                      if (widget.relativeTime != null &&
+                                          widget.relativeTime!.isNotEmpty)
                                         Container(
-                                          width: 56,
-                                          height: 56,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
                                           decoration: BoxDecoration(
                                             color: isDoneStatus
                                                 ? AppColors.successContainer
-                                                : isPostponed
-                                                ? AppColors.secondaryContainer
                                                 : isAttentionStatus
                                                 ? AppColors.errorContainer
-                                                : widget.accentColor.withValues(
-                                                    alpha: 0.1,
+                                                : isPostponed
+                                                ? AppColors.warningContainer
+                                                : AppColors.primaryContainer.withValues(
+                                                    alpha: 0.5,
                                                   ),
-                                            shape: BoxShape.rectangle,
-                                            borderRadius: BorderRadius.circular(
-                                              14,
-                                            ),
-                                            border: Border.all(
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: Text(
+                                            widget.relativeTime!,
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w700,
                                               color: isDoneStatus
-                                                  ? AppColors.success
-                                                  : isPostponed
-                                                  ? AppColors.secondary
+                                                  ? AppColors.onSuccessContainer
                                                   : isAttentionStatus
-                                                  ? AppColors.error
-                                                  : widget.accentColor,
-                                              width: 3,
+                                                  ? AppColors.onErrorContainer
+                                                  : isPostponed
+                                                  ? AppColors.onWarningContainer
+                                                  : AppColors.primary,
                                             ),
                                           ),
-                                          child:
-                                              isDoneStatus ||
-                                                  isPostponed ||
-                                                  isAttentionStatus
-                                              ? Icon(
-                                                  isDoneStatus
-                                                      ? Icons.check
-                                                      : isPostponed
-                                                      ? Icons.schedule
-                                                      : widget.status ==
-                                                            ReminderStatus
-                                                                .needsHelp
-                                                      ? Icons.support_agent
-                                                      : widget.status ==
-                                                            ReminderStatus
-                                                                .missed
-                                                      ? Icons.close
-                                                      : Icons.priority_high,
-                                                  color: isDoneStatus
-                                                      ? AppColors.tertiaryContainer
-                                                      : isPostponed
-                                                      ? AppColors.onWarningContainer
-                                                      : AppColors.error,
-                                                  size: 32,
-                                                )
-                                              : Icon(
-                                                  Icons.radio_button_unchecked,
-                                                  color: isHighContrast
-                                                      ? Colors.black
-                                                      : widget.accentColor,
-                                                  size: 32,
-                                                ),
                                         ),
-                                      ],
+
+                                      // Chip de Dosagem
+                                      if (widget.dosage != null &&
+                                          widget.dosage!.isNotEmpty)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.medicationContainer,
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                Icons.medication,
+                                                size: 13,
+                                                color: AppColors.onMedicationContainer,
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                widget.dosage!,
+                                                style: TextStyle(
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: AppColors.onMedicationContainer,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+
+                                      // Badge de Foto Obrigatória
+                                      if (widget.requiresPhoto && !isDoneStatus)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.infoContainer,
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                Icons.camera_alt,
+                                                size: 13,
+                                                color: AppColors.info,
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                'Exige foto',
+                                                style: TextStyle(
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w800,
+                                                  color: AppColors.info,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+
+                                  // Box de Instruções
+                                  if (widget.instructions != null &&
+                                      widget.instructions!.isNotEmpty) ...[
+                                    const SizedBox(height: 8),
+                                    Container(
+                                      width: double.infinity,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.surfaceContainerLow,
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: AppColors.outlineVariant.withValues(
+                                            alpha: 0.5,
+                                          ),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Icon(
+                                            Icons.tips_and_updates_outlined,
+                                            size: 15,
+                                            color: widget.accentColor,
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Expanded(
+                                            child: Text(
+                                              widget.instructions!,
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w600,
+                                                color: AppColors.onSurfaceVariant,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ],
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         ],
                       ),
                     ),
+
+                    // Barra Inferior de Ações (Ouvir + Adiar + Ação Principal)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 2, 14, 14),
+                      child: Row(
+                        children: [
+                          // Botão Ouvir Lembrete
+                          Expanded(
+                            flex: 2,
+                            child: SizedBox(
+                              height: 48,
+                              child: OutlinedButton(
+                                onPressed: _togglePlay,
+                                style: OutlinedButton.styleFrom(
+                                  backgroundColor: _isPlaying || _isSpeaking
+                                      ? AppColors.errorContainer.withValues(
+                                          alpha: 0.3,
+                                        )
+                                      : AppColors.surfaceContainerLow,
+                                  side: BorderSide(
+                                    color: _isPlaying || _isSpeaking
+                                        ? AppColors.error
+                                        : AppColors.outlineVariant,
+                                    width: 1.5,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      _isPlaying || _isSpeaking
+                                          ? Icons.stop_circle
+                                          : Icons.volume_up,
+                                      size: 20,
+                                      color: _isPlaying || _isSpeaking
+                                          ? AppColors.error
+                                          : AppColors.primary,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Flexible(
+                                      child: Text(
+                                        _isPlaying || _isSpeaking
+                                            ? 'Parar'
+                                            : 'Ouvir',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w800,
+                                          color: _isPlaying || _isSpeaking
+                                              ? AppColors.error
+                                              : AppColors.primary,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          // Botão Adiar (+15 min)
+                          if (widget.onPostpone != null && !isDoneStatus) ...[
+                            const SizedBox(width: 8),
+                            SizedBox(
+                              height: 48,
+                              child: OutlinedButton(
+                                onPressed: () {
+                                  HapticFeedback.lightImpact();
+                                  widget.onPostpone!();
+                                },
+                                style: OutlinedButton.styleFrom(
+                                  backgroundColor: AppColors.surfaceContainerLow,
+                                  side: BorderSide(
+                                    color: AppColors.outlineVariant,
+                                    width: 1.5,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.schedule,
+                                      size: 16,
+                                      color: AppColors.warning,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '+15m',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w800,
+                                        color: AppColors.onSurface,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+
+                          // Botão de Ação Principal
+                          if (widget.onStatusTap != null) ...[
+                            const SizedBox(width: 8),
+                            Expanded(
+                              flex: 3,
+                              child: SizedBox(
+                                height: 48,
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    HapticFeedback.mediumImpact();
+                                    widget.onStatusTap!();
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: isDoneStatus
+                                        ? AppColors.success
+                                        : isAttentionStatus
+                                        ? AppColors.error
+                                        : widget.requiresPhoto
+                                        ? AppColors.primary
+                                        : AppColors.primary,
+                                    foregroundColor: AppColors.onPrimary,
+                                    elevation: 1,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        isDoneStatus
+                                            ? Icons.check_circle
+                                            : widget.requiresPhoto
+                                            ? Icons.camera_alt
+                                            : isAttentionStatus
+                                            ? Icons.priority_high
+                                            : Icons.check,
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Flexible(
+                                        child: Text(
+                                          isDoneStatus
+                                              ? 'Concluído'
+                                              : widget.requiresPhoto
+                                              ? 'Fotografar'
+                                              : isAttentionStatus
+                                              ? 'Tomar agora'
+                                              : 'Feito',
+                                          style: const TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w900,
+                                            letterSpacing: 0.3,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+
+                    // Animação de Onda de Áudio / Avatar Alex
                     if (_isPlaying || _isSpeaking) ...[
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
                         child: AnimatedBuilder(
                           animation: _waveController,
                           builder: (context, child) {
                             return SizedBox(
-                              height: 32,
+                              height: 28,
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: List.generate(24, (i) {
@@ -573,14 +752,12 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
                                         horizontal: 1,
                                       ),
                                       child: Container(
-                                        height: 32 * heightFactor,
+                                        height: 28 * heightFactor,
                                         decoration: BoxDecoration(
                                           color: widget.accentColor.withValues(
                                             alpha: 0.4 + heightFactor * 0.6,
                                           ),
-                                          borderRadius: BorderRadius.circular(
-                                            2,
-                                          ),
+                                          borderRadius: BorderRadius.circular(2),
                                         ),
                                       ),
                                     ),
@@ -592,9 +769,11 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
                         ),
                       ),
                       const SizedBox(height: 8),
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: AlexAvatar(size: 60, animate: true),
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.only(bottom: 12),
+                          child: AlexAvatar(size: 54, animate: true),
+                        ),
                       ),
                     ],
                   ],

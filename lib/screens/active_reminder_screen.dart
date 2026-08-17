@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:alarm/alarm.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../theme/app_theme.dart';
 import '../models/lembrete.dart';
 import '../models/reminder_completion_result.dart';
@@ -11,8 +13,10 @@ import '../services/tts_service.dart';
 import '../services/notification_service.dart';
 import '../services/vibration_service.dart';
 import '../services/session_role_service.dart';
+import '../services/alarm_service.dart';
 import '../utils/audio_path_helper.dart';
 import '../utils/period_helper.dart';
+import '../utils/app_image_helper.dart';
 import '../widgets/index.dart';
 
 class ActiveReminderScreen extends StatefulWidget {
@@ -32,6 +36,8 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
   bool _isLoopPaused = false;
   bool _isFetchingReminder = false;
   final AudioPlayer _familyAudioPlayer = AudioPlayer();
+  final stt.SpeechToText _speech = stt.SpeechToText();
+  bool _isListeningVoiceCommand = false;
   Timer? _urgencyReinforcementTimer;
   Timer? _noResponseTimer;
   bool _isProcessingAction = false;
@@ -58,6 +64,87 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
     LembreteService.instance.carregar();
     LembreteService.instance.notifier.addListener(_onLembretesChanged);
     _loadPairedStatus();
+    _initVoiceListening();
+  }
+
+  Future<void> _initVoiceListening() async {
+    try {
+      final available = await _speech.initialize(
+        onError: (error) {
+          debugPrint('Speech recognition error: $error');
+          if (mounted) setState(() => _isListeningVoiceCommand = false);
+        },
+        onStatus: (status) {
+          if (status == 'done' || status == 'notListening') {
+            if (mounted && _isListeningVoiceCommand && !_isProcessingAction) {
+              _restartVoiceListening();
+            }
+          }
+        },
+      );
+      if (available && mounted && !_isProcessingAction) {
+        _startVoiceListening();
+      }
+    } catch (e) {
+      debugPrint('Erro ao inicializar voz no alarme ativo: $e');
+      if (mounted) setState(() => _isListeningVoiceCommand = false);
+    }
+  }
+
+  void _startVoiceListening() {
+    if (!mounted || _isProcessingAction) return;
+    try {
+      if (!_speech.isAvailable) return;
+      setState(() => _isListeningVoiceCommand = true);
+      _speech.listen(
+        listenOptions: stt.SpeechListenOptions(
+          localeId: 'pt_BR',
+          listenMode: stt.ListenMode.dictation,
+        ),
+        onResult: (result) {
+          final words = result.recognizedWords.toLowerCase();
+          if (words.contains('tomei') ||
+              words.contains('ja tomei') ||
+              words.contains('já tomei') ||
+              words.contains('pronto') ||
+              words.contains('feito') ||
+              words.contains('concluido') ||
+              words.contains('concluído')) {
+            _stopVoiceListening();
+            _handleConfirmation();
+          } else if (words.contains('adiar') ||
+                     words.contains('depois') ||
+                     words.contains('mais tarde') ||
+                     words.contains('mais dez') ||
+                     words.contains('mais 10')) {
+            _stopVoiceListening();
+            _handleSnooze();
+          }
+        },
+      );
+    } catch (e) {
+      debugPrint('Erro ao iniciar escuta no alarme ativo: $e');
+      if (mounted) setState(() => _isListeningVoiceCommand = false);
+    }
+  }
+
+  void _restartVoiceListening() {
+    Future.delayed(const Duration(milliseconds: 600), () {
+      if (mounted && !_isProcessingAction && !_isLoopPaused && _speech.isAvailable) {
+        _startVoiceListening();
+      }
+    });
+  }
+
+  void _stopVoiceListening() {
+    try {
+      if (_speech.isListening) {
+        _speech.stop();
+      }
+    } catch (e) {
+      debugPrint('Erro ao parar escuta de voz: $e');
+    }
+    if (mounted) setState(() => _isListeningVoiceCommand = false);
   }
 
   Future<void> _loadPairedStatus() async {
@@ -280,6 +367,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
 
   void _stopReminderFeedback() {
     _isLoopPaused = true;
+    _stopVoiceListening();
     VibrationService.stopVibration();
     AudioManager.stopAll();
     _noResponseTimer?.cancel();
@@ -514,10 +602,15 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
     _noResponseTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     VibrationService.stopVibration();
+    try {
+      _speech.stop();
+      _speech.cancel();
+    } catch (_) {}
     _familyAudioPlayer.dispose();
     LembreteService.instance.notifier.removeListener(_onLembretesChanged);
     TTSService.instance.parar(caller: this);
     super.dispose();
+    AlarmService.instance.processNextPendingReminder();
   }
 
   Future<void> _confirmLeaveReminder() async {
@@ -869,14 +962,40 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                               const SizedBox(height: 24),
                             ],
 
+                            if (_isListeningVoiceCommand) ...[
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 20),
+                                child: Column(
+                                  children: [
+                                    AudioWaveformIndicator(
+                                      isListening: _isListeningVoiceCommand,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Você pode responder por voz: "Já tomei" ou "Já fiz"',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+
                             // BOTAO CONFIRMAR (ENTENDI)
                             SizedBox(
                               width: double.infinity,
-                              height: 80,
+                              height: 84,
                               child: ElevatedButton.icon(
                                 onPressed: _isProcessingAction
                                     ? null
-                                    : _handleConfirmation,
+                                    : () {
+                                        HapticFeedback.mediumImpact();
+                                        _handleConfirmation();
+                                      },
                                 icon: _isProcessingAction
                                     ? const SizedBox(
                                         width: 36,
@@ -886,7 +1005,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                           strokeWidth: 3,
                                         ),
                                       )
-                                    : const Icon(Icons.check_circle, size: 36),
+                                    : const Icon(Icons.check_circle_rounded, size: 38),
                                 label: FittedBox(
                                   fit: BoxFit.scaleDown,
                                   child: Text(
@@ -895,6 +1014,7 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                     style: const TextStyle(
                                       fontSize: 26,
                                       fontWeight: FontWeight.w900,
+                                      letterSpacing: 0.5,
                                     ),
                                   ),
                                 ),
@@ -905,14 +1025,17 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                   foregroundColor: Colors.white,
                                   elevation: 6,
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(24),
+                                    borderRadius: BorderRadius.circular(AppRadius.xl),
                                   ),
                                   side: isHighContrast
                                       ? const BorderSide(
                                           color: Colors.black,
                                           width: 3,
                                         )
-                                      : null,
+                                      : BorderSide(
+                                          color: AppColors.onSuccessContainer.withValues(alpha: 0.25),
+                                          width: 2,
+                                        ),
                                 ),
                               ),
                             ),
@@ -1166,7 +1289,11 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                     ? AssetImage(l.medicamentoFotoPath!) as ImageProvider
                     : isRemotePath(l.medicamentoFotoPath!)
                     ? NetworkImage(l.medicamentoFotoPath!)
-                    : FileImage(File(l.medicamentoFotoPath!)),
+                    : AppImageHelper.resizedFileImage(
+                        File(l.medicamentoFotoPath!),
+                        maxWidth: 400,
+                        maxHeight: 400,
+                      ),
                 fit: BoxFit.cover,
               ),
             ),

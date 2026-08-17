@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../models/lembrete.dart';
 import '../models/stock_movement.dart';
@@ -248,6 +249,58 @@ class _MedicationStockScreenState extends State<MedicationStockScreen> {
     );
   }
 
+  Future<void> _shareShoppingList(List<Lembrete> medications) async {
+    if (medications.isEmpty) return;
+    final buffer = StringBuffer();
+    buffer.writeln('🛒 *Lista de Medicamentos para Reposição / Farmácia*');
+    buffer.writeln('📅 Data: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}');
+    buffer.writeln('------------------------------------------');
+
+    final urgent = <Lembrete>[];
+    final normal = <Lembrete>[];
+
+    for (final med in medications) {
+      final stock = med.medicamentoEstoque;
+      final minimum = med.medicamentoEstoqueMinimo;
+      final low = stock != null && minimum != null && stock <= minimum;
+      if (stock == 0 || low) {
+        urgent.add(med);
+      } else {
+        normal.add(med);
+      }
+    }
+
+    if (urgent.isNotEmpty) {
+      buffer.writeln('\n🚨 *PRECISAM DE REPOSIÇÃO URGENTE:*');
+      for (final med in urgent) {
+        final days = StockService.instance.estimatedDaysRemaining(med);
+        final daysStr = days != null ? ' (~$days dia(s) restante(s))' : '';
+        final stock = med.medicamentoEstoque ?? 0;
+        buffer.writeln('• *${med.titulo}* — Restam: $stock un.$daysStr');
+      }
+    }
+
+    if (normal.isNotEmpty) {
+      buffer.writeln('\n✅ *DEMAIS MEDICAMENTOS EM ESTOQUE:*');
+      for (final med in normal) {
+        final days = StockService.instance.estimatedDaysRemaining(med);
+        final daysStr = days != null ? ' (~$days dia(s))' : '';
+        final stock = med.medicamentoEstoque != null ? '${med.medicamentoEstoque} un.' : 'Não informado';
+        buffer.writeln('• ${med.titulo} — Estoque: $stock$daysStr');
+      }
+    }
+
+    buffer.writeln('\n------------------------------------------');
+    buffer.writeln('Gerado pelo aplicativo *Lembrete Amigo* 💙');
+
+    await SharePlus.instance.share(
+      ShareParams(
+        text: buffer.toString(),
+        subject: 'Lista de Farmácia - Lembrete Amigo',
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final medications =
@@ -261,7 +314,17 @@ class _MedicationStockScreenState extends State<MedicationStockScreen> {
       bottomNavigationBar: const SupervisorBottomNav(
         selected: SupervisorNavDestination.none,
       ),
-      appBar: AppBar(title: const Text('Estoque de Medicamentos')),
+      appBar: AppBar(
+        title: const Text('Estoque de Medicamentos'),
+        actions: [
+          if (medications.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.share),
+              tooltip: 'Compartilhar Lista de Compras',
+              onPressed: () => _shareShoppingList(medications),
+            ),
+        ],
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _elderlyId == null
@@ -289,89 +352,177 @@ class _MedicationStockScreenState extends State<MedicationStockScreen> {
 
   Widget _medicationCard(Lembrete reminder) {
     final stock = reminder.medicamentoEstoque;
-    final minimum = reminder.medicamentoEstoqueMinimo;
+    final minimum = reminder.medicamentoEstoqueMinimo ?? 5;
     final days = StockService.instance.estimatedDaysRemaining(reminder);
-    final low = stock != null && minimum != null && stock <= minimum;
-    final color = stock == 0
+    final low = stock != null && stock <= minimum;
+    final isZero = stock == 0;
+
+    final Color statusColor = isZero
         ? AppColors.error
         : low
-        ? AppColors.warning
-        : AppColors.primary;
+            ? AppColors.warning
+            : AppColors.success;
+
     final busy = _busyReminderId == reminder.id;
-    return Card(
+    final maxCapacity = ((minimum * 4).clamp(30, 100)).toDouble();
+    final progress = stock != null ? (stock / maxCapacity).clamp(0.0, 1.0) : 0.5;
+
+    return Container(
+      decoration: AppDecorations.blisterCard(statusColor: statusColor),
       child: Padding(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                CircleAvatar(
-                  backgroundColor: color.withValues(alpha: 0.12),
-                  child: Icon(Icons.medication, color: color),
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: statusColor.withValues(alpha: 0.3),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Icon(Icons.medication_rounded, color: statusColor, size: 28),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 14),
                 Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        reminder.titulo,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                          height: 1.2,
+                        ),
+                      ),
+                      if (reminder.medicamentoDose != null && reminder.medicamentoDose!.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          'Dose: ${reminder.medicamentoDose}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+                  ),
                   child: Text(
-                    reminder.titulo,
-                    style: const TextStyle(
-                      fontSize: 20,
+                    isZero
+                        ? 'SEM ESTOQUE'
+                        : low
+                            ? 'ESTOQUE BAIXO'
+                            : 'EM DIA',
+                    style: TextStyle(
+                      color: statusColor,
+                      fontSize: 12,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
                 ),
-                if (low)
-                  Chip(
-                    label: Text(stock == 0 ? 'SEM ESTOQUE' : 'ESTOQUE BAIXO'),
-                    labelStyle: TextStyle(
-                      color: color,
-                      fontWeight: FontWeight.w800,
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  stock == null
+                      ? 'Estoque não informado'
+                      : '$stock unidades disponíveis',
+                  style: TextStyle(
+                    color: statusColor,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                if (days != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceContainerHigh,
+                      borderRadius: BorderRadius.circular(6),
                     ),
-                    backgroundColor: color.withValues(alpha: 0.12),
+                    child: Text(
+                      days == 0 ? 'Acaba hoje' : 'Acaba em ~$days dias',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: statusColor,
+                      ),
+                    ),
                   ),
               ],
             ),
-            const SizedBox(height: 14),
-            Text(
-              stock == null
-                  ? 'Estoque ainda não informado'
-                  : '$stock unidade(s) disponível(is)',
-              style: TextStyle(
-                color: color,
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
+            const SizedBox(height: 10),
+            // Barra de Nível Visual do Medicamento
+            ClipRRect(
+              borderRadius: BorderRadius.circular(99),
+              child: LinearProgressIndicator(
+                value: stock == null ? 0.0 : progress,
+                minHeight: 10,
+                backgroundColor: AppColors.surfaceContainerHigh,
+                valueColor: AlwaysStoppedAnimation<Color>(statusColor),
               ),
             ),
-            if (days != null) ...[
-              const SizedBox(height: 4),
-              Text(
-                days == 0
-                    ? 'Pode terminar hoje'
-                    : 'Estimativa: aproximadamente $days dia(s)',
+            const SizedBox(height: 6),
+            Text(
+              'Aviso configurado para mínimo de $minimum unidades',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppColors.onSurfaceVariant,
               ),
-            ],
-            if (minimum != null)
-              Text('Avisar quando chegar a $minimum unidade(s)'),
-            const SizedBox(height: 14),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
+            ),
+            const SizedBox(height: 16),
+            Row(
               children: [
-                FilledButton.icon(
-                  onPressed: busy ? null : () => _showReplenishDialog(reminder),
-                  icon: busy
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.add_box),
-                  label: const Text('Repor estoque'),
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: busy ? null : () => _showReplenishDialog(reminder),
+                    icon: busy
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.add_circle_outline, size: 20),
+                    label: const Text(
+                      'Repor',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
                 ),
+                const SizedBox(width: 10),
                 OutlinedButton.icon(
                   onPressed: () => _showHistory(reminder),
-                  icon: const Icon(Icons.history),
+                  icon: const Icon(Icons.history, size: 20),
                   label: const Text('Histórico'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  ),
                 ),
               ],
             ),

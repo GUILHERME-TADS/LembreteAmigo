@@ -95,7 +95,7 @@ class _CustomTimePickerDialogState extends State<CustomTimePickerDialog> {
                     height: 130,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Colors.white,
+                      color: AppColors.surfaceContainerLowest,
                       boxShadow: [
                         BoxShadow(
                           color: AppColors.primary.withValues(alpha: 0.08),
@@ -322,7 +322,7 @@ class _CustomTimePickerDialogState extends State<CustomTimePickerDialog> {
             height: 90,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppColors.surfaceContainerLowest,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: AppColors.outlineVariant, width: 2),
               boxShadow: [
@@ -447,7 +447,7 @@ class _CustomTimePickerDialogState extends State<CustomTimePickerDialog> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : Colors.white,
+          color: isSelected ? AppColors.primary : AppColors.surfaceContainerLow,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected ? AppColors.primary : AppColors.outlineVariant,
@@ -469,7 +469,7 @@ class _CustomTimePickerDialogState extends State<CustomTimePickerDialog> {
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w800,
-                color: isSelected ? Colors.white : AppColors.primary,
+                color: isSelected ? AppColors.onPrimary : AppColors.primary,
               ),
             ),
             const SizedBox(height: 4),
@@ -479,7 +479,7 @@ class _CustomTimePickerDialogState extends State<CustomTimePickerDialog> {
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
                 color: isSelected
-                    ? Colors.white.withValues(alpha: 0.8)
+                    ? AppColors.onPrimary.withValues(alpha: 0.8)
                     : AppColors.onSurfaceVariant,
               ),
             ),
@@ -652,7 +652,7 @@ class ClockFacePainter extends CustomPainter {
     canvas.drawCircle(center, 7, centerPinPaint);
 
     final centerPinCorePaint = Paint()
-      ..color = Colors.white
+      ..color = AppColors.surfaceContainerLowest
       ..style = PaintingStyle.fill;
     canvas.drawCircle(center, 3, centerPinCorePaint);
   }

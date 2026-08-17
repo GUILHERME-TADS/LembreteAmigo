@@ -15,6 +15,7 @@ import 'offline_sync_service.dart';
 import 'session_role_service.dart';
 import '../utils/firebase_helper.dart';
 import 'volume_service.dart';
+import 'tts_service.dart';
 
 class DeviceBarrierService {
   DeviceBarrierService._();
@@ -63,6 +64,35 @@ class DeviceBarrierService {
         batteryLevel = await battery.batteryLevel;
         final state = await battery.batteryState;
         batteryState = state.name;
+
+        if (batteryLevel <= 15 && batteryState != 'charging') {
+          barriers.add(
+            DeviceBarrier(
+              type: DeviceBarrierType.lowBattery,
+              severity: batteryLevel <= 8
+                  ? DeviceBarrierSeverity.critical
+                  : DeviceBarrierSeverity.warning,
+              title: 'Bateria Fraca',
+              message:
+                  'A bateria do celular esta em $batteryLevel%. Coloque no carregador para nao perder lembretes.',
+              detectedAt: now,
+              priority: batteryLevel <= 8 ? 100 : 85,
+              value: batteryLevel,
+            ),
+          );
+
+          if (SessionRoleService.isElderly) {
+            final prefs = await SharedPreferences.getInstance();
+            final lastSpoken = prefs.getInt('last_low_battery_spoken_ms') ?? 0;
+            final nowMs = DateTime.now().millisecondsSinceEpoch;
+            if (nowMs - lastSpoken > 15 * 60 * 1000) {
+              await prefs.setInt('last_low_battery_spoken_ms', nowMs);
+              TTSService.instance.falar(
+                'Atenção: a bateria do seu celular está acabando, em $batteryLevel por cento. Por favor, coloque o celular no carregador.',
+              );
+            }
+          }
+        }
       } catch (e) {
         debugPrint('Erro ao ler bateria: $e');
       }

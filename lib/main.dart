@@ -19,7 +19,6 @@ import 'screens/all_reminders_screen.dart';
 import 'screens/edit_profile_screen.dart';
 import 'screens/elderly_help_screen.dart';
 import 'screens/elderly_home_screen.dart';
-import 'screens/elderly_radio_screen.dart';
 import 'screens/elderly_onboarding_screen.dart';
 import 'screens/elderly_pairing_screen.dart';
 import 'screens/elderly_profile_screen.dart';
@@ -57,8 +56,12 @@ import 'screens/supervisor_edit_elderly_profile_screen.dart';
 import 'screens/supervisor_login_screen.dart';
 import 'screens/supervisor_register_screen.dart';
 import 'screens/supervisor_reminder_detail_screen.dart';
+import 'screens/supervisor_reminders_screen.dart';
 import 'screens/supervisor_settings_screen.dart';
+import 'screens/test_hub_screen.dart';
 import 'screens/practice_mode_screen.dart';
+import 'screens/photo_gallery_screen.dart';
+import 'screens/digital_photo_frame_screen.dart';
 import 'screens/take_photo_confirmation_screen.dart';
 import 'screens/voice_settings_screen.dart';
 import 'screens/welcome_screen.dart';
@@ -76,7 +79,6 @@ import 'services/always_listening_service.dart';
 import 'services/alex_ai_service.dart';
 import 'services/alex_reminder_action_policy.dart';
 import 'services/voice_notification_service.dart';
-import 'services/radio_service.dart';
 import 'services/analytics_service.dart';
 import 'widgets/responsive_layout.dart';
 import 'services/remote_config_service.dart';
@@ -92,7 +94,7 @@ import 'services/app_permission_service.dart';
 import 'utils/firebase_helper.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
-final _RouteTracker _routeTracker = _RouteTracker();
+final RouteTracker _routeTracker = RouteTracker.instance;
 bool _reminderNotificationActionInProgress = false;
 const String _lastNotificationLaunchKey = 'last_notification_launch_key';
 const String _lastNotificationLaunchAtKey = 'last_notification_launch_at';
@@ -247,7 +249,6 @@ bool isElderlyOnlyRoute(String routeName) {
     '/elderly-home',
     '/elderly-pairing',
     '/elderly-help',
-    '/elderly-radio',
     '/all-reminders',
     '/active-reminder',
     '/meal-detail',
@@ -284,6 +285,7 @@ bool isSupervisorProtectedRoute(String routeName) {
     '/medication-bulk-confirmation',
     '/barcode-scanner',
     '/supervisor-reminder-detail',
+    '/supervisor-reminders',
     '/care-center',
     '/medication-stock',
     '/supervisor-wellbeing',
@@ -308,8 +310,18 @@ bool hasSupervisorAuthSession() {
   }
 }
 
-class _RouteTracker extends NavigatorObserver {
+class RouteTracker extends NavigatorObserver {
+  RouteTracker._();
+  static final RouteTracker instance = RouteTracker._();
+
   String? currentRouteName;
+
+  bool get isReminderRouteActive {
+    return currentRouteName == '/active-reminder' ||
+        currentRouteName == '/take-photo-confirmation' ||
+        currentRouteName == '/medication-confirmation' ||
+        currentRouteName == '/reinforcement-alert';
+  }
 
   void _track(Route<dynamic>? route) {
     final name = route?.settings.name;
@@ -323,11 +335,6 @@ class _RouteTracker extends NavigatorObserver {
         CrashlyticsService.instance.setCustomKey('current_screen', name),
       );
     }
-    if (name != '/elderly-radio') {
-      try {
-        RadioService.instance.stopRadio();
-      } catch (_) {}
-    }
   }
 
   @override
@@ -340,12 +347,18 @@ class _RouteTracker extends NavigatorObserver {
   void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
     _track(previousRoute);
     super.didPop(route, previousRoute);
+    if (!isReminderRouteActive) {
+      AlarmService.instance.processNextPendingReminder();
+    }
   }
 
   @override
   void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
     _track(newRoute);
     super.didReplace(newRoute: newRoute, oldRoute: oldRoute);
+    if (!isReminderRouteActive) {
+      AlarmService.instance.processNextPendingReminder();
+    }
   }
 }
 
@@ -403,47 +416,89 @@ Future<void> _activateAppCheck() async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await AppThemeController.load();
   runApp(const _StartupApp());
 
-  try {
-    await Alarm.init().timeout(const Duration(seconds: 8));
-  } catch (e) {
-    debugPrint('Erro ao inicializar alarmes. Continuando sem alarmes: $e');
-  }
-  try {
-    await NotificationService.instance.prepareReminderRegistry();
-  } catch (e) {
-    debugPrint('Erro ao carregar o registro local de alarmes: $e');
-  }
+  // 1. Inicialização inicial de alarmes e injeção de dependências
+  await Future.wait([
+    (() async {
+      try {
+        await Alarm.init().timeout(const Duration(seconds: 8));
+      } catch (e) {
+        debugPrint('Erro ao inicializar alarmes. Continuando sem alarmes: $e');
+      }
+    })(),
+    (() async {
+      try {
+        await NotificationService.instance.prepareReminderRegistry();
+      } catch (e) {
+        debugPrint('Erro ao carregar o registro local de alarmes: $e');
+      }
+    })(),
+  ]);
+
   AlarmService.instance.init();
   configureDependencies();
-  try {
-    if (kIsWeb) {
-      await Firebase.initializeApp(
-        options: const FirebaseOptions(
-          apiKey: 'AIzaSyDUwOKQDK_Ub03pjJbhkMErpQciKoA0dJE',
-          authDomain: 'lembreteamigo-26fd0.firebaseapp.com',
-          projectId: 'lembreteamigo-26fd0',
-          storageBucket: 'lembreteamigo-26fd0.firebasestorage.app',
-          messagingSenderId: '591702637162',
-          appId: '1:591702637162:web:6dc9980a749fea2d6d2813',
-          measurementId: 'G-53ZH61QRE0',
-        ),
+
+  // 2. Inicializações concorrentes: Firebase + Serviços Locais
+  final firebaseInitFuture = () async {
+    try {
+      if (kIsWeb) {
+        await Firebase.initializeApp(
+          options: const FirebaseOptions(
+            apiKey: 'AIzaSyDUwOKQDK_Ub03pjJbhkMErpQciKoA0dJE',
+            authDomain: 'lembreteamigo-26fd0.firebaseapp.com',
+            projectId: 'lembreteamigo-26fd0',
+            storageBucket: 'lembreteamigo-26fd0.firebasestorage.app',
+            messagingSenderId: '591702637162',
+            appId: '1:591702637162:web:6dc9980a749fea2d6d2813',
+            measurementId: 'G-53ZH61QRE0',
+          ),
+        );
+      } else {
+        await Firebase.initializeApp();
+      }
+
+      await Future.wait([
+        _activateAppCheck().timeout(const Duration(seconds: 12)).catchError((e) {
+          debugPrint('Aviso ao ativar App Check: $e');
+        }),
+        CrashlyticsService.instance.init().catchError((e) {
+          debugPrint('Aviso ao ativar Crashlytics: $e');
+        }),
+        (() async {
+          try {
+            await getIt<RemoteConfigService>().init().timeout(
+              const Duration(seconds: 10),
+            );
+          } catch (e) {
+            debugPrint('Aviso ao inicializar RemoteConfig: $e');
+          }
+        })(),
+      ]);
+      debugPrint('Firebase e serviços de nuvem inicializados com sucesso.');
+    } catch (e) {
+      debugPrint(
+        'Erro ao inicializar Firebase. Operando em modo de simulacao local: $e',
       );
-    } else {
-      await Firebase.initializeApp();
     }
-    await _activateAppCheck().timeout(const Duration(seconds: 12));
-    debugPrint('Firebase e App Check inicializados com sucesso.');
-    await CrashlyticsService.instance.init();
-  } catch (e) {
-    debugPrint(
-      'Erro ao inicializar Firebase. Operando em modo de simulacao local: $e',
-    );
-  }
-  await SessionRoleService.load();
-  await CarePreferencesService.instance.load();
+  }();
+
+  final localServicesFuture = () async {
+    await Future.wait([
+      SessionRoleService.load(),
+      CarePreferencesService.instance.load(),
+      (() async {
+        try {
+          await TTSService.instance.init();
+        } catch (e) {
+          debugPrint('Erro ao inicializar TTS: $e');
+        }
+      })(),
+    ]);
+  }();
+
+  await Future.wait([firebaseInitFuture, localServicesFuture]);
+
   await CrashlyticsService.instance.setSessionContext(
     role: SessionRoleService.activeRole ?? 'not_selected',
     firebaseAvailable: FirebaseHelper.isInitialized,
@@ -454,25 +509,12 @@ void main() async {
       await CrashlyticsService.instance.setUserId(crashUser.uid);
     }
   }
-  try {
-    await TTSService.instance.init();
-  } catch (e) {
-    debugPrint('Erro ao inicializar TTS. Continuando sem voz: $e');
-  }
 
   try {
     AlwaysListeningService.instance.onAction = _executeAlexAction;
     await AlwaysListeningService.instance.initialize();
   } catch (e) {
     debugPrint('Erro ao inicializar AlwaysListeningService: $e');
-  }
-
-  try {
-    await getIt<RemoteConfigService>().init().timeout(
-      const Duration(seconds: 10),
-    );
-  } catch (e) {
-    debugPrint('Erro ao inicializar RemoteConfig: $e');
   }
 
   String? pendingPayload;
@@ -630,8 +672,6 @@ class _StartupApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: AppTheme.theme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: AppThemeController.mode.value,
       home: Scaffold(
         backgroundColor: AppColors.surface,
         body: SafeArea(
@@ -706,7 +746,6 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     _reminderNotificationActionInProgress = false;
-    AppThemeController.mode.addListener(_onThemeModeChanged);
     WidgetsBinding.instance.addObserver(this);
     unawaited(OfflineSyncService.instance.startAutoSync());
     _loadAccessibilityPreferences();
@@ -743,7 +782,7 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
     }
 
     PresenceService.instance.startHeartbeat();
-    _listenerRefreshTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+    _listenerRefreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       _startIncomingCallFirestoreListener();
     });
   }
@@ -885,10 +924,6 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
     }
   }
 
-  void _onThemeModeChanged() {
-    if (mounted) setState(() {});
-  }
-
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _lifecycleState = state;
@@ -959,7 +994,6 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
     OfflineSyncService.instance.stopAutoSync();
     PresenceService.instance.stopHeartbeat();
     LembreteService.instance.notifier.removeListener(_openDueReminderIfNeeded);
-    AppThemeController.mode.removeListener(_onThemeModeChanged);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -1121,8 +1155,6 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
       ],
       supportedLocales: const [Locale('pt', 'BR')],
       theme: _configuredTheme(AppTheme.light(highContrast: _highContrast)),
-      darkTheme: _configuredTheme(AppTheme.dark(highContrast: _highContrast)),
-      themeMode: AppThemeController.mode.value,
       builder: (context, child) {
         final mediaQuery = MediaQuery.of(context);
         final systemScale = mediaQuery.textScaler.scale(1.0);
@@ -1188,6 +1220,9 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
           case '/device-readiness':
             page = const DeviceReadinessScreen();
             break;
+          case '/test-hub':
+            page = const TestHubScreen();
+            break;
           case '/caregiver-network':
             page = const CaregiverNetworkScreen();
             break;
@@ -1200,9 +1235,6 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
             break;
           case '/emergency-card':
             page = const EmergencyCardScreen();
-            break;
-          case '/elderly-radio':
-            page = const ElderlyRadioScreen();
             break;
 
           case '/messages':
@@ -1302,6 +1334,9 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
           case '/care-center':
             page = const CareCenterScreen();
             break;
+          case '/supervisor-reminders':
+            page = const SupervisorRemindersScreen();
+            break;
           case '/medication-stock':
             page = const MedicationStockScreen();
             break;
@@ -1371,6 +1406,12 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
             break;
           case '/effectiveness-feedback':
             page = const EffectivenessFeedbackScreen();
+            break;
+          case '/photo-gallery':
+            page = const PhotoGalleryScreen();
+            break;
+          case '/digital-photo-frame':
+            page = const DigitalPhotoFrameScreen();
             break;
 
           default:

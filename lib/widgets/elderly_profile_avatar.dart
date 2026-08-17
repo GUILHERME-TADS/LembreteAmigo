@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import '../services/remote_media_cache_service.dart';
 import '../theme/app_theme.dart';
 
+import '../utils/app_image_helper.dart';
+
 class ElderlyProfileAvatar extends StatefulWidget {
   final String? fotoPath;
   final double size;
@@ -57,6 +59,7 @@ class _ElderlyProfileAvatarState extends State<ElderlyProfileAvatar> {
         File(fotoPath).existsSync();
 
     final showNetworkImage = fotoPath != null && fotoPath.startsWith('http');
+    final pixelSize = (widget.size * 2).toInt();
 
     return Container(
       width: widget.size,
@@ -70,11 +73,21 @@ class _ElderlyProfileAvatarState extends State<ElderlyProfileAvatar> {
         ),
         image: showLocalImage
             ? DecorationImage(
-                image: FileImage(File(fotoPath)),
+                image: AppImageHelper.thumbnailFileImage(
+                  File(fotoPath),
+                  size: pixelSize,
+                ),
                 fit: BoxFit.cover,
               )
             : showNetworkImage
-            ? DecorationImage(image: NetworkImage(fotoPath), fit: BoxFit.cover)
+            ? DecorationImage(
+                image: ResizeImage.resizeIfNeeded(
+                  pixelSize,
+                  pixelSize,
+                  NetworkImage(fotoPath),
+                ),
+                fit: BoxFit.cover,
+              )
             : null,
       ),
       child: !showLocalImage && !showNetworkImage

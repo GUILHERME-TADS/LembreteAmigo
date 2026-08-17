@@ -83,34 +83,36 @@ class _AudioWaveformIndicatorState extends State<AudioWaveformIndicator>
             ),
           ),
           const SizedBox(width: 20),
-          // Waves
-          SizedBox(
-            height: 36,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: List.generate(5, (index) {
-                return AnimatedBuilder(
-                  animation: _controller,
-                  builder: (context, child) {
-                    final double progress =
-                        (_controller.value + (index * 0.18)) % 1.0;
-                    final double sineValue =
-                        0.25 + 0.75 * math.sin(progress * 2 * math.pi).abs();
+          // Waves (isoladas com RepaintBoundary para não invalidar o container ou o resto da tela)
+          RepaintBoundary(
+            child: SizedBox(
+              height: 36,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: List.generate(5, (index) {
+                  return AnimatedBuilder(
+                    animation: _controller,
+                    builder: (context, child) {
+                      final double progress =
+                          (_controller.value + (index * 0.18)) % 1.0;
+                      final double sineValue =
+                          0.25 + 0.75 * math.sin(progress * 2 * math.pi).abs();
 
-                    return Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 3),
-                      width: 6,
-                      height: 36 * sineValue,
-                      decoration: BoxDecoration(
-                        color: isHighContrast
-                            ? Colors.black
-                            : AppColors.primary,
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                    );
-                  },
-                );
-              }),
+                      return Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 3),
+                        width: 6,
+                        height: 36 * sineValue,
+                        decoration: BoxDecoration(
+                          color: isHighContrast
+                              ? Colors.black
+                              : AppColors.primary,
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                      );
+                    },
+                  );
+                }),
+              ),
             ),
           ),
         ],

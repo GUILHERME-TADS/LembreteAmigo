@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
@@ -199,48 +200,138 @@ class _WellbeingScreenState extends State<WellbeingScreen> {
   }
 
   Widget _checkInCard() {
-    return Card(
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(AppRadius.xl),
+        border: Border.all(
+          color: AppColors.outlineVariant.withValues(alpha: 0.6),
+          width: 2.0,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.shadow.withValues(alpha: 0.08),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+          BoxShadow(
+            color: Colors.white.withValues(alpha: 0.8),
+            blurRadius: 0,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(22),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Como você está se sentindo?',
-              style: TextStyle(fontSize: 23, fontWeight: FontWeight.w900),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryContainer,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.favorite_rounded,
+                    color: AppColors.onPrimaryContainer,
+                    size: 26,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Como você está hoje?',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 18),
             Row(
               children: [
                 for (var value = 1; value <= 5; value++)
                   Expanded(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 3),
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
                       child: Semantics(
                         label: _moodLabel(value),
                         button: true,
                         selected: _mood == value,
                         child: InkWell(
-                          onTap: () => setState(() => _mood = value),
-                          borderRadius: BorderRadius.circular(16),
-                          child: Container(
-                            height: 68,
+                          onTap: () {
+                            HapticFeedback.lightImpact();
+                            setState(() => _mood = value);
+                            TTSService.instance.falar(_moodLabel(value));
+                          },
+                          borderRadius: BorderRadius.circular(AppRadius.lg),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            height: 84,
                             decoration: BoxDecoration(
                               color: _mood == value
-                                  ? AppColors.secondaryContainer
+                                  ? (value >= 4
+                                      ? AppColors.successContainer
+                                      : value == 3
+                                          ? AppColors.warningContainer
+                                          : AppColors.errorContainer)
                                   : AppColors.surfaceContainerLow,
-                              borderRadius: BorderRadius.circular(16),
+                              borderRadius: BorderRadius.circular(AppRadius.lg),
                               border: Border.all(
                                 color: _mood == value
-                                    ? AppColors.primary
-                                    : AppColors.outlineVariant,
-                                width: _mood == value ? 3 : 1,
+                                    ? (value >= 4
+                                        ? AppColors.success
+                                        : value == 3
+                                            ? AppColors.warning
+                                            : AppColors.error)
+                                    : AppColors.outlineVariant.withValues(alpha: 0.6),
+                                width: _mood == value ? 3.0 : 1.5,
                               ),
+                              boxShadow: _mood == value
+                                  ? [
+                                      BoxShadow(
+                                        color: (value >= 4
+                                                ? AppColors.success
+                                                : value == 3
+                                                    ? AppColors.warning
+                                                    : AppColors.error)
+                                            .withValues(alpha: 0.3),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ]
+                                  : null,
                             ),
                             alignment: Alignment.center,
-                            child: Text(
-                              _moodEmoji(value),
-                              style: const TextStyle(fontSize: 34),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  _moodEmoji(value),
+                                  style: TextStyle(
+                                    fontSize: _mood == value ? 38 : 30,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  _moodShortName(value),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: _mood == value ? FontWeight.w900 : FontWeight.w600,
+                                    color: _mood == value
+                                        ? AppColors.onSurface
+                                        : AppColors.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
@@ -249,21 +340,33 @@ class _WellbeingScreenState extends State<WellbeingScreen> {
                   ),
               ],
             ),
-            const SizedBox(height: 20),
-            const Text(
+            const SizedBox(height: 22),
+            Text(
               'Está sentindo alguma coisa?',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: AppColors.onSurface,
+              ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
                 for (final symptom in _symptomOptions)
                   FilterChip(
-                    label: Text(symptom),
+                    avatar: Icon(_symptomIcon(symptom), size: 18),
+                    label: Text(
+                      symptom,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
                     selected: _symptoms.contains(symptom),
+                    selectedColor: AppColors.secondaryContainer,
+                    checkmarkColor: AppColors.onSecondaryContainer,
+                    backgroundColor: AppColors.surfaceContainerLow,
                     onSelected: (selected) {
+                      HapticFeedback.lightImpact();
                       setState(() {
                         if (selected) {
                           _symptoms.add(symptom);
@@ -275,7 +378,7 @@ class _WellbeingScreenState extends State<WellbeingScreen> {
                   ),
               ],
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 20),
             TextField(
               controller: _noteController,
               minLines: 2,
@@ -283,7 +386,12 @@ class _WellbeingScreenState extends State<WellbeingScreen> {
               maxLength: 1000,
               decoration: InputDecoration(
                 labelText: 'Conte com suas palavras (opcional)',
-                border: const OutlineInputBorder(),
+                labelStyle: TextStyle(color: AppColors.onSurfaceVariant),
+                filled: true,
+                fillColor: AppColors.surfaceContainerLow,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                ),
                 suffixIcon: IconButton(
                   tooltip: _listening ? 'Parar ditado' : 'Falar',
                   onPressed: _toggleListening,
@@ -292,35 +400,54 @@ class _WellbeingScreenState extends State<WellbeingScreen> {
                 ),
               ),
             ),
-            CheckboxListTile(
-              value: _needsHelp,
-              contentPadding: EdgeInsets.zero,
-              activeColor: AppColors.error,
-              title: const Text(
-                'Preciso de ajuda',
-                style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900),
+            const SizedBox(height: 8),
+            Container(
+              decoration: BoxDecoration(
+                color: _needsHelp ? AppColors.errorContainer.withValues(alpha: 0.3) : Colors.transparent,
+                borderRadius: BorderRadius.circular(AppRadius.md),
               ),
-              subtitle: const Text(
-                'Seu cuidador receberá um alerta quando houver conexão.',
+              child: CheckboxListTile(
+                value: _needsHelp,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                activeColor: AppColors.error,
+                title: const Text(
+                  'Preciso de ajuda com a saúde',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                ),
+                subtitle: const Text(
+                  'Seu cuidador receberá um aviso no painel dele.',
+                  style: TextStyle(fontSize: 14),
+                ),
+                onChanged: (value) {
+                  HapticFeedback.lightImpact();
+                  setState(() => _needsHelp = value ?? false);
+                },
               ),
-              onChanged: (value) => setState(() => _needsHelp = value ?? false),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
-              height: 64,
+              height: 68,
               child: FilledButton.icon(
                 onPressed: _saving ? null : _save,
                 icon: _saving
                     ? const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
                       )
                     : const Icon(Icons.check_circle, size: 28),
                 label: const Text(
                   'SALVAR COMO ESTOU',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: 0.5),
+                ),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                  ),
                 ),
               ),
             ),
@@ -331,13 +458,37 @@ class _WellbeingScreenState extends State<WellbeingScreen> {
   }
 
   Widget _entryCard(WellbeingEntry entry) {
-    return Card(
-      color: entry.needsHelp ? AppColors.errorContainer : AppColors.surface,
+    final isCritical = entry.needsHelp;
+    return Container(
+      decoration: BoxDecoration(
+        color: isCritical ? AppColors.errorContainer.withValues(alpha: 0.35) : AppColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(
+          color: isCritical ? AppColors.error.withValues(alpha: 0.4) : AppColors.outlineVariant.withValues(alpha: 0.6),
+          width: isCritical ? 2.0 : 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.shadow.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
       child: ListTile(
-        contentPadding: const EdgeInsets.all(16),
-        leading: Text(
-          _moodEmoji(entry.mood),
-          style: const TextStyle(fontSize: 36),
+        contentPadding: const EdgeInsets.all(18),
+        leading: Container(
+          width: 52,
+          height: 52,
+          decoration: BoxDecoration(
+            color: AppColors.surfaceContainerLow,
+            shape: BoxShape.circle,
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            _moodEmoji(entry.mood),
+            style: const TextStyle(fontSize: 32),
+          ),
         ),
         title: Text(
           _moodLabel(entry.mood),
@@ -346,24 +497,74 @@ class _WellbeingScreenState extends State<WellbeingScreen> {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const SizedBox(height: 4),
             Text(
-              DateFormat('dd/MM/yyyy HH:mm').format(entry.createdAt.toLocal()),
+              DateFormat('dd/MM/yyyy às HH:mm').format(entry.createdAt.toLocal()),
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.onSurfaceVariant,
+              ),
             ),
-            if (entry.symptoms.isNotEmpty)
-              Text('Sintomas: ${entry.symptoms.join(', ')}'),
-            if (entry.note.isNotEmpty) Text(entry.note),
-            if (entry.needsHelp)
+            if (entry.symptoms.isNotEmpty) ...[
+              const SizedBox(height: 6),
               Text(
-                'PEDIU AJUDA',
-                style: TextStyle(
+                'Sintomas: ${entry.symptoms.join(', ')}',
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+              ),
+            ],
+            if (entry.note.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                entry.note,
+                style: const TextStyle(fontSize: 14, fontStyle: FontStyle.italic),
+              ),
+            ],
+            if (entry.needsHelp) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
                   color: AppColors.error,
-                  fontWeight: FontWeight.w900,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Text(
+                  'PEDIU AJUDA 🚨',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 12,
+                  ),
                 ),
               ),
+            ],
           ],
         ),
       ),
     );
+  }
+
+  IconData _symptomIcon(String symptom) {
+    switch (symptom.toLowerCase()) {
+      case 'dor':
+        return Icons.healing;
+      case 'tontura':
+        return Icons.rotate_right;
+      case 'enjoo':
+        return Icons.sick;
+      case 'falta de ar':
+        return Icons.air;
+      case 'sono':
+        return Icons.bedtime;
+      case 'sem apetite':
+        return Icons.no_food;
+      default:
+        return Icons.health_and_safety;
+    }
+  }
+
+  String _moodShortName(int value) {
+    return const ['Mal', 'Ruim', 'Neutro', 'Bem', 'Ótimo'][value.clamp(1, 5) - 1];
   }
 
   String _moodEmoji(int value) {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
@@ -220,46 +221,41 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                     'offline_write_queue_elderly_anonymous_idoso_sem_vinculo',
                                   );
                                 }
-                                final restoredConnection =
-                                    await SessionRoleService.restoreElderlyConnection();
-                                if (restoredConnection == null) {
-                                  throw StateError(
-                                    'Não foi possível verificar o vínculo com o cuidador. Confira a internet e tente novamente.',
-                                  );
-                                }
+                                  final restoredConnection =
+                                      await SessionRoleService.restoreElderlyConnection();
 
-                                await prefs.setString(
-                                  'paired_idoso_id',
-                                  user.uid,
-                                );
-                                await PushNotificationService.instance
-                                    .saveCurrentToken();
-                                if (!context.mounted) return;
+                                  await prefs.setString(
+                                    'paired_idoso_id',
+                                    user.uid,
+                                  );
+                                  await PushNotificationService.instance
+                                      .saveCurrentToken();
+                                  if (!context.mounted) return;
 
-                                if (restoredConnection) {
-                                  Navigator.pushNamedAndRemoveUntil(
-                                    context,
-                                    '/elderly-home',
-                                    (route) => false,
-                                    arguments: {
-                                      'connected': true,
-                                      'speak':
-                                          'Seu cuidador já está conectado. Bem-vindo de volta.',
-                                    },
-                                  );
-                                } else if (previousId == user.uid) {
-                                  Navigator.pushNamedAndRemoveUntil(
-                                    context,
-                                    '/elderly-home',
-                                    (route) => false,
-                                    arguments: {'connected': false},
-                                  );
-                                } else {
-                                  Navigator.pushNamed(
-                                    context,
-                                    '/elderly-onboarding',
-                                  );
-                                }
+                                  if (restoredConnection == true) {
+                                    Navigator.pushNamedAndRemoveUntil(
+                                      context,
+                                      '/elderly-home',
+                                      (route) => false,
+                                      arguments: {
+                                        'connected': true,
+                                        'speak':
+                                            'Seu cuidador já está conectado. Bem-vindo de volta.',
+                                      },
+                                    );
+                                  } else if (previousId == user.uid) {
+                                    Navigator.pushNamedAndRemoveUntil(
+                                      context,
+                                      '/elderly-home',
+                                      (route) => false,
+                                      arguments: {'connected': false},
+                                    );
+                                  } else {
+                                    Navigator.pushNamed(
+                                      context,
+                                      '/elderly-onboarding',
+                                    );
+                                  }
                               } on FirebaseAuthException catch (e) {
                                 if (!context.mounted) return;
                                 ScaffoldMessenger.of(context).showSnackBar(
@@ -409,39 +405,52 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       constraints: const BoxConstraints(minHeight: 120),
       decoration: BoxDecoration(
         color: bgColor,
-        border: Border.all(color: AppColors.outlineVariant),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.xl),
+        border: Border.all(
+          color: textColor.withValues(alpha: 0.25),
+          width: 2.0,
+        ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.outlineVariant,
-            offset: Offset(0, 4),
-            blurRadius: 0,
+            color: AppColors.shadow.withValues(alpha: 0.12),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
+          onTap: () {
+            HapticFeedback.lightImpact();
+            onTap();
+          },
+          borderRadius: BorderRadius.circular(AppRadius.xl),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
             child: Row(
               children: [
                 Container(
-                  width: 64,
-                  height: 64,
+                  width: 68,
+                  height: 68,
                   decoration: BoxDecoration(
                     color: iconBgColor,
                     shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.shadow.withValues(alpha: 0.1),
+                        blurRadius: 6,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
                   ),
                   child: Center(
                     child:
                         customIconWidget ??
-                        Icon(icon, size: 32, color: iconColor),
+                        Icon(icon, size: 36, color: iconColor),
                   ),
                 ),
-                const SizedBox(width: 24),
+                const SizedBox(width: 20),
                 Expanded(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -450,25 +459,33 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       Text(
                         title,
                         style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w700,
-                          height: 1.3,
+                          fontSize: 26,
+                          fontWeight: FontWeight.w800,
+                          height: 1.2,
                           color: textColor,
                         ),
                       ),
+                      const SizedBox(height: 4),
                       Text(
                         subtitle,
                         style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w400,
-                          height: 1.6,
-                          color: textColor.withValues(alpha: 0.8),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          height: 1.4,
+                          color: textColor.withValues(alpha: 0.85),
                         ),
                       ),
                     ],
                   ),
                 ),
-                Icon(Icons.chevron_right, size: 32, color: textColor),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: iconBgColor.withValues(alpha: 0.6),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.arrow_forward_ios_rounded, size: 20, color: textColor),
+                ),
               ],
             ),
           ),

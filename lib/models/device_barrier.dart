@@ -6,6 +6,7 @@ enum DeviceBarrierType {
   pendingSync,
   inactiveApp,
   locationUnavailable,
+  lowBattery,
 }
 
 class DeviceBarrier {

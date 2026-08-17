@@ -84,7 +84,7 @@ class _VoiceSettingsScreenState extends State<VoiceSettingsScreen> {
           decoration: BoxDecoration(
             color: isSelected
                 ? AppColors.primary.withValues(alpha: 0.08)
-                : Colors.white,
+                : AppColors.surfaceContainerLow,
             border: Border.all(
               color: isSelected ? AppColors.primary : AppColors.outlineVariant,
               width: isSelected ? 3 : 1.5,
@@ -230,12 +230,12 @@ class _VoiceSettingsScreenState extends State<VoiceSettingsScreen> {
                     ),
                   ),
                   child: _saving
-                      ? const SizedBox(
+                      ? SizedBox(
                           width: 24,
                           height: 24,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: Colors.white,
+                            color: AppColors.onPrimary,
                           ),
                         )
                       : const FittedBox(

@@ -11,7 +11,10 @@ class GoogleAuthService {
 
   Future<void> _initialize() {
     if (kIsWeb) return Future.value();
-    return _initialization ??= GoogleSignIn.instance.initialize();
+    return _initialization ??= GoogleSignIn.instance.initialize(
+      serverClientId:
+          '591702637162-921l6deivske0jptvnh4v0921prto8ur.apps.googleusercontent.com',
+    );
   }
 
   Future<UserCredential> signIn() async {

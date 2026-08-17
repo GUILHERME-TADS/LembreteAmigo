@@ -95,11 +95,40 @@ class AlexReminderActionPolicy {
       'para',
       'pronto',
       'tomei',
+      'meu',
+      'minha',
+      'tomar',
+      'hora',
+      'aquele',
+      'aquela',
     };
-    return _normalize(value)
+    final rawTokens = _normalize(value)
         .split(' ')
         .where((token) => token.length >= 3 && !ignored.contains(token))
         .toSet();
+
+    final expanded = <String>{...rawTokens};
+
+    // Mapeamento de termos populares / apelidos para classes de remédios
+    for (final token in rawTokens) {
+      if (token == 'pressao' || token == 'hipertensao') {
+        expanded.addAll(['losartana', 'enalapril', 'atenolol', 'hidroclorotiazida', 'anlodipino', 'captopril']);
+      } else if (token == 'coracao') {
+        expanded.addAll(['carvedilol', 'digoxina', 'propranolol', 'amiodarona', 'selozok']);
+      } else if (token == 'diabetes' || token == 'acucar') {
+        expanded.addAll(['metformina', 'insulina', 'glicemia', 'glibenclamida', 'januvia', 'forxiga']);
+      } else if (token == 'dor' || token == 'febre') {
+        expanded.addAll(['dipirona', 'paracetamol', 'dorflex', 'ibuprofeno', 'novalgina', 'tylenol']);
+      } else if (token == 'estomago') {
+        expanded.addAll(['omeprazol', 'pantoprazol', 'esomeprazol']);
+      } else if (token == 'colesterol') {
+        expanded.addAll(['sinvastatina', 'atorvastatina', 'rosuvastatina']);
+      } else if (token == 'vitamina') {
+        expanded.addAll(['vitamina', 'calcio', 'suplemento', 'complexo']);
+      }
+    }
+
+    return expanded;
   }
 
   static String _normalize(String value) {

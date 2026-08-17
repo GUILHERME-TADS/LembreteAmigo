@@ -563,7 +563,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
+                    foregroundColor: AppColors.onPrimary,
                     elevation: 4,
                     shadowColor: AppColors.primary.withValues(alpha: 0.4),
                     shape: RoundedRectangleBorder(
@@ -721,67 +721,87 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       );
     }
 
-    return Card(
+    return Container(
+      decoration: AppDecorations.peaceOfMindCard(statusColor: color),
       child: Padding(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                CircleAvatar(
-                  backgroundColor: color.withValues(alpha: 0.14),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.16),
+                    shape: BoxShape.circle,
+                  ),
                   child: Icon(
                     summary.needsAttention
-                        ? Icons.notification_important
-                        : Icons.fact_check,
+                        ? Icons.notification_important_rounded
+                        : Icons.check_circle_rounded,
                     color: color,
+                    size: 28,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'RESUMO DE HOJE',
+                      Text(
+                        summary.needsAttention ? 'ATENÇÃO NECESSÁRIA' : 'PAZ DE ESPÍRITO',
                         style: TextStyle(
-                          fontSize: 13,
+                          fontSize: 12,
                           fontWeight: FontWeight.w900,
-                          letterSpacing: 1,
+                          letterSpacing: 1.2,
+                          color: color,
                         ),
                       ),
+                      const SizedBox(height: 2),
                       Text(
                         summary.headline.replaceFirst(
                           'Tudo',
                           '$_nomeIdoso: tudo',
                         ),
                         style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w700,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          height: 1.2,
                         ),
                       ),
                     ],
                   ),
                 ),
-                Text(
-                  '$percentage%',
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: color.withValues(alpha: 0.3)),
+                  ),
+                  child: Text(
+                    '$percentage%',
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 14),
-            LinearProgressIndicator(
-              value: summary.adherence.clamp(0, 1),
-              minHeight: 10,
-              borderRadius: BorderRadius.circular(99),
-              color: color,
-            ),
             const SizedBox(height: 16),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(99),
+              child: LinearProgressIndicator(
+                value: summary.adherence.clamp(0, 1),
+                minHeight: 10,
+                backgroundColor: color.withValues(alpha: 0.12),
+                valueColor: AlwaysStoppedAnimation<Color>(color),
+              ),
+            ),
+            const SizedBox(height: 18),
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -1023,6 +1043,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
         return Icons.phone_android;
       case DeviceBarrierType.locationUnavailable:
         return Icons.location_off;
+      case DeviceBarrierType.lowBattery:
+        return Icons.battery_alert_rounded;
     }
   }
 
@@ -1088,7 +1110,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () => Navigator.pushNamed(context, '/messages'),
-                icon: const Icon(Icons.mic, color: Colors.white),
+                icon: const Icon(Icons.mic),
                 label: const Text(
                   'Gravar recado de voz',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
@@ -1099,7 +1121,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                     horizontal: 16,
                   ),
                   backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
+                  foregroundColor: AppColors.onPrimary,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -1318,8 +1340,18 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               color: AppColors.surfaceContainerLowest,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.outlineVariant),
+              borderRadius: BorderRadius.circular(AppRadius.xl),
+              border: Border.all(
+                color: AppColors.outlineVariant.withValues(alpha: 0.6),
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.shadow.withValues(alpha: 0.08),
+                  blurRadius: 14,
+                  offset: const Offset(0, 5),
+                ),
+              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1327,96 +1359,128 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Visão Geral',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w700,
-                        height: 1.3,
-                        color: AppColors.onSurface,
-                      ),
+                    Row(
+                      children: [
+                        Text(
+                          'Visão Geral',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            height: 1.3,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          width: 10,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            color: _isConnected
+                                ? AppColors.vitalHealthy
+                                : AppColors.outline,
+                            shape: BoxShape.circle,
+                            boxShadow: _isConnected
+                                ? [
+                                    BoxShadow(
+                                      color: AppColors.vitalHealthy.withValues(alpha: 0.5),
+                                      blurRadius: 6,
+                                      spreadRadius: 2,
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                        ),
+                      ],
                     ),
 
-                    GestureDetector(
-                      onTap: _callIsLoading
-                          ? null
-                          : () => _initiateCall('voice'),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.primaryContainer.withValues(
-                            alpha: 0.1,
-                          ),
+                    Row(
+                      children: [
+                        InkWell(
+                          onTap: _callIsLoading
+                              ? null
+                              : () {
+                                  HapticFeedback.lightImpact();
+                                  _initiateCall('voice');
+                                },
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: AppColors.primary,
-                            width: 1.5,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.phone_in_talk,
-                              color: AppColors.primary,
-                              size: 16,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 7,
                             ),
-                            SizedBox(width: 4),
-                            Text(
-                              'Áudio',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.primary,
+                            decoration: BoxDecoration(
+                              color: AppColors.primaryContainer,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: AppColors.primary.withValues(alpha: 0.3),
+                                width: 1.5,
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    GestureDetector(
-                      onTap: _callIsLoading
-                          ? null
-                          : () => _initiateCall('video'),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.primaryContainer.withValues(
-                            alpha: 0.1,
-                          ),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: AppColors.primary,
-                            width: 1.5,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.videocam,
-                              color: AppColors.primary,
-                              size: 16,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.phone_in_talk_rounded,
+                                  color: AppColors.onPrimaryContainer,
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Áudio',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.onPrimaryContainer,
+                                  ),
+                                ),
+                              ],
                             ),
-                            SizedBox(width: 4),
-                            Text(
-                              'Vídeo',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.primary,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        InkWell(
+                          onTap: _callIsLoading
+                              ? null
+                              : () {
+                                  HapticFeedback.lightImpact();
+                                  _initiateCall('video');
+                                },
+                          borderRadius: BorderRadius.circular(20),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 7,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.secondaryContainer,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: AppColors.secondary.withValues(alpha: 0.3),
+                                width: 1.5,
                               ),
                             ),
-                          ],
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.videocam_rounded,
+                                  color: AppColors.onSecondaryContainer,
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Vídeo',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.onSecondaryContainer,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-                      ),
+                      ],
                     ),
                   ],
                 ),
@@ -1427,17 +1491,17 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                       alignment: Alignment.center,
                       children: [
                         SizedBox(
-                          width: 64,
-                          height: 64,
+                          width: 68,
+                          height: 68,
                           child: CircularProgressIndicator(
                             value: totalMedicacoesHoje > 0 ? percent : 1.0,
                             strokeWidth: 8,
-                            backgroundColor: AppColors.surfaceContainer,
+                            backgroundColor: AppColors.surfaceContainerHigh,
                             color: totalMedicacoesHoje == 0
                                 ? AppColors.outline
                                 : (todosTomados
-                                      ? AppColors.success
-                                      : AppColors.secondaryContainer),
+                                      ? AppColors.vitalHealthy
+                                      : AppColors.secondaryFixedDim),
                           ),
                         ),
                         Text(
@@ -1445,8 +1509,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                               ? '${(percent * 100).toInt()}%'
                               : '0%',
                           style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w900,
                             color: AppColors.onSurface,
                           ),
                         ),
@@ -1465,8 +1529,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                               fontSize: 16,
                               fontWeight: FontWeight.w800,
                               color: todosTomados
-                                  ? AppColors.success
-                                  : AppColors.secondary,
+                                  ? AppColors.vitalHealthy
+                                  : AppColors.warning,
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -1474,6 +1538,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                             statusRemediosText,
                             style: TextStyle(
                               fontSize: 15,
+                              fontWeight: FontWeight.w600,
                               color: AppColors.onSurfaceVariant,
                             ),
                           ),
@@ -1487,10 +1552,13 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   children: [
                     Expanded(
                       child: Container(
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: AppColors.surfaceContainer,
-                          borderRadius: BorderRadius.circular(8),
+                          color: AppColors.surfaceContainerLow,
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          border: Border.all(
+                            color: AppColors.outlineVariant.withValues(alpha: 0.5),
+                          ),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1498,8 +1566,9 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                             Text(
                               'PRÓXIMO',
                               style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.5,
                                 color: AppColors.onSurfaceVariant,
                               ),
                             ),
@@ -1508,7 +1577,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                               nextTimeText,
                               style: TextStyle(
                                 fontSize: 22,
-                                fontWeight: FontWeight.w700,
+                                fontWeight: FontWeight.w800,
                                 color: AppColors.primary,
                               ),
                             ),
@@ -1517,7 +1586,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                fontSize: 12,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
                                 color: AppColors.onSurfaceVariant,
                               ),
                             ),
@@ -1528,35 +1598,57 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Container(
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: AppColors.surfaceContainer,
-                          borderRadius: BorderRadius.circular(8),
+                          color: AppColors.surfaceContainerLow,
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          border: Border.all(
+                            color: AppColors.outlineVariant.withValues(alpha: 0.5),
+                          ),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'BATERIA',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.onSurfaceVariant,
-                              ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'BATERIA',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.5,
+                                    color: AppColors.onSurfaceVariant,
+                                  ),
+                                ),
+                                Icon(
+                                  _batteryLevel != null && _batteryLevel! <= 20
+                                      ? Icons.battery_alert_rounded
+                                      : (_batteryState == 'charging'
+                                          ? Icons.battery_charging_full_rounded
+                                          : Icons.battery_full_rounded),
+                                  size: 16,
+                                  color: _batteryLevel != null && _batteryLevel! <= 20
+                                      ? AppColors.vitalCritical
+                                      : (_batteryState == 'charging'
+                                          ? AppColors.vitalHealthy
+                                          : AppColors.primary),
+                                ),
+                              ],
                             ),
                             const SizedBox(height: 4),
                             Text(
                               _batteryLevel != null ? '$_batteryLevel%' : '--',
                               style: TextStyle(
                                 fontSize: 22,
-                                fontWeight: FontWeight.w700,
+                                fontWeight: FontWeight.w800,
                                 color:
                                     _batteryLevel != null &&
-                                        _batteryLevel! <= 15
-                                    ? AppColors.error
+                                        _batteryLevel! <= 20
+                                    ? AppColors.vitalCritical
                                     : (_batteryState == 'charging'
-                                          ? AppColors.success
-                                          : AppColors.secondary),
+                                          ? AppColors.vitalHealthy
+                                          : AppColors.primary),
                               ),
                             ),
                             Text(
@@ -1568,7 +1660,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                                         ? 'Carregada'
                                         : 'Descarregando'),
                               style: TextStyle(
-                                fontSize: 12,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
                                 color: AppColors.onSurfaceVariant,
                               ),
                             ),
@@ -1673,7 +1766,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   label: const Text('Chamada de Vídeo'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.info,
-                    foregroundColor: Colors.white,
+                    foregroundColor: AppColors.onInfoContainer,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 12,
@@ -1691,7 +1784,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   label: const Text('Recado de Voz'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.success,
-                    foregroundColor: Colors.white,
+                    foregroundColor: AppColors.onSuccessContainer,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 12,
@@ -1709,7 +1802,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   label: const Text('Novo Lembrete'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.warning,
-                    foregroundColor: Colors.white,
+                    foregroundColor: AppColors.onWarningContainer,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 12,
@@ -1726,7 +1819,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                   label: const Text('Sincronizar'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.secondary,
-                    foregroundColor: Colors.white,
+                    foregroundColor: AppColors.onSecondary,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 12,
@@ -1976,13 +2069,28 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Lembretes',
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.w700,
-            color: AppColors.onSurface,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Lembretes',
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w700,
+                color: AppColors.onSurface,
+              ),
+            ),
+            TextButton.icon(
+              onPressed: () =>
+                  Navigator.pushNamed(context, '/supervisor-reminders'),
+              icon: const Icon(Icons.list_alt_rounded, size: 18),
+              label: const Text('Ver todos'),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                textStyle: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
         SingleChildScrollView(

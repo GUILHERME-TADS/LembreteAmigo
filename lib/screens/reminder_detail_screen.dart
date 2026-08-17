@@ -10,6 +10,7 @@ import '../utils/period_helper.dart';
 import '../widgets/index.dart';
 import '../widgets/custom_time_picker.dart';
 import 'elderly_profile_screen.dart';
+import '../utils/app_image_helper.dart';
 
 class ReminderDetailScreen extends StatefulWidget {
   const ReminderDetailScreen({super.key});
@@ -926,7 +927,11 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
                           ? AssetImage(path) as ImageProvider
                           : path.startsWith('http')
                           ? NetworkImage(path)
-                          : FileImage(File(path)),
+                          : AppImageHelper.resizedFileImage(
+                              File(path),
+                              maxWidth: 1200,
+                              maxHeight: 1200,
+                            ),
                       fit: BoxFit.contain,
                     ),
                   ),
@@ -969,7 +974,11 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
                 ? AssetImage(path) as ImageProvider
                 : path.startsWith('http')
                 ? NetworkImage(path)
-                : FileImage(File(path)),
+                : AppImageHelper.resizedFileImage(
+                    File(path),
+                    maxWidth: 400,
+                    maxHeight: 400,
+                  ),
             fit: BoxFit.cover,
             errorBuilder: (context, error, stackTrace) =>
                 Icon(cfg.icon, size: 80, color: cfg.color),

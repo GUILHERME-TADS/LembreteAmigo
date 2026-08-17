@@ -336,36 +336,57 @@ class _CaregiverNetworkScreenState extends State<CaregiverNetworkScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Minha rede de cuidado')),
+      backgroundColor: AppColors.background,
+      appBar: AppBar(title: const Text('Rede de Apoio e Família')),
       body: RefreshIndicator(
         onRefresh: _load,
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
             Container(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(22),
               decoration: BoxDecoration(
-                color: AppColors.primaryFixed,
-                borderRadius: BorderRadius.circular(20),
+                color: AppColors.surfaceContainerLowest,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.6), width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.shadow.withValues(alpha: 0.08),
+                    blurRadius: 14,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
               child: Column(
                 children: [
-                  Icon(Icons.groups_2, size: 52, color: AppColors.primary),
-                  SizedBox(height: 8),
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryContainer,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.family_restroom_rounded, size: 36, color: AppColors.primary),
+                  ),
+                  const SizedBox(height: 12),
                   Text(
-                    'Pessoas que ajudam você',
+                    'Pessoas que cuidam de você',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 24,
+                      fontSize: 22,
                       fontWeight: FontWeight.w900,
                       color: AppColors.primary,
                     ),
                   ),
-                  SizedBox(height: 6),
+                  const SizedBox(height: 6),
                   Text(
-                    'Você pode conectar até 8 cuidadores ou familiares.',
+                    'Você pode conectar até 8 familiares ou cuidadores de confiança.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 16),
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.onSurfaceVariant,
+                    ),
                   ),
                 ],
               ),
@@ -374,33 +395,76 @@ class _CaregiverNetworkScreenState extends State<CaregiverNetworkScreen> {
             if (_loading)
               const Center(child: CircularProgressIndicator())
             else if (_caregivers.isEmpty)
-              const Card(
-                child: ListTile(
-                  leading: Icon(Icons.person_off, size: 34),
-                  title: Text('Nenhum cuidador conectado'),
-                  subtitle: Text('Gere um convite para começar.'),
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceContainerLowest,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.outlineVariant),
+                ),
+                child: Column(
+                  children: [
+                    Icon(Icons.person_add_rounded, size: 48, color: AppColors.onSurfaceVariant),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Nenhum cuidador conectado ainda',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Gere um código de convite abaixo para conectar sua família.',
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                 ),
               )
             else
               ..._caregivers.map(
-                (caregiver) => Card(
+                (caregiver) => Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceContainerLowest,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.6), width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.shadow.withValues(alpha: 0.05),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
                   child: ListTile(
-                    minVerticalPadding: 14,
-                    leading: CircleAvatar(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    leading: Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: AppColors.secondaryContainer,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: AppColors.secondary.withValues(alpha: 0.4), width: 2),
+                      ),
+                      alignment: Alignment.center,
                       child: Text(
                         caregiver.name.isEmpty
                             ? '?'
                             : caregiver.name[0].toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.onSecondaryContainer,
+                        ),
                       ),
                     ),
                     title: Text(
                       caregiver.name,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17),
                     ),
                     subtitle: Text(
                       '${_roleLabel(caregiver.role)} • '
-                      '${caregiver.priority}º • '
-                      '${caregiver.availableStart}–${caregiver.availableEnd}',
+                      'Prioridade ${caregiver.priority}º • '
+                      'Horário: ${caregiver.availableStart} às ${caregiver.availableEnd}',
+                      style: TextStyle(color: AppColors.onSurfaceVariant, fontSize: 13),
                     ),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -408,7 +472,7 @@ class _CaregiverNetworkScreenState extends State<CaregiverNetworkScreen> {
                         IconButton(
                           tooltip: 'Configurar alertas',
                           onPressed: () => _editRouting(caregiver),
-                          icon: const Icon(Icons.tune),
+                          icon: Icon(Icons.tune_rounded, color: AppColors.primary),
                         ),
                         IconButton(
                           tooltip: 'Remover cuidador',

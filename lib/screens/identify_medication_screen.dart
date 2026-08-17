@@ -157,34 +157,130 @@ class _IdentifyMedicationScreenState extends State<IdentifyMedicationScreen> {
                               color: AppColors.surfaceContainerLow,
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
-                                color: AppColors.outlineVariant,
+                                color: AppColors.primary.withValues(alpha: 0.3),
                                 width: 2,
                               ),
                             ),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
+                            child: Stack(
+                              alignment: Alignment.center,
                               children: [
-                                Icon(
-                                  Icons.add_a_photo,
-                                  size: 72,
-                                  color: AppColors.primary,
-                                ),
-                                SizedBox(height: 16),
-                                Text(
-                                  'ADICIONAR FOTO',
-                                  style: TextStyle(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColors.primary,
+                                Positioned(
+                                  top: 16,
+                                  left: 16,
+                                  child: Container(
+                                    width: 24,
+                                    height: 24,
+                                    decoration: BoxDecoration(
+                                      border: Border(
+                                        top: BorderSide(
+                                          color: AppColors.primary,
+                                          width: 3,
+                                        ),
+                                        left: BorderSide(
+                                          color: AppColors.primary,
+                                          width: 3,
+                                        ),
+                                      ),
+                                    ),
                                   ),
                                 ),
-                                SizedBox(height: 6),
-                                Text(
-                                  'Câmera ou Galeria',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    color: AppColors.onSurfaceVariant,
+                                Positioned(
+                                  top: 16,
+                                  right: 16,
+                                  child: Container(
+                                    width: 24,
+                                    height: 24,
+                                    decoration: BoxDecoration(
+                                      border: Border(
+                                        top: BorderSide(
+                                          color: AppColors.primary,
+                                          width: 3,
+                                        ),
+                                        right: BorderSide(
+                                          color: AppColors.primary,
+                                          width: 3,
+                                        ),
+                                      ),
+                                    ),
                                   ),
+                                ),
+                                Positioned(
+                                  bottom: 16,
+                                  left: 16,
+                                  child: Container(
+                                    width: 24,
+                                    height: 24,
+                                    decoration: BoxDecoration(
+                                      border: Border(
+                                        bottom: BorderSide(
+                                          color: AppColors.primary,
+                                          width: 3,
+                                        ),
+                                        left: BorderSide(
+                                          color: AppColors.primary,
+                                          width: 3,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Positioned(
+                                  bottom: 16,
+                                  right: 16,
+                                  child: Container(
+                                    width: 24,
+                                    height: 24,
+                                    decoration: BoxDecoration(
+                                      border: Border(
+                                        bottom: BorderSide(
+                                          color: AppColors.primary,
+                                          width: 3,
+                                        ),
+                                        right: BorderSide(
+                                          color: AppColors.primary,
+                                          width: 3,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(16),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primary.withValues(
+                                          alpha: 0.1,
+                                        ),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Icon(
+                                        Icons.camera_alt_rounded,
+                                        size: 56,
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      'ENQUADRAR E FOTOGRAFAR',
+                                      style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w900,
+                                        color: AppColors.primary,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      'Toque para abrir a câmera ou galeria',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),

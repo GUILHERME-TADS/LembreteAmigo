@@ -224,15 +224,11 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen>
   @override
   Widget build(BuildContext context) {
     final isElderly = SessionRoleService.isElderly;
-    final isHighContrast =
-        Theme.of(context).brightness == Brightness.light &&
-        Theme.of(context).colorScheme.primary == Colors.black;
-
     final isVoice = widget.callType == 'voice';
     final compact = context.isCompactHeight || context.isLandscape;
 
     return Scaffold(
-      backgroundColor: isHighContrast ? Colors.black : AppColors.cameraSurface,
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: ResponsiveScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -246,15 +242,22 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen>
               if (_isSosCall)
                 Container(
                   margin: const EdgeInsets.only(bottom: 24),
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
                     color: AppColors.error,
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.error.withValues(alpha: 0.3),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.warning, color: Colors.white, size: 28),
+                      const Icon(Icons.warning_rounded, color: Colors.white, size: 32),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
@@ -262,7 +265,7 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen>
                           textAlign: TextAlign.center,
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 18,
+                            fontSize: 20,
                             fontWeight: FontWeight.w900,
                           ),
                         ),
@@ -271,13 +274,13 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen>
                   ),
                 ),
 
-              // Pulsing Avatar Ripple
+              // Pulsing Avatar Ripple (Light Theme)
               AnimatedBuilder(
                 animation: _pulseController,
                 builder: (context, child) {
                   return Container(
-                    width: compact ? 120 : (isElderly ? 180 : 140),
-                    height: compact ? 120 : (isElderly ? 180 : 140),
+                    width: compact ? 130 : (isElderly ? 190 : 150),
+                    height: compact ? 130 : (isElderly ? 190 : 150),
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       boxShadow: [
@@ -285,19 +288,19 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen>
                           color:
                               (_isSosCall ? AppColors.error : AppColors.primary)
                                   .withValues(
-                                    alpha: 0.2 * (1.0 - _pulseController.value),
+                                    alpha: 0.25 * (1.0 - _pulseController.value),
                                   ),
-                          blurRadius: 30 * _pulseController.value,
-                          spreadRadius: 25 * _pulseController.value,
+                          blurRadius: 36 * _pulseController.value,
+                          spreadRadius: 28 * _pulseController.value,
                         ),
                         BoxShadow(
                           color:
                               (_isSosCall ? AppColors.error : AppColors.primary)
                                   .withValues(
-                                    alpha: 0.3 * (1.0 - _pulseController.value),
+                                    alpha: 0.35 * (1.0 - _pulseController.value),
                                   ),
-                          blurRadius: 15 * _pulseController.value,
-                          spreadRadius: 10 * _pulseController.value,
+                          blurRadius: 18 * _pulseController.value,
+                          spreadRadius: 12 * _pulseController.value,
                         ),
                       ],
                     ),
@@ -307,25 +310,32 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen>
                 child: Container(
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: AppColors.cameraSurface,
+                    color: AppColors.surfaceContainerLowest,
                     border: Border.all(
                       color: _isSosCall ? AppColors.error : AppColors.primary,
-                      width: 5,
+                      width: 6,
                     ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.shadow.withValues(alpha: 0.12),
+                        blurRadius: 16,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
                   ),
                   child: Center(
                     child: Icon(
-                      isVoice ? Icons.phone_in_talk : Icons.videocam,
-                      size: isElderly ? 80 : 60,
+                      isVoice ? Icons.phone_in_talk_rounded : Icons.videocam_rounded,
+                      size: isElderly ? 84 : 64,
                       color: _isSosCall ? AppColors.error : AppColors.primary,
                     ),
                   ),
                 ),
               ),
 
-              const SizedBox(height: 32),
+              const SizedBox(height: 36),
 
-              // Caller name
+              // Caller name (High-contrast dark text on light background)
               Text(
                 _callerName.isNotEmpty
                     ? _callerName
@@ -334,7 +344,7 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen>
                 style: TextStyle(
                   fontSize: isElderly ? 36 : 28,
                   fontWeight: FontWeight.w900,
-                  color: Colors.white,
+                  color: AppColors.onSurface,
                   height: 1.2,
                 ),
               ),
@@ -344,21 +354,28 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen>
               // Badge Call Type Description
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
+                  horizontal: 20,
+                  vertical: 10,
                 ),
                 decoration: BoxDecoration(
                   color: isVoice
-                      ? AppColors.primary
-                      : AppColors.onCustomContainer,
+                      ? AppColors.primaryContainer
+                      : AppColors.secondaryContainer,
                   borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isVoice
+                        ? AppColors.primary.withValues(alpha: 0.3)
+                        : AppColors.secondary.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: Text(
-                  isVoice ? 'LIGAÇÃO SÓ COM SOM' : 'LIGAÇÃO COM IMAGEM',
+                  isVoice ? 'LIGAÇÃO SÓ COM SOM 🎙️' : 'LIGAÇÃO COM IMAGEM 📹',
                   style: TextStyle(
-                    fontSize: isElderly ? 18 : 14,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
+                    fontSize: isElderly ? 18 : 15,
+                    fontWeight: FontWeight.w800,
+                    color: isVoice
+                        ? AppColors.onPrimaryContainer
+                        : AppColors.onSecondaryContainer,
                   ),
                 ),
               ),
@@ -372,14 +389,14 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen>
                   'Toque no botão VERDE para atender ou VERMELHO para recusar',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: isElderly ? 18 : 14,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.outline,
+                    fontSize: isElderly ? 18 : 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.onSurfaceVariant,
                   ),
                 ),
               ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 32),
 
               // Accept / Decline buttons
               Row(
@@ -387,18 +404,18 @@ class _IncomingVideoCallScreenState extends State<IncomingVideoCallScreen>
                 children: [
                   // Decline
                   _CallActionButton(
-                    icon: Icons.call_end,
+                    icon: Icons.call_end_rounded,
                     label: 'Recusar',
                     color: AppColors.error,
                     onPressed: _accepted ? null : _decline,
                     large: isElderly && !compact,
                   ),
-                  SizedBox(width: compact ? 24 : 48),
+                  SizedBox(width: compact ? 28 : 54),
                   // Accept
                   _CallActionButton(
-                    icon: isVoice ? Icons.phone : Icons.videocam,
+                    icon: isVoice ? Icons.phone_rounded : Icons.videocam_rounded,
                     label: 'Atender',
-                    color: AppColors.success,
+                    color: AppColors.vitalHealthy,
                     onPressed: _accepted ? null : _accept,
                     large: isElderly && !compact,
                   ),

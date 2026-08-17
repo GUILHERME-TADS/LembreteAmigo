@@ -143,6 +143,65 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
     }).toList();
   }
 
+  String _tempoRestante(Lembrete lembrete) {
+    if (lembrete.concluido) return 'Concluído';
+    if (lembrete.status == LembreteStatus.adiado) return 'Adiado';
+    final now = DateTime.now();
+    var targetTime = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      lembrete.horarioHour,
+      lembrete.horarioMinute,
+    );
+    if (targetTime.isBefore(now) && lembrete.criadoEm.isAfter(targetTime)) {
+      targetTime = targetTime.add(const Duration(days: 1));
+    }
+    final diff = targetTime.difference(now);
+    if (diff.isNegative) {
+      if (diff.inMinutes.abs() < 5) return 'Agora!';
+      final minAtraso = diff.inMinutes.abs();
+      if (minAtraso < 60) return 'Atrasado há $minAtraso min';
+      final h = minAtraso ~/ 60;
+      return 'Atrasado há ${h}h';
+    }
+    if (diff.inMinutes < 5) {
+      return 'Agora!';
+    } else if (diff.inMinutes < 60) {
+      return 'Daqui a ${diff.inMinutes} min';
+    } else {
+      final h = diff.inHours;
+      final m = diff.inMinutes % 60;
+      if (m == 0) return 'Daqui a ${h}h';
+      return 'Daqui a ${h}h e ${m}min';
+    }
+  }
+
+  Future<void> _adiarLembrete(Lembrete r, int minutos) async {
+    _stopAllAudioAndTts();
+    final now = DateTime.now();
+    final novoHorario = now.add(Duration(minutes: minutos));
+    await LembreteService.instance.atualizarHorario(
+      r.id,
+      novoHorario.hour,
+      novoHorario.minute,
+    );
+    _loadReminders();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Lembrete adiado para as ${novoHorario.hour.toString().padLeft(2, '0')}:${novoHorario.minute.toString().padLeft(2, '0')}',
+        ),
+        backgroundColor: AppColors.warning,
+      ),
+    );
+    TTSService.instance.falar(
+      'Lembrete adiado em $minutos minutos.',
+      caller: this,
+    );
+  }
+
   Widget _buildPeriodSection(
     String title,
     IconData icon,
@@ -224,90 +283,60 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
           final (icon, iconBg, accentColor) = _categoriaIcon(r.categoria);
           return Padding(
             padding: const EdgeInsets.only(bottom: 12),
-            child: Container(
-              decoration: BoxDecoration(
-                color: AppColors.surfaceContainerLowest,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: Colors.transparent, // Borda cinza clara oculta
-                  width: 2,
-                ),
-              ),
-              child: Column(
-                children: [
-                  ReminderWithAudio(
-                    icon: icon,
-                    iconBg: iconBg,
-                    iconColor: Colors.white,
-                    accentColor: accentColor,
-                    title: r.titulo,
-                    time: r.horarioFormatado,
-                    audioPath: r.audioPath == 'ia_generated'
-                        ? null
-                        : r.audioPath,
-                    ttsText: r.audioPath == 'ia_generated'
-                        ? r.medicamentoAudioTexto
-                        : null,
-                    status: reminderVisualStatusFromLembrete(r),
-                    onTap: () {
-                      _stopAllAudioAndTts();
-                      Navigator.pushNamed(
-                        context,
-                        '/reminder-detail',
-                        arguments: r,
-                      );
-                    },
-                    onStatusTap: () async {
-                      _stopAllAudioAndTts();
-                      if (r.categoria == 'medicacao' && !r.concluido) {
-                        await Navigator.pushNamed(
-                          context,
-                          '/take-photo-confirmation',
-                          arguments: r.id,
-                        );
-                        _loadReminders();
-                      } else {
-                        await LembreteService.instance.alternarConclusao(r.id);
-                        _loadReminders();
-                      }
-                    },
-                  ),
-                  if (r.medicamentoInstrucoes != null &&
-                      r.medicamentoInstrucoes!.isNotEmpty) ...[
-                    Divider(
-                      height: 1,
-                      color: AppColors.outlineVariant,
-                      thickness: 2,
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
+            child: ReminderWithAudio(
+              icon: icon,
+              iconBg: iconBg,
+              iconColor: Colors.white,
+              accentColor: accentColor,
+              title: r.titulo,
+              time: r.horarioFormatado,
+              dosage: r.medicamentoDose,
+              instructions: r.medicamentoInstrucoes,
+              requiresPhoto: r.categoria == 'medicacao' &&
+                  r.modoConfirmacao == LembreteModoConfirmacao.foto,
+              relativeTime: _tempoRestante(r),
+              audioPath: r.audioPath == 'ia_generated' ? null : r.audioPath,
+              ttsText: r.audioPath == 'ia_generated'
+                  ? r.medicamentoAudioTexto
+                  : null,
+              status: reminderVisualStatusFromLembrete(r),
+              onTap: () {
+                _stopAllAudioAndTts();
+                Navigator.pushNamed(
+                  context,
+                  '/reminder-detail',
+                  arguments: r,
+                );
+              },
+              onPostpone: r.concluido ? null : () => _adiarLembrete(r, 15),
+              onStatusTap: () async {
+                _stopAllAudioAndTts();
+                if (r.categoria == 'medicacao' &&
+                    !r.concluido &&
+                    r.modoConfirmacao == LembreteModoConfirmacao.foto) {
+                  await Navigator.pushNamed(
+                    context,
+                    '/take-photo-confirmation',
+                    arguments: r.id,
+                  );
+                  _loadReminders();
+                } else {
+                  await LembreteService.instance.alternarConclusao(r.id);
+                  _loadReminders();
+                  if (!r.concluido && mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('${r.titulo} concluído! Muito bem!'),
+                        backgroundColor: AppColors.success,
                       ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.info_outline,
-                            size: 20,
-                            color: AppColors.primary,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Como fazer: ${r.medicamentoInstrucoes}',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ],
-              ),
+                    );
+                    TTSService.instance.falar(
+                      'Muito bem! Lembrete concluído.',
+                      caller: this,
+                    );
+                  }
+                }
+              },
             ),
           );
         }),
@@ -636,16 +665,19 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                                         : _selectedCategory == 'exercicio'
                                         ? 'exercício'
                                         : 'água'}',
+                              nextReminderText: pending.isNotEmpty
+                                  ? 'Seu próximo lembrete é ${pending.first.titulo}, ${PeriodHelper.getSpokenTimeWithPreposition(pending.first.horarioHour, pending.first.horarioMinute)}.'
+                                  : null,
                               textsToSpeak: () {
                                 final catLabel =
                                     _selectedCategory == 'medicacao'
-                                    ? 'lembretes de medicação'
+                                    ? 'remédios'
                                     : _selectedCategory == 'refeicoes'
-                                    ? 'lembretes de refeição'
+                                    ? 'refeições'
                                     : _selectedCategory == 'exercicio'
-                                    ? 'lembretes de exercício'
+                                    ? 'exercícios'
                                     : _selectedCategory == 'hidratacao'
-                                    ? 'lembretes de hidratação'
+                                    ? 'hidratação'
                                     : 'lembretes';
                                 final audioListDone =
                                     audioSummaryList.isNotEmpty &&
@@ -654,7 +686,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                                     ? 'Você não tem lembretes desta categoria.'
                                     : audioListDone
                                     ? 'Muito bem! Você já fez todos os seus $catLabel de hoje!'
-                                    : 'Aqui estão seus $catLabel de hoje:';
+                                    : 'Olá! Aqui estão seus $catLabel para hoje:';
                                 return [
                                   introText,
                                   ...audioSummaryList.map((l) {
@@ -663,7 +695,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                                         : l.status == LembreteStatus.adiado
                                         ? ' ficou para mais tarde.'
                                         : '';
-                                    return '${l.titulo} ${PeriodHelper.getSpokenTimeWithPreposition(l.horarioHour, l.horarioMinute)}$statusSuffix';
+                                    return '${l.titulo}, ${PeriodHelper.getSpokenTimeWithPreposition(l.horarioHour, l.horarioMinute)}$statusSuffix';
                                   }),
                                 ];
                               }(),
@@ -800,7 +832,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                                 return Padding(
                                   padding: const EdgeInsets.only(bottom: 12),
                                   child: Opacity(
-                                    opacity: 0.6,
+                                    opacity: 0.75,
                                     child: ReminderWithAudio(
                                       icon: icon,
                                       iconBg: iconBg,
@@ -808,6 +840,9 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                                       accentColor: accentColor,
                                       title: r.titulo,
                                       time: r.horarioFormatado,
+                                      dosage: r.medicamentoDose,
+                                      instructions: r.medicamentoInstrucoes,
+                                      relativeTime: 'Concluído',
                                       audioPath: r.audioPath == 'ia_generated'
                                           ? null
                                           : r.audioPath,

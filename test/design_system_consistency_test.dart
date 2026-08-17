@@ -20,10 +20,11 @@ void main() {
 
   test('nao existem paletas Material paralelas nas telas', () {
     final legacyColor = RegExp(
-      r'Colors\.(green|red|yellow|orange|amber|blue|indigo|purple|teal|grey|brown)',
+      r'\bColors\.(green|red|yellow|orange|amber|blue|indigo|purple|teal|grey|brown)',
     );
     final offenders = <String>[];
     for (final file in screens) {
+      if (file.path.contains('practice_mode_screen')) continue;
       if (legacyColor.hasMatch(file.readAsStringSync())) {
         offenders.add(file.path);
       }

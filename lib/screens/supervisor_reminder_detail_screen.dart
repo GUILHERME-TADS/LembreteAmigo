@@ -7,6 +7,7 @@ import '../services/lembrete_service.dart';
 import '../models/lembrete.dart';
 import '../models/lembrete_evento.dart';
 import '../utils/audio_path_helper.dart';
+import '../utils/app_image_helper.dart';
 
 class SupervisorReminderDetailScreen extends StatefulWidget {
   final String title;
@@ -833,7 +834,11 @@ class _SupervisorReminderDetailScreenState
                           ? AssetImage(photoPath) as ImageProvider
                           : (kIsWeb || photoPath.startsWith('http'))
                           ? NetworkImage(photoPath) as ImageProvider
-                          : FileImage(File(photoPath)) as ImageProvider,
+                          : AppImageHelper.resizedFileImage(
+                              File(photoPath),
+                              maxWidth: 1200,
+                              maxHeight: 1200,
+                            ),
                       fit: BoxFit.contain,
                     ),
                   ),
@@ -876,7 +881,11 @@ class _SupervisorReminderDetailScreenState
                 ? AssetImage(photoPath) as ImageProvider
                 : (kIsWeb || photoPath.startsWith('http'))
                 ? NetworkImage(photoPath) as ImageProvider
-                : FileImage(File(photoPath)) as ImageProvider,
+                : AppImageHelper.resizedFileImage(
+                    File(photoPath),
+                    maxWidth: 400,
+                    maxHeight: 400,
+                  ),
             fit: BoxFit.cover,
             errorBuilder: (context, error, stackTrace) =>
                 Icon(widget.iconData, size: 56, color: widget.accentColor),

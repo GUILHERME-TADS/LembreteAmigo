@@ -22,9 +22,11 @@ void main() {
       }
     }
 
-    // The camera intentionally keeps a fixed viewport. It adapts its overlay
-    // and control panel instead of scrolling over the live preview.
-    expect(uncovered, ['take_photo_confirmation_screen.dart']);
+    // The camera and digital photo frame intentionally keep a fixed viewport.
+    expect(uncovered..sort(), [
+      'digital_photo_frame_screen.dart',
+      'take_photo_confirmation_screen.dart',
+    ]);
     final cameraSource = File(
       'lib/screens/take_photo_confirmation_screen.dart',
     ).readAsStringSync();

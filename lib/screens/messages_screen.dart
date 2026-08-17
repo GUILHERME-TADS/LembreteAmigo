@@ -596,9 +596,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
         ? message.senderRole == 'supervisor'
         : message.senderRole == 'elderly';
 
-    final bubbleColor = sentByMe
-        ? AppColors.chatOutgoing // WhatsApp green sent bubble
-        : Colors.white; // WhatsApp white received bubble
+    final Color bubbleColor = sentByMe
+        ? AppColors.primaryContainer
+        : AppColors.surfaceContainerLow;
+    final textColor = sentByMe
+        ? AppColors.onPrimaryContainer
+        : AppColors.onSurface;
 
     final alignment = sentByMe ? Alignment.centerRight : Alignment.centerLeft;
     final time =
@@ -610,24 +613,30 @@ class _MessagesScreenState extends State<MessagesScreen> {
     final Widget bubbleWidget = GestureDetector(
       onLongPress: () => _confirmDeleteMessage(message),
       child: Container(
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
         decoration: BoxDecoration(
           color: bubbleColor,
           borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(12),
-            topRight: const Radius.circular(12),
+            topLeft: const Radius.circular(20),
+            topRight: const Radius.circular(20),
             bottomLeft: sentByMe
-                ? const Radius.circular(12)
-                : const Radius.circular(0),
+                ? const Radius.circular(20)
+                : const Radius.circular(4),
             bottomRight: sentByMe
-                ? const Radius.circular(0)
-                : const Radius.circular(12),
+                ? const Radius.circular(4)
+                : const Radius.circular(20),
+          ),
+          border: Border.all(
+            color: sentByMe
+                ? AppColors.primary.withValues(alpha: 0.25)
+                : AppColors.outlineVariant,
+            width: 1.5,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 1,
-              offset: const Offset(0, 1),
+              color: AppColors.shadow.withValues(alpha: 0.08),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
             ),
           ],
         ),
@@ -661,7 +670,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                             fontSize: textFontSize,
                             height: 1.3,
                             fontWeight: FontWeight.w500,
-                            color: Colors.black87,
+                            color: textColor,
                           ),
                         ),
                       ),
@@ -696,7 +705,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
+                      foregroundColor: AppColors.onPrimary,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -729,7 +738,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                         fontSize: textFontSize,
                         height: 1.3,
                         fontWeight: FontWeight.w500,
-                        color: Colors.black87,
+                        color: textColor,
                       ),
                     ),
                   ),
@@ -854,14 +863,14 @@ class _MessagesScreenState extends State<MessagesScreen> {
         onPressed: _sending || _isStartingRecording
             ? null
             : _startVoiceRecording,
-        icon: const Icon(Icons.mic, size: 32, color: Colors.white),
+        icon: const Icon(Icons.mic, size: 32),
         label: const Text(
           'GRAVAR RECADO DE VOZ',
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
         ),
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
+          foregroundColor: AppColors.onPrimary,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),

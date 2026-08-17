@@ -221,6 +221,19 @@ class _EmergencyCardScreenState extends State<EmergencyCardScreen> {
                   fontWeight: FontWeight.w800,
                 ),
               ),
+              const SizedBox(height: 14),
+              ElevatedButton.icon(
+                onPressed: () => _showEmergencyFullscreen(card, payload),
+                icon: const Icon(Icons.fullscreen, color: Colors.black),
+                label: const Text(
+                  'Modo Socorrista / Tela Cheia 🚨',
+                  style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
             ],
           ),
         ),
@@ -252,6 +265,128 @@ class _EmergencyCardScreenState extends State<EmergencyCardScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  void _showEmergencyFullscreen(EmergencyCard card, String payload) {
+    showDialog(
+      context: context,
+      builder: (context) => Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          backgroundColor: AppColors.error,
+          foregroundColor: Colors.white,
+          elevation: 2,
+          title: const Text(
+            'FICHA MÉDICA DE EMERGÊNCIA',
+            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
+          ),
+          centerTitle: true,
+        ),
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  card.name.isEmpty ? 'PACIENTE IDOSO' : card.name.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.onSurface,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.secondaryContainer,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.secondary.withValues(alpha: 0.3)),
+                  ),
+                  child: Text(
+                    'Contato de Emergência: ${card.contactName} (${card.contactPhone})',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: AppColors.onSecondaryContainer,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                if (card.allergies.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.errorContainer,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.error.withValues(alpha: 0.4)),
+                    ),
+                    child: Text(
+                      'ALERGIAS: ${card.allergies.toUpperCase()}',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: AppColors.onErrorContainer,
+                        fontWeight: FontWeight.w900,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 20),
+                Center(
+                  child: Container(
+                    width: 260,
+                    height: 260,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.outlineVariant, width: 2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.shadow.withValues(alpha: 0.1),
+                          blurRadius: 16,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: CustomPaint(painter: _QrPainter(payload)),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Aponte a câmera de qualquer celular para ler a ficha completa.',
+                  style: TextStyle(
+                    color: AppColors.onSurfaceVariant,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const Spacer(),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  child: const Text(
+                    'Fechar Ficha Médica',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 

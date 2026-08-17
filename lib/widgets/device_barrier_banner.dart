@@ -88,6 +88,12 @@ class _DeviceBarrierBannerState extends State<DeviceBarrierBanner>
             caller: this,
           );
           break;
+        case DeviceBarrierType.lowBattery:
+          await TTSService.instance.falar(
+            'Por favor, conecte o celular ao carregador.',
+            caller: this,
+          );
+          break;
       }
       await _refresh(markElderlyActive: true, publish: true);
     } finally {
@@ -124,6 +130,7 @@ class _DeviceBarrierBannerState extends State<DeviceBarrierBanner>
       case DeviceBarrierType.lowVolume:
       case DeviceBarrierType.inactiveApp:
       case DeviceBarrierType.locationUnavailable:
+      case DeviceBarrierType.lowBattery:
         return true;
       case DeviceBarrierType.offline:
       case DeviceBarrierType.pendingSync:
@@ -143,6 +150,8 @@ class _DeviceBarrierBannerState extends State<DeviceBarrierBanner>
         return Icons.phone_android;
       case DeviceBarrierType.locationUnavailable:
         return Icons.location_off;
+      case DeviceBarrierType.lowBattery:
+        return Icons.battery_alert_rounded;
     }
   }
 
@@ -157,6 +166,8 @@ class _DeviceBarrierBannerState extends State<DeviceBarrierBanner>
         return Icons.check_circle;
       case DeviceBarrierType.locationUnavailable:
         return Icons.settings;
+      case DeviceBarrierType.lowBattery:
+        return Icons.power;
     }
   }
 
@@ -172,6 +183,8 @@ class _DeviceBarrierBannerState extends State<DeviceBarrierBanner>
         return 'ESTOU AQUI';
       case DeviceBarrierType.locationUnavailable:
         return 'ABRIR AJUSTES';
+      case DeviceBarrierType.lowBattery:
+        return 'CARREGAR';
     }
   }
 

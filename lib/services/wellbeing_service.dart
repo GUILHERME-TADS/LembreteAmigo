@@ -71,6 +71,15 @@ class WellbeingService {
     return entry;
   }
 
+  Future<void> logHydration() async {
+    await addEntry(
+      mood: 4,
+      symptoms: const ['Hidratação (+1 copo d\'água)'],
+      note: 'Ingestão de água registrada após medicamento.',
+      needsHelp: false,
+    );
+  }
+
   Future<List<WellbeingEntry>> _loadLocal(String elderlyId) async {
     final raw = await SecureCacheService.instance.read(
       '$_localKeyPrefix$elderlyId',

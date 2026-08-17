@@ -267,39 +267,63 @@ class _DeviceReadinessScreenState extends State<DeviceReadinessScreen> {
   }
 
   Widget _buildSummary() {
-    final color = _ready ? AppColors.success : AppColors.warning;
+    final color = _ready ? AppColors.vitalHealthy : AppColors.warning;
     return Semantics(
       liveRegion: true,
       label: _ready
           ? 'Celular pronto para os lembretes'
           : 'O celular precisa de atenção',
       child: Container(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(26),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: color, width: 3),
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: color.withValues(alpha: 0.4), width: 2.5),
+          boxShadow: [
+            BoxShadow(
+              color: color.withValues(alpha: 0.12),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
         ),
         child: Column(
           children: [
-            Icon(
-              _ready ? Icons.verified : Icons.build_circle_outlined,
-              color: color,
-              size: 64,
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.16),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                _ready ? Icons.verified_rounded : Icons.build_circle_rounded,
+                color: color,
+                size: 52,
+              ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             Text(
-              _ready ? 'Tudo pronto!' : 'Vamos conferir o celular',
+              _ready ? 'Celular 100% Pronto!' : 'Vamos conferir o aparelho',
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
+              style: TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.w900,
+                color: AppColors.onSurface,
+              ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Text(
               _ready
-                  ? 'Os lembretes estão com as condições principais disponíveis.'
-                  : 'Resolva os itens abaixo para reduzir atrasos nos lembretes.',
+                  ? 'Som, bateria e sincronização estão operando perfeitamente.'
+                  : 'Resolva os avisos abaixo para garantir que nenhum remédio atrase.',
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 16),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppColors.onSurfaceVariant,
+                height: 1.3,
+              ),
             ),
           ],
         ),
@@ -312,10 +336,17 @@ class _DeviceReadinessScreenState extends State<DeviceReadinessScreen> {
       height: 72,
       child: FilledButton.icon(
         onPressed: _loading || _testingAlarm ? null : _testAlarm,
-        icon: const Icon(Icons.alarm, size: 30),
+        icon: const Icon(Icons.alarm_rounded, size: 30),
         label: Text(
-          _testingAlarm ? 'Testando...' : 'Testar lembrete agora',
-          style: const TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
+          _testingAlarm ? 'Testando o som...' : 'Testar som do alarme agora',
+          style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
+        ),
+        style: FilledButton.styleFrom(
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+          ),
         ),
       ),
     );
@@ -330,12 +361,18 @@ class _DeviceReadinessScreenState extends State<DeviceReadinessScreen> {
             ? const SizedBox(
                 width: 22,
                 height: 22,
-                child: CircularProgressIndicator(strokeWidth: 2),
+                child: CircularProgressIndicator(strokeWidth: 2.5),
               )
-            : const Icon(Icons.auto_fix_high, size: 28),
+            : const Icon(Icons.auto_fix_high_rounded, size: 28),
         label: Text(
-          _repairing ? 'Reparando...' : 'Reparar agora',
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          _repairing ? 'Ajustando permissões...' : 'Corrigir automaticamente',
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+        ),
+        style: OutlinedButton.styleFrom(
+          side: BorderSide(color: AppColors.primary, width: 2),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+          ),
         ),
       ),
     );

@@ -80,6 +80,7 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
       '/activity-history',
       '/supervisor-edit-elderly-profile',
       '/care-center',
+      '/supervisor-reminders',
       '/medication-stock',
       '/supervisor-wellbeing',
     ];
@@ -121,15 +122,18 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
             decoration: BoxDecoration(color: AppColors.primary),
             accountName: Text(
               _supervisorName,
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 22,
-                color: Colors.white,
+                color: AppColors.onPrimary,
               ),
             ),
             accountEmail: Text(
               _supervisorEmail,
-              style: const TextStyle(color: Colors.white70, fontSize: 14),
+              style: TextStyle(
+                color: AppColors.onPrimary.withValues(alpha: 0.7),
+                fontSize: 14,
+              ),
             ),
             currentAccountPicture: Container(
               decoration: BoxDecoration(
@@ -158,6 +162,23 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   onTap: () => _navigateTo(context, '/supervisor-dashboard'),
+                ),
+                Opacity(
+                  opacity: _isConnected ? 1.0 : 0.4,
+                  child: ListTile(
+                    leading: Icon(
+                      Icons.event_note_rounded,
+                      color: AppColors.primary,
+                    ),
+                    title: const Text(
+                      'Todos os Lembretes',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    onTap: () => _navigateTo(context, '/supervisor-reminders'),
+                  ),
                 ),
                 Opacity(
                   opacity: _isConnected ? 1.0 : 0.4,

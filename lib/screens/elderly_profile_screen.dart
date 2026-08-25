@@ -12,7 +12,6 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../theme/app_theme.dart';
 import '../services/tts_service.dart';
 import '../services/lembrete_service.dart';
-import '../services/care_preferences_service.dart';
 import '../services/session_role_service.dart';
 import '../services/offline_sync_service.dart';
 import '../services/durable_media_service.dart';
@@ -185,7 +184,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                   localData['status'] = firestoreStatus;
                   localData['supervisorId'] = firestoreSupervisorId;
                   await SecureCacheService.instance.writeElderlyProfile(
-                    jsonEncode(localData),
+                    SecureCacheService.safeJsonEncode(localData),
                   );
                 } catch (_) {}
               }
@@ -326,7 +325,9 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
             jsonDecode(jsonStr) as Map<String, dynamic>;
         data['status'] = 'pending';
         data['supervisorId'] = null;
-        await SecureCacheService.instance.writeElderlyProfile(jsonEncode(data));
+        await SecureCacheService.instance.writeElderlyProfile(
+          SecureCacheService.safeJsonEncode(data),
+        );
       }
 
       if (!context.mounted) return;
@@ -640,7 +641,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 80),
                       child: Column(
                         children: [
                           _buildHeaderCard(),
@@ -1010,7 +1011,6 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
             backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
           ),
-          const SizedBox(height: 12),
         ] else ...[
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -1046,40 +1046,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
             backgroundColor: AppColors.error,
             foregroundColor: Colors.white,
           ),
-          const SizedBox(height: 12),
         ],
-        _buildActionButton(
-          onPressed: () {
-            TTSService.instance.parar(caller: this);
-            Navigator.pushNamed(context, '/caregiver-network');
-          },
-          icon: Icons.groups_2_outlined,
-          label: 'MINHA REDE DE CUIDADO',
-          backgroundColor: AppColors.tertiaryContainer,
-          foregroundColor: AppColors.onTertiaryContainer,
-        ),
-        const SizedBox(height: 12),
-        _buildActionButton(
-          onPressed: () {
-            TTSService.instance.parar(caller: this);
-            Navigator.pushNamed(context, '/emergency-card');
-          },
-          icon: Icons.health_and_safety,
-          label: 'CARTÃO DE EMERGÊNCIA',
-          backgroundColor: AppColors.errorContainer,
-          foregroundColor: AppColors.onErrorContainer,
-        ),
-        const SizedBox(height: 12),
-        _buildActionButton(
-          onPressed: () {
-            TTSService.instance.parar(caller: this);
-            Navigator.pushNamed(context, '/wellbeing');
-          },
-          icon: Icons.mood,
-          label: 'COMO ESTOU HOJE',
-          backgroundColor: AppColors.successContainer,
-          foregroundColor: AppColors.onSuccessContainer,
-        ),
       ],
     );
   }
@@ -1099,42 +1066,6 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
           label: 'VELOCIDADE DA VOZ',
           backgroundColor: AppColors.primaryFixed,
           foregroundColor: AppColors.onPrimaryFixed,
-        ),
-        const SizedBox(height: 14),
-        ValueListenableBuilder<CarePreferences>(
-          valueListenable: CarePreferencesService.instance.notifier,
-          builder: (context, preferences, _) {
-            return Card(
-              elevation: 0,
-              color: AppColors.surfaceContainerLow,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-                side: BorderSide(color: AppColors.outlineVariant),
-              ),
-              child: SwitchListTile(
-                value: preferences.simpleHomeEnabled,
-                onChanged: (enabled) async {
-                  await CarePreferencesService.instance.setSimpleHomeEnabled(
-                    enabled,
-                  );
-                  final message = enabled
-                      ? 'Tela inicial simples ativada.'
-                      : 'Rotina completa ativada.';
-                  await TTSService.instance.falar(message, caller: this);
-                },
-                secondary: Icon(
-                  Icons.visibility_outlined,
-                  color: AppColors.primary,
-                  size: 28,
-                ),
-                title: const Text(
-                  'TELA INICIAL SIMPLES',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-                ),
-                subtitle: const Text('Mostra primeiro somente a próxima ação.'),
-              ),
-            );
-          },
         ),
       ],
     );
@@ -1305,7 +1236,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
         if (confirm == true) {
           await SessionRoleService.exitElderlyModeOnly();
           await LembreteService.instance.reset();
-          if (context.mounted) {
+          if (mounted) {
             Navigator.pushNamedAndRemoveUntil(
               context,
               '/',

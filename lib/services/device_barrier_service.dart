@@ -4,10 +4,10 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:flutter/foundation.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:battery_plus/battery_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../models/device_barrier.dart';
 import '../models/device_diagnostics.dart';
@@ -148,29 +148,47 @@ class DeviceBarrierService {
         );
       }
 
+      if (!kIsWeb && Platform.isAndroid) {
+        try {
+          final isIgnoring = await Permission.ignoreBatteryOptimizations.isGranted;
+          if (!isIgnoring) {
+            barriers.add(
+              DeviceBarrier(
+                type: DeviceBarrierType.batteryOptimization,
+                severity: DeviceBarrierSeverity.warning,
+                title: 'Otimização de Bateria Ativa',
+                message:
+                    'O Android pode suspender os alarmes com a tela apagada. Toque para autorizar o funcionamento contínuo.',
+                detectedAt: now,
+                priority: 88,
+              ),
+            );
+          }
+        } catch (e) {
+          debugPrint('Erro ao verificar otimizacao de bateria: $e');
+        }
+      }
+
       final lastHeartbeat = await _lastElderlyHeartbeat();
       if (lastHeartbeat != null) {
         final inactiveFor = now.difference(lastHeartbeat);
-        if (inactiveFor.inHours >= 12) {
+        if (inactiveFor.inHours >= 4) {
           barriers.add(
             DeviceBarrier(
               type: DeviceBarrierType.inactiveApp,
-              severity: inactiveFor.inHours >= 24
+              severity: inactiveFor.inHours >= 12
                   ? DeviceBarrierSeverity.critical
                   : DeviceBarrierSeverity.warning,
               title: 'App sem uso recente',
               message:
-                  'O modo idoso nao aparece ha ${_formatDuration(inactiveFor)}.',
+                  'O modo idoso nao envia sinal ha ${_formatDuration(inactiveFor)}. Verifique se o celular esta ligado.',
               detectedAt: now,
-              priority: inactiveFor.inHours >= 24 ? 95 : 60,
+              priority: inactiveFor.inHours >= 12 ? 95 : 60,
               value: inactiveFor.inHours,
             ),
           );
         }
       }
-
-      final locationBarrier = await _locationBarrier(now);
-      if (locationBarrier != null) barriers.add(locationBarrier);
 
       barriers.sort((a, b) => b.priority.compareTo(a.priority));
       notifier.value = barriers;
@@ -209,40 +227,6 @@ class DeviceBarrierService {
     } catch (_) {
       return false;
     }
-  }
-
-  Future<DeviceBarrier?> _locationBarrier(DateTime now) async {
-    try {
-      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        return DeviceBarrier(
-          type: DeviceBarrierType.locationUnavailable,
-          severity: DeviceBarrierSeverity.warning,
-          title: 'Localizacao desligada',
-          message: 'O SOS pode sair sem localizacao se houver emergencia.',
-          detectedAt: now,
-          priority: 55,
-        );
-      }
-
-      final permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        return DeviceBarrier(
-          type: DeviceBarrierType.locationUnavailable,
-          severity: permission == LocationPermission.deniedForever
-              ? DeviceBarrierSeverity.critical
-              : DeviceBarrierSeverity.warning,
-          title: 'Localizacao sem permissao',
-          message: 'Ative a permissao para o SOS enviar onde o idoso esta.',
-          detectedAt: now,
-          priority: permission == LocationPermission.deniedForever ? 85 : 55,
-        );
-      }
-    } catch (_) {
-      return null;
-    }
-    return null;
   }
 
   Future<void> _saveSnapshot(

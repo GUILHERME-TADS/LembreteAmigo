@@ -5,7 +5,7 @@ import '../theme/app_theme.dart';
 
 /// Card de Lembrete estilo Blíster / Porta-Comprimidos Realista.
 /// Facilita a identificação visual por idosos e pessoas com baixo letramento.
-class BlisterReminderCard extends StatelessWidget {
+class BlisterReminderCard extends StatefulWidget {
   final Lembrete lembrete;
   final VoidCallback? onConfirm;
   final VoidCallback? onPlayAudio;
@@ -21,8 +21,46 @@ class BlisterReminderCard extends StatelessWidget {
     this.isNext = false,
   });
 
+  @override
+  State<BlisterReminderCard> createState() => _BlisterReminderCardState();
+}
+
+class _BlisterReminderCardState extends State<BlisterReminderCard>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _popController;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _popController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    );
+    _scaleAnimation = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.95), weight: 40),
+      TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.02), weight: 40),
+      TweenSequenceItem(tween: Tween(begin: 1.02, end: 1.0), weight: 20),
+    ]).animate(CurvedAnimation(parent: _popController, curve: Curves.easeOut));
+  }
+
+  @override
+  void dispose() {
+    _popController.dispose();
+    super.dispose();
+  }
+
+  void _handlePopTap() {
+    // Efeito tátil duplo de rompimento do blíster
+    HapticFeedback.heavyImpact();
+    _popController.forward(from: 0.0).then((_) {
+      HapticFeedback.lightImpact();
+    });
+    if (widget.onTap != null) widget.onTap!();
+  }
+
   IconData _getCategoryIcon() {
-    switch (lembrete.categoria) {
+    switch (widget.lembrete.categoria) {
       case LembreteCategoria.medicacao:
         return Icons.medication_rounded;
       case LembreteCategoria.hidratacao:
@@ -37,7 +75,7 @@ class BlisterReminderCard extends StatelessWidget {
   }
 
   Color _getCategoryColor() {
-    switch (lembrete.categoria) {
+    switch (widget.lembrete.categoria) {
       case LembreteCategoria.medicacao:
         return const Color(0xFF7B1FA2);
       case LembreteCategoria.hidratacao:
@@ -54,48 +92,48 @@ class BlisterReminderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final categoryColor = _getCategoryColor();
-    final isConcluido = lembrete.concluido || lembrete.status == LembreteStatus.concluido;
+    final isConcluido = widget.lembrete.concluido ||
+        widget.lembrete.status == LembreteStatus.concluido;
 
     return Semantics(
       label:
-          '${lembrete.horarioFormatado} - ${lembrete.titulo}. Categoria: ${LembreteCategoria.nome(lembrete.categoria)}. ${isConcluido ? "Concluído" : "Pendente"}',
+          '${widget.lembrete.horarioFormatado} - ${widget.lembrete.titulo}. Categoria: ${LembreteCategoria.nome(widget.lembrete.categoria)}. ${isConcluido ? "Concluído" : "Pendente"}',
       button: true,
       child: GestureDetector(
-        onTap: () {
-          HapticFeedback.lightImpact();
-          if (onTap != null) onTap!();
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          margin: const EdgeInsets.symmetric(vertical: 8),
-          decoration: BoxDecoration(
-            color: isConcluido
-                ? const Color(0xFFF1F8E9)
-                : AppColors.surfaceContainerLowest,
-            borderRadius: BorderRadius.circular(AppRadius.xl),
-            border: Border.all(
+        onTap: _handlePopTap,
+        child: ScaleTransition(
+          scale: _scaleAnimation,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            margin: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(
               color: isConcluido
-                  ? const Color(0xFF81C784)
-                  : isNext
-                      ? categoryColor
-                      : AppColors.outlineVariant.withValues(alpha: 0.6),
-              width: isNext ? 3.0 : 2.0,
+                  ? const Color(0xFFF1F8E9)
+                  : AppColors.surfaceContainerLowest,
+              borderRadius: BorderRadius.circular(AppRadius.xl),
+              border: Border.all(
+                color: isConcluido
+                    ? const Color(0xFF81C784)
+                    : widget.isNext
+                        ? categoryColor
+                        : AppColors.outlineVariant.withValues(alpha: 0.6),
+                width: widget.isNext ? 3.0 : 2.0,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: widget.isNext
+                      ? categoryColor.withValues(alpha: 0.2)
+                      : AppColors.shadow.withValues(alpha: 0.08),
+                  blurRadius: widget.isNext ? 14 : 8,
+                  offset: const Offset(0, 4),
+                ),
+                const BoxShadow(
+                  color: Colors.white,
+                  blurRadius: 0,
+                  offset: Offset(0, 1),
+                ),
+              ],
             ),
-            boxShadow: [
-              BoxShadow(
-                color: isNext
-                    ? categoryColor.withValues(alpha: 0.2)
-                    : AppColors.shadow.withValues(alpha: 0.08),
-                blurRadius: isNext ? 14 : 8,
-                offset: const Offset(0, 4),
-              ),
-              const BoxShadow(
-                color: Colors.white,
-                blurRadius: 0,
-                offset: Offset(0, 1),
-              ),
-            ],
-          ),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
@@ -117,11 +155,17 @@ class BlisterReminderCard extends StatelessWidget {
                     ),
                   ),
                   child: Center(
-                    child: Icon(
-                      isConcluido ? Icons.check_circle_rounded : _getCategoryIcon(),
-                      size: 36,
-                      color: isConcluido ? Colors.white : categoryColor,
-                    ),
+                    child: isConcluido
+                        ? const Icon(
+                            Icons.check_circle_rounded,
+                            size: 36,
+                            color: Colors.white,
+                          )
+                        : Icon(
+                            _getCategoryIcon(),
+                            size: 36,
+                            color: categoryColor,
+                          ),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -143,7 +187,7 @@ class BlisterReminderCard extends StatelessWidget {
                               borderRadius: BorderRadius.circular(AppRadius.sm),
                             ),
                             child: Text(
-                              lembrete.horarioFormatado,
+                              widget.lembrete.horarioFormatado,
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w900,
@@ -152,7 +196,7 @@ class BlisterReminderCard extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          if (isNext)
+                          if (widget.isNext)
                             Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 8,
@@ -176,7 +220,7 @@ class BlisterReminderCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        lembrete.titulo,
+                        widget.lembrete.titulo,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -194,7 +238,9 @@ class BlisterReminderCard extends StatelessWidget {
                 ),
 
                 // Botão Rápido de Áudio
-                if (onPlayAudio != null && lembrete.audioPath != null && lembrete.audioPath!.isNotEmpty) ...[
+                if (widget.onPlayAudio != null &&
+                    widget.lembrete.audioPath != null &&
+                    widget.lembrete.audioPath!.isNotEmpty) ...[
                   IconButton.filledTonal(
                     iconSize: 32,
                     style: IconButton.styleFrom(
@@ -205,7 +251,7 @@ class BlisterReminderCard extends StatelessWidget {
                     ),
                     onPressed: () {
                       HapticFeedback.lightImpact();
-                      onPlayAudio!();
+                      widget.onPlayAudio!();
                     },
                     icon: const Icon(Icons.volume_up_rounded),
                     tooltip: 'Ouvir instrução por voz',
@@ -216,6 +262,7 @@ class BlisterReminderCard extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

@@ -847,15 +847,18 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
       final hour = extraido.$1;
       final minute = extraido.$2;
       final titulo = extraido.$3.isNotEmpty ? extraido.$3 : _transcricao;
+      final parsedInfo = VoiceReminderParser.parse(_transcricao);
+      final isDaily = parsedInfo?.recorrencia == 'diario' || parsedInfo?.recorrencia == null;
+      final recurrenceSpoken = isDaily ? 'todos os dias' : 'uma única vez';
       final spokenTime = PeriodHelper.getSpokenTimeWithPreposition(
         hour,
         minute,
       );
-      final texto = 'Entendi: $titulo $spokenTime. Está correto?';
+      final texto = 'Entendi! Agendar $titulo $spokenTime, $recurrenceSpoken. Posso confirmar para você?';
       TTSService.instance.falar(texto, caller: this);
     } else {
       TTSService.instance.falar(
-        'Não entendi a hora. Fale o lembrete e a hora de novo.',
+        'Não entendi o horário. Por favor, fale o que precisa fazer e as horas.',
         caller: this,
       );
     }
@@ -1063,7 +1066,6 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            const VolumeWarningBanner(),
             _buildTopBar(context),
             Expanded(
               child: Padding(
@@ -1265,6 +1267,46 @@ class _RecordingAudioScreenState extends State<RecordingAudioScreen> {
                                       ),
                                       textAlign: TextAlign.center,
                                     ),
+                                    if (_extrairHorario(_transcricao) != null) ...[
+                                      const SizedBox(height: 12),
+                                      Builder(
+                                        builder: (context) {
+                                          final ext = _extrairHorario(_transcricao)!;
+                                          final timeStr = '${ext.$1.toString().padLeft(2, '0')}:${ext.$2.toString().padLeft(2, '0')}';
+                                          return Wrap(
+                                            spacing: 8,
+                                            runSpacing: 8,
+                                            alignment: WrapAlignment.center,
+                                            children: [
+                                              Chip(
+                                                avatar: Icon(Icons.medication_rounded, size: 18, color: AppColors.primary),
+                                                label: Text(
+                                                  ext.$3.isNotEmpty ? ext.$3 : 'Lembrete',
+                                                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                                                ),
+                                                backgroundColor: AppColors.primaryContainer.withValues(alpha: 0.35),
+                                              ),
+                                              Chip(
+                                                avatar: Icon(Icons.access_time_filled_rounded, size: 18, color: AppColors.voiceFeedbackBlue),
+                                                label: Text(
+                                                  timeStr,
+                                                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                                                ),
+                                                backgroundColor: AppColors.voiceFeedbackBlue.withValues(alpha: 0.15),
+                                              ),
+                                              Chip(
+                                                avatar: Icon(Icons.repeat_rounded, size: 18, color: AppColors.vitalHealthy),
+                                                label: const Text(
+                                                  'Diário',
+                                                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                                                ),
+                                                backgroundColor: AppColors.vitalHealthyContainer,
+                                              ),
+                                            ],
+                                          );
+                                        },
+                                      ),
+                                    ],
                                     const SizedBox(height: 16),
                                     ElevatedButton.icon(
                                       onPressed: () async {

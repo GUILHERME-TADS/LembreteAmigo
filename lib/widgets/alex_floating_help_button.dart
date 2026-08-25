@@ -292,8 +292,8 @@ class _AlexFloatingHelpButtonState extends State<AlexFloatingHelpButton>
             media.padding.horizontal -
             _avatarSize -
             _gap -
-            32;
-        final bubbleWidth = availableBubbleWidth.clamp(120.0, 220.0);
+            48;
+        final bubbleWidth = availableBubbleWidth.clamp(90.0, 190.0);
         final contentWidth = bubbleWidth + _gap + _avatarSize;
 
         final bubble = SizedBox(

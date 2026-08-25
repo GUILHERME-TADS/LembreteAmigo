@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../models/device_barrier.dart';
 import '../services/device_barrier_service.dart';
@@ -94,6 +95,16 @@ class _DeviceBarrierBannerState extends State<DeviceBarrierBanner>
             caller: this,
           );
           break;
+        case DeviceBarrierType.batteryOptimization:
+          final status = await Permission.ignoreBatteryOptimizations.request();
+          if (!status.isGranted) {
+            await openAppSettings();
+          }
+          await TTSService.instance.falar(
+            'Solicitei a autorização para o aplicativo funcionar livremente em segundo plano.',
+            caller: this,
+          );
+          break;
       }
       await _refresh(markElderlyActive: true, publish: true);
     } finally {
@@ -131,6 +142,7 @@ class _DeviceBarrierBannerState extends State<DeviceBarrierBanner>
       case DeviceBarrierType.inactiveApp:
       case DeviceBarrierType.locationUnavailable:
       case DeviceBarrierType.lowBattery:
+      case DeviceBarrierType.batteryOptimization:
         return true;
       case DeviceBarrierType.offline:
       case DeviceBarrierType.pendingSync:
@@ -152,6 +164,8 @@ class _DeviceBarrierBannerState extends State<DeviceBarrierBanner>
         return Icons.location_off;
       case DeviceBarrierType.lowBattery:
         return Icons.battery_alert_rounded;
+      case DeviceBarrierType.batteryOptimization:
+        return Icons.battery_charging_full_rounded;
     }
   }
 
@@ -168,6 +182,8 @@ class _DeviceBarrierBannerState extends State<DeviceBarrierBanner>
         return Icons.settings;
       case DeviceBarrierType.lowBattery:
         return Icons.power;
+      case DeviceBarrierType.batteryOptimization:
+        return Icons.battery_saver_rounded;
     }
   }
 
@@ -185,6 +201,8 @@ class _DeviceBarrierBannerState extends State<DeviceBarrierBanner>
         return 'ABRIR AJUSTES';
       case DeviceBarrierType.lowBattery:
         return 'CARREGAR';
+      case DeviceBarrierType.batteryOptimization:
+        return 'PERMITIR EM 2º PLANO';
     }
   }
 

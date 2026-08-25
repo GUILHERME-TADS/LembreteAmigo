@@ -391,13 +391,16 @@ class _NewReminderAudioScreenState extends State<NewReminderAudioScreen> {
                         child: ElevatedButton.icon(
                           onPressed: _salvarRetornar,
                           icon: const Icon(Icons.check_circle, size: 32),
-                          label: const Text(
-                            'SALVAR E VINCULAR',
-                            maxLines: 2,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w900,
+                          label: const FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              'SALVAR E VINCULAR',
+                              maxLines: 1,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w900,
+                              ),
                             ),
                           ),
                           style: ElevatedButton.styleFrom(

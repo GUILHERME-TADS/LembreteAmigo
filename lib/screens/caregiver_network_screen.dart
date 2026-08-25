@@ -341,7 +341,7 @@ class _CaregiverNetworkScreenState extends State<CaregiverNetworkScreen> {
       body: RefreshIndicator(
         onRefresh: _load,
         child: ListView(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 80),
           children: [
             Container(
               padding: const EdgeInsets.all(22),

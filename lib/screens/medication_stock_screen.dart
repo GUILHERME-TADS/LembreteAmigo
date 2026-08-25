@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../models/lembrete.dart';
 import '../models/stock_movement.dart';
@@ -22,6 +23,36 @@ class _MedicationStockScreenState extends State<MedicationStockScreen> {
   bool _loading = true;
   String? _elderlyId;
   String? _busyReminderId;
+
+  Future<void> _orderViaWhatsApp({Lembrete? singleMed, List<Lembrete>? allMeds}) async {
+    final buffer = StringBuffer();
+    buffer.writeln('Olá! Gostaria de cotar e pedir os seguintes medicamentos para entrega:');
+    buffer.writeln('');
+    if (singleMed != null) {
+      buffer.writeln('• *${singleMed.titulo}*');
+      if (singleMed.medicamentoDose != null) buffer.writeln('  Dose: ${singleMed.medicamentoDose}');
+    } else if (allMeds != null) {
+      for (final med in allMeds) {
+        buffer.writeln('• *${med.titulo}* (${med.medicamentoDose ?? '1 cx'})');
+      }
+    }
+    buffer.writeln('');
+    buffer.writeln('Favor informar disponibilidade e prazo de entrega. Obrigado!');
+
+    final uri = Uri.parse('https://wa.me/?text=${Uri.encodeComponent(buffer.toString())}');
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      if (mounted) {
+        await SharePlus.instance.share(
+          ShareParams(
+            text: buffer.toString(),
+            subject: 'Pedido de Farmácia',
+          ),
+        );
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -340,7 +371,7 @@ class _MedicationStockScreenState extends State<MedicationStockScreen> {
           : RefreshIndicator(
               onRefresh: _load,
               child: ListView.separated(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 80),
                 itemCount: medications.length,
                 separatorBuilder: (_, _) => const SizedBox(height: 12),
                 itemBuilder: (context, index) =>
@@ -387,7 +418,13 @@ class _MedicationStockScreenState extends State<MedicationStockScreen> {
                       width: 1.5,
                     ),
                   ),
-                  child: Icon(Icons.medication_rounded, color: statusColor, size: 28),
+                  child: Center(
+                    child: Icon(
+                      Icons.medication_rounded,
+                      size: 28,
+                      color: statusColor,
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -452,22 +489,29 @@ class _MedicationStockScreenState extends State<MedicationStockScreen> {
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                if (days != null)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceContainerHigh,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      days == 0 ? 'Acaba hoje' : 'Acaba em ~$days dias',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: statusColor,
-                      ),
-                    ),
+                if (days != null) ...[
+                  Builder(
+                    builder: (context) {
+                      final depletionDate = DateTime.now().add(Duration(days: days));
+                      final dateStr = DateFormat('dd/MM').format(depletionDate);
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceContainerHigh,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          days == 0 ? 'Acaba hoje!' : 'Término: $dateStr (~$days d)',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: statusColor,
+                          ),
+                        ),
+                      );
+                    },
                   ),
+                ],
               ],
             ),
             const SizedBox(height: 10),
@@ -481,7 +525,13 @@ class _MedicationStockScreenState extends State<MedicationStockScreen> {
                 valueColor: AlwaysStoppedAnimation<Color>(statusColor),
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 12),
+            _buildVisualBlisterSlots(
+              stock,
+              minimum,
+              statusColor,
+            ),
+            const SizedBox(height: 8),
             Text(
               'Aviso configurado para mínimo de $minimum unidades',
               style: TextStyle(
@@ -515,7 +565,18 @@ class _MedicationStockScreenState extends State<MedicationStockScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
+                IconButton.filledTonal(
+                  tooltip: 'Pedir na Farmácia (WhatsApp)',
+                  onPressed: () => _orderViaWhatsApp(singleMed: reminder),
+                  icon: const Icon(Icons.chat_bubble_outline_rounded, size: 20),
+                  style: IconButton.styleFrom(
+                    backgroundColor: AppColors.vitalHealthyContainer,
+                    foregroundColor: AppColors.vitalHealthy,
+                    padding: const EdgeInsets.all(12),
+                  ),
+                ),
+                const SizedBox(width: 8),
                 OutlinedButton.icon(
                   onPressed: () => _showHistory(reminder),
                   icon: const Icon(Icons.history, size: 20),
@@ -528,6 +589,106 @@ class _MedicationStockScreenState extends State<MedicationStockScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildVisualBlisterSlots(
+    int? stock,
+    int minimum,
+    Color statusColor,
+  ) {
+    if (stock == null) return const SizedBox.shrink();
+    const totalSlots = 10;
+    final maxRef = (minimum * 3).clamp(10, 60);
+    final filledCount = (stock > 0
+        ? (stock / maxRef * totalSlots).clamp(1, totalSlots).round()
+        : 0);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerHigh.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(
+          color: AppColors.outlineVariant.withValues(alpha: 0.5),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Cartela Visual (Blíster)',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.onSurfaceVariant,
+                ),
+              ),
+              Text(
+                '$stock un. em estoque',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                  color: statusColor,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: List.generate(totalSlots, (index) {
+              final isFilled = index < filledCount;
+              return Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: isFilled
+                      ? Colors.white
+                      : Colors.black.withValues(alpha: 0.04),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: isFilled
+                        ? statusColor.withValues(alpha: 0.6)
+                        : AppColors.outlineVariant.withValues(alpha: 0.6),
+                    width: 1.5,
+                  ),
+                  boxShadow: isFilled
+                      ? [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.08),
+                            blurRadius: 3,
+                            offset: const Offset(0, 1),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Center(
+                  child: isFilled
+                      ? Icon(
+                          Icons.medication_rounded,
+                          size: 14,
+                          color: statusColor,
+                        )
+                      : Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppColors.outlineVariant.withValues(
+                              alpha: 0.5,
+                            ),
+                          ),
+                        ),
+                ),
+              );
+            }),
+          ),
+        ],
       ),
     );
   }

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -11,12 +12,14 @@ class AppPermissionItem {
   final String description;
   final Permission permission;
   final PermissionStatus status;
+  final IconData icon;
 
   const AppPermissionItem({
     required this.title,
     required this.description,
     required this.permission,
     required this.status,
+    required this.icon,
   });
 
   bool get granted => status.isGranted || status.isLimited;
@@ -48,28 +51,26 @@ class AppPermissionService {
         currentStatuses.every((item) => item.granted);
   }
 
-  List<({String title, String description, Permission permission})>
+  List<({String title, String description, Permission permission, IconData icon})>
   get _requiredPermissions {
-    final items = <({String title, String description, Permission permission})>[
+    final items = <({String title, String description, Permission permission, IconData icon})>[
       (
         title: 'Notificações',
         description: 'Avisa quando chegar a hora de cada lembrete.',
         permission: Permission.notification,
+        icon: Icons.notifications_active_rounded,
       ),
       (
         title: 'Microfone',
         description: 'Permite responder e criar lembretes por voz.',
         permission: Permission.microphone,
+        icon: Icons.mic_rounded,
       ),
       (
         title: 'Câmera',
         description: 'Permite confirmar medicamentos e identificar itens.',
         permission: Permission.camera,
-      ),
-      (
-        title: 'Localização',
-        description: 'Permite enviar a localização junto de um pedido de SOS.',
-        permission: Permission.locationWhenInUse,
+        icon: Icons.camera_alt_rounded,
       ),
     ];
     if (Platform.isAndroid) {
@@ -77,12 +78,14 @@ class AppPermissionService {
         title: 'Alarmes exatos',
         description: 'Faz os lembretes tocarem no horário correto.',
         permission: Permission.scheduleExactAlarm,
+        icon: Icons.alarm_on_rounded,
       ));
       items.add((
         title: 'Bateria contínua',
         description:
-            'Evita pausas na rádio e atrasos em lembretes com a tela apagada.',
+            'Evita atrasos e garante que os alarmes e lembretes toquem com a tela apagada.',
         permission: Permission.ignoreBatteryOptimizations,
+        icon: Icons.battery_charging_full_rounded,
       ));
     }
     return items;
@@ -97,6 +100,7 @@ class AppPermissionService {
           description: item.description,
           permission: item.permission,
           status: await item.permission.status,
+          icon: item.icon,
         ),
       );
     }

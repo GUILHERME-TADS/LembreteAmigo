@@ -94,4 +94,105 @@ void main() {
     expect(find.text('Remédio tomado!'), findsOneWidget);
     expect(find.byIcon(Icons.check_rounded), findsOneWidget);
   });
+
+  testWidgets('CelestialSkyArc renderiza e possui semântica de horário e período',
+      (tester) async {
+    await tester.pumpWidget(
+      buildTestable(
+        const CelestialSkyArc(),
+      ),
+    );
+
+    expect(find.byType(CelestialSkyArc), findsOneWidget);
+  });
+
+  testWidgets('VoiceSpeedToggle renderiza e responde a toques',
+      (tester) async {
+    await tester.pumpWidget(
+      buildTestable(
+        const VoiceSpeedToggle(),
+      ),
+    );
+
+    expect(find.byType(VoiceSpeedToggle), findsOneWidget);
+    expect(find.textContaining('Falar'), findsOneWidget);
+  });
+
+
+
+  testWidgets('HabitHeatmapWidget renderiza grade de dias e legenda',
+      (tester) async {
+    await tester.pumpWidget(
+      buildTestable(
+        const HabitHeatmapWidget(eventos: []),
+      ),
+    );
+
+    expect(find.byType(HabitHeatmapWidget), findsOneWidget);
+    expect(find.textContaining('Ritmo de Hábitos'), findsOneWidget);
+    expect(find.text('100% em dia'), findsOneWidget);
+  });
+
+  testWidgets('ElderlyScreenMirrorCard renderiza miniatura da tela do idoso',
+      (tester) async {
+    final lembrete = Lembrete(
+      id: 'rem-1',
+      titulo: 'Enalapril 10mg',
+      horarioHour: 8,
+      horarioMinute: 30,
+      categoria: LembreteCategoria.medicacao,
+    );
+
+    await tester.pumpWidget(
+      buildTestable(
+        ElderlyScreenMirrorCard(
+          elderlyName: 'Dona Maria',
+          nextReminder: lembrete,
+          batteryLevel: 90,
+          isOnline: true,
+        ),
+      ),
+    );
+
+    expect(find.textContaining('Visão de Dona Maria'), findsOneWidget);
+    expect(find.text('Enalapril 10mg'), findsOneWidget);
+    expect(find.textContaining('90%'), findsOneWidget);
+  });
+
+  testWidgets('MedicationScannerSheet renderiza título e botões de captura',
+      (tester) async {
+    await tester.pumpWidget(
+      buildTestable(
+        const MedicationScannerSheet(),
+      ),
+    );
+
+    expect(find.text('Reconhecer Remédio por IA'), findsOneWidget);
+    expect(find.text('Tirar Foto 📸'), findsOneWidget);
+    expect(find.text('Galeria 🖼️'), findsOneWidget);
+  });
+
+  testWidgets('CallingFeedbackDialog renderiza nome e botão de cancelar',
+      (tester) async {
+    bool callConfirmed = false;
+
+    await tester.pumpWidget(
+      buildTestable(
+        CallingFeedbackDialog(
+          contactName: 'Filha Ana',
+          callTypeLabel: 'Vídeo Familiar',
+          onCallConfirmed: () => callConfirmed = true,
+        ),
+      ),
+    );
+
+    expect(find.text('Filha Ana'), findsOneWidget);
+    expect(find.text('Vídeo Familiar'), findsOneWidget);
+    expect(find.text('Chamando agora...'), findsOneWidget);
+    expect(find.text('CANCELAR'), findsOneWidget);
+
+    await tester.tap(find.text('CANCELAR'));
+    await tester.pump();
+    expect(callConfirmed, isFalse);
+  });
 }

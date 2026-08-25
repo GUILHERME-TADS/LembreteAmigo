@@ -546,7 +546,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     try {
       // Salva localmente primeiro
-      await SecureCacheService.instance.writeElderlyProfile(jsonEncode(perfil));
+      await SecureCacheService.instance.writeElderlyProfile(
+        SecureCacheService.safeJsonEncode(perfil),
+      );
 
       // Salva no Firebase de forma confiável
       if (_useFirebase &&
@@ -761,7 +763,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 80),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [

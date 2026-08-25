@@ -341,13 +341,16 @@ class _MedicationConfirmationScreenState
                                             ),
                                           )
                                         : const Icon(Icons.undo, size: 30),
-                                    label: Text(
-                                      _undoing
-                                          ? 'DESFAZENDO...'
-                                          : 'DESFAZER ($_undoSeconds s)',
-                                      style: const TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.w800,
+                                    label: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Text(
+                                        _undoing
+                                            ? 'DESFAZENDO...'
+                                            : 'DESFAZER ($_undoSeconds s)',
+                                        style: const TextStyle(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.w800,
+                                        ),
                                       ),
                                     ),
                                     style: OutlinedButton.styleFrom(
@@ -379,11 +382,14 @@ class _MedicationConfirmationScreenState
                                     );
                                   },
                                   icon: const Icon(Icons.home, size: 36),
-                                  label: const Text(
-                                    'VOLTAR PARA O INÍCIO',
-                                    style: TextStyle(
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.w900,
+                                  label: const FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      'VOLTAR PARA O INÍCIO',
+                                      style: TextStyle(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.w900,
+                                      ),
                                     ),
                                   ),
                                   style: ElevatedButton.styleFrom(

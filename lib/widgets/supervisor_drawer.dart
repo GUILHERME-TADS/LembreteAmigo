@@ -82,7 +82,6 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
       '/care-center',
       '/supervisor-reminders',
       '/medication-stock',
-      '/supervisor-wellbeing',
     ];
 
     if (protectedRoutes.contains(routeName) && !_isConnected) {
@@ -183,79 +182,6 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
                 Opacity(
                   opacity: _isConnected ? 1.0 : 0.4,
                   child: ListTile(
-                    leading: Icon(Icons.task_alt, color: AppColors.primary),
-                    title: const Text(
-                      'Central de Pendências',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    onTap: () => _navigateTo(context, '/care-center'),
-                  ),
-                ),
-                Opacity(
-                  opacity: _isConnected ? 1.0 : 0.4,
-                  child: ListTile(
-                    leading: Icon(
-                      Icons.inventory_2_outlined,
-                      color: AppColors.primary,
-                    ),
-                    title: const Text(
-                      'Estoque de Medicamentos',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    onTap: () => _navigateTo(context, '/medication-stock'),
-                  ),
-                ),
-                Opacity(
-                  opacity: _isConnected ? 1.0 : 0.4,
-                  child: ListTile(
-                    leading: Icon(
-                      Icons.mood_outlined,
-                      color: AppColors.primary,
-                    ),
-                    title: const Text(
-                      'Diário de Bem-estar',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    onTap: () => _navigateTo(context, '/supervisor-wellbeing'),
-                  ),
-                ),
-                ListTile(
-                  leading: Icon(Icons.person_add, color: AppColors.primary),
-                  title: const Text(
-                    'Cadastrar/Emparelhar Idoso',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  onTap: () => _navigateTo(context, '/register-elderly'),
-                ),
-                Opacity(
-                  opacity: _isConnected ? 1.0 : 0.4,
-                  child: ListTile(
-                    leading: Icon(Icons.person, color: AppColors.primary),
-                    title: const Text(
-                      'Editar Dados do Idoso',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    onTap: () => _navigateTo(
-                      context,
-                      '/supervisor-edit-elderly-profile',
-                    ),
-                  ),
-                ),
-                Opacity(
-                  opacity: _isConnected ? 1.0 : 0.4,
-                  child: ListTile(
                     leading: MessageUnreadBadge(
                       child: Icon(Icons.forum, color: AppColors.primary),
                     ),
@@ -288,6 +214,20 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
                 Opacity(
                   opacity: _isConnected ? 1.0 : 0.4,
                   child: ListTile(
+                    leading: Icon(Icons.history, color: AppColors.primary),
+                    title: const Text(
+                      'Histórico de Atividades',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    onTap: () => _navigateTo(context, '/activity-history'),
+                  ),
+                ),
+                Opacity(
+                  opacity: _isConnected ? 1.0 : 0.4,
+                  child: ListTile(
                     leading: Icon(Icons.analytics, color: AppColors.primary),
                     title: const Text(
                       'Relatórios Mensais',
@@ -302,31 +242,44 @@ class _SupervisorDrawerState extends State<SupervisorDrawer> {
                 Opacity(
                   opacity: _isConnected ? 1.0 : 0.4,
                   child: ListTile(
-                    leading: Icon(Icons.favorite, color: AppColors.primary),
+                    leading: Icon(
+                      Icons.inventory_2_outlined,
+                      color: AppColors.primary,
+                    ),
                     title: const Text(
-                      'Efetividade do Tratamento',
+                      'Estoque de Medicamentos',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    onTap: () =>
-                        _navigateTo(context, '/effectiveness-feedback'),
+                    onTap: () => _navigateTo(context, '/medication-stock'),
                   ),
                 ),
                 Opacity(
                   opacity: _isConnected ? 1.0 : 0.4,
                   child: ListTile(
-                    leading: Icon(Icons.history, color: AppColors.primary),
+                    leading: Icon(Icons.person, color: AppColors.primary),
                     title: const Text(
-                      'Histórico de Atividades',
+                      'Dados da Pessoa Idosa',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    onTap: () => _navigateTo(context, '/activity-history'),
+                    onTap: () => _navigateTo(
+                      context,
+                      '/supervisor-edit-elderly-profile',
+                    ),
                   ),
+                ),
+                ListTile(
+                  leading: Icon(Icons.person_add, color: AppColors.primary),
+                  title: const Text(
+                    'Cadastrar/Emparelhar Idoso',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  onTap: () => _navigateTo(context, '/register-elderly'),
                 ),
                 ListTile(
                   leading: Icon(Icons.settings, color: AppColors.primary),

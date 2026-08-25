@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -5,6 +8,22 @@ import 'package:shared_preferences/shared_preferences.dart';
 class SecureCacheService {
   SecureCacheService._();
   static final SecureCacheService instance = SecureCacheService._();
+
+  /// Serializa qualquer objeto ou mapa para JSON de forma segura,
+  /// convertendo automaticamente instâncias do Firestore como [Timestamp] para strings ISO-8601.
+  static String safeJsonEncode(dynamic data) {
+    return jsonEncode(data, toEncodable: _toEncodable);
+  }
+
+  static dynamic _toEncodable(dynamic nonEncodable) {
+    if (nonEncodable is Timestamp) {
+      return nonEncodable.toDate().toIso8601String();
+    }
+    if (nonEncodable is DateTime) {
+      return nonEncodable.toIso8601String();
+    }
+    return nonEncodable.toString();
+  }
 
   final FlutterSecureStorage _secure = const FlutterSecureStorage();
   final Map<String, String> _webSessionCache = <String, String>{};

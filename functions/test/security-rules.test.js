@@ -124,6 +124,8 @@ function validReminder(elderlyId, id) {
     medicamentoEstoque: null,
     medicamentoEstoqueMinimo: null,
     medicamentoUnidadesPorDose: null,
+    medicamentoFormato: null,
+    medicamentoCor: null,
   };
 }
 
@@ -146,26 +148,6 @@ function validMessage(elderlyId, id, senderRole) {
     criadoEm: now(),
     lido: false,
     duracaoSegundos: null,
-  };
-}
-
-/**
- * Builds an immutable wellbeing entry accepted by the strict schema.
- * @param {string} elderlyId
- * @param {string} id
- * @return {Object}
- */
-function validWellbeing(elderlyId, id) {
-  return {
-    id,
-    idosoId: elderlyId,
-    humor: 4,
-    sintomas: ["Sono"],
-    observacao: "Dormi pouco, mas estou bem.",
-    transcricao: "Dormi pouco, mas estou bem.",
-    precisaAjuda: false,
-    createdAt: new Date(),
-    createdBy: elderlyId,
   };
 }
 
@@ -399,6 +381,12 @@ test("reminder update cannot bypass the strict schema", async () => {
       ref.set(validReminder("elderly-a", "reminder-strict")),
   );
   await assertSucceeds(ref.update({status: "adiado"}));
+  await assertSucceeds(ref.update({titulo: "Beber agua agora"}));
+  await assertFails(ref.update({titulo: "x".repeat(201)}));
+  await assertFails(ref.update({horarioHour: 25}));
+  await assertFails(ref.update({categoria: "administrador"}));
+  await assertFails(ref.update({diasSemana: [1, 8]}));
+  await assertFails(ref.update({idosoId: "elderly-b"}));
   await assertFails(ref.update({prioridade: "admin"}));
   await assertFails(ref.update({medicamentoDose: "x".repeat(10000)}));
   await assertFails(ref.update({campoInesperado: true}));
@@ -419,6 +407,12 @@ test("reminders are archived with a typed timestamp", async () => {
     arquivado: true,
     arquivadoEm: now(),
   }));
+  await assertFails(
+      ownerDb.collection("lembretes").doc("archive-create-invalid").set({
+        ...validReminder("elderly-a", "archive-create-invalid"),
+        arquivado: true,
+      }),
+  );
   await assertFails(invalidRef.update({arquivado: true}));
   await assertFails(archivedRef.delete());
 });
@@ -565,12 +559,47 @@ test("alarm test diagnostics accept only typed fields", async () => {
   const ownerDb = testEnv.authenticatedContext("elderly-a").firestore();
   const ref = ownerDb.collection("device_diagnostics").doc("elderly-a");
   await assertSucceeds(ref.set({
-    barriers: [],
+    barriers: [{
+      type: "lowBattery",
+      severity: "warning",
+      title: "Bateria baixa",
+      message: "Conecte o aparelho ao carregador.",
+      detectedAt: now(),
+      priority: 70,
+      value: 15,
+    }],
     updatedAt: now(),
     lastAlarmTestAt: now(),
     lastAlarmTestSuccessful: true,
   }));
+  await assertSucceeds(ref.update({
+    batteryLevel: 85,
+    updatedAt: now(),
+  }));
   await assertFails(ref.update({lastAlarmTestSuccessful: "yes"}));
+  await assertFails(ref.update({unexpectedAdminFlag: true}));
+  await assertFails(ref.update({
+    barriers: [{
+      type: "lowBattery",
+      severity: "warning",
+      title: "Bateria baixa",
+      message: "Conecte o aparelho ao carregador.",
+      detectedAt: now(),
+      priority: 70,
+      value: 15,
+      arbitraryPayload: "x".repeat(5000),
+    }],
+  }));
+});
+
+test("unused health metrics remain server-only", async () => {
+  const ownerDb = testEnv.authenticatedContext("elderly-a").firestore();
+  await assertFails(
+      ownerDb.collection("health_metrics").doc("elderly-a").set({
+        metrics: {heartRate: 72},
+        updatedAt: now(),
+      }),
+  );
 });
 
 test("message sender roles cannot be forged", async () => {
@@ -598,64 +627,6 @@ test("video calls reject a mismatched supervisor identity", async () => {
         initiatedBy: "elderly",
         callType: "video",
         startedAt: now(),
-      }),
-  );
-});
-
-test("wellbeing entries are scoped and immutable", async () => {
-  const ownerDb = testEnv.authenticatedContext("elderly-a").firestore();
-  const ref = ownerDb.collection("bem_estar_registros").doc("checkin-a");
-  await assertSucceeds(ref.set(validWellbeing("elderly-a", "checkin-a")));
-
-  const caregiverDb =
-    testEnv.authenticatedContext("supervisor-a").firestore();
-  await assertSucceeds(
-      caregiverDb.collection("bem_estar_registros").doc("checkin-a").get(),
-  );
-  await assertSucceeds(
-      caregiverDb.collection("bem_estar_registros")
-          .where("idosoId", "==", "elderly-a")
-          .get(),
-  );
-
-  const attackerDb =
-    testEnv.authenticatedContext("supervisor-b").firestore();
-  await assertFails(
-      attackerDb.collection("bem_estar_registros").doc("checkin-a").get(),
-  );
-  await assertFails(ref.update({humor: 1}));
-  await assertFails(ref.delete());
-});
-
-test("caregivers cannot forge wellbeing entries", async () => {
-  const caregiverDb =
-    testEnv.authenticatedContext("supervisor-a").firestore();
-  await assertFails(
-      caregiverDb.collection("bem_estar_registros").doc("forged").set({
-        ...validWellbeing("elderly-a", "forged"),
-        createdBy: "supervisor-a",
-      }),
-  );
-});
-
-test("wellbeing schema rejects unexpected and oversized values", async () => {
-  const ownerDb = testEnv.authenticatedContext("elderly-a").firestore();
-  await assertFails(
-      ownerDb.collection("bem_estar_registros").doc("extra-field").set({
-        ...validWellbeing("elderly-a", "extra-field"),
-        admin: true,
-      }),
-  );
-  await assertFails(
-      ownerDb.collection("bem_estar_registros").doc("bad-symptom").set({
-        ...validWellbeing("elderly-a", "bad-symptom"),
-        sintomas: ["x".repeat(10000)],
-      }),
-  );
-  await assertFails(
-      ownerDb.collection("bem_estar_registros").doc("bad-note").set({
-        ...validWellbeing("elderly-a", "bad-note"),
-        observacao: "x".repeat(1001),
       }),
   );
 });
@@ -791,4 +762,177 @@ test("generic or missing media MIME types are rejected", async () => {
       ),
   );
 });
+
+test(
+    "an owner can create a full Flutter-generated reminder payload",
+    async () => {
+      const ownerDb = testEnv.authenticatedContext("elderly-a").firestore();
+      const reminderId = "1787407613304";
+      const flutterPayload = {
+        id: reminderId,
+        titulo: "Tomar Remedio",
+        horarioHour: 14,
+        horarioMinute: 30,
+        originalHorarioHour: null,
+        originalHorarioMinute: null,
+        categoria: "medicacao",
+        audioPath: null,
+        concluido: false,
+        concluidoComFoto: false,
+        criadoEm: new Date().toISOString(),
+        medicamentoFotoPath: null,
+        idosoId: "elderly-a",
+        status: "pendente",
+        repeteTodosOsDias: true,
+        recorrenciaSemanal: false,
+        recorrenciaMensal: false,
+        recorrenciaIntervalo: false,
+        lembreteUnico: false,
+        diasSemana: [1, 2, 3, 4, 5, 6, 7],
+        diaMes: null,
+        intervaloHoras: null,
+        recorrencia: "diario",
+        dataInicio: "2026-08-22T00:00:00.000",
+        dataFim: null,
+        isUsoContinuo: true,
+        medicamentoInstrucoes: null,
+        medicamentoAudioTexto: null,
+        prioridade: "normal",
+        toleranciaMinutos: 15,
+        intervaloRepeticaoMinutos: 5,
+        maximoRepeticoes: 3,
+        avisarCuidador: true,
+        medicamentoDose: "50mg",
+        medicamentoUnidade: "comprimido",
+        medicamentoEstoque: 30,
+        medicamentoEstoqueMinimo: 5,
+        medicamentoUnidadesPorDose: 1.0,
+        modoConfirmacao: "simples",
+        opcoesAdiamentoMinutos: [5, 10, 15],
+        maximoAdiamentos: 2,
+      };
+
+      await assertSucceeds(
+          ownerDb.collection("lembretes").doc(reminderId)
+              .set(flutterPayload, {merge: true}),
+      );
+    });
+
+test("an owner can create voice reminder with single date", async () => {
+  const ownerDb = testEnv.authenticatedContext("elderly-a").firestore();
+  const reminderId = "1787407613305";
+  const voicePayload = {
+    id: reminderId,
+    titulo: "Comprar pão",
+    horarioHour: 9,
+    horarioMinute: 0,
+    originalHorarioHour: null,
+    originalHorarioMinute: null,
+    categoria: "personalizado",
+    audioPath: null,
+    concluido: false,
+    concluidoComFoto: false,
+    criadoEm: new Date().toISOString(),
+    medicamentoFotoPath: null,
+    idosoId: "elderly-a",
+    status: "pendente",
+    repeteTodosOsDias: false,
+    recorrenciaSemanal: false,
+    recorrenciaMensal: false,
+    recorrenciaIntervalo: false,
+    lembreteUnico: true,
+    diasSemana: [],
+    diaMes: null,
+    intervaloHoras: null,
+    recorrencia: "unico",
+    dataInicio: "2026-08-22T00:00:00.000",
+    dataFim: "2026-08-22T00:00:00.000",
+    isUsoContinuo: false,
+    medicamentoInstrucoes: null,
+    medicamentoAudioTexto: null,
+    prioridade: "normal",
+    toleranciaMinutos: 15,
+    intervaloRepeticaoMinutos: 5,
+    maximoRepeticoes: 3,
+    avisarCuidador: true,
+    medicamentoDose: null,
+    medicamentoUnidade: null,
+    medicamentoEstoque: null,
+    medicamentoEstoqueMinimo: null,
+    medicamentoUnidadesPorDose: null,
+    modoConfirmacao: "simples",
+    opcoesAdiamentoMinutos: [5, 10, 15],
+    maximoAdiamentos: 2,
+  };
+
+  await assertSucceeds(
+      ownerDb.collection("lembretes").doc(reminderId)
+          .set(voicePayload, {merge: true}),
+  );
+});
+
+test(
+    "supervisor creates reminder for an elderly user with a legacy profile",
+    async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        const db = context.firestore();
+        await db.collection("idoso_perfil").doc("elderly-legacy").set({
+          nome: "Pessoa Legado",
+          status: "active",
+          supervisorId: "supervisor-legacy",
+        });
+      });
+
+      const supDb =
+        testEnv.authenticatedContext("supervisor-legacy").firestore();
+      const reminderId = "1787407613306";
+      const payload = {
+        id: reminderId,
+        titulo: "Tomar Agua",
+        horarioHour: 8,
+        horarioMinute: 0,
+        originalHorarioHour: null,
+        originalHorarioMinute: null,
+        categoria: "hidratacao",
+        audioPath: null,
+        concluido: false,
+        concluidoComFoto: false,
+        criadoEm: new Date().toISOString(),
+        medicamentoFotoPath: null,
+        idosoId: "elderly-legacy",
+        status: "pendente",
+        repeteTodosOsDias: true,
+        recorrenciaSemanal: false,
+        recorrenciaMensal: false,
+        recorrenciaIntervalo: false,
+        lembreteUnico: false,
+        diasSemana: [1, 2, 3, 4, 5, 6, 7],
+        diaMes: null,
+        intervaloHoras: null,
+        recorrencia: "diario",
+        dataInicio: "2026-08-22T00:00:00.000",
+        dataFim: null,
+        isUsoContinuo: true,
+        medicamentoInstrucoes: null,
+        medicamentoAudioTexto: null,
+        prioridade: "normal",
+        toleranciaMinutos: 15,
+        intervaloRepeticaoMinutos: 5,
+        maximoRepeticoes: 3,
+        avisarCuidador: true,
+        medicamentoDose: null,
+        medicamentoUnidade: null,
+        medicamentoEstoque: null,
+        medicamentoEstoqueMinimo: null,
+        medicamentoUnidadesPorDose: null,
+        modoConfirmacao: "simples",
+        opcoesAdiamentoMinutos: [5, 10, 15],
+        maximoAdiamentos: 2,
+      };
+
+      await assertSucceeds(
+          supDb.collection("lembretes").doc(reminderId)
+              .set(payload, {merge: true}),
+      );
+    });
 

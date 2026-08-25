@@ -113,13 +113,16 @@ class RegistrationSuccessScreen extends StatelessWidget {
                         (route) => false,
                       ),
                       icon: const Icon(Icons.dashboard),
-                      label: const Text(
-                        'Ir para o Painel',
-                        maxLines: 2,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w700,
+                      label: const FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          'Ir para o Painel',
+                          maxLines: 1,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                       style: ElevatedButton.styleFrom(

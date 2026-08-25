@@ -3,8 +3,8 @@ rules_version = '2';
 // Assumed private data model:
 // - idoso_perfil/idosos: elderly PII plus server-controlled caregiver network.
 // - supervisores: caregiver PII; only the owner or a linked elderly user reads it.
-// - lembretes, lembrete_eventos, mensagens, video_calls, alertas,
-//   bem_estar_registros and estoque_movimentos: scoped by idosoId.
+// - lembretes, lembrete_eventos, mensagens, video_calls, alertas
+//   and estoque_movimentos: scoped by idosoId.
 // - device_diagnostics and health_metrics: keyed by elderly UID.
 // - alert writes, stock movements, pairing codes/state, rate limits and barcode
 //   reference data are server-only.
@@ -38,7 +38,7 @@ service cloud.firestore {
 
     function profileCanManage(data, caregiverId) {
       return data.get('supervisorId', null) == caregiverId ||
-        data.caregiverRoles[caregiverId] in [
+        data.get(['caregiverRoles', caregiverId], '') in [
           'primary',
           'backup',
           'family'
@@ -47,22 +47,19 @@ service cloud.firestore {
 
     function isLinkedSupervisor(elderlyId) {
       let profile = canonicalProfile(elderlyId);
-      return isAuth() &&
-        profile.status == 'active' &&
+      return profile.status == 'active' &&
         profileHasCaregiver(profile, request.auth.uid);
     }
 
     function isManagingSupervisor(elderlyId) {
       let profile = canonicalProfile(elderlyId);
-      return isAuth() &&
-        profile.status == 'active' &&
+      return profile.status == 'active' &&
         profileCanManage(profile, request.auth.uid);
     }
 
     function isLinkedElderly(supervisorId) {
       let profile = canonicalProfile(request.auth.uid);
-      return isAuth() &&
-        profile.status == 'active' &&
+      return profile.status == 'active' &&
         profileHasCaregiver(profile, supervisorId);
     }
 
@@ -118,26 +115,19 @@ service cloud.firestore {
       return value == null || value is bool;
     }
 
-    function isOptionalDate(data, field) {
-      let value = data.get(field, null);
-      return value == null ||
-        value is timestamp ||
-        (
-          value is string &&
-          value.size() >= 20 &&
-          value.size() <= 40 &&
-          value.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}T.*$')
-        );
-    }
-
     function isDate(value) {
       return value is timestamp ||
         (
           value is string &&
-          value.size() >= 20 &&
+          value.size() >= 10 &&
           value.size() <= 40 &&
-          value.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}T.*$')
+          value.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}.*$')
         );
+    }
+
+    function isOptionalDate(data, field) {
+      let value = data.get(field, null);
+      return value == null || isDate(value);
     }
 
     function validReminderStatus(value) {
@@ -163,13 +153,28 @@ service cloud.firestore {
       ];
     }
 
-    function validReminder(data) {
-      let confirmationMode = data.get('modoConfirmacao', 'simples');
-      let snoozeOptions = data.get('opcoesAdiamentoMinutos', [5, 10, 15]);
-      let reminderStatus = data.status;
-      let isCompleted = data.concluido;
-      let isCompletedWithPhoto = data.concluidoComFoto;
-      let priority = data.get('prioridade', 'normal');
+    function isOptString(val, maxLen) {
+      return val == null || (val is string && val.size() <= maxLen);
+    }
+
+    function isOptInt(val, minV, maxV) {
+      return val == null || (val is int && val >= minV && val <= maxV);
+    }
+
+    function isOptNum(val, minV, maxV) {
+      return val == null || (val is number && val >= minV && val <= maxV);
+    }
+
+    function isOptBool(val) {
+      return val == null || val is bool;
+    }
+
+    function isOptDate(val) {
+      return val == null || isDate(val);
+    }
+
+    function validReminderCore(data) {
+      let st = data.status;
       return data.keys().hasOnly([
         'id',
         'titulo',
@@ -209,202 +214,231 @@ service cloud.firestore {
         'medicamentoEstoque',
         'medicamentoEstoqueMinimo',
         'medicamentoUnidadesPorDose',
-        'modoConfirmacao',
-        'opcoesAdiamentoMinutos',
-        'maximoAdiamentos'
-      ]) &&
-      data.keys().hasAll([
-        'id',
-        'titulo',
-        'horarioHour',
-        'horarioMinute',
-        'categoria',
-        'idosoId',
-        'status',
-        'concluido',
-        'concluidoComFoto',
-        'criadoEm'
-      ]) &&
-      isNonEmptyString(data.id, 128) &&
-      isNonEmptyString(data.titulo, 200) &&
-      data.horarioHour is int &&
-      data.horarioHour >= 0 &&
-      data.horarioHour <= 23 &&
-      data.horarioMinute is int &&
-      data.horarioMinute >= 0 &&
-      data.horarioMinute <= 59 &&
-      isNonEmptyString(data.idosoId, 128) &&
-      data.categoria is string &&
-      validCategory(data.categoria) &&
-      reminderStatus is string &&
-      validReminderStatus(reminderStatus) &&
-      isCompleted is bool &&
-      isCompletedWithPhoto is bool &&
-      isDate(data.criadoEm) &&
-      isOptionalInt(data, 'originalHorarioHour', 0, 23) &&
-      isOptionalInt(data, 'originalHorarioMinute', 0, 59) &&
-      isOptionalString(data, 'audioPath', 2048) &&
-      isOptionalString(data, 'medicamentoFotoPath', 2048) &&
-      isOptionalString(data, 'recorrencia', 30) &&
-      isOptionalString(data, 'medicamentoInstrucoes', 1000) &&
-      isOptionalString(data, 'medicamentoAudioTexto', 1000) &&
-      priority in [
-        'normal',
-        'importante',
-        'critica'
-      ] &&
-      isOptionalInt(data, 'toleranciaMinutos', 1, 1440) &&
-      isOptionalInt(data, 'intervaloRepeticaoMinutos', 1, 120) &&
-      isOptionalInt(data, 'maximoRepeticoes', 0, 10) &&
-      isOptionalBool(data, 'avisarCuidador') &&
-      isOptionalString(data, 'medicamentoDose', 40) &&
-      isOptionalString(data, 'medicamentoUnidade', 30) &&
-      isOptionalInt(data, 'medicamentoEstoque', 0, 1000000) &&
-      isOptionalInt(data, 'medicamentoEstoqueMinimo', 0, 1000000) &&
-      isOptionalNumber(data, 'medicamentoUnidadesPorDose', 0.01, 10000) &&
-      confirmationMode in [
-        'simples',
-        'voz_ou_botao',
-        'foto',
-        'cuidador'
-      ] &&
-      snoozeOptions is list &&
-      snoozeOptions.size() >= 1 &&
-      snoozeOptions.size() <= 4 &&
-      snoozeOptions.toSet().size() == snoozeOptions.size() &&
-      snoozeOptions.toSet().hasOnly([
-        5,
-        10,
-        15,
-        30
-      ]) &&
-      isOptionalInt(data, 'maximoAdiamentos', 0, 5) &&
-      isCompleted == (
-        reminderStatus in [
-          'concluido',
-          'concluido_com_foto',
-          'confirmado_pelo_cuidador'
-        ]
-      ) &&
-      isCompletedWithPhoto == (reminderStatus == 'concluido_com_foto') &&
-      (
-        confirmationMode != 'foto' ||
-        !isCompleted ||
-        (
-          reminderStatus == 'concluido_com_foto' &&
-          isNonEmptyString(data.medicamentoFotoPath, 2048) &&
-          data.medicamentoFotoPath.matches('^https://.*$')
-        )
-      ) &&
-      (
-        confirmationMode != 'cuidador' ||
-        !isCompleted ||
-        reminderStatus == 'confirmado_pelo_cuidador'
-      ) &&
-      isOptionalBool(data, 'repeteTodosOsDias') &&
-      isOptionalBool(data, 'recorrenciaSemanal') &&
-      isOptionalBool(data, 'recorrenciaMensal') &&
-      isOptionalBool(data, 'recorrenciaIntervalo') &&
-      isOptionalBool(data, 'lembreteUnico') &&
-      isOptionalBool(data, 'isUsoContinuo') &&
-      (
-        data.get('diasSemana', null) == null ||
-        (
-          data.get('diasSemana', null) is list &&
-          data.get('diasSemana', null).size() <= 7
-        )
-      ) &&
-      isOptionalInt(data, 'diaMes', 1, 31) &&
-      isOptionalInt(data, 'intervaloHoras', 1, 24) &&
-      isOptionalDate(data, 'dataInicio') &&
-      isOptionalDate(data, 'dataFim');
-    }
-
-    function validReminderUpdate() {
-      let data = request.resource.data;
-      let changed = data.diff(resource.data).affectedKeys();
-      let confirmationMode = data.get('modoConfirmacao', 'simples');
-      let snoozeOptions = data.get('opcoesAdiamentoMinutos', [5, 10, 15]);
-      return changed.hasOnly([
-        'titulo',
-        'horarioHour',
-        'horarioMinute',
-        'originalHorarioHour',
-        'originalHorarioMinute',
-        'categoria',
-        'audioPath',
-        'concluido',
-        'concluidoComFoto',
-        'medicamentoFotoPath',
-        'status',
-        'repeteTodosOsDias',
-        'recorrenciaSemanal',
-        'recorrenciaMensal',
-        'recorrenciaIntervalo',
-        'lembreteUnico',
-        'diasSemana',
-        'diaMes',
-        'intervaloHoras',
-        'recorrencia',
-        'dataInicio',
-        'dataFim',
-        'isUsoContinuo',
-        'medicamentoInstrucoes',
-        'medicamentoAudioTexto',
-        'prioridade',
-        'toleranciaMinutos',
-        'intervaloRepeticaoMinutos',
-        'maximoRepeticoes',
-        'avisarCuidador',
-        'medicamentoDose',
-        'medicamentoUnidade',
-        'medicamentoEstoque',
-        'medicamentoEstoqueMinimo',
-        'medicamentoUnidadesPorDose',
+        'medicamentoFormato',
+        'medicamentoCor',
         'modoConfirmacao',
         'opcoesAdiamentoMinutos',
         'maximoAdiamentos',
         'arquivado',
         'arquivadoEm'
       ]) &&
+      data.keys().hasAll(['id', 'titulo', 'horarioHour', 'horarioMinute', 'categoria', 'idosoId', 'status', 'concluido', 'criadoEm']) &&
+      isNonEmptyString(data.id, 128) &&
+      isNonEmptyString(data.titulo, 200) &&
+      data.horarioHour is int && data.horarioHour >= 0 && data.horarioHour <= 23 &&
+      data.horarioMinute is int && data.horarioMinute >= 0 && data.horarioMinute <= 59 &&
+      isNonEmptyString(data.idosoId, 128) &&
+      data.categoria in ['medicacao', 'refeicoes', 'exercicio', 'hidratacao', 'consulta', 'personalizado'] &&
+      st in ['pendente', 'concluido', 'concluido_com_foto', 'adiado', 'perdido', 'precisa_de_ajuda', 'confirmado_pelo_cuidador'] &&
+      data.concluido is bool &&
+      data.concluidoComFoto is bool &&
+      isDate(data.criadoEm) &&
+      data.concluido == (st in ['concluido', 'concluido_com_foto', 'confirmado_pelo_cuidador']) &&
+      data.concluidoComFoto == (st == 'concluido_com_foto');
+    }
+
+    function validReminderConfig(data) {
+      let mode = data.get('modoConfirmacao', 'simples');
+      let snooze = data.get('opcoesAdiamentoMinutos', [5, 10, 15]);
+      let foto = data.get('medicamentoFotoPath', null);
+      let st = data.status;
+      return (data.get('prioridade', 'normal') in ['normal', 'importante', 'critica']) &&
+        (mode in ['simples', 'voz_ou_botao', 'foto', 'cuidador']) &&
+        (snooze is list && snooze.size() >= 1 && snooze.size() <= 4 && snooze.hasOnly([5, 10, 15, 30])) &&
+        isOptInt(data.get('toleranciaMinutos', null), 1, 1440) &&
+        isOptInt(data.get('intervaloRepeticaoMinutos', null), 1, 120) &&
+        isOptInt(data.get('maximoRepeticoes', null), 0, 10) &&
+        isOptInt(data.get('maximoAdiamentos', null), 0, 5) &&
+        isOptBool(data.get('avisarCuidador', null)) &&
+        (
+          mode != 'foto' ||
+          !data.concluido ||
+          (
+            st == 'concluido_com_foto' &&
+            foto is string &&
+            foto.size() <= 2048 &&
+            foto.matches('^https://.*$')
+          )
+        ) &&
+        (
+          mode != 'cuidador' ||
+          !data.concluido ||
+          st == 'confirmado_pelo_cuidador'
+        );
+    }
+
+    function validReminderSchedule(data) {
+      let dias = data.get('diasSemana', null);
+      return (
+          dias == null ||
+          (dias is list && dias.size() <= 7 && dias.hasOnly([1, 2, 3, 4, 5, 6, 7]))
+        ) &&
+        isOptDate(data.get('dataInicio', null)) &&
+        isOptDate(data.get('dataFim', null)) &&
+        isOptInt(data.get('originalHorarioHour', null), 0, 23) &&
+        isOptInt(data.get('originalHorarioMinute', null), 0, 59) &&
+        isOptString(data.get('recorrencia', null), 30) &&
+        isOptInt(data.get('diaMes', null), 1, 31) &&
+        isOptInt(data.get('intervaloHoras', null), 1, 24) &&
+        isOptBool(data.get('repeteTodosOsDias', null)) &&
+        isOptBool(data.get('recorrenciaSemanal', null)) &&
+        isOptBool(data.get('recorrenciaMensal', null)) &&
+        isOptBool(data.get('recorrenciaIntervalo', null)) &&
+        isOptBool(data.get('lembreteUnico', null)) &&
+        isOptBool(data.get('isUsoContinuo', null));
+    }
+
+    function validReminderMedication(data) {
+      return isOptString(data.get('medicamentoDose', null), 40) &&
+        isOptString(data.get('medicamentoUnidade', null), 30) &&
+        isOptInt(data.get('medicamentoEstoque', null), 0, 1000000) &&
+        isOptInt(data.get('medicamentoEstoqueMinimo', null), 0, 1000000) &&
+        isOptNum(data.get('medicamentoUnidadesPorDose', null), 0.01, 10000) &&
+        isOptString(data.get('medicamentoInstrucoes', null), 1000) &&
+        isOptString(data.get('medicamentoAudioTexto', null), 1000) &&
+        isOptString(data.get('audioPath', null), 2048) &&
+        isOptString(data.get('medicamentoFotoPath', null), 2048) &&
+        isOptString(data.get('medicamentoFormato', null), 50) &&
+        isOptString(data.get('medicamentoCor', null), 50);
+    }
+
+    function validReminderArchive(data) {
+      let archived = data.get('arquivado', false);
+      let archivedAt = data.get('arquivadoEm', null);
+      return archived is bool &&
+        isOptDate(archivedAt) &&
+        (!archived || isDate(archivedAt));
+    }
+
+    function validReminder(data) {
+      return validReminderCore(data) &&
+        validReminderConfig(data) &&
+        validReminderSchedule(data) &&
+        validReminderMedication(data) &&
+        validReminderArchive(data);
+    }
+
+    function validReminderUpdate() {
+      let data = request.resource.data;
+      let changed = data.diff(resource.data).affectedKeys();
+      let st = data.status;
+      let mode = data.get('modoConfirmacao', 'simples');
+      let currentMode = resource.data.get('modoConfirmacao', 'simples');
+      return resource != null &&
+        resource.data != null &&
+        data.keys().hasOnly([
+          'id',
+          'titulo',
+          'horarioHour',
+          'horarioMinute',
+          'originalHorarioHour',
+          'originalHorarioMinute',
+          'categoria',
+          'audioPath',
+          'concluido',
+          'concluidoComFoto',
+          'criadoEm',
+          'medicamentoFotoPath',
+          'idosoId',
+          'status',
+          'repeteTodosOsDias',
+          'recorrenciaSemanal',
+          'recorrenciaMensal',
+          'recorrenciaIntervalo',
+          'lembreteUnico',
+          'diasSemana',
+          'diaMes',
+          'intervaloHoras',
+          'recorrencia',
+          'dataInicio',
+          'dataFim',
+          'isUsoContinuo',
+          'medicamentoInstrucoes',
+          'medicamentoAudioTexto',
+          'prioridade',
+          'toleranciaMinutos',
+          'intervaloRepeticaoMinutos',
+          'maximoRepeticoes',
+          'avisarCuidador',
+          'medicamentoDose',
+          'medicamentoUnidade',
+          'medicamentoEstoque',
+          'medicamentoEstoqueMinimo',
+          'medicamentoUnidadesPorDose',
+          'medicamentoFormato',
+          'medicamentoCor',
+          'modoConfirmacao',
+          'opcoesAdiamentoMinutos',
+          'maximoAdiamentos',
+          'arquivado',
+          'arquivadoEm'
+        ]) &&
+        data.keys().hasAll([
+          'id',
+          'titulo',
+          'horarioHour',
+          'horarioMinute',
+          'categoria',
+          'idosoId',
+          'status',
+          'concluido',
+          'criadoEm'
+        ]) &&
+        !changed.hasAny(['id', 'idosoId', 'criadoEm']) &&
         (
           !changed.hasAny(['titulo']) ||
           isNonEmptyString(data.titulo, 200)
         ) &&
         (
-          !changed.hasAny([
-            'horarioHour',
-            'horarioMinute',
-            'originalHorarioHour',
-            'originalHorarioMinute'
-          ]) ||
+          !changed.hasAny(['horarioHour', 'horarioMinute']) ||
           (
             data.horarioHour is int &&
             data.horarioHour >= 0 &&
             data.horarioHour <= 23 &&
             data.horarioMinute is int &&
             data.horarioMinute >= 0 &&
-            data.horarioMinute <= 59 &&
-            isOptionalInt(data, 'originalHorarioHour', 0, 23) &&
-            isOptionalInt(data, 'originalHorarioMinute', 0, 59)
+            data.horarioMinute <= 59
           )
         ) &&
         (
           !changed.hasAny(['categoria']) ||
-          (
-            data.categoria is string &&
-            validCategory(data.categoria)
-          )
+          validCategory(data.categoria)
         ) &&
         (
-          !changed.hasAny(['audioPath', 'medicamentoFotoPath']) ||
+          !changed.hasAny(['status', 'concluido', 'concluidoComFoto']) ||
           (
-            isOptionalString(data, 'audioPath', 2048) &&
-            isOptionalString(data, 'medicamentoFotoPath', 2048)
+            validReminderStatus(st) &&
+            data.concluido is bool &&
+            data.concluidoComFoto is bool &&
+            data.concluido == (st in [
+              'concluido',
+              'concluido_com_foto',
+              'confirmado_pelo_cuidador'
+            ]) &&
+            data.concluidoComFoto == (st == 'concluido_com_foto')
           )
         ) &&
         (
           !changed.hasAny([
+            'prioridade',
+            'modoConfirmacao',
+            'opcoesAdiamentoMinutos',
+            'toleranciaMinutos',
+            'intervaloRepeticaoMinutos',
+            'maximoRepeticoes',
+            'maximoAdiamentos',
+            'avisarCuidador',
+            'medicamentoFotoPath',
+            'status',
+            'concluido',
+            'concluidoComFoto'
+          ]) ||
+          validReminderConfig(data)
+        ) &&
+        (
+          !changed.hasAny([
+            'originalHorarioHour',
+            'originalHorarioMinute',
             'repeteTodosOsDias',
             'recorrenciaSemanal',
             'recorrenciaMensal',
@@ -418,131 +452,38 @@ service cloud.firestore {
             'dataFim',
             'isUsoContinuo'
           ]) ||
-          (
-            isOptionalBool(data, 'repeteTodosOsDias') &&
-            isOptionalBool(data, 'recorrenciaSemanal') &&
-            isOptionalBool(data, 'recorrenciaMensal') &&
-            isOptionalBool(data, 'recorrenciaIntervalo') &&
-            isOptionalBool(data, 'lembreteUnico') &&
-            isOptionalBool(data, 'isUsoContinuo') &&
-            (
-              data.get('diasSemana', null) == null ||
-              (
-                data.diasSemana is list &&
-                data.diasSemana.size() <= 7
-              )
-            ) &&
-            isOptionalInt(data, 'diaMes', 1, 31) &&
-            isOptionalInt(data, 'intervaloHoras', 1, 24) &&
-            isOptionalString(data, 'recorrencia', 30) &&
-            isOptionalDate(data, 'dataInicio') &&
-            isOptionalDate(data, 'dataFim')
-          )
+          validReminderSchedule(data)
         ) &&
         (
           !changed.hasAny([
-            'medicamentoInstrucoes',
-            'medicamentoAudioTexto',
             'medicamentoDose',
             'medicamentoUnidade',
             'medicamentoEstoque',
             'medicamentoEstoqueMinimo',
-            'medicamentoUnidadesPorDose'
+            'medicamentoUnidadesPorDose',
+            'medicamentoInstrucoes',
+            'medicamentoAudioTexto',
+            'audioPath',
+            'medicamentoFotoPath',
+            'medicamentoFormato',
+            'medicamentoCor'
           ]) ||
-          (
-            isOptionalString(data, 'medicamentoInstrucoes', 1000) &&
-            isOptionalString(data, 'medicamentoAudioTexto', 1000) &&
-            isOptionalString(data, 'medicamentoDose', 40) &&
-            isOptionalString(data, 'medicamentoUnidade', 30) &&
-            isOptionalInt(data, 'medicamentoEstoque', 0, 1000000) &&
-            isOptionalInt(data, 'medicamentoEstoqueMinimo', 0, 1000000) &&
-            isOptionalNumber(
-              data,
-              'medicamentoUnidadesPorDose',
-              0.01,
-              10000
-            )
-          )
-        ) &&
-        (
-          !changed.hasAny([
-            'prioridade',
-            'toleranciaMinutos',
-            'intervaloRepeticaoMinutos',
-            'maximoRepeticoes',
-            'avisarCuidador',
-            'modoConfirmacao',
-            'opcoesAdiamentoMinutos',
-            'maximoAdiamentos'
-          ]) ||
-          (
-            data.get('prioridade', 'normal') in [
-              'normal',
-              'importante',
-              'critica'
-            ] &&
-            isOptionalInt(data, 'toleranciaMinutos', 1, 1440) &&
-            isOptionalInt(data, 'intervaloRepeticaoMinutos', 1, 120) &&
-            isOptionalInt(data, 'maximoRepeticoes', 0, 10) &&
-            isOptionalBool(data, 'avisarCuidador') &&
-            confirmationMode in [
-              'simples',
-              'voz_ou_botao',
-              'foto',
-              'cuidador'
-            ] &&
-            snoozeOptions is list &&
-            snoozeOptions.size() >= 1 &&
-            snoozeOptions.size() <= 4 &&
-            snoozeOptions.toSet().size() == snoozeOptions.size() &&
-            snoozeOptions.toSet().hasOnly([5, 10, 15, 30]) &&
-            isOptionalInt(data, 'maximoAdiamentos', 0, 5)
-          )
+          validReminderMedication(data)
         ) &&
         (
           !changed.hasAny(['arquivado', 'arquivadoEm']) ||
-          (
-            data.arquivado is bool &&
-            isOptionalDate(data, 'arquivadoEm') &&
-            (
-              !data.arquivado ||
-              isDate(data.arquivadoEm)
-            )
-          )
+          validReminderArchive(data)
         ) &&
-        data.status is string &&
-        validReminderStatus(data.status) &&
-        data.concluido is bool &&
-        data.concluidoComFoto is bool &&
-        data.concluido == (
-          data.status in [
-            'concluido',
-            'concluido_com_foto',
-            'confirmado_pelo_cuidador'
-          ]
-        ) &&
-        data.concluidoComFoto == (data.status == 'concluido_com_foto') &&
         !(
-          confirmationMode in [
-            'foto',
-            'cuidador'
-          ] &&
-          data.concluido &&
-          data.status != resource.data.status
+          currentMode in ['foto', 'cuidador'] &&
+          changed.hasAny(['modoConfirmacao'])
         ) &&
-        (
-          confirmationMode != 'foto' ||
-          !data.concluido ||
+        !(
           (
-            data.status == 'concluido_com_foto' &&
-            isNonEmptyString(data.medicamentoFotoPath, 2048) &&
-            data.medicamentoFotoPath.matches('^https://.*$')
-          )
-        ) &&
-        (
-          confirmationMode != 'cuidador' ||
-          !data.concluido ||
-          data.status == 'confirmado_pelo_cuidador'
+            currentMode in ['foto', 'cuidador'] ||
+            mode in ['foto', 'cuidador']
+          ) &&
+          changed.hasAny(['status', 'concluido', 'concluidoComFoto'])
         );
     }
 
@@ -974,71 +915,6 @@ service cloud.firestore {
         isDate(data.updatedAt);
     }
 
-    function validSymptomAt(symptoms, index) {
-      return symptoms.size() <= index || symptoms[index] in [
-        'Dor',
-        'Tontura',
-        'Enjoo',
-        'Falta de ar',
-        'Sono',
-        'Sem apetite'
-      ];
-    }
-
-    function validWellbeing(data, entryId) {
-      return data.keys().hasOnly([
-        'id',
-        'idosoId',
-        'humor',
-        'sintomas',
-        'observacao',
-        'transcricao',
-        'precisaAjuda',
-        'createdAt',
-        'createdBy'
-      ]) &&
-      data.keys().hasAll([
-        'id',
-        'idosoId',
-        'humor',
-        'sintomas',
-        'observacao',
-        'transcricao',
-        'precisaAjuda',
-        'createdAt',
-        'createdBy'
-      ]) &&
-      data.id == entryId &&
-      isNonEmptyString(data.id, 128) &&
-      isNonEmptyString(data.idosoId, 128) &&
-      data.idosoId == request.auth.uid &&
-      data.createdBy == request.auth.uid &&
-      data.humor is int &&
-      data.humor >= 1 &&
-      data.humor <= 5 &&
-      data.sintomas is list &&
-      data.sintomas.size() <= 12 &&
-      validSymptomAt(data.sintomas, 0) &&
-      validSymptomAt(data.sintomas, 1) &&
-      validSymptomAt(data.sintomas, 2) &&
-      validSymptomAt(data.sintomas, 3) &&
-      validSymptomAt(data.sintomas, 4) &&
-      validSymptomAt(data.sintomas, 5) &&
-      validSymptomAt(data.sintomas, 6) &&
-      validSymptomAt(data.sintomas, 7) &&
-      validSymptomAt(data.sintomas, 8) &&
-      validSymptomAt(data.sintomas, 9) &&
-      validSymptomAt(data.sintomas, 10) &&
-      validSymptomAt(data.sintomas, 11) &&
-      data.observacao is string &&
-      data.observacao.size() <= 1000 &&
-      data.transcricao is string &&
-      data.transcricao.size() <= 1000 &&
-      data.precisaAjuda is bool &&
-      data.createdAt is timestamp &&
-      isNonEmptyString(data.createdBy, 128);
-    }
-
     function validBarrier(barrier) {
       return barrier is map &&
         barrier.keys().hasOnly([
@@ -1050,16 +926,11 @@ service cloud.firestore {
           'priority',
           'value'
         ]) &&
-        barrier.keys().hasAll([
-          'type',
-          'severity',
-          'title',
-          'message',
-          'detectedAt',
-          'priority'
-        ]) &&
+        barrier.keys().hasAll(['type', 'severity', 'title', 'message', 'detectedAt', 'priority']) &&
         barrier.type in [
           'lowVolume',
+          'lowBattery',
+          'batteryOptimization',
           'offline',
           'pendingSync',
           'inactiveApp',
@@ -1072,68 +943,36 @@ service cloud.firestore {
         barrier.priority is int &&
         barrier.priority >= 0 &&
         barrier.priority <= 100 &&
-        (
-          !barrier.keys().hasAny(['value']) ||
-          barrier.value == null ||
-          (
-            barrier.value is int &&
-            barrier.value >= -1000000 &&
-            barrier.value <= 1000000
-          )
-        );
-    }
-
-    function validBarrierAt(barriers, index) {
-      return barriers.size() <= index || validBarrier(barriers[index]);
+        isOptInt(barrier.get('value', null), -1000000, 1000000);
     }
 
     function validDiagnostics(data) {
+      let b = data.barriers;
       return data.keys().hasOnly([
-        'barriers',
-        'criticalCount',
-        'warningCount',
-        'batteryLevel',
-        'batteryState',
-        'lastAlarmTestAt',
-        'lastAlarmTestSuccessful',
-        'updatedAt'
-      ]) &&
-      data.keys().hasAll(['barriers', 'updatedAt']) &&
-      data.barriers is list &&
-      data.barriers.size() <= 5 &&
-      validBarrierAt(data.barriers, 0) &&
-      validBarrierAt(data.barriers, 1) &&
-      validBarrierAt(data.barriers, 2) &&
-      validBarrierAt(data.barriers, 3) &&
-      validBarrierAt(data.barriers, 4) &&
-      isOptionalInt(data, 'criticalCount', 0, 5) &&
-      isOptionalInt(data, 'warningCount', 0, 5) &&
-      isOptionalInt(data, 'batteryLevel', 0, 100) &&
-      isOptionalString(data, 'batteryState', 40) &&
-      isOptionalDate(data, 'lastAlarmTestAt') &&
-      isOptionalBool(data, 'lastAlarmTestSuccessful') &&
-      isDate(data.updatedAt);
-    }
-
-    function validHealthMetrics(data) {
-      return data.keys().hasOnly([
-        'updatedAt',
-        'metrics',
-        'score',
-        'notes'
-      ]) &&
-      data.keys().hasAll(['updatedAt']) &&
-      isDate(data.updatedAt) &&
-      (
-        !data.keys().hasAny(['metrics']) ||
-        data.metrics == null ||
-        (
-          data.metrics is map &&
-          data.metrics.size() <= 20
-        )
-      ) &&
-      isOptionalNumber(data, 'score', 0, 100) &&
-      isOptionalString(data, 'notes', 1000);
+          'barriers',
+          'criticalCount',
+          'warningCount',
+          'batteryLevel',
+          'batteryState',
+          'lastAlarmTestAt',
+          'lastAlarmTestSuccessful',
+          'updatedAt'
+        ]) &&
+        data.keys().hasAll(['barriers', 'updatedAt']) &&
+        b is list &&
+        b.size() <= 5 &&
+        (b.size() <= 0 || validBarrier(b[0])) &&
+        (b.size() <= 1 || validBarrier(b[1])) &&
+        (b.size() <= 2 || validBarrier(b[2])) &&
+        (b.size() <= 3 || validBarrier(b[3])) &&
+        (b.size() <= 4 || validBarrier(b[4])) &&
+        isOptInt(data.get('criticalCount', null), 0, 5) &&
+        isOptInt(data.get('warningCount', null), 0, 5) &&
+        isOptInt(data.get('batteryLevel', null), 0, 100) &&
+        isOptString(data.get('batteryState', null), 40) &&
+        isOptDate(data.get('lastAlarmTestAt', null)) &&
+        isOptBool(data.get('lastAlarmTestSuccessful', null)) &&
+        isDate(data.updatedAt);
     }
 
     match /idoso_perfil/{elderlyId} {
@@ -1259,9 +1098,9 @@ service cloud.firestore {
 
     match /health_metrics/{elderlyId} {
       allow read: if canAccessElderly(elderlyId);
-      allow create, update: if isOwner(elderlyId) &&
-        validHealthMetrics(request.resource.data);
-      allow delete: if isOwner(elderlyId);
+      // No current client feature writes this collection. Keep it server-only
+      // until a field-level schema is defined for a concrete health feature.
+      allow create, update, delete: if false;
     }
 
     match /device_diagnostics/{elderlyId} {
@@ -1299,17 +1138,6 @@ service cloud.firestore {
         tokenId == 'elderly_' + request.auth.uid ||
         tokenId == 'supervisor_' + request.auth.uid
       );
-    }
-
-    match /bem_estar_registros/{entryId} {
-      allow read: if isAuth() &&
-        resourceHasElderlyId() &&
-        canAccessElderly(resource.data.idosoId);
-      allow create: if isAuth() &&
-        requestHasElderlyId() &&
-        isOwner(request.resource.data.idosoId) &&
-        validWellbeing(request.resource.data, entryId);
-      allow update, delete: if false;
     }
 
     match /estoque_movimentos/{movementId} {

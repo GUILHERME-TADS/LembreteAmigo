@@ -154,7 +154,7 @@ class _SupervisorEditElderlyProfileScreenState
         ..['endereco'] = endereco;
 
       await SecureCacheService.instance.writeElderlyProfile(
-        jsonEncode(sanitized),
+        SecureCacheService.safeJsonEncode(sanitized),
       );
 
       if (_useFirebase) {
@@ -195,7 +195,7 @@ class _SupervisorEditElderlyProfileScreenState
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(
               child: ListView(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 80),
                 children: [
                   _field(
                     controller: _nameController,

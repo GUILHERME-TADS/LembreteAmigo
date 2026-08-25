@@ -102,23 +102,57 @@ class _RequiredPermissionsScreenState extends State<RequiredPermissionsScreen>
                           itemBuilder: (_, index) {
                             final item = _items[index];
                             return Card(
-                              child: ListTile(
-                                leading: Icon(
-                                  item.granted
-                                      ? Icons.check_circle
-                                      : Icons.error_outline,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                side: BorderSide(
                                   color: item.granted
-                                      ? AppColors.success
-                                      : AppColors.error,
-                                  size: 32,
+                                      ? AppColors.success.withValues(alpha: 0.3)
+                                      : AppColors.outlineVariant,
+                                  width: 1.5,
+                                ),
+                              ),
+                              child: ListTile(
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 6,
+                                ),
+                                leading: Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: item.granted
+                                        ? AppColors.successContainer.withValues(alpha: 0.5)
+                                        : AppColors.primaryContainer.withValues(alpha: 0.35),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Icon(
+                                    item.icon,
+                                    color: item.granted
+                                        ? AppColors.success
+                                        : AppColors.primary,
+                                    size: 26,
+                                  ),
                                 ),
                                 title: Text(
                                   item.title,
                                   style: const TextStyle(
-                                    fontWeight: FontWeight.w700,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 16,
                                   ),
                                 ),
-                                subtitle: Text(item.description),
+                                subtitle: Text(
+                                  item.description,
+                                  style: const TextStyle(fontSize: 13, height: 1.3),
+                                ),
+                                trailing: Icon(
+                                  item.granted
+                                      ? Icons.check_circle_rounded
+                                      : Icons.radio_button_unchecked_rounded,
+                                  color: item.granted
+                                      ? AppColors.success
+                                      : AppColors.outlineVariant,
+                                  size: 28,
+                                ),
                               ),
                             );
                           },

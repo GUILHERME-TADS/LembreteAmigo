@@ -644,7 +644,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
           crossAxisAlignment: CrossAxisAlignment.end,
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (message.tipo == 'audio' && message.audioPath != null)
+            if (message.tipo == 'audio' && message.audioPath != null) ...[
               AudioPlayerCard(
                 key: ValueKey(message.id),
                 audioPath: message.audioPath,
@@ -654,7 +654,45 @@ class _MessagesScreenState extends State<MessagesScreen> {
                 defaultDuration: Duration(
                   seconds: message.duracaoSegundos ?? 0,
                 ),
-              )
+              ),
+              if (message.texto.isNotEmpty &&
+                  message.texto != 'Áudio gravado' &&
+                  message.texto != 'Mensagem de voz' &&
+                  message.texto != 'Gravação de voz') ...[
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: bubbleColor.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: AppColors.outlineVariant.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.notes_rounded,
+                        size: 14,
+                        color: AppColors.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          message.texto,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontStyle: FontStyle.italic,
+                            color: textColor,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ]
             else if (message.tipo == 'localizacao' && message.audioPath != null)
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

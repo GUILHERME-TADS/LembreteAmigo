@@ -94,11 +94,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                                 ),
                               )
                             : const Icon(Icons.chevron_right),
-                        label: Text(
-                          _isLoading ? 'Enviando...' : 'Enviar Link',
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w700,
+                        label: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            _isLoading ? 'Enviando...' : 'Enviar Link',
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
                         style: ElevatedButton.styleFrom(

@@ -5,26 +5,22 @@ import 'notification_service.dart';
 import 'session_role_service.dart';
 
 class CarePreferences {
-  final bool simpleHomeEnabled;
   final bool dailySummaryEnabled;
   final int dailySummaryHour;
   final int dailySummaryMinute;
 
   const CarePreferences({
-    this.simpleHomeEnabled = true,
     this.dailySummaryEnabled = true,
     this.dailySummaryHour = 20,
     this.dailySummaryMinute = 0,
   });
 
   CarePreferences copyWith({
-    bool? simpleHomeEnabled,
     bool? dailySummaryEnabled,
     int? dailySummaryHour,
     int? dailySummaryMinute,
   }) {
     return CarePreferences(
-      simpleHomeEnabled: simpleHomeEnabled ?? this.simpleHomeEnabled,
       dailySummaryEnabled: dailySummaryEnabled ?? this.dailySummaryEnabled,
       dailySummaryHour: dailySummaryHour ?? this.dailySummaryHour,
       dailySummaryMinute: dailySummaryMinute ?? this.dailySummaryMinute,
@@ -37,7 +33,6 @@ class CarePreferencesService {
 
   static final CarePreferencesService instance = CarePreferencesService._();
 
-  static const _simpleHomeKey = 'care_simple_home_enabled_v1';
   static const _dailySummaryKey = 'care_daily_summary_enabled_v1';
   static const _dailySummaryHourKey = 'care_daily_summary_hour_v1';
   static const _dailySummaryMinuteKey = 'care_daily_summary_minute_v1';
@@ -53,7 +48,6 @@ class CarePreferencesService {
     if (_loaded) return value;
     final prefs = await SharedPreferences.getInstance();
     notifier.value = CarePreferences(
-      simpleHomeEnabled: prefs.getBool(_simpleHomeKey) ?? true,
       dailySummaryEnabled: prefs.getBool(_dailySummaryKey) ?? true,
       dailySummaryHour: (prefs.getInt(_dailySummaryHourKey) ?? 20).clamp(0, 23),
       dailySummaryMinute: (prefs.getInt(_dailySummaryMinuteKey) ?? 0).clamp(
@@ -63,13 +57,6 @@ class CarePreferencesService {
     );
     _loaded = true;
     return value;
-  }
-
-  Future<void> setSimpleHomeEnabled(bool enabled) async {
-    await load();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_simpleHomeKey, enabled);
-    notifier.value = value.copyWith(simpleHomeEnabled: enabled);
   }
 
   Future<void> setDailySummary({

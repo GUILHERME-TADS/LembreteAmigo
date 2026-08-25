@@ -177,31 +177,6 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
     }
   }
 
-  Future<void> _adiarLembrete(Lembrete r, int minutos) async {
-    _stopAllAudioAndTts();
-    final now = DateTime.now();
-    final novoHorario = now.add(Duration(minutes: minutos));
-    await LembreteService.instance.atualizarHorario(
-      r.id,
-      novoHorario.hour,
-      novoHorario.minute,
-    );
-    _loadReminders();
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Lembrete adiado para as ${novoHorario.hour.toString().padLeft(2, '0')}:${novoHorario.minute.toString().padLeft(2, '0')}',
-        ),
-        backgroundColor: AppColors.warning,
-      ),
-    );
-    TTSService.instance.falar(
-      'Lembrete adiado em $minutos minutos.',
-      caller: this,
-    );
-  }
-
   Widget _buildPeriodSection(
     String title,
     IconData icon,
@@ -308,7 +283,6 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                   arguments: r,
                 );
               },
-              onPostpone: r.concluido ? null : () => _adiarLembrete(r, 15),
               onStatusTap: () async {
                 _stopAllAudioAndTts();
                 if (r.categoria == 'medicacao' &&
@@ -395,7 +369,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
               child: _isLoadingReminders
                   ? const Center(child: CircularProgressIndicator())
                   : SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 96),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -927,7 +901,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
       decoration: BoxDecoration(color: AppColors.surface),
       child: Row(
         children: [
-          const SizedBox(width: 48),
+          const SizedBox(width: 56),
           const Spacer(),
           Column(
             mainAxisSize: MainAxisSize.min,

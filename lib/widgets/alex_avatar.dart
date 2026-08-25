@@ -4,8 +4,17 @@ import 'package:flutter/material.dart';
 import '../services/tts_service.dart';
 import '../theme/app_theme.dart';
 
+enum AlexEmotion {
+  idle,
+  listening,
+  thinking,
+  speaking,
+  happy,
+}
+
 class AlexAvatar extends StatefulWidget {
   final bool isListening;
+  final AlexEmotion? emotion;
   final double size;
   final bool animate;
   final Object? activeCaller;
@@ -13,6 +22,7 @@ class AlexAvatar extends StatefulWidget {
   const AlexAvatar({
     super.key,
     this.isListening = false,
+    this.emotion,
     this.size = 120.0,
     this.animate = true,
     this.activeCaller,
@@ -105,10 +115,16 @@ class _AlexAvatarState extends State<AlexAvatar> with TickerProviderStateMixin {
   }
 
   Color _getBorderColor(bool isSpeaking) {
-    if (widget.isListening) {
+    if (widget.isListening || widget.emotion == AlexEmotion.listening) {
       return const Color(0xFF0061A4); // azul escuta
     }
-    if (isSpeaking) {
+    if (widget.emotion == AlexEmotion.thinking) {
+      return const Color(0xFF8E24AA); // roxo reflexão
+    }
+    if (widget.emotion == AlexEmotion.happy) {
+      return const Color(0xFF43A047); // verde celebração
+    }
+    if (isSpeaking || widget.emotion == AlexEmotion.speaking) {
       return const Color(0xFFFCD400); // amarelo fala
     }
     return const Color(0xFFABC7FF); // azul padrão
@@ -133,6 +149,22 @@ class _AlexAvatarState extends State<AlexAvatar> with TickerProviderStateMixin {
               clipBehavior: Clip.none,
               alignment: Alignment.center,
               children: [
+              // 0. Ondas de Áudio Fluidas Concêntricas (Breathing Voice Waves)
+              if (isActiveState)
+                Positioned.fill(
+                  child: AnimatedBuilder(
+                    animation: _animationController,
+                    builder: (context, _) {
+                      return CustomPaint(
+                        painter: _VoiceWavePainter(
+                          animationValue: _animationController.value,
+                          waveColor: borderColor,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+
               // 1. Headband do Headset (Arco superior)
               Positioned(
                 top: size * 0.02,
@@ -483,7 +515,7 @@ class _AlexAvatarState extends State<AlexAvatar> with TickerProviderStateMixin {
   }
 
   Widget _buildEye(bool isSpeaking, bool isListening, double size) {
-    if (_isBlinking && !isSpeaking && !isListening) {
+    if (_isBlinking && !isSpeaking && !isListening && widget.emotion == null) {
       return CustomPaint(
         size: Size(size * 0.10, size * 0.02),
         painter: _BlinkEyePainter(
@@ -493,7 +525,39 @@ class _AlexAvatarState extends State<AlexAvatar> with TickerProviderStateMixin {
       );
     }
 
-    if (isListening) {
+    if (widget.emotion == AlexEmotion.happy) {
+      return CustomPaint(
+        size: Size(size * 0.10, size * 0.05),
+        painter: _HappyEyePainter(
+          color: const Color(0xFF0F1A2C),
+          strokeWidth: size * 0.024,
+        ),
+      );
+    }
+
+    if (widget.emotion == AlexEmotion.thinking) {
+      return Container(
+        width: size * 0.10,
+        height: size * 0.10,
+        decoration: const BoxDecoration(
+          color: Color(0xFF0F1A2C),
+          shape: BoxShape.circle,
+        ),
+        child: Align(
+          alignment: const Alignment(0.6, -0.6),
+          child: Container(
+            width: size * 0.035,
+            height: size * 0.035,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (isListening || widget.emotion == AlexEmotion.listening) {
       return Container(
         width: size * 0.10,
         height: size * 0.10,
@@ -515,7 +579,7 @@ class _AlexAvatarState extends State<AlexAvatar> with TickerProviderStateMixin {
       );
     }
 
-    if (isSpeaking) {
+    if (isSpeaking || widget.emotion == AlexEmotion.speaking) {
       return CustomPaint(
         size: Size(size * 0.10, size * 0.05),
         painter: _HappyEyePainter(
@@ -552,7 +616,33 @@ class _AlexAvatarState extends State<AlexAvatar> with TickerProviderStateMixin {
     double scale,
     double size,
   ) {
-    if (isListening) {
+    if (widget.emotion == AlexEmotion.happy) {
+      return Container(
+        width: size * 0.18,
+        height: size * 0.08,
+        decoration: BoxDecoration(
+          color: const Color(0xFFBA1A1A),
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(size * 0.08)),
+          border: Border.all(
+            color: const Color(0xFF0F1A2C),
+            width: size * 0.02,
+          ),
+        ),
+      );
+    }
+
+    if (widget.emotion == AlexEmotion.thinking) {
+      return Container(
+        width: size * 0.06,
+        height: size * 0.06,
+        decoration: BoxDecoration(
+          color: const Color(0xFF0F1A2C),
+          shape: BoxShape.circle,
+        ),
+      );
+    }
+
+    if (isListening || widget.emotion == AlexEmotion.listening) {
       return Container(
         width: size * 0.11,
         height: size * 0.11,
@@ -567,7 +657,7 @@ class _AlexAvatarState extends State<AlexAvatar> with TickerProviderStateMixin {
       );
     }
 
-    if (isSpeaking) {
+    if (isSpeaking || widget.emotion == AlexEmotion.speaking) {
       final heightFactor = 0.04 + (scale * 0.09);
       return Container(
         width: size * 0.15,
@@ -780,5 +870,37 @@ class _SoundwaveBars extends StatelessWidget {
         );
       }),
     );
+  }
+}
+
+class _VoiceWavePainter extends CustomPainter {
+  final double animationValue;
+  final Color waveColor;
+
+  _VoiceWavePainter({required this.animationValue, required this.waveColor});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final baseRadius = size.width * 0.42;
+
+    for (int i = 0; i < 3; i++) {
+      final progress = (animationValue + (i * 0.33)) % 1.0;
+      final radius = baseRadius + (progress * size.width * 0.28);
+      final alpha = ((1.0 - progress) * 0.38).clamp(0.0, 1.0);
+
+      final paint = Paint()
+        ..color = waveColor.withValues(alpha: alpha)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3.0 + (1.0 - progress) * 2.5;
+
+      canvas.drawCircle(center, radius, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _VoiceWavePainter oldDelegate) {
+    return oldDelegate.animationValue != animationValue ||
+        oldDelegate.waveColor != waveColor;
   }
 }

@@ -183,7 +183,7 @@ class _SupervisorCallScreenState extends State<SupervisorCallScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 80),
               child: Column(
                 children: [
                   // CARD DO IDOSO CONECTADO

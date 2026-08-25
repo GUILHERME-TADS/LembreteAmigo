@@ -31,10 +31,13 @@ import '../widgets/reminder_with_audio.dart';
 import '../widgets/attention_center.dart';
 import '../widgets/supervisor_bottom_nav.dart';
 import '../widgets/supervisor_drawer.dart';
-import 'photo_gallery_screen.dart';
 import '../widgets/charts/adherence_trend_chart.dart';
 import '../widgets/charts/category_distribution_chart.dart';
 import '../widgets/charts/weekly_comparison_chart.dart';
+import '../widgets/elderly_profile_avatar.dart';
+import '../services/medical_report_pdf_service.dart';
+import '../widgets/habit_heatmap_widget.dart';
+import '../widgets/elderly_screen_mirror_card.dart';
 
 class SupervisorDashboardScreen extends StatefulWidget {
   const SupervisorDashboardScreen({super.key});
@@ -48,6 +51,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   StreamSubscription<DeviceDiagnostics>? _deviceBarrierSubscription;
   Timer? _smartAlertTimer;
   String _nomeIdoso = 'Idoso';
+  String? _fotoPathIdoso;
   String _enderecoIdoso = '';
   String _selectedCategoryFilter = 'Todos';
   String _selectedStatusFilter = 'Todos';
@@ -271,6 +275,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
 
       String nome = 'Idoso';
       String endereco = '';
+      String? fotoPath;
       var localProfile = <String, dynamic>{};
       final jsonStr = await SecureCacheService.instance.readElderlyProfile();
       if (jsonStr != null) {
@@ -279,6 +284,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
           localProfile = data;
           nome = data['nome'] as String? ?? nome;
           endereco = data['endereco'] as String? ?? endereco;
+          fotoPath = data['fotoPath'] as String?;
         } catch (error) {
           debugPrint('Perfil local inválido no painel: $error');
         }
@@ -290,8 +296,14 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
               .timeout(const Duration(seconds: 6));
           nome = data['nome'] as String? ?? nome;
           endereco = data['endereco'] as String? ?? endereco;
+          fotoPath = data['fotoPath'] as String? ?? fotoPath;
           await SecureCacheService.instance.writeElderlyProfile(
-            jsonEncode({...localProfile, 'nome': nome, 'endereco': endereco}),
+            SecureCacheService.safeJsonEncode({
+              ...localProfile,
+              'nome': nome,
+              'endereco': endereco,
+              'fotoPath': ?fotoPath,
+            }),
           );
         } catch (error) {
           debugPrint('Usando perfil local no painel: $error');
@@ -307,6 +319,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
         if (!mounted) return;
         setState(() {
           _nomeIdoso = nome.split(' ').first;
+          _fotoPathIdoso = fotoPath;
           _enderecoIdoso = endereco;
           _smartAlerts = SmartAlertService.instance.alerts;
         });
@@ -440,38 +453,46 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                       color: AppColors.primary,
                       child: SingleChildScrollView(
                         physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                        padding: const EdgeInsets.fromLTRB(20, 12, 20, 96),
                         child: Column(
                           children: [
-                            _buildQuickActionsBar(),
+                            _buildHeroPeaceOfMindCard(),
                             const SizedBox(height: 20),
-                            _buildDailySummaryCard(),
+                            _buildBentoQuickActionsGrid(),
                             const SizedBox(height: 20),
-                            AttentionCenter(
-                              alerts: _smartAlerts,
-                              barriers: _deviceBarriers,
-                              batteryLevel: _batteryLevel,
-                              diagnosticsStale: _deviceDiagnosticsStale,
-                              onCall: () => _initiateCall('voice'),
-                              onMessage: () =>
-                                  Navigator.pushNamed(context, '/messages'),
-                              onOpenHistory: () =>
-                                  Navigator.pushNamed(context, '/care-center'),
-                              onOpenDeviceReadiness: () => Navigator.pushNamed(
-                                context,
-                                '/device-readiness',
+                            if (_smartAlerts.isNotEmpty ||
+                                _deviceBarriers.isNotEmpty) ...[
+                              AttentionCenter(
+                                alerts: _smartAlerts,
+                                barriers: _deviceBarriers,
+                                batteryLevel: _batteryLevel,
+                                diagnosticsStale: _deviceDiagnosticsStale,
+                                onCall: () => _initiateCall('voice'),
+                                onMessage: () =>
+                                    Navigator.pushNamed(context, '/messages'),
+                                onOpenHistory: () => Navigator.pushNamed(
+                                  context,
+                                  '/care-center',
+                                ),
+                                onOpenDeviceReadiness: () =>
+                                    Navigator.pushNamed(
+                                      context,
+                                      '/device-readiness',
+                                    ),
+                                onRefresh: _refreshDashboard,
                               ),
-                              onRefresh: _refreshDashboard,
-                            ),
-                            const SizedBox(height: 24),
+                              const SizedBox(height: 20),
+                            ],
                             _buildMessagesShortcut(),
-                            const SizedBox(height: 24),
-                            _buildOverviewSection(),
-                            const SizedBox(height: 24),
-                            _buildExpandableChartsSection(),
-                            const SizedBox(height: 24),
+                            const SizedBox(height: 20),
                             _buildTodayReminders(context),
-                            const SizedBox(height: 24),
+                            const SizedBox(height: 20),
+                            _buildExpandableChartsSection(),
+                            const SizedBox(height: 20),
+                            _buildHabitHeatmapSection(),
+                            const SizedBox(height: 20),
+                            _buildElderlyScreenMirrorSection(),
+                            const SizedBox(height: 20),
                             _buildRecentHistory(context),
                             const SizedBox(height: 24),
                           ],
@@ -674,174 +695,246 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     );
   }
 
-  Widget _buildDailySummaryCard() {
+  Widget _buildHeroPeaceOfMindCard() {
     final summary = DailyCareSummaryService.build(
       reminders: LembreteService.instance.lembretes,
       events: LembreteService.instance.eventos,
     );
-    final color = summary.needsAttention
-        ? AppColors.warning
-        : AppColors.success;
+    final isGood = !summary.needsAttention;
+    final statusColor = isGood ? AppColors.success : AppColors.warning;
     final percentage = (summary.adherence * 100).round();
 
-    Widget metric(
-      IconData icon,
-      String value,
-      String label,
-      Color metricColor,
-    ) {
-      return Container(
-        constraints: const BoxConstraints(minWidth: 120),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: metricColor.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: metricColor.withValues(alpha: 0.35)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: metricColor, size: 24),
-            const SizedBox(width: 8),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 19,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                Text(label, style: const TextStyle(fontSize: 12)),
-              ],
-            ),
-          ],
-        ),
-      );
-    }
+    final batteryText = _batteryLevel != null ? '$_batteryLevel%' : null;
+    final hasBarriers = _deviceBarriers.isNotEmpty;
 
     return Container(
-      decoration: AppDecorations.peaceOfMindCard(statusColor: color),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.16),
-                    shape: BoxShape.circle,
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: statusColor.withValues(alpha: 0.3),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: statusColor.withValues(alpha: 0.08),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  ElderlyProfileAvatar(
+                    fotoPath: _fotoPathIdoso,
+                    size: 58,
+                    borderWidth: 2.5,
                   ),
-                  child: Icon(
-                    summary.needsAttention
-                        ? Icons.notification_important_rounded
-                        : Icons.check_circle_rounded,
-                    color: color,
-                    size: 28,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        summary.needsAttention ? 'ATENÇÃO NECESSÁRIA' : 'PAZ DE ESPÍRITO',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1.2,
-                          color: color,
-                        ),
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      width: 15,
+                      height: 15,
+                      decoration: BoxDecoration(
+                        color: _isConnected
+                            ? AppColors.success
+                            : AppColors.outline,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2.5),
+                        boxShadow: _isConnected
+                            ? [
+                                BoxShadow(
+                                  color: AppColors.success.withValues(
+                                    alpha: 0.6,
+                                  ),
+                                  blurRadius: 6,
+                                  spreadRadius: 1,
+                                ),
+                              ]
+                            : null,
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        summary.headline.replaceFirst(
-                          'Tudo',
-                          '$_nomeIdoso: tudo',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            _nomeIdoso,
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w900,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                        style: const TextStyle(
-                          fontSize: 18,
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _isConnected
+                                ? AppColors.successContainer.withValues(
+                                    alpha: 0.7,
+                                  )
+                                : AppColors.surfaceContainerHigh,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            _isConnected ? 'Conectado' : 'Offline',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              color: _isConnected
+                                  ? AppColors.onSuccessContainer
+                                  : AppColors.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      isGood
+                          ? 'Tudo em dia e protegido hoje'
+                          : 'Atenção necessária em lembrete',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: statusColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              InkWell(
+                onTap: _callIsLoading ? null : () => _initiateCall('video'),
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withValues(alpha: 0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: const [
+                      Icon(
+                        Icons.videocam_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                      SizedBox(width: 6),
+                      Text(
+                        'Ligar',
+                        style: TextStyle(
+                          color: Colors.white,
                           fontWeight: FontWeight.w800,
-                          height: 1.2,
+                          fontSize: 14,
                         ),
                       ),
                     ],
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: color.withValues(alpha: 0.3)),
-                  ),
-                  child: Text(
-                    '$percentage%',
-                    style: TextStyle(
-                      color: color,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(99),
-              child: LinearProgressIndicator(
-                value: summary.adherence.clamp(0, 1),
-                minHeight: 10,
-                backgroundColor: color.withValues(alpha: 0.12),
-                valueColor: AlwaysStoppedAnimation<Color>(color),
               ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+          const Divider(height: 1),
+          const SizedBox(height: 14),
+
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (batteryText != null)
+                _buildMiniDiagnosticChip(
+                  icon: _batteryState == 'charging'
+                      ? Icons.battery_charging_full_rounded
+                      : Icons.battery_std_rounded,
+                  label: _batteryState == 'charging'
+                      ? 'Bateria $batteryText (Carregando)'
+                      : 'Bateria $batteryText',
+                  color: (_batteryLevel ?? 100) < 20
+                      ? AppColors.error
+                      : AppColors.success,
+                ),
+              _buildMiniDiagnosticChip(
+                icon: hasBarriers
+                    ? Icons.volume_off_rounded
+                    : Icons.volume_up_rounded,
+                label: hasBarriers
+                    ? 'Aparelho Silenciado'
+                    : 'Som do Alarme Ativo',
+                color: hasBarriers ? AppColors.warning : AppColors.primary,
+              ),
+              _buildMiniDiagnosticChip(
+                icon: Icons.task_alt_rounded,
+                label: '$percentage% Adesão Hoje',
+                color: statusColor,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMiniDiagnosticChip({
+    required IconData icon,
+    required String label,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: color,
             ),
-            const SizedBox(height: 18),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                metric(
-                  Icons.check_circle,
-                  '${summary.completed}',
-                  'concluídas',
-                  AppColors.success,
-                ),
-                metric(
-                  Icons.schedule,
-                  '${summary.pending + summary.postponed}',
-                  'pendentes',
-                  AppColors.warning,
-                ),
-                metric(
-                  Icons.medication,
-                  '${summary.medicationsCompleted}/${summary.medications}',
-                  'medicamentos',
-                  AppColors.primary,
-                ),
-                if (summary.needsHelp > 0)
-                  metric(
-                    Icons.sos,
-                    '${summary.needsHelp}',
-                    'pedidos de ajuda',
-                    AppColors.error,
-                  ),
-                if (summary.lowStockMedications > 0)
-                  metric(
-                    Icons.inventory_2,
-                    '${summary.lowStockMedications}',
-                    'estoques baixos',
-                    AppColors.error,
-                  ),
-              ],
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -1045,6 +1138,8 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
         return Icons.location_off;
       case DeviceBarrierType.lowBattery:
         return Icons.battery_alert_rounded;
+      case DeviceBarrierType.batteryOptimization:
+        return Icons.battery_charging_full_rounded;
     }
   }
 
@@ -1277,408 +1372,6 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     );
   }
 
-  Widget _buildOverviewSection() {
-    final list = ReminderStateHelper.activeTodaySorted(
-      LembreteService.instance.lembretes,
-    );
-    final totalMedicacoesHoje = list
-        .where((l) => l.categoria == 'medicacao')
-        .length;
-    final concluidasMedicacoesHoje = list
-        .where((l) => l.categoria == 'medicacao' && l.concluido)
-        .length;
-
-    String statusRemediosText = 'Nenhum remédio agendado para hoje.';
-    bool todosTomados = false;
-    double percent = 0.0;
-    if (totalMedicacoesHoje > 0) {
-      todosTomados = concluidasMedicacoesHoje == totalMedicacoesHoje;
-      percent = concluidasMedicacoesHoje / totalMedicacoesHoje;
-      statusRemediosText = todosTomados
-          ? '$_nomeIdoso tomou todos os remédios hoje.'
-          : '$_nomeIdoso tomou $concluidasMedicacoesHoje de $totalMedicacoesHoje remédios hoje.';
-    }
-
-    final agoraTime = TimeOfDay.fromDateTime(DateTime.now());
-    Lembrete? proximoLembrete;
-    int minDiff = 999999;
-    for (final l in list) {
-      if (!l.concluido) {
-        final diff =
-            (l.horarioHour * 60 + l.horarioMinute) -
-            (agoraTime.hour * 60 + agoraTime.minute);
-        if (diff > 0 && diff < minDiff) {
-          minDiff = diff;
-          proximoLembrete = l;
-        }
-      }
-    }
-    if (proximoLembrete == null) {
-      final pendentes = list.where((l) => !l.concluido).toList();
-      if (pendentes.isNotEmpty) {
-        pendentes.sort(
-          (a, b) => (a.horarioHour * 60 + a.horarioMinute).compareTo(
-            b.horarioHour * 60 + b.horarioMinute,
-          ),
-        );
-        proximoLembrete = pendentes.first;
-      }
-    }
-
-    final nextTimeText = proximoLembrete != null
-        ? proximoLembrete.horarioFormatado
-        : '--:--';
-    final nextTitleText = proximoLembrete != null
-        ? proximoLembrete.titulo
-        : 'Sem pendências';
-
-    return Row(
-      children: [
-        Expanded(
-          flex: 2,
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceContainerLowest,
-              borderRadius: BorderRadius.circular(AppRadius.xl),
-              border: Border.all(
-                color: AppColors.outlineVariant.withValues(alpha: 0.6),
-                width: 1.5,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.shadow.withValues(alpha: 0.08),
-                  blurRadius: 14,
-                  offset: const Offset(0, 5),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          'Visão Geral',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w800,
-                            height: 1.3,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          width: 10,
-                          height: 10,
-                          decoration: BoxDecoration(
-                            color: _isConnected
-                                ? AppColors.vitalHealthy
-                                : AppColors.outline,
-                            shape: BoxShape.circle,
-                            boxShadow: _isConnected
-                                ? [
-                                    BoxShadow(
-                                      color: AppColors.vitalHealthy.withValues(alpha: 0.5),
-                                      blurRadius: 6,
-                                      spreadRadius: 2,
-                                    ),
-                                  ]
-                                : null,
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    Row(
-                      children: [
-                        InkWell(
-                          onTap: _callIsLoading
-                              ? null
-                              : () {
-                                  HapticFeedback.lightImpact();
-                                  _initiateCall('voice');
-                                },
-                          borderRadius: BorderRadius.circular(20),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 7,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.primaryContainer,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: AppColors.primary.withValues(alpha: 0.3),
-                                width: 1.5,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.phone_in_talk_rounded,
-                                  color: AppColors.onPrimaryContainer,
-                                  size: 16,
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  'Áudio',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColors.onPrimaryContainer,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        InkWell(
-                          onTap: _callIsLoading
-                              ? null
-                              : () {
-                                  HapticFeedback.lightImpact();
-                                  _initiateCall('video');
-                                },
-                          borderRadius: BorderRadius.circular(20),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 7,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.secondaryContainer,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: AppColors.secondary.withValues(alpha: 0.3),
-                                width: 1.5,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.videocam_rounded,
-                                  color: AppColors.onSecondaryContainer,
-                                  size: 16,
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  'Vídeo',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColors.onSecondaryContainer,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        SizedBox(
-                          width: 68,
-                          height: 68,
-                          child: CircularProgressIndicator(
-                            value: totalMedicacoesHoje > 0 ? percent : 1.0,
-                            strokeWidth: 8,
-                            backgroundColor: AppColors.surfaceContainerHigh,
-                            color: totalMedicacoesHoje == 0
-                                ? AppColors.outline
-                                : (todosTomados
-                                      ? AppColors.vitalHealthy
-                                      : AppColors.secondaryFixedDim),
-                          ),
-                        ),
-                        Text(
-                          totalMedicacoesHoje > 0
-                              ? '${(percent * 100).toInt()}%'
-                              : '0%',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.onSurface,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            todosTomados
-                                ? 'Tudo em dia!'
-                                : 'Pendências de hoje',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                              color: todosTomados
-                                  ? AppColors.vitalHealthy
-                                  : AppColors.warning,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            statusRemediosText,
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: AppColors.surfaceContainerLow,
-                          borderRadius: BorderRadius.circular(AppRadius.md),
-                          border: Border.all(
-                            color: AppColors.outlineVariant.withValues(alpha: 0.5),
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'PRÓXIMO',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 0.5,
-                                color: AppColors.onSurfaceVariant,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              nextTimeText,
-                              style: TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                            Text(
-                              nextTitleText,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: AppColors.surfaceContainerLow,
-                          borderRadius: BorderRadius.circular(AppRadius.md),
-                          border: Border.all(
-                            color: AppColors.outlineVariant.withValues(alpha: 0.5),
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'BATERIA',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 0.5,
-                                    color: AppColors.onSurfaceVariant,
-                                  ),
-                                ),
-                                Icon(
-                                  _batteryLevel != null && _batteryLevel! <= 20
-                                      ? Icons.battery_alert_rounded
-                                      : (_batteryState == 'charging'
-                                          ? Icons.battery_charging_full_rounded
-                                          : Icons.battery_full_rounded),
-                                  size: 16,
-                                  color: _batteryLevel != null && _batteryLevel! <= 20
-                                      ? AppColors.vitalCritical
-                                      : (_batteryState == 'charging'
-                                          ? AppColors.vitalHealthy
-                                          : AppColors.primary),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              _batteryLevel != null ? '$_batteryLevel%' : '--',
-                              style: TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w800,
-                                color:
-                                    _batteryLevel != null &&
-                                        _batteryLevel! <= 20
-                                    ? AppColors.vitalCritical
-                                    : (_batteryState == 'charging'
-                                          ? AppColors.vitalHealthy
-                                          : AppColors.primary),
-                              ),
-                            ),
-                            Text(
-                              _batteryLevel == null
-                                  ? 'Sem dados'
-                                  : (_batteryState == 'charging'
-                                        ? 'Carregando'
-                                        : _batteryState == 'full'
-                                        ? 'Carregada'
-                                        : 'Descarregando'),
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildCategoryFilters() {
     final Map<String, String> categories = {
       'Todos': 'Todos',
@@ -1734,106 +1427,211 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     }
   }
 
-  Widget _buildQuickActionsBar() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '⚡ Ações Rápidas no Idoso',
+  Widget _buildBentoQuickActionsGrid() {
+    final summary = DailyCareSummaryService.build(
+      reminders: LembreteService.instance.lembretes,
+      events: LembreteService.instance.eventos,
+    );
+    final lowStockCount = summary.lowStockMedications;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Text(
+            'Ações Rápidas',
             style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
               color: AppColors.primary,
             ),
           ),
-          const SizedBox(height: 12),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                ElevatedButton.icon(
-                  onPressed: _callIsLoading
-                      ? null
-                      : () => _initiateCall('video'),
-                  icon: const Icon(Icons.videocam, size: 20),
-                  label: const Text('Chamada de Vídeo'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.info,
-                    foregroundColor: AppColors.onInfoContainer,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton.icon(
-                  onPressed: () =>
-                      Navigator.pushNamed(context, '/supervisor-messages'),
-                  icon: const Icon(Icons.mic, size: 20),
-                  label: const Text('Recado de Voz'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.success,
-                    foregroundColor: AppColors.onSuccessContainer,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton.icon(
-                  onPressed: () =>
-                      Navigator.pushNamed(context, '/new-reminder'),
-                  icon: const Icon(Icons.add_alarm, size: 20),
-                  label: const Text('Novo Lembrete'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.warning,
-                    foregroundColor: AppColors.onWarningContainer,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton.icon(
-                  onPressed: _refreshDashboard,
-                  icon: const Icon(Icons.sync, size: 20),
-                  label: const Text('Sincronizar'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.secondary,
-                    foregroundColor: AppColors.onSecondary,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildBentoCard(
+                icon: Icons.add_alarm_rounded,
+                title: 'Novo Lembrete',
+                subtitle: 'Remédio ou rotina',
+                gradientColors: [
+                  AppColors.primary,
+                  AppColors.primary.withValues(alpha: 0.8),
+                ],
+                onTap: () => Navigator.pushNamed(context, '/new-reminder'),
+              ),
             ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildBentoCard(
+                icon: Icons.video_call_rounded,
+                title: 'Vídeo Chamada',
+                subtitle: 'Ligação direta',
+                gradientColors: [
+                  AppColors.videoCallPrimary,
+                  AppColors.videoCallSecondary,
+                ],
+                onTap: () => _initiateCall('video'),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildBentoCard(
+                icon: Icons.inventory_2_rounded,
+                title: 'Estoque Remédios',
+                subtitle: lowStockCount > 0
+                    ? '$lowStockCount acabando!'
+                    : 'Controle diário',
+                badgeText: lowStockCount > 0 ? '$lowStockCount' : null,
+                gradientColors: [AppColors.warning, AppColors.warningAccent],
+                onTap: () =>
+                    Navigator.pushNamed(context, '/medication-inventory'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildBentoCard(
+                icon: Icons.picture_as_pdf_rounded,
+                title: 'Relatório Médico',
+                subtitle: 'Histórico em PDF',
+                gradientColors: [
+                  AppColors.reportPdfPrimary,
+                  AppColors.reportPdfCardBorder,
+                ],
+                onTap: _exportMedicalReport,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBentoCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required List<Color> gradientColors,
+    required VoidCallback onTap,
+    String? badgeText,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: gradientColors,
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: gradientColors.first.withValues(alpha: 0.28),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-        ],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(icon, color: Colors.white, size: 22),
+                  ),
+                  if (badgeText != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        badgeText,
+                        style: TextStyle(
+                          color: gradientColors.first,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 15,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.88),
+                  fontWeight: FontWeight.w500,
+                  fontSize: 12,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
       ),
+    );
+  }
+
+  Future<void> _exportMedicalReport() async {
+    HapticFeedback.mediumImpact();
+    final meds = LembreteService.instance.lembretes;
+    final events = LembreteService.instance.eventos;
+    await MedicalReportPdfService.instance.shareReport(
+      elderlyName: _nomeIdoso,
+      supervisorName: 'Cuidador Responsável',
+      medications: meds,
+      recentEvents: events,
+    );
+  }
+
+  Widget _buildHabitHeatmapSection() {
+    return HabitHeatmapWidget(eventos: LembreteService.instance.eventos);
+  }
+
+  Widget _buildElderlyScreenMirrorSection() {
+    final nextRem = LembreteService.instance.lembretes
+        .where((l) => !l.concluido)
+        .firstOrNull;
+    return ElderlyScreenMirrorCard(
+      elderlyName: _nomeIdoso,
+      nextReminder: nextRem,
+      batteryLevel: _batteryLevel,
+      isOnline: _isConnected,
     );
   }
 
@@ -2492,33 +2290,6 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                     const SizedBox(width: 12),
                     _historyMetric(label: 'Exercícios', value: exeValue),
                   ],
-                ),
-              ),
-              // Gallery button
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const PhotoGalleryScreen(),
-                      ),
-                    ),
-                    icon: const Icon(Icons.photo_library_outlined, size: 20),
-                    label: const Text(
-                      'Ver Galeria de Fotos',
-                      style: TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.primary,
-                      side: BorderSide(color: AppColors.primary, width: 1.5),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
                 ),
               ),
             ],

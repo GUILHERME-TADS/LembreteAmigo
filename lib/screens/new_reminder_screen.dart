@@ -10,6 +10,7 @@ import '../services/medication_safety_service.dart';
 import '../widgets/supervisor_bottom_nav.dart';
 import '../widgets/custom_time_picker.dart';
 import '../widgets/supervisor_drawer.dart';
+import '../widgets/medication_scanner_sheet.dart';
 import '../services/session_role_service.dart';
 
 class NewReminderScreen extends StatefulWidget {
@@ -227,26 +228,44 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
         imageQuality: 85,
       );
       if (image == null || !mounted) return;
-
       setState(() => _fotoPath = image.path);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Foto do remédio vinculada com sucesso!'),
-          backgroundColor: AppColors.tertiaryFixedDim,
+          backgroundColor: AppColors.success,
         ),
       );
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Não foi possível adicionar a foto: $e'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      debugPrint('Erro ao capturar foto: $e');
     } finally {
       if (mounted) {
         setState(() => _isCapturingPhoto = false);
       }
+    }
+  }
+
+  Future<void> _abrirScannerIA() async {
+    final result = await MedicationScannerSheet.show(context);
+    if (result != null && mounted) {
+      setState(() {
+        _selectedCategory = LembreteCategoria.medicacao;
+        _titleController.text = result.tituloCompleto;
+        if (result.dosagem != null && result.dosagem!.isNotEmpty) {
+          _medicationDoseController.text = result.dosagem!;
+        }
+        if (result.fotoPath != null) {
+          _fotoPath = result.fotoPath;
+        }
+        if (result.instrucoes != null) {
+          _medicamentoInstrucoes = result.instrucoes;
+        }
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Remédio ${result.tituloCompleto} identificado com sucesso!'),
+          backgroundColor: AppColors.success,
+        ),
+      );
     }
   }
 
@@ -390,7 +409,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
             _buildTopBar(),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 96),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -465,6 +484,23 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
                             ),
                           ],
                         ),
+                        if (_selectedCategory == LembreteCategoria.medicacao) ...[
+                          const SizedBox(height: 8),
+                          OutlinedButton.icon(
+                            onPressed: _abrirScannerIA,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.primary,
+                              side: BorderSide(color: AppColors.primary.withValues(alpha: 0.5)),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            ),
+                            icon: const Icon(Icons.auto_awesome_rounded, size: 16),
+                            label: const Text(
+                              'Escanear Caixa de Remédio com IA 📸',
+                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 8),
                         Container(
                           constraints: const BoxConstraints(minHeight: 56),

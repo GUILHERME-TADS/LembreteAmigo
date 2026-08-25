@@ -258,11 +258,14 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
                                   ),
                                 )
                               : const Icon(Icons.login),
-                          label: Text(
-                            _isLoading ? 'Carregando...' : 'Entrar',
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w700,
+                          label: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              _isLoading ? 'Carregando...' : 'Entrar',
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
                           style: ElevatedButton.styleFrom(

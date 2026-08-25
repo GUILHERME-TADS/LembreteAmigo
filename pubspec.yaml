@@ -55,7 +55,6 @@ dependencies:
   url_launcher: ^6.3.0
   pdf: ^3.10.8
   share_plus: ^13.3.0
-  qr: ^3.0.2
   image: ^4.1.3
   geolocator: ^14.0.2
   battery_plus: ^6.0.0

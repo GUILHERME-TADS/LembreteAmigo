@@ -791,9 +791,6 @@ exports.acknowledgeCareAlert = careFeatures.acknowledgeCareAlert;
 exports.resolveCareAlert = careFeatures.resolveCareAlert;
 exports.replenishMedicationStock = careFeatures.replenishMedicationStock;
 
-const wellbeingAlert = require("./wellbeing-alert");
-exports.createWellbeingHelpAlert = wellbeingAlert.createWellbeingHelpAlert;
-
 // =============================================================================
 // GEMINI HELPER
 // =============================================================================

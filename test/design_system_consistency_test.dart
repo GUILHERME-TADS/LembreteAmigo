@@ -10,7 +10,7 @@ void main() {
       .toList();
 
   test('todas as telas dependem do tema central', () {
-    expect(screens.length, greaterThanOrEqualTo(48));
+    expect(screens.length, greaterThanOrEqualTo(47));
     final missing = screens
         .where((file) => !file.readAsStringSync().contains('app_theme.dart'))
         .map((file) => file.path)

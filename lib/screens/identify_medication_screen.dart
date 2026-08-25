@@ -37,7 +37,7 @@ class _IdentifyMedicationScreenState extends State<IdentifyMedicationScreen> {
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 80),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -346,11 +346,14 @@ class _IdentifyMedicationScreenState extends State<IdentifyMedicationScreen> {
                     child: ElevatedButton.icon(
                       onPressed: _confirmarResultado,
                       icon: const Icon(Icons.check_circle, size: 28),
-                      label: const Text(
-                        'CONFIRMAR E CRIAR LEMBRETE',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
+                      label: const FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          'CONFIRMAR E CRIAR LEMBRETE',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                       style: ElevatedButton.styleFrom(

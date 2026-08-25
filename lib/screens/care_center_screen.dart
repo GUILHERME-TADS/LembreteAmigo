@@ -148,7 +148,7 @@ class _CareCenterScreenState extends State<CareCenterScreen> {
                 onRefresh: () async => setState(() {}),
                 child: ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 96),
                   children: [
                     _summary(all),
                     const SizedBox(height: 16),

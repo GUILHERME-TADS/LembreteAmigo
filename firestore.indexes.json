@@ -185,20 +185,6 @@
           "order": "DESCENDING"
         }
       ]
-    },
-    {
-      "collectionGroup": "bem_estar_registros",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "idosoId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "createdAt",
-          "order": "DESCENDING"
-        }
-      ]
     }
   ],
   "fieldOverrides": []

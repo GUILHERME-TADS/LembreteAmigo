@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/tts_service.dart';
 import '../services/vibration_service.dart';
-import '../services/wellbeing_service.dart';
 import '../theme/app_theme.dart';
 import 'senior_button.dart';
 
@@ -57,7 +56,6 @@ class _HydrationPromptDialogState extends State<HydrationPromptDialog>
     if (_drank) return;
     setState(() => _drank = true);
     await VibrationService.successPattern();
-    await WellbeingService.instance.logHydration();
     if (!mounted) return;
     TTSService.instance.falar('Muito bem! Água faz muito bem.', caller: this);
     await Future.delayed(const Duration(milliseconds: 800));

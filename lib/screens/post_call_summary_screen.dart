@@ -226,13 +226,16 @@ class PostCallSummaryScreen extends StatelessWidget {
                         isVoice ? Icons.phone : Icons.videocam,
                         size: isElderly ? 30 : 24,
                       ),
-                      label: Text(
-                        isVoice
-                            ? 'Ligar de novo (voz)'
-                            : 'Ligar de novo (vídeo)',
-                        style: TextStyle(
-                          fontSize: isElderly ? 20 : 16,
-                          fontWeight: FontWeight.bold,
+                      label: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          isVoice
+                              ? 'Ligar de novo (voz)'
+                              : 'Ligar de novo (vídeo)',
+                          style: TextStyle(
+                            fontSize: isElderly ? 20 : 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                       style: ElevatedButton.styleFrom(
@@ -254,11 +257,14 @@ class PostCallSummaryScreen extends StatelessWidget {
                     child: OutlinedButton.icon(
                       onPressed: () => _finish(context),
                       icon: Icon(Icons.home_rounded, size: isElderly ? 30 : 24),
-                      label: Text(
-                        'Voltar para o Início',
-                        style: TextStyle(
-                          fontSize: isElderly ? 20 : 16,
-                          fontWeight: FontWeight.bold,
+                      label: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          'Voltar para o Início',
+                          style: TextStyle(
+                            fontSize: isElderly ? 20 : 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                       style: OutlinedButton.styleFrom(

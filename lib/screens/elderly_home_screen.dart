@@ -2,7 +2,6 @@ import 'dart:io';
 import 'dart:async';
 import 'dart:convert';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:audioplayers/audioplayers.dart';
@@ -19,6 +18,7 @@ import '../utils/app_image_helper.dart';
 import '../utils/audio_path_helper.dart';
 import '../utils/period_helper.dart';
 import '../services/elderly_profile_repository.dart';
+import '../services/video_call_service.dart';
 import '../widgets/index.dart';
 
 class ElderlyHomeScreen extends StatefulWidget {
@@ -50,8 +50,6 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
 
   bool _rotinaDoDiaOnly = false;
   bool _isProcessingAction = false;
-  bool _simpleHomeEnabled = true;
-  bool _showFullRoutine = false;
   String? _fotoPath;
   AnimationController? _pulseController;
   Animation<double>? _pulseAnimation;
@@ -74,14 +72,6 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
       _onElderlyConnectionChanged,
     );
     SessionRoleService.watchElderlyConnection();
-    CarePreferencesService.instance.notifier.addListener(
-      _onCarePreferencesChanged,
-    );
-    CarePreferencesService.instance.load().then((preferences) {
-      if (mounted) {
-        setState(() => _simpleHomeEnabled = preferences.simpleHomeEnabled);
-      }
-    });
     Connectivity().checkConnectivity().then(_updateOnlineStatus);
     _connectivitySubscription = Connectivity().onConnectivityChanged.listen(
       _updateOnlineStatus,
@@ -142,15 +132,6 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     }
   }
 
-  void _onCarePreferencesChanged() {
-    if (!mounted) return;
-    setState(() {
-      _simpleHomeEnabled =
-          CarePreferencesService.instance.value.simpleHomeEnabled;
-      if (!_simpleHomeEnabled) _showFullRoutine = true;
-    });
-  }
-
   void _syncReminderState(Iterable<Lembrete> lembretes) {
     _lembretes = ReminderStateHelper.activeTodaySorted(lembretes);
     _ultimoLembrete = ReminderStateHelper.nextReminder(_lembretes);
@@ -164,9 +145,6 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     LembreteService.instance.notifier.removeListener(_onLembretesChanged);
     SessionRoleService.elderlyConnectionNotifier.removeListener(
       _onElderlyConnectionChanged,
-    );
-    CarePreferencesService.instance.notifier.removeListener(
-      _onCarePreferencesChanged,
     );
     TTSService.instance.parar(caller: this);
     _audioPlayer.dispose();
@@ -1082,8 +1060,51 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
       ),
     ];
 
+    final visibleSections = sections.where((sec) {
+      final totalInPeriod = sortedReminders.where((l) {
+        if (sec.title == 'Madrugada') {
+          return l.horarioHour >= 0 && l.horarioHour < 6;
+        }
+        if (sec.title == 'Manhã') {
+          return l.horarioHour >= 6 && l.horarioHour < 12;
+        }
+        if (sec.title == 'Tarde') {
+          return l.horarioHour >= 12 && l.horarioHour < 18;
+        }
+        return l.horarioHour >= 18 && l.horarioHour < 24;
+      }).length;
+      return totalInPeriod > 0;
+    }).toList();
+
+    if (visibleSections.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceContainerLowest,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.outlineVariant),
+        ),
+        child: Column(
+          children: [
+            Icon(Icons.done_all_rounded, size: 40, color: AppColors.success),
+            const SizedBox(height: 8),
+            Text(
+              'Tudo concluído por hoje! 🎉',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: AppColors.onSurface,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Column(
-      children: sections
+      children: visibleSections
           .map((sec) => _buildRoutineSection(sec, sortedReminders))
           .toList(),
     );
@@ -1384,76 +1405,8 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     }
   }
 
-  Future<void> _postponeFocusedReminder(Lembrete lembrete) async {
-    if (_isProcessingAction) return;
-    setState(() => _isProcessingAction = true);
-    try {
-      if (!LembreteService.instance.podeAdiar(lembrete.id)) {
-        const message =
-            'O limite de adiamentos acabou. Conclua a atividade ou peca ajuda.';
-        await TTSService.instance.falar(message, caller: this);
-        if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text(message)));
-        return;
-      }
-      final minutes = lembrete.opcoesAdiamentoMinutos.contains(10)
-          ? 10
-          : lembrete.opcoesAdiamentoMinutos.first;
-      final changed = await LembreteService.instance.adiar(
-        lembrete.id,
-        minutes,
-      );
-      if (!mounted) return;
-      final message = changed
-          ? 'Tudo bem. Vou lembrar novamente daqui a $minutes minutos.'
-          : 'Não consegui adiar agora. Tente novamente.';
-      await TTSService.instance.falar(message, caller: this);
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
-    } finally {
-      if (mounted) setState(() => _isProcessingAction = false);
-    }
-  }
-
-  Future<void> _requestFocusedHelp(Lembrete lembrete) async {
-    if (_isProcessingAction) return;
-    setState(() => _isProcessingAction = true);
-    try {
-      final changed = await LembreteService.instance.registrarDificuldade(
-        lembrete.id,
-        'Pedido de ajuda pela tela principal',
-      );
-      if (!mounted) return;
-      final message = changed
-          ? 'Pronto. Avisei que você precisa de ajuda.'
-          : 'Não consegui enviar o pedido agora. Tente novamente.';
-      await TTSService.instance.falar(message, caller: this);
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
-    } finally {
-      if (mounted) setState(() => _isProcessingAction = false);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final isHighContrast =
-        Theme.of(context).colorScheme.primary == Colors.black;
-    final nowHour = DateTime.now().hour;
-    final atmosphereGradient = isHighContrast
-        ? null
-        : (nowHour >= 5 && nowHour < 12
-            ? AppColors.morningAtmosphere
-            : nowHour >= 12 && nowHour < 18
-                ? AppColors.afternoonAtmosphere
-                : AppColors.nightAtmosphere);
-
     return Stack(
       children: [
         Scaffold(
@@ -1463,146 +1416,29 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                 'Tela principal. Toque em Criar lembrete para falar um novo lembrete ou ouça os seus lembretes do dia abaixo.',
             onTapped: _stopAllAudioAndTts,
           ),
-          body: Container(
-            decoration: BoxDecoration(
-              gradient: atmosphereGradient,
-            ),
-            child: SafeArea(
-              child: Column(
-                children: [
-                  const VolumeWarningBanner(),
-                  _buildTopBar(),
-                  const DeviceBarrierBanner(),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-                      child: Column(
+          body: SafeArea(
+            child: Column(
+              children: [
+                _buildTopBar(),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 96),
+                    child: Column(
                         children: [
-                          if (_isConnected) ...[
-                            _buildConnectedBadge(),
-                            const SizedBox(height: 12),
-                          ],
+                          _buildSmartStatusBar(),
 
-                          _buildActionButtons(),
-                          const SizedBox(height: 16),
-                          GestureDetector(
-                            onTap: () {
-                              HapticFeedback.mediumImpact();
-                              _stopAllAudioAndTts();
-                              TTSService.instance.falar(
-                                'Esta é a tela principal. Toque no grande círculo para criar um lembrete falando ou ouça os seus lembretes do dia abaixo.',
-                                caller: this,
-                              );
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 18,
-                                vertical: 14,
-                              ),
-                              decoration: BoxDecoration(
-                                color: isHighContrast
-                                    ? Colors.white
-                                    : AppColors.secondaryContainer,
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: isHighContrast
-                                      ? Colors.black
-                                      : AppColors.primary,
-                                  width: 2.5,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppColors.shadow.withValues(alpha: 0.08),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.volume_up_rounded,
-                                    size: 30,
-                                    color: isHighContrast
-                                        ? Colors.black
-                                        : AppColors.primary,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'OUVIR ORIENTAÇÕES DA TELA',
-                                          style: TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.w900,
-                                            color: isHighContrast
-                                                ? Colors.black
-                                                : AppColors.primary,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          'Toque aqui se precisar de ajuda',
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w600,
-                                            color: isHighContrast
-                                                ? Colors.black87
-                                                : AppColors.onSecondaryContainer,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
+                          // Prioridade visual absoluta: Lembrete Imediato / Herói
                           _buildNextReminderBanner(),
-                          const SizedBox(height: 12),
-                          ElderlyDailyTimeline(lembretes: _lembretes),
-                          if (!_simpleHomeEnabled || _showFullRoutine) ...[
-                            const SizedBox(height: 24),
-                            _buildRotinaToggle(),
-                            const SizedBox(height: 24),
-                            _buildTimeline(_lembretes),
-                          ] else ...[
-                            const SizedBox(height: 16),
-                            SizedBox(
-                              width: double.infinity,
-                              height: 58,
-                              child: OutlinedButton.icon(
-                                onPressed: () =>
-                                    setState(() => _showFullRoutine = true),
-                                icon: const Icon(Icons.calendar_view_day),
-                                label: const Text(
-                                  'Ver rotina completa',
-                                  style: TextStyle(
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                          const SizedBox(height: 24),
-                          // Botão de Segurança e Emergência com Salvaguarda de 3s
-                          HoldToActivateButton(
-                            label: 'PEDIR AJUDA / SOS',
-                            activeLabel: 'Mantenha pressionado...',
-                            icon: Icons.emergency_rounded,
-                            backgroundColor: AppColors.error,
-                            textColor: Colors.white,
-                            onTriggered: () {
-                              _stopAllAudioAndTts();
-                              Navigator.pushNamed(context, '/emergency-card');
-                            },
-                          ),
+                          const SizedBox(height: 16),
+
+                          // Ação de voz com Alex
+                          _buildActionButtons(),
+                          const SizedBox(height: 20),
+
+                          // Rotina e Timeline organizada
+                          _buildRotinaToggle(),
+                          const SizedBox(height: 16),
+                          _buildTimeline(_lembretes),
                           const SizedBox(height: 20),
                         ],
                       ),
@@ -1611,7 +1447,6 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                 ],
               ),
             ),
-          ),
           bottomNavigationBar: const ElderlyBottomNav(
             selected: ElderlyNavDestination.home,
           ),
@@ -1620,53 +1455,205 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     );
   }
 
+  Widget _buildSmartStatusBar() {
+    final isHighContrast =
+        Theme.of(context).colorScheme.primary == Colors.black;
+
+    return StreamBuilder<int>(
+      stream: VideoCallService.instance.watchMissedCallsCount(),
+      builder: (context, snapshot) {
+        final missedCount = snapshot.data ?? 0;
+        if (missedCount > 0) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Material(
+              color: isHighContrast ? Colors.white : AppColors.errorContainer,
+              borderRadius: BorderRadius.circular(20),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(20),
+                onTap: () {
+                  _stopAllAudioAndTts();
+                  TTSService.instance.falar(
+                    'Abrindo a tela de ajuda para retornar a ligação.',
+                    caller: this,
+                  );
+                  Navigator.pushNamed(context, '/elderly-help');
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isHighContrast ? Colors.black : AppColors.error,
+                      width: isHighContrast ? 3.0 : 2.0,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: isHighContrast ? Colors.black : AppColors.error,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.phone_missed_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              missedCount == 1
+                                  ? '1 Chamada Perdida'
+                                  : '$missedCount Chamadas Perdidas',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w900,
+                                color: isHighContrast ? Colors.black : AppColors.error,
+                              ),
+                            ),
+                            Text(
+                              'Toque para retornar a ligação 📞',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: isHighContrast ? Colors.black87 : AppColors.onErrorContainer,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        color: isHighContrast ? Colors.black : AppColors.error,
+                        size: 16,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
+
+        if (!_isOnline) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: isHighContrast ? Colors.white : AppColors.warningContainer,
+                borderRadius: BorderRadius.circular(9999),
+                border: Border.all(
+                  color: isHighContrast ? Colors.black : AppColors.warning,
+                  width: isHighContrast ? 2.5 : 1.5,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.wifi_off_rounded,
+                    size: 18,
+                    color: isHighContrast ? Colors.black : AppColors.warning,
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      'Modo Offline • Lembretes salvos no celular',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: isHighContrast
+                            ? Colors.black
+                            : AppColors.onWarningContainer,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        if (_isConnected) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              decoration: BoxDecoration(
+                color: isHighContrast
+                    ? Colors.white
+                    : AppColors.surfaceContainerLowest,
+                borderRadius: BorderRadius.circular(9999),
+                border: Border.all(
+                  color: isHighContrast
+                      ? Colors.black
+                      : AppColors.outlineVariant.withValues(alpha: 0.6),
+                  width: isHighContrast ? 2.0 : 1.0,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.check_circle_rounded,
+                    size: 16,
+                    color: isHighContrast
+                        ? Colors.black
+                        : AppColors.success,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Cuidador conectado',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: isHighContrast
+                          ? Colors.black
+                          : AppColors.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        return const SizedBox.shrink();
+      },
+    );
+  }
+
   Widget _buildTopBar() {
     final isHighContrast =
         Theme.of(context).colorScheme.primary == Colors.black;
-    final hour = DateTime.now().hour;
-    final greeting = hour >= 5 && hour < 12
-        ? 'Bom dia ☀️'
-        : hour >= 12 && hour < 18
-            ? 'Boa tarde 🌤️'
-            : 'Boa noite 🌙';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: BoxDecoration(
-        color: isHighContrast ? Colors.white : Colors.transparent,
+        color: isHighContrast ? Colors.white : AppColors.surface,
       ),
       child: Row(
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  greeting,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: isHighContrast
-                        ? Colors.black87
-                        : AppColors.onSurfaceVariant,
-                  ),
-                ),
-                Text(
-                  'Lembrete Amigo',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w900,
-                    color: isHighContrast
-                        ? Colors.black
-                        : AppColors.primary,
-                  ),
-                ),
-              ],
+          const SizedBox(width: 56),
+          const Spacer(),
+          Text(
+            'Lembrete Amigo',
+            style: TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.w800,
+              color: isHighContrast ? Colors.black : AppColors.primary,
             ),
           ),
+          const Spacer(),
           GestureDetector(
             onTap: () async {
               if (_isProcessingAction) return;
@@ -1682,10 +1669,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                 }
               }
             },
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [ElderlyProfileAvatar(fotoPath: _fotoPath, size: 56)],
-            ),
+            child: ElderlyProfileAvatar(fotoPath: _fotoPath, size: 56),
           ),
         ],
       ),
@@ -1697,110 +1681,64 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
         Theme.of(context).colorScheme.primary == Colors.black;
 
     return Center(
-      child: Semantics(
-        button: true,
-        label: 'Criar lembrete falando',
-        hint: 'Toque duas vezes e diga o lembrete e o horário',
-        child: GestureDetector(
-          onTap: _abrirGravacao,
-          child: Container(
-            width: 172,
-            height: 172,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: isHighContrast
-                  ? Colors.white
-                  : AppColors.secondaryContainer,
-              border: Border.all(
-                color: isHighContrast
-                    ? Colors.black
-                    : Colors.white,
-                width: 6,
-              ),
-              boxShadow: isHighContrast
-                  ? null
-                  : const [
-                      BoxShadow(
-                        color: Colors.black26,
-                        blurRadius: 16,
-                        offset: Offset(0, 8),
-                      ),
-                    ],
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.mic,
-                  size: 64,
-                  color: isHighContrast
-                      ? Colors.black
-                      : AppColors.onSecondaryContainer,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Criar\nlembrete',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 23,
-                    fontWeight: FontWeight.w800,
-                    color: isHighContrast
-                        ? Colors.black
-                        : AppColors.onSecondaryContainer,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildConnectedBadge() {
-    final isHighContrast =
-        Theme.of(context).colorScheme.primary == Colors.black;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: isHighContrast
-            ? Colors.white
-            : (_isOnline
-                  ? AppColors.tertiaryFixedDim.withValues(alpha: 0.2)
-                  : AppColors.errorContainer.withValues(alpha: 0.2)),
-        borderRadius: BorderRadius.circular(9999),
-        border: Border.all(
-          color: isHighContrast
-              ? Colors.black
-              : (_isOnline ? Colors.transparent : AppColors.error),
-          width: isHighContrast ? 2.5 : 1,
-        ),
-      ),
-      child: Row(
+      child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            _isOnline ? Icons.wifi : Icons.wifi_off,
-            size: 20,
-            color: isHighContrast
-                ? Colors.black
-                : (_isOnline
-                      ? AppColors.onTertiaryFixedVariant
-                      : AppColors.error),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            _isOnline
-                ? 'Cuidador conectado'
-                : 'Cuidador conectado, sem internet',
-            style: TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w700,
-              color: isHighContrast
-                  ? Colors.black
-                  : (_isOnline
-                        ? AppColors.onTertiaryFixedVariant
-                        : AppColors.error),
+          Semantics(
+            button: true,
+            label: 'Criar lembrete falando',
+            hint: 'Toque duas vezes e diga o lembrete e o horário',
+            child: GestureDetector(
+              onTap: _abrirGravacao,
+              child: Container(
+                width: 172,
+                height: 172,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isHighContrast
+                      ? Colors.white
+                      : AppColors.secondaryContainer,
+                  border: Border.all(
+                    color: isHighContrast
+                        ? Colors.black
+                        : Colors.white,
+                    width: 6,
+                  ),
+                  boxShadow: isHighContrast
+                      ? null
+                      : const [
+                          BoxShadow(
+                            color: Colors.black26,
+                            blurRadius: 16,
+                            offset: Offset(0, 8),
+                          ),
+                        ],
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.mic,
+                      size: 64,
+                      color: isHighContrast
+                          ? Colors.black
+                          : AppColors.onSecondaryContainer,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Criar\nlembrete',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 23,
+                        fontWeight: FontWeight.w800,
+                        color: isHighContrast
+                            ? Colors.black
+                            : AppColors.onSecondaryContainer,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ],
@@ -1809,95 +1747,43 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
   }
 
 
-
   Widget _buildFocusActions(Lembrete lembrete, {required bool highContrast}) {
-    ButtonStyle style(Color background, Color foreground) =>
-        FilledButton.styleFrom(
-          minimumSize: const Size(0, 68),
-          padding: const EdgeInsets.symmetric(horizontal: 6),
-          backgroundColor: background,
-          foregroundColor: foreground,
-          side: highContrast
-              ? const BorderSide(color: Colors.black, width: 2)
-              : null,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-        );
+    final isMed = lembrete.categoria == 'medicacao';
+    final actionLabel = isMed ? 'JÁ TOMEI MEU REMÉDIO' : 'CONCLUIR AGORA';
 
-    return Row(
-      children: [
-        Expanded(
-          child: FilledButton(
-            onPressed: () => _openFocusedReminder(lembrete),
-            style: style(
-              highContrast ? Colors.black : AppColors.success,
-              Colors.white,
-            ),
-            child: const Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.check_circle_outline, size: 28),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    'Fazer',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ],
+    return SizedBox(
+      width: double.infinity,
+      height: 74,
+      child: FilledButton.icon(
+        onPressed: () {
+          HapticFeedback.heavyImpact();
+          _openFocusedReminder(lembrete);
+        },
+        icon: const Icon(Icons.check_circle_rounded, size: 32),
+        label: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            actionLabel,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.4,
             ),
           ),
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: FilledButton(
-            onPressed: () => _postponeFocusedReminder(lembrete),
-            style: style(
-              highContrast
-                  ? Colors.white
-                  : AppColors.secondaryContainer,
-              highContrast ? Colors.black : AppColors.onSecondaryContainer,
-            ),
-            child: const Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.snooze, size: 28),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    'Mais tarde',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ],
-            ),
+        style: FilledButton.styleFrom(
+          backgroundColor: highContrast ? Colors.black : AppColors.success,
+          foregroundColor: Colors.white,
+          elevation: 3,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: highContrast
+                ? const BorderSide(color: Colors.white, width: 2)
+                : BorderSide.none,
           ),
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: FilledButton(
-            onPressed: () => _requestFocusedHelp(lembrete),
-            style: style(
-              highContrast ? AppColors.error : AppColors.error,
-              Colors.white,
-            ),
-            child: const Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.support_agent, size: 28),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    'Ajuda',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 
@@ -1908,31 +1794,50 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     if (lembrete == null) {
       return Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
+        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
         decoration: BoxDecoration(
-          color: AppColors.surfaceContainerLowest,
+          color: isHighContrast ? Colors.white : AppColors.surfaceContainerLowest,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
             color: isHighContrast
                 ? Colors.black
-                : AppColors.outlineVariant.withValues(alpha: 0.5),
-            width: isHighContrast ? 4.0 : 2.5,
+                : AppColors.outlineVariant.withValues(alpha: 0.6),
+            width: isHighContrast ? 3.0 : 1.5,
           ),
         ),
         child: Column(
           children: [
-            Icon(
-              Icons.notifications_off_outlined,
-              size: 48,
-              color: AppColors.onSurfaceVariant,
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: isHighContrast
+                    ? Colors.black
+                    : AppColors.successContainer,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.check_circle_outline_rounded,
+                size: 40,
+                color: isHighContrast ? Colors.white : AppColors.success,
+              ),
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             Text(
-              'Nenhum lembrete para hoje',
+              'Tudo em dia por hoje!',
               style: TextStyle(
                 fontSize: 22,
-                fontWeight: FontWeight.w800,
-                color: AppColors.onSurfaceVariant,
+                fontWeight: FontWeight.w900,
+                color: isHighContrast ? Colors.black : AppColors.onSurface,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Nenhum lembrete pendente agora.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: isHighContrast ? Colors.black87 : AppColors.onSurfaceVariant,
               ),
             ),
           ],

@@ -30,7 +30,6 @@ class ReminderWithAudio extends StatefulWidget {
   final String? instructions;
   final bool requiresPhoto;
   final String? relativeTime;
-  final VoidCallback? onPostpone;
 
   const ReminderWithAudio({
     super.key,
@@ -49,7 +48,6 @@ class ReminderWithAudio extends StatefulWidget {
     this.instructions,
     this.requiresPhoto = false,
     this.relativeTime,
-    this.onPostpone,
   }) : _accentColor = accentColor;
 
   @override
@@ -602,53 +600,6 @@ class _ReminderWithAudioState extends State<ReminderWithAudio>
                               ),
                             ),
                           ),
-
-                          // Botão Adiar (+15 min)
-                          if (widget.onPostpone != null && !isDoneStatus) ...[
-                            const SizedBox(width: 8),
-                            SizedBox(
-                              height: 48,
-                              child: OutlinedButton(
-                                onPressed: () {
-                                  HapticFeedback.lightImpact();
-                                  widget.onPostpone!();
-                                },
-                                style: OutlinedButton.styleFrom(
-                                  backgroundColor: AppColors.surfaceContainerLow,
-                                  side: BorderSide(
-                                    color: AppColors.outlineVariant,
-                                    width: 1.5,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.schedule,
-                                      size: 16,
-                                      color: AppColors.warning,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      '+15m',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w800,
-                                        color: AppColors.onSurface,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
 
                           // Botão de Ação Principal
                           if (widget.onStatusTap != null) ...[

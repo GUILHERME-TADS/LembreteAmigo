@@ -66,11 +66,18 @@ class _ElderlyProfileAvatarState extends State<ElderlyProfileAvatar> {
       height: widget.size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: AppColors.primaryContainer,
+        color: AppColors.primary,
         border: Border.all(
-          color: AppColors.primaryContainer,
+          color: Colors.white,
           width: widget.borderWidth,
         ),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          ),
+        ],
         image: showLocalImage
             ? DecorationImage(
                 image: AppImageHelper.thumbnailFileImage(

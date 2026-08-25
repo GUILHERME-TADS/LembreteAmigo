@@ -139,29 +139,36 @@ class _VideoCallHistoryScreenState extends State<VideoCallHistoryScreen> {
                 onStartCall: () => _startCall('video'),
               )
             : ListView(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
                 children: _buildGroupedList(isElderly),
               ),
       ),
       floatingActionButton: isElderly
           ? null
           : Row(
+              mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 FloatingActionButton.extended(
                   heroTag: 'fab_voice',
                   onPressed: () => _startCall('voice'),
                   icon: const Icon(Icons.phone),
-                  label: const Text('Ligação Voz'),
+                  label: const FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text('Voz'),
+                  ),
                   backgroundColor: AppColors.primaryContainer,
                   foregroundColor: AppColors.onPrimaryContainer,
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
                 FloatingActionButton.extended(
                   heroTag: 'fab_video',
                   onPressed: () => _startCall('video'),
                   icon: const Icon(Icons.videocam),
-                  label: const Text('Ligação Imagem'),
+                  label: const FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text('Vídeo'),
+                  ),
                   backgroundColor: AppColors.primary,
                   foregroundColor: AppColors.onPrimary,
                 ),

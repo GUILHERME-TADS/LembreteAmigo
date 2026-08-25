@@ -26,9 +26,7 @@ import 'screens/emergency_alert_screen.dart';
 import 'screens/device_readiness_screen.dart';
 import 'screens/caregiver_network_screen.dart';
 import 'screens/care_center_screen.dart';
-import 'screens/emergency_card_screen.dart';
 import 'screens/medication_stock_screen.dart';
-import 'screens/wellbeing_screen.dart';
 import 'screens/identify_medication_screen.dart';
 import 'screens/reminder_detail_screen.dart';
 import 'screens/incoming_video_call_screen.dart';
@@ -60,8 +58,6 @@ import 'screens/supervisor_reminders_screen.dart';
 import 'screens/supervisor_settings_screen.dart';
 import 'screens/test_hub_screen.dart';
 import 'screens/practice_mode_screen.dart';
-import 'screens/photo_gallery_screen.dart';
-import 'screens/digital_photo_frame_screen.dart';
 import 'screens/take_photo_confirmation_screen.dart';
 import 'screens/voice_settings_screen.dart';
 import 'screens/welcome_screen.dart';
@@ -91,6 +87,7 @@ import 'widgets/index.dart';
 import 'widgets/app_status_banner.dart';
 import 'services/app_status_service.dart';
 import 'services/app_permission_service.dart';
+import 'services/cache_janitor_service.dart';
 import 'utils/firebase_helper.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -263,8 +260,6 @@ bool isElderlyOnlyRoute(String routeName) {
     '/voice-settings',
     '/device-readiness',
     '/caregiver-network',
-    '/wellbeing',
-    '/emergency-card',
   };
 
   return elderlyRoutes.contains(routeName);
@@ -288,7 +283,6 @@ bool isSupervisorProtectedRoute(String routeName) {
     '/supervisor-reminders',
     '/care-center',
     '/medication-stock',
-    '/supervisor-wellbeing',
   };
 
   return supervisorRoutes.contains(routeName);
@@ -516,6 +510,12 @@ void main() async {
   } catch (e) {
     debugPrint('Erro ao inicializar AlwaysListeningService: $e');
   }
+
+  // Limpeza de arquivos e caches temporários antigos em segundo plano
+  CacheJanitorService.instance.cleanExpiredCaches().catchError((e) {
+    debugPrint('Aviso ao executar limpeza de cache: $e');
+    return 0;
+  });
 
   String? pendingPayload;
   String? pendingNotificationAction;
@@ -1028,7 +1028,7 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
           latestRoute == '/reinforcement-alert') {
         return;
       }
-      navigator.pushNamed('/active-reminder', arguments: reminder.id);
+      navigator.pushNamed('/active-reminder', arguments: reminder);
     });
   }
 
@@ -1229,13 +1229,6 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
           case '/practice-mode':
             page = const PracticeModeScreen();
             break;
-          case '/wellbeing':
-          case '/supervisor-wellbeing':
-            page = const WellbeingScreen();
-            break;
-          case '/emergency-card':
-            page = const EmergencyCardScreen();
-            break;
 
           case '/messages':
             page = const MessagesScreen();
@@ -1406,12 +1399,6 @@ class _MeuAppState extends State<MeuApp> with WidgetsBindingObserver {
             break;
           case '/effectiveness-feedback':
             page = const EffectivenessFeedbackScreen();
-            break;
-          case '/photo-gallery':
-            page = const PhotoGalleryScreen();
-            break;
-          case '/digital-photo-frame':
-            page = const DigitalPhotoFrameScreen();
             break;
 
           default:

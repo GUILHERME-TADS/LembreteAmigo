@@ -4,7 +4,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:alarm/alarm.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
 import '../models/lembrete.dart';
 import '../models/reminder_completion_result.dart';
@@ -14,6 +14,7 @@ import '../services/notification_service.dart';
 import '../services/vibration_service.dart';
 import '../services/session_role_service.dart';
 import '../services/alarm_service.dart';
+import '../services/video_call_service.dart';
 import '../utils/audio_path_helper.dart';
 import '../utils/period_helper.dart';
 import '../utils/app_image_helper.dart';
@@ -36,8 +37,6 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
   bool _isLoopPaused = false;
   bool _isFetchingReminder = false;
   final AudioPlayer _familyAudioPlayer = AudioPlayer();
-  final stt.SpeechToText _speech = stt.SpeechToText();
-  bool _isListeningVoiceCommand = false;
   Timer? _urgencyReinforcementTimer;
   Timer? _noResponseTimer;
   bool _isProcessingAction = false;
@@ -64,87 +63,6 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
     LembreteService.instance.carregar();
     LembreteService.instance.notifier.addListener(_onLembretesChanged);
     _loadPairedStatus();
-    _initVoiceListening();
-  }
-
-  Future<void> _initVoiceListening() async {
-    try {
-      final available = await _speech.initialize(
-        onError: (error) {
-          debugPrint('Speech recognition error: $error');
-          if (mounted) setState(() => _isListeningVoiceCommand = false);
-        },
-        onStatus: (status) {
-          if (status == 'done' || status == 'notListening') {
-            if (mounted && _isListeningVoiceCommand && !_isProcessingAction) {
-              _restartVoiceListening();
-            }
-          }
-        },
-      );
-      if (available && mounted && !_isProcessingAction) {
-        _startVoiceListening();
-      }
-    } catch (e) {
-      debugPrint('Erro ao inicializar voz no alarme ativo: $e');
-      if (mounted) setState(() => _isListeningVoiceCommand = false);
-    }
-  }
-
-  void _startVoiceListening() {
-    if (!mounted || _isProcessingAction) return;
-    try {
-      if (!_speech.isAvailable) return;
-      setState(() => _isListeningVoiceCommand = true);
-      _speech.listen(
-        listenOptions: stt.SpeechListenOptions(
-          localeId: 'pt_BR',
-          listenMode: stt.ListenMode.dictation,
-        ),
-        onResult: (result) {
-          final words = result.recognizedWords.toLowerCase();
-          if (words.contains('tomei') ||
-              words.contains('ja tomei') ||
-              words.contains('já tomei') ||
-              words.contains('pronto') ||
-              words.contains('feito') ||
-              words.contains('concluido') ||
-              words.contains('concluído')) {
-            _stopVoiceListening();
-            _handleConfirmation();
-          } else if (words.contains('adiar') ||
-                     words.contains('depois') ||
-                     words.contains('mais tarde') ||
-                     words.contains('mais dez') ||
-                     words.contains('mais 10')) {
-            _stopVoiceListening();
-            _handleSnooze();
-          }
-        },
-      );
-    } catch (e) {
-      debugPrint('Erro ao iniciar escuta no alarme ativo: $e');
-      if (mounted) setState(() => _isListeningVoiceCommand = false);
-    }
-  }
-
-  void _restartVoiceListening() {
-    Future.delayed(const Duration(milliseconds: 600), () {
-      if (mounted && !_isProcessingAction && !_isLoopPaused && _speech.isAvailable) {
-        _startVoiceListening();
-      }
-    });
-  }
-
-  void _stopVoiceListening() {
-    try {
-      if (_speech.isListening) {
-        _speech.stop();
-      }
-    } catch (e) {
-      debugPrint('Erro ao parar escuta de voz: $e');
-    }
-    if (mounted) setState(() => _isListeningVoiceCommand = false);
   }
 
   Future<void> _loadPairedStatus() async {
@@ -367,13 +285,44 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
 
   void _stopReminderFeedback() {
     _isLoopPaused = true;
-    _stopVoiceListening();
     VibrationService.stopVibration();
     AudioManager.stopAll();
     _noResponseTimer?.cancel();
     _urgencyReinforcementTimer?.cancel();
     _runInBackground(_familyAudioPlayer.stop(), 'parar audio');
     _runInBackground(TTSService.instance.parar(caller: this), 'parar tts');
+  }
+
+  Future<void> _ligarParaTomarRemedioJuntos() async {
+    _isSpeakingLoopActive = false;
+    _isLoopPaused = false;
+    VibrationService.stopVibration();
+    await TTSService.instance.parar(caller: this);
+    if (!mounted) return;
+    CallingFeedbackDialog.show(
+      context,
+      contactName: 'Cuidador',
+      callTypeLabel: 'Vídeo do Remédio',
+      onCallConfirmed: () async {
+        final prefs = await SharedPreferences.getInstance();
+        final idosoId = prefs.getString('paired_idoso_id');
+        if (idosoId != null && idosoId.isNotEmpty) {
+          final callStart = await VideoCallService.instance.initiateCall(
+            idosoId: idosoId,
+            initiatedBy: 'medication_companion',
+            callType: 'video',
+          );
+          if (callStart != null && mounted) {
+            await VideoCallService.instance.joinCall(
+              callStart.roomName,
+              callType: 'video',
+              callId: callStart.callId,
+              alreadyVerified: true,
+            );
+          }
+        }
+      },
+    );
   }
 
   Future<void> _handleConfirmation() async {
@@ -565,7 +514,17 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
       }
     } else if (args is String) {
       _lembreteId = args;
-      unawaited(_buscarLembrete());
+      if (lembrete == null) {
+        final match = LembreteService.instance.lembretes.where(
+          (item) => item.id == args,
+        );
+        if (match.isNotEmpty) {
+          lembrete = match.first;
+          _startReminderLoop(match.first);
+        } else {
+          unawaited(_buscarLembrete());
+        }
+      }
     } else if (!_notFound) {
       setState(() => _notFound = true);
     }
@@ -602,10 +561,6 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
     _noResponseTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     VibrationService.stopVibration();
-    try {
-      _speech.stop();
-      _speech.cancel();
-    } catch (_) {}
     _familyAudioPlayer.dispose();
     LembreteService.instance.notifier.removeListener(_onLembretesChanged);
     TTSService.instance.parar(caller: this);
@@ -847,36 +802,31 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                             const SizedBox(height: 32),
                             Builder(
                               builder: (context) {
-                                final border = isHighContrast
-                                    ? Border.all(
-                                        color: AppColors.error,
-                                        width: 4,
-                                      )
-                                    : Border.all(
-                                        color: AppColors.error,
-                                        width: 6,
-                                      );
-
-                                final shadow = isHighContrast
-                                    ? null
-                                    : [
-                                        BoxShadow(
-                                          color: AppColors.error.withValues(
-                                            alpha: 0.25,
-                                          ),
-                                          blurRadius: 24,
-                                          offset: const Offset(0, 8),
-                                        ),
-                                      ];
-
                                 return Container(
                                   width: double.infinity,
                                   padding: const EdgeInsets.all(24),
                                   decoration: BoxDecoration(
-                                    color: Colors.white,
+                                    color: isHighContrast
+                                        ? Colors.white
+                                        : AppColors.surfaceContainerLowest,
                                     borderRadius: BorderRadius.circular(24),
-                                    border: border,
-                                    boxShadow: shadow,
+                                    border: Border.all(
+                                      color: isHighContrast
+                                          ? Colors.black
+                                          : iconColor.withValues(alpha: 0.35),
+                                      width: isHighContrast ? 3.0 : 2.0,
+                                    ),
+                                    boxShadow: isHighContrast
+                                        ? null
+                                        : [
+                                            BoxShadow(
+                                              color: iconColor.withValues(
+                                                alpha: 0.12,
+                                              ),
+                                              blurRadius: 18,
+                                              offset: const Offset(0, 6),
+                                            ),
+                                          ],
                                   ),
                                   child: Column(
                                     children: [
@@ -962,29 +912,6 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                               const SizedBox(height: 24),
                             ],
 
-                            if (_isListeningVoiceCommand) ...[
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 20),
-                                child: Column(
-                                  children: [
-                                    AudioWaveformIndicator(
-                                      isListening: _isListeningVoiceCommand,
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      'Você pode responder por voz: "Já tomei" ou "Já fiz"',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w700,
-                                        color: AppColors.primary,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-
                             // BOTAO CONFIRMAR (ENTENDI)
                             SizedBox(
                               width: double.infinity,
@@ -1005,7 +932,10 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                           strokeWidth: 3,
                                         ),
                                       )
-                                    : const Icon(Icons.check_circle_rounded, size: 38),
+                                    : const Icon(
+                                        Icons.check_circle_rounded,
+                                        size: 38,
+                                      ),
                                 label: FittedBox(
                                   fit: BoxFit.scaleDown,
                                   child: Text(
@@ -1025,7 +955,9 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                   foregroundColor: Colors.white,
                                   elevation: 6,
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(AppRadius.xl),
+                                    borderRadius: BorderRadius.circular(
+                                      AppRadius.xl,
+                                    ),
                                   ),
                                   side: isHighContrast
                                       ? const BorderSide(
@@ -1033,7 +965,8 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                           width: 3,
                                         )
                                       : BorderSide(
-                                          color: AppColors.onSuccessContainer.withValues(alpha: 0.25),
+                                          color: AppColors.onSuccessContainer
+                                              .withValues(alpha: 0.25),
                                           width: 2,
                                         ),
                                 ),
@@ -1092,6 +1025,50 @@ class _ActiveReminderScreenState extends State<ActiveReminderScreen>
                                 ),
                               ),
                             ),
+                            if (_isPaired &&
+                                lembrete?.categoria == 'medicacao') ...[
+                              const SizedBox(height: 16),
+                              SizedBox(
+                                width: double.infinity,
+                                height: 80,
+                                child: ElevatedButton.icon(
+                                  onPressed: _isProcessingAction
+                                      ? null
+                                      : _ligarParaTomarRemedioJuntos,
+                                  icon: const Icon(
+                                    Icons.videocam_rounded,
+                                    size: 34,
+                                  ),
+                                  label: const FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      'LIGAR PARA TOMAR JUNTOS',
+                                      maxLines: 1,
+                                      style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: isHighContrast
+                                        ? AppColors.primaryContainer
+                                        : AppColors.info,
+                                    foregroundColor: Colors.white,
+                                    elevation: 4,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(24),
+                                    ),
+                                    side: isHighContrast
+                                        ? const BorderSide(
+                                            color: Colors.black,
+                                            width: 3,
+                                          )
+                                        : null,
+                                  ),
+                                ),
+                              ),
+                            ],
                             const SizedBox(height: 16),
                             // BOTAO PRECISO DE AJUDA (Apenas se tiver ajudante conectado)
                             SizedBox(

@@ -161,7 +161,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
       localPerfil.remove('pairingCode');
       localPerfil.remove('pairingCodeExpires');
       await SecureCacheService.instance.writeElderlyProfile(
-        jsonEncode(localPerfil),
+        SecureCacheService.safeJsonEncode(localPerfil),
       );
 
       if (mounted) {
@@ -248,7 +248,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
       await prefs.setString('paired_idoso_id', user.uid);
       await prefs.setBool('elderly_autonomous_mode', true);
       await SecureCacheService.instance.writeElderlyProfile(
-        jsonEncode(localProfile),
+        SecureCacheService.safeJsonEncode(localProfile),
       );
       await PushNotificationService.instance.saveCurrentToken();
 
@@ -284,7 +284,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
               merged.remove('pairingCodeExpires');
 
               await SecureCacheService.instance.writeElderlyProfile(
-                jsonEncode(merged),
+                SecureCacheService.safeJsonEncode(merged),
               );
               await localPrefs.setString('paired_idoso_id', user.uid);
               await localPrefs.setBool('elderly_autonomous_mode', false);
@@ -483,7 +483,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
                             _generatePairingCode();
                           },
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 80),
                       ] else ...[
                         const SizedBox(height: 24),
                         Text(
@@ -616,11 +616,14 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
                           child: OutlinedButton.icon(
                             onPressed: _generatePairingCode,
                             icon: const Icon(Icons.refresh, size: 28),
-                            label: const Text(
-                              'Gerar novo código',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
+                            label: const FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                'Gerar novo código',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                             style: OutlinedButton.styleFrom(
@@ -634,7 +637,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 80),
                       ],
                     ],
                   ),

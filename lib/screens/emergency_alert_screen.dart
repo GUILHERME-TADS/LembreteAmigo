@@ -306,7 +306,7 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
       backgroundColor: AppColors.surfaceDim,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
           child: Column(
             children: [
               const VolumeWarningBanner(),

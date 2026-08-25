@@ -55,6 +55,9 @@ class AppColors {
   static Color get warningContainer => const Color(0xFFFFE8D6);
   static Color get onWarningContainer => const Color(0xFF4A2500);
   static Color get info => voiceFeedbackBlue;
+  static Color get videoCallPrimary => const Color(0xFF00897B);
+  static Color get videoCallSecondary => const Color(0xFF26A69A);
+  static Color get warningAccent => const Color(0xFFFB8C00);
   static Color get infoContainer => const Color(0xFFE3F2FD);
   static Color get onInfoContainer => const Color(0xFF004A71);
   static Color get medicationContainer => const Color(0xFFF3E5F5);
@@ -99,24 +102,50 @@ class AppColors {
   static Color get vitalCritical => const Color(0xFFD32F2F);
   static Color get vitalCriticalContainer => const Color(0xFFFFDAD6);
 
+  // Modo Noturno Quente Luz de Vela (Sunset Amber Mode)
+  static Color get sunsetAmber => const Color(0xFFFFB300);
+  static Color get sunsetAmberContainer => const Color(0xFF3E2723);
+  static Color get sunsetAmberBackground => const Color(0xFF1F1610);
+  static Color get onSunsetAmberContainer => const Color(0xFFFFE082);
+  static Color get sunsetAmberCard => const Color(0xFF2C1F16);
+
+  // Tokens do Relatório Clínico
+  static Color get reportPdfCardBackground => const Color(0xFFEDE7F6);
+  static Color get reportPdfCardBorder => const Color(0xFF7E57C2);
+  static Color get reportPdfPrimary => const Color(0xFF512DA8);
+  static Color get reportPdfTitle => const Color(0xFF311B92);
+  static Color get reportPdfSubtitle => const Color(0xFF4527A0);
+
   // Gradientes Atmosféricos por Período
   static LinearGradient get morningAtmosphere => const LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [Color(0xFFFFF8F0), Color(0xFFF8F9FA)],
-      );
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [Color(0xFFFFF8F0), Color(0xFFF8F9FA)],
+  );
 
   static LinearGradient get afternoonAtmosphere => const LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [Color(0xFFF0F7FF), Color(0xFFF8F9FA)],
-      );
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [Color(0xFFF0F7FF), Color(0xFFF8F9FA)],
+  );
 
   static LinearGradient get nightAtmosphere => const LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [Color(0xFFF3F0FA), Color(0xFFF8F9FA)],
-      );
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [Color(0xFFF3F0FA), Color(0xFFF8F9FA)],
+  );
+
+  static LinearGradient get candleLightAtmosphere => const LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [Color(0xFFFFF3E0), Color(0xFFFFECB3), Color(0xFFF8F9FA)],
+  );
+
+  static LinearGradient get sunsetAmberAtmosphere => const LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [Color(0xFF2C1F16), Color(0xFF1F1610)],
+  );
 }
 
 class AppDecorations {
@@ -132,10 +161,7 @@ class AppDecorations {
     return BoxDecoration(
       color: color,
       borderRadius: BorderRadius.circular(borderRadius),
-      border: Border.all(
-        color: borderColor,
-        width: 2.0,
-      ),
+      border: Border.all(color: borderColor, width: 2.0),
       boxShadow: isPressed
           ? [
               BoxShadow(
@@ -168,10 +194,7 @@ class AppDecorations {
     return BoxDecoration(
       color: backgroundColor,
       borderRadius: BorderRadius.circular(borderRadius),
-      border: Border.all(
-        color: accentColor.withValues(alpha: 0.4),
-        width: 2.5,
-      ),
+      border: Border.all(color: accentColor.withValues(alpha: 0.4), width: 2.5),
       boxShadow: [
         BoxShadow(
           color: accentColor.withValues(alpha: 0.18),
@@ -195,10 +218,7 @@ class AppDecorations {
     return BoxDecoration(
       color: AppColors.surfaceContainerLowest,
       borderRadius: BorderRadius.circular(borderRadius),
-      border: Border.all(
-        color: statusColor.withValues(alpha: 0.3),
-        width: 1.5,
-      ),
+      border: Border.all(color: statusColor.withValues(alpha: 0.3), width: 1.5),
       boxShadow: [
         BoxShadow(
           color: AppColors.shadow.withValues(alpha: 0.06),
@@ -289,6 +309,65 @@ class AppDecorations {
           color: statusColor.withValues(alpha: 0.15),
           blurRadius: 16,
           offset: const Offset(0, 6),
+        ),
+      ],
+    );
+  }
+
+  /// Card do Modo Foco Único (One-Thing-at-a-Time) para Idosos
+  static BoxDecoration focusHeroCard({
+    required Color accentColor,
+    Color? backgroundColor,
+    double borderRadius = AppRadius.xxl,
+  }) {
+    return BoxDecoration(
+      color: backgroundColor ?? AppColors.surfaceContainerLowest,
+      borderRadius: BorderRadius.circular(borderRadius),
+      border: Border.all(color: accentColor, width: 3.0),
+      boxShadow: [
+        BoxShadow(
+          color: accentColor.withValues(alpha: 0.22),
+          blurRadius: 20,
+          offset: const Offset(0, 8),
+        ),
+        BoxShadow(
+          color: Colors.white.withValues(alpha: 0.9),
+          blurRadius: 0,
+          offset: const Offset(0, 2),
+        ),
+      ],
+    );
+  }
+
+  /// Frasco / Garrafa de Estoque de Medicamentos com nível
+  static BoxDecoration pillBottleCard({
+    required Color statusColor,
+    double borderRadius = AppRadius.xl,
+  }) {
+    return BoxDecoration(
+      color: AppColors.surfaceContainerLowest,
+      borderRadius: BorderRadius.circular(borderRadius),
+      border: Border.all(color: statusColor.withValues(alpha: 0.4), width: 2.0),
+      boxShadow: [
+        BoxShadow(
+          color: statusColor.withValues(alpha: 0.12),
+          blurRadius: 12,
+          offset: const Offset(0, 4),
+        ),
+      ],
+    );
+  }
+
+  /// Brilho envolvente para o microfone e onda sonora
+  static BoxDecoration soundwaveGlow({required Color glowColor}) {
+    return BoxDecoration(
+      shape: BoxShape.circle,
+      color: glowColor.withValues(alpha: 0.15),
+      boxShadow: [
+        BoxShadow(
+          color: glowColor.withValues(alpha: 0.3),
+          blurRadius: 18,
+          spreadRadius: 4,
         ),
       ],
     );
@@ -545,10 +624,15 @@ class AppTheme {
   }
 
   static ThemeData get theme => light();
-  static ThemeData light({bool highContrast = false}) => _build(highContrast, Brightness.light);
-  static ThemeData dark({bool highContrast = false}) => _build(highContrast, Brightness.dark);
+  static ThemeData light({bool highContrast = false}) =>
+      _build(highContrast, Brightness.light);
+  static ThemeData dark({bool highContrast = false}) =>
+      _build(highContrast, Brightness.dark);
 
-  static ThemeData _build(bool highContrast, [Brightness brightness = Brightness.light]) {
+  static ThemeData _build(
+    bool highContrast, [
+    Brightness brightness = Brightness.light,
+  ]) {
     var scheme = schemeFor(brightness);
     if (highContrast) {
       scheme = scheme.copyWith(
@@ -614,7 +698,10 @@ class AppTheme {
     );
     final cardShape = RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(AppRadius.lg),
-      side: BorderSide(color: scheme.outlineVariant),
+      side: BorderSide(
+        color: scheme.outlineVariant,
+        width: highContrast ? 2.5 : 1.0,
+      ),
     );
 
     return base.copyWith(

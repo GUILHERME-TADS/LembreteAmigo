@@ -42,9 +42,13 @@ class ElderlyProfileRepository {
   Future<DocumentSnapshot<Map<String, dynamic>>> getDocument(
     String idosoId,
   ) async {
-    final primary = await primaryRef(idosoId).get();
-    if (primary.exists) return primary;
-    return legacyRef(idosoId).get();
+    try {
+      final primary = await primaryRef(idosoId).get().timeout(const Duration(seconds: 4));
+      if (primary.exists) return primary;
+      return await legacyRef(idosoId).get().timeout(const Duration(seconds: 4));
+    } catch (_) {
+      return primaryRef(idosoId).get(const GetOptions(source: Source.cache));
+    }
   }
 
   Future<Map<String, dynamic>?> getData(String idosoId) async {
@@ -53,11 +57,15 @@ class ElderlyProfileRepository {
   }
 
   Future<Map<String, dynamic>> getMergedData(String idosoId) async {
-    final documents = await Future.wait([
-      legacyRef(idosoId).get(),
-      primaryRef(idosoId).get(),
-    ]);
-    return <String, dynamic>{...?documents[0].data(), ...?documents[1].data()};
+    try {
+      final documents = await Future.wait([
+        legacyRef(idosoId).get().timeout(const Duration(seconds: 4)),
+        primaryRef(idosoId).get().timeout(const Duration(seconds: 4)),
+      ]);
+      return <String, dynamic>{...?documents[0].data(), ...?documents[1].data()};
+    } catch (_) {
+      return {};
+    }
   }
 
   Map<String, dynamic> sanitize(Map<String, dynamic> source) => {

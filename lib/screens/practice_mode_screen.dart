@@ -607,7 +607,7 @@ class _PracticeModeScreenState extends State<PracticeModeScreen>
     final highlightStep3 = !_freeMode && _step == 3;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 80),
       child: Column(
         children: [
           // Banner explicativo

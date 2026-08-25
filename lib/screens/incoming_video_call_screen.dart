@@ -475,14 +475,17 @@ class _CallActionButton extends StatelessWidget {
         const SizedBox(height: 12),
         SizedBox(
           width: large ? 112 : 88,
-          child: Text(
-            label,
-            maxLines: 2,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: large ? 20 : 15,
-              fontWeight: FontWeight.w900,
-              color: Colors.white,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              label,
+              maxLines: 2,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: large ? 20 : 15,
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+              ),
             ),
           ),
         ),

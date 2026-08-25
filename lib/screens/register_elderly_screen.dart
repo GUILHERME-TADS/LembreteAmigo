@@ -443,7 +443,7 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
             _buildTopBar(context),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 80),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -503,12 +503,15 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
                                   size: 24,
                                   color: Colors.white,
                                 ),
-                                label: const Text(
-                                  'DESCONECTAR APARELHO',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
+                                label: const FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    'DESCONECTAR APARELHO',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
                                   ),
                                 ),
                                 style: ElevatedButton.styleFrom(
@@ -568,13 +571,16 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          label: Text(
-                            _isLoading
-                                ? 'CONECTANDO...'
-                                : 'VINCULAR DISPOSITIVO',
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
+                          label: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              _isLoading
+                                  ? 'CONECTANDO...'
+                                  : 'VINCULAR DISPOSITIVO',
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
                         ),

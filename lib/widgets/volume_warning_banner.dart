@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../services/session_role_service.dart';
 import '../services/tts_service.dart';
@@ -62,6 +63,7 @@ class _VolumeWarningBannerState extends State<VolumeWarningBanner>
 
   Future<void> _increaseVolume() async {
     if (_isAdjusting) return;
+    HapticFeedback.mediumImpact();
     setState(() => _isAdjusting = true);
     final vol = await VolumeService.setSafeVolume();
     if (!mounted) return;
@@ -69,8 +71,9 @@ class _VolumeWarningBannerState extends State<VolumeWarningBanner>
       _volumePercentage = vol;
       _isAdjusting = false;
     });
+    HapticFeedback.lightImpact();
     await TTSService.instance.falar(
-      'Pronto. O volume foi ajustado. Agora voce deve conseguir ouvir os lembretes.',
+      'Pronto! O volume foi aumentado para você ouvir todos os seus lembretes com clareza.',
       caller: this,
     );
   }

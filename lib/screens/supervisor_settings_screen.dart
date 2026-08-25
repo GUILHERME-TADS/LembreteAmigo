@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -273,7 +274,7 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
             _buildTopBar(context),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 80),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -385,22 +386,25 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
                             Navigator.pushNamed(context, '/practice-mode'),
                       ),
                     ]),
-                    const SizedBox(height: 24),
-                    _settingsGroup('Ferramentas & Opções de Teste', [
-                      _settingsTile(
-                        Icons.science_outlined,
-                        'Central de Testes & Simulações',
-                        'Simular alarmes, emergência, chamadas e dados de teste',
-                        onTap: () => Navigator.pushNamed(context, '/test-hub'),
-                      ),
-                      _settingsTile(
-                        Icons.checklist_rtl_outlined,
-                        'Prontidão do Aparelho',
-                        'Verificar permissões, som, alarme exato e bateria',
-                        onTap: () =>
-                            Navigator.pushNamed(context, '/device-readiness'),
-                      ),
-                    ]),
+                    if (kDebugMode) ...[
+                      const SizedBox(height: 24),
+                      _settingsGroup('Ferramentas de Desenvolvimento', [
+                        _settingsTile(
+                          Icons.science_outlined,
+                          'Central de Testes & Simulações',
+                          'Simular alarmes, emergência, chamadas e dados de teste',
+                          onTap: () =>
+                              Navigator.pushNamed(context, '/test-hub'),
+                        ),
+                        _settingsTile(
+                          Icons.checklist_rtl_outlined,
+                          'Prontidão do Aparelho',
+                          'Verificar permissões, som, alarme exato e bateria',
+                          onTap: () =>
+                              Navigator.pushNamed(context, '/device-readiness'),
+                        ),
+                      ]),
+                    ],
                     const SizedBox(height: 24),
                     _settingsGroup('Ações e Preferências', [
                       _settingsTile(

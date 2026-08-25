@@ -133,7 +133,7 @@ class _SupervisorRegisterScreenState extends State<SupervisorRegisterScreen> {
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 48),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -211,11 +211,14 @@ class _SupervisorRegisterScreenState extends State<SupervisorRegisterScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  label: Text(
-                    _isLoading ? 'CADASTRANDO...' : 'CRIAR CONTA',
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
+                  label: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      _isLoading ? 'CADASTRANDO...' : 'CRIAR CONTA',
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ),

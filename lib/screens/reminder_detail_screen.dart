@@ -209,7 +209,7 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
             _buildTopBar(context, cfg),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 80),
                 child: Column(
                   children: [
                     // Card 1: Hero Card do Lembrete
@@ -533,9 +533,12 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
       child: OutlinedButton.icon(
         onPressed: () => _showManagementBottomSheet(context, cfg),
         icon: const Icon(Icons.settings_rounded, size: 28),
-        label: const Text(
-          'GERENCIAR OU APAGAR LEMBRETE',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+        label: const FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            'GERENCIAR OU APAGAR LEMBRETE',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+          ),
         ),
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.onSurfaceVariant,
@@ -833,12 +836,15 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
           size: 30,
           color: cfg.color,
         ),
-        label: Text(
-          _isSpeakingAudio ? 'FALANDO AGORA...' : 'OUVIR DE NOVO',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w900,
-            color: cfg.color,
+        label: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            _isSpeakingAudio ? 'FALANDO AGORA...' : 'OUVIR DE NOVO',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+              color: cfg.color,
+            ),
           ),
         ),
         style: OutlinedButton.styleFrom(
@@ -868,9 +874,12 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
                 ),
               )
             : const Icon(Icons.psychology, size: 30),
-        label: Text(
-          _isFetchingExplanation ? 'PENSANDO...' : 'PARA QUE SERVE?',
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+        label: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            _isFetchingExplanation ? 'PENSANDO...' : 'PARA QUE SERVE?',
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+          ),
         ),
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,

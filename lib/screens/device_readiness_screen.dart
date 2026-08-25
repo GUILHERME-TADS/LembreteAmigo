@@ -168,7 +168,7 @@ class _DeviceReadinessScreenState extends State<DeviceReadinessScreen> {
       body: RefreshIndicator(
         onRefresh: _refresh,
         child: ListView(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 80),
           children: [
             _buildSummary(),
             const SizedBox(height: 20),
@@ -258,7 +258,10 @@ class _DeviceReadinessScreenState extends State<DeviceReadinessScreen> {
             OutlinedButton.icon(
               onPressed: _loading ? null : _refresh,
               icon: const Icon(Icons.refresh),
-              label: const Text('Verificar novamente'),
+              label: const FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text('Verificar novamente'),
+              ),
             ),
           ],
         ),
@@ -337,9 +340,12 @@ class _DeviceReadinessScreenState extends State<DeviceReadinessScreen> {
       child: FilledButton.icon(
         onPressed: _loading || _testingAlarm ? null : _testAlarm,
         icon: const Icon(Icons.alarm_rounded, size: 30),
-        label: Text(
-          _testingAlarm ? 'Testando o som...' : 'Testar som do alarme agora',
-          style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
+        label: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            _testingAlarm ? 'Testando o som...' : 'Testar som do alarme agora',
+            style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
+          ),
         ),
         style: FilledButton.styleFrom(
           backgroundColor: AppColors.primary,
@@ -364,9 +370,12 @@ class _DeviceReadinessScreenState extends State<DeviceReadinessScreen> {
                 child: CircularProgressIndicator(strokeWidth: 2.5),
               )
             : const Icon(Icons.auto_fix_high_rounded, size: 28),
-        label: Text(
-          _repairing ? 'Ajustando permissões...' : 'Corrigir automaticamente',
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+        label: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            _repairing ? 'Ajustando permissões...' : 'Corrigir automaticamente',
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+          ),
         ),
         style: OutlinedButton.styleFrom(
           side: BorderSide(color: AppColors.primary, width: 2),
@@ -417,23 +426,42 @@ class _DeviceReadinessScreenState extends State<DeviceReadinessScreen> {
 
   Widget _buildPermissionTile(AppPermissionItem item) {
     return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: item.granted
+              ? AppColors.success.withValues(alpha: 0.3)
+              : AppColors.outlineVariant,
+          width: 1.5,
+        ),
+      ),
       child: ListTile(
         minVerticalPadding: 14,
-        leading: Icon(
-          item.granted ? Icons.check_circle : Icons.error,
-          color: item.granted ? AppColors.success : AppColors.error,
-          size: 32,
+        leading: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: item.granted
+                ? AppColors.successContainer.withValues(alpha: 0.5)
+                : AppColors.primaryContainer.withValues(alpha: 0.35),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(
+            item.icon,
+            color: item.granted ? AppColors.success : AppColors.primary,
+            size: 24,
+          ),
         ),
         title: Text(
           item.title,
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
         ),
         subtitle: Text(item.description),
         trailing: item.granted
-            ? null
+            ? Icon(Icons.check_circle_rounded, color: AppColors.success, size: 26)
             : TextButton(
                 onPressed: _openSettings,
-                child: const Text('Corrigir'),
+                child: const Text('Corrigir', style: TextStyle(fontWeight: FontWeight.w800)),
               ),
       ),
     );

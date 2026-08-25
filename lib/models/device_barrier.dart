@@ -7,6 +7,7 @@ enum DeviceBarrierType {
   inactiveApp,
   locationUnavailable,
   lowBattery,
+  batteryOptimization,
 }
 
 class DeviceBarrier {

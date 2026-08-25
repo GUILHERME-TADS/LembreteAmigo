@@ -100,13 +100,31 @@ class _AudioWaveformIndicatorState extends State<AudioWaveformIndicator>
 
                       return Container(
                         margin: const EdgeInsets.symmetric(horizontal: 3),
-                        width: 6,
-                        height: 36 * sineValue,
+                        width: 7,
+                        height: (36 * sineValue).clamp(6.0, 36.0),
                         decoration: BoxDecoration(
-                          color: isHighContrast
-                              ? Colors.black
-                              : AppColors.primary,
-                          borderRadius: BorderRadius.circular(3),
+                          gradient: isHighContrast
+                              ? null
+                              : LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    AppColors.secondary,
+                                    AppColors.primary,
+                                  ],
+                                ),
+                          color: isHighContrast ? Colors.black : null,
+                          borderRadius: BorderRadius.circular(4),
+                          boxShadow: [
+                            BoxShadow(
+                              color: (isHighContrast
+                                      ? Colors.black
+                                      : AppColors.primary)
+                                  .withValues(alpha: 0.25),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
                       );
                     },

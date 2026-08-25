@@ -152,7 +152,7 @@ class SessionRoleService {
         cachedProfile.remove('pairingCode');
         cachedProfile.remove('pairingCodeExpires');
         await SecureCacheService.instance.writeElderlyProfile(
-          jsonEncode(cachedProfile),
+          SecureCacheService.safeJsonEncode(cachedProfile),
         );
 
         final photoPath = profile['fotoPath'] as String?;
@@ -217,6 +217,11 @@ class SessionRoleService {
       return supervisorActive ?? fallback;
     }
     return fallback;
+  }
+
+  static Future<String> getActiveSupervisorId() async {
+    final user = Firebase.apps.isNotEmpty ? FirebaseAuth.instance.currentUser : null;
+    return user?.uid ?? 'supervisor_local';
   }
 
   static Future<User?> ensureElderlyAuthSession() async {
@@ -403,7 +408,7 @@ class SessionRoleService {
             }
             cachedProfile['status'] = connected ? 'active' : 'pending';
             await SecureCacheService.instance.writeElderlyProfile(
-              jsonEncode(cachedProfile),
+              SecureCacheService.safeJsonEncode(cachedProfile),
             );
             await prefs.setBool('elderly_autonomous_mode', !connected);
             if (data != null) {

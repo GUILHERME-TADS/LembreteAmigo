@@ -267,7 +267,7 @@ class _SupervisorReminderDetailScreenState
         widget.lembrete!.audioPath!.isNotEmpty;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 80),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -545,9 +545,12 @@ class _SupervisorReminderDetailScreenState
                       arguments: widget.lembrete,
                     ),
                     icon: const Icon(Icons.edit_rounded),
-                    label: const Text(
-                      'EDITAR LEMBRETE',
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                    label: const FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        'EDITAR LEMBRETE',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
                     ),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),

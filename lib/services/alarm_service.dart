@@ -54,8 +54,11 @@ class AlarmService {
         _isNavigatingToReminder = false;
         return;
       }
+      final match = LembreteService.instance.lembretes
+          .where((l) => l.id == lembreteId)
+          .firstOrNull;
       nav
-          .pushNamed('/active-reminder', arguments: lembreteId)
+          .pushNamed('/active-reminder', arguments: match ?? lembreteId)
           .then((_) {
             _isNavigatingToReminder = false;
             processNextPendingReminder();
@@ -170,7 +173,7 @@ class AlarmService {
         body: bodyText,
       ),
       warningNotificationOnKill: defaultTargetPlatform == TargetPlatform.iOS,
-      androidFullScreenIntent: false,
+      androidFullScreenIntent: true,
     );
   }
 

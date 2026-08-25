@@ -1,8 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lembretes_app/models/care_alert.dart';
-import 'package:lembretes_app/models/emergency_card.dart';
 import 'package:lembretes_app/models/lembrete.dart';
-import 'package:lembretes_app/models/wellbeing_entry.dart';
 import 'package:lembretes_app/services/stock_service.dart';
 
 void main() {
@@ -62,49 +60,6 @@ void main() {
         closeTo(3 / 7, 0.0001),
       );
       expect(StockService.instance.estimatedDaysRemaining(reminder), 14);
-    });
-  });
-
-  group('dados offline', () {
-    test('cartão de emergência preserva os campos no cache', () {
-      final original = EmergencyCard(
-        name: 'Maria',
-        allergies: 'Dipirona',
-        medications: const ['Medicamento A'],
-        contactName: 'João',
-        contactPhone: '11999999999',
-        note: 'Usa marca-passo',
-        updatedAt: DateTime.utc(2026, 8, 3, 12),
-      );
-
-      final restored = EmergencyCard.fromJson(original.toJson());
-
-      expect(restored.name, original.name);
-      expect(restored.allergies, original.allergies);
-      expect(restored.medications, original.medications);
-      expect(restored.contactPhone, original.contactPhone);
-      expect(restored.updatedAt, original.updatedAt);
-    });
-
-    test('registro de bem-estar pode ser serializado localmente', () {
-      final entry = WellbeingEntry(
-        id: 'checkin-a',
-        elderlyId: 'elderly-a',
-        mood: 2,
-        symptoms: const ['Dor'],
-        note: 'Dor no joelho',
-        transcript: 'Dor no joelho',
-        needsHelp: true,
-        createdAt: DateTime.utc(2026, 8, 3, 12),
-        createdBy: 'elderly-a',
-      );
-
-      final restored = WellbeingEntry.fromMap(entry.id, entry.toLocalJson());
-
-      expect(restored.mood, 2);
-      expect(restored.symptoms, const ['Dor']);
-      expect(restored.needsHelp, isTrue);
-      expect(restored.createdAt, entry.createdAt);
     });
   });
 }

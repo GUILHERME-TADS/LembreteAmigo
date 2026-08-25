@@ -305,7 +305,7 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
                       .toList();
 
                   return SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 96),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [

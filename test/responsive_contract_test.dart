@@ -22,9 +22,8 @@ void main() {
       }
     }
 
-    // The camera and digital photo frame intentionally keep a fixed viewport.
+    // The camera intentionally keeps a fixed viewport.
     expect(uncovered..sort(), [
-      'digital_photo_frame_screen.dart',
       'take_photo_confirmation_screen.dart',
     ]);
     final cameraSource = File(

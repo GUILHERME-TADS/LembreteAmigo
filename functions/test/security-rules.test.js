@@ -872,7 +872,7 @@ test("an owner can create voice reminder with single date", async () => {
 });
 
 test(
-    "supervisor creates reminder for an elderly user with a legacy profile",
+    "supervisor creates reminder for a migrated canonical profile",
     async () => {
       await testEnv.withSecurityRulesDisabled(async (context) => {
         const db = context.firestore();
@@ -936,3 +936,164 @@ test(
       );
     });
 
+
+test("unknown collections remain denied by default", async () => {
+  const db = testEnv.authenticatedContext("elderly-a").firestore();
+  const ref = db.collection("internal_admin").doc("attempt");
+  await assertFails(ref.set({role: "admin"}));
+  await assertFails(ref.get());
+});
+
+test("supervisor updates reject identity and role spoofing", async () => {
+  const db = testEnv.authenticatedContext(
+      "supervisor-a",
+      {email: "a@example.test"},
+  ).firestore();
+  const ref = db.collection("supervisores").doc("supervisor-a");
+
+  await assertSucceeds(ref.update({
+    nome: "Cuidador A atualizado",
+    email: "a@example.test",
+    updatedAt: now(),
+  }));
+  await assertFails(ref.update({email: "victim@example.test"}));
+  await assertFails(ref.update({isAdmin: true}));
+});
+
+test("reminder queries require an authorized elderly scope", async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+    await db.collection("lembretes").doc("query-a")
+        .set(validReminder("elderly-a", "query-a"));
+    await db.collection("lembretes").doc("query-b")
+        .set(validReminder("elderly-b", "query-b"));
+  });
+
+  const db = testEnv.authenticatedContext("supervisor-a").firestore();
+  await assertSucceeds(
+      db.collection("lembretes")
+          .where("idosoId", "==", "elderly-a")
+          .get(),
+  );
+  await assertFails(db.collection("lembretes").get());
+});
+
+test("viewer caregivers cannot mutate or delete messages", async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().collection("mensagens").doc("viewer-message")
+        .set(validMessage(
+            "elderly-a",
+            "viewer-message",
+            "elderly",
+        ));
+  });
+
+  const db = testEnv.authenticatedContext("supervisor-viewer").firestore();
+  const ref = db.collection("mensagens").doc("viewer-message");
+  await assertSucceeds(ref.get());
+  await assertFails(ref.update({lido: true}));
+  await assertFails(ref.delete());
+});
+
+test("caregiver message role must match authenticated identity", async () => {
+  const db = testEnv.authenticatedContext("supervisor-a").firestore();
+  await assertSucceeds(
+      db.collection("mensagens").doc("caregiver-message").set(
+          validMessage(
+              "elderly-a",
+              "caregiver-message",
+              "supervisor",
+          ),
+      ),
+  );
+  await assertFails(
+      db.collection("mensagens").doc("caregiver-forged").set(
+          validMessage(
+              "elderly-a",
+              "caregiver-forged",
+              "elderly",
+          ),
+      ),
+  );
+});
+
+test("FCM tokens cannot be written for another identity or role", async () => {
+  const ownerDb = testEnv.authenticatedContext("elderly-a").firestore();
+  const ref = ownerDb.collection("fcm_tokens").doc("elderly_elderly-a");
+  await assertSucceeds(ref.set({
+    token: "token-elderly-a",
+    role: "elderly",
+    userId: "elderly-a",
+    updatedAt: now(),
+  }));
+  await assertFails(ref.update({role: "supervisor"}));
+  await assertFails(ref.update({userId: "attacker"}));
+  await assertFails(ref.update({isAdmin: true}));
+
+  const attackerDb = testEnv.authenticatedContext("attacker").firestore();
+  await assertFails(
+      attackerDb.collection("fcm_tokens").doc("elderly_elderly-a").set({
+        token: "forged-token",
+        role: "elderly",
+        userId: "elderly-a",
+        updatedAt: now(),
+      }),
+  );
+});
+
+test("storage rejects oversized images and disguised file names", async () => {
+  const storage = testEnv.authenticatedContext("elderly-a").storage();
+  await assertFails(
+      storage.ref("reminder_photos/elderly-a/photo.exe").put(
+          new Uint8Array([1, 2, 3]),
+          {contentType: "image/jpeg"},
+      ),
+  );
+  await assertFails(
+      storage.ref("reminder_photos/elderly-a/oversized.jpg").put(
+          new Uint8Array(5 * 1024 * 1024 + 1),
+          {contentType: "image/jpeg"},
+      ),
+  );
+});
+
+test("video calls enforce participants and status transitions", async () => {
+  const elderlyDb = testEnv.authenticatedContext("elderly-a").firestore();
+  const ref = elderlyDb.collection("video_calls").doc("call-secure");
+  await assertSucceeds(ref.set({
+    roomName: "call_secure",
+    idosoId: "elderly-a",
+    supervisorId: "supervisor-a",
+    status: "ringing",
+    initiatedBy: "elderly",
+    callType: "video",
+    startedAt: now(),
+  }));
+
+  const attackerDb =
+    testEnv.authenticatedContext("supervisor-b").firestore();
+  const attackerRef =
+    attackerDb.collection("video_calls").doc("call-secure");
+  await assertFails(attackerRef.get());
+  await assertFails(attackerRef.update({status: "connected"}));
+  await assertFails(attackerRef.delete());
+
+  const caregiverDb =
+    testEnv.authenticatedContext("supervisor-a").firestore();
+  const caregiverRef =
+    caregiverDb.collection("video_calls").doc("call-secure");
+  await assertSucceeds(caregiverRef.update({status: "connected"}));
+  await assertFails(caregiverRef.update({status: "ringing"}));
+});
+
+test("caregiver profiles require exact elderly linkage", async () => {
+  const linkedDb = testEnv.authenticatedContext("elderly-a").firestore();
+  await assertSucceeds(
+      linkedDb.collection("supervisores").doc("supervisor-a").get(),
+  );
+
+  const otherDb = testEnv.authenticatedContext("elderly-b").firestore();
+  await assertFails(
+      otherDb.collection("supervisores").doc("supervisor-a").get(),
+  );
+});

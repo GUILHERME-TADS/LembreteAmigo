@@ -6,6 +6,7 @@ import '../widgets/effectiveness_score_gauge.dart';
 import '../widgets/effectiveness_category_chart.dart';
 import '../widgets/effectiveness_streak_calendar.dart';
 import '../widgets/effectiveness_trend_chart.dart';
+import '../widgets/app_top_bar.dart';
 
 class EffectivenessFeedbackScreen extends StatefulWidget {
   const EffectivenessFeedbackScreen({super.key});
@@ -38,7 +39,7 @@ class _EffectivenessFeedbackScreenState
       body: SafeArea(
         child: Column(
           children: [
-            _buildTopBar(context),
+            const AppTopBar(title: 'Efetividade'),
             Expanded(
               child: ValueListenableBuilder<bool>(
                 valueListenable: _controller.isLoadingNotifier,
@@ -66,33 +67,6 @@ class _EffectivenessFeedbackScreenState
     );
   }
 
-  Widget _buildTopBar(BuildContext context) {
-    return Container(
-      height: 64,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      decoration: BoxDecoration(color: AppColors.surface),
-      child: Row(
-        children: [
-          IconButton(
-            onPressed: () => Navigator.pop(context),
-            icon: Icon(Icons.arrow_back, color: AppColors.primary, size: 32),
-          ),
-          Expanded(
-            child: Text(
-              'Efetividade',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.w700,
-                color: AppColors.primary,
-              ),
-            ),
-          ),
-          const SizedBox(width: 48),
-        ],
-      ),
-    );
-  }
 
   Widget _buildContent(EffectivenessMetrics metrics) {
     return SingleChildScrollView(

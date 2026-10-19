@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/services.dart';
@@ -13,6 +12,7 @@ import '../theme/app_theme.dart';
 import '../services/tts_service.dart';
 import '../services/lembrete_service.dart';
 import '../services/session_role_service.dart';
+import '../services/elderly_profile_repository.dart';
 import '../services/offline_sync_service.dart';
 import '../services/durable_media_service.dart';
 import '../services/secure_cache_service.dart';
@@ -124,34 +124,8 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
               });
             }
           } else {
-            final docPerfil = await FirebaseFirestore.instance
-                .collection('idoso_perfil')
-                .doc(idosoId)
-                .get();
-            final docIdoso = await FirebaseFirestore.instance
-                .collection('idosos')
-                .doc(idosoId)
-                .get();
-
-            if (docIdoso.exists && docIdoso.data() != null) {
-              final data = docIdoso.data()!;
-              if (!isRealValue(nome)) {
-                final v = data['nome']?.toString() ?? '';
-                if (isRealValue(v)) nome = v;
-              }
-              if (!isRealValue(dataNasc)) {
-                final v = data['dataNascimento']?.toString() ?? '';
-                if (isRealValue(v)) dataNasc = v;
-              }
-              if (!isRealValue(telefone)) {
-                final v = data['telefone']?.toString() ?? '';
-                if (isRealValue(v)) telefone = v;
-              }
-              if (!isRealValue(endereco)) {
-                final v = data['endereco']?.toString() ?? '';
-                if (isRealValue(v)) endereco = v;
-              }
-            }
+            final docPerfil = await ElderlyProfileRepository.instance
+                .getDocument(idosoId);
 
             if (docPerfil.exists && docPerfil.data() != null) {
               final data = docPerfil.data()!;
@@ -209,10 +183,6 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
 
               if (!localFileExists) {
                 String? firestoreFoto;
-                if (docIdoso.exists && docIdoso.data() != null) {
-                  final data = docIdoso.data()!;
-                  firestoreFoto = data['fotoPath'] as String?;
-                }
                 if (docPerfil.exists && docPerfil.data() != null) {
                   final data = docPerfil.data()!;
                   firestoreFoto = data['fotoPath'] as String? ?? firestoreFoto;
@@ -768,23 +738,24 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                 ],
                 image: _fotoPath != null && !_fotoPath!.startsWith('avatar_')
                     ? (_fotoPath!.startsWith('http')
-                        ? DecorationImage(
-                            image: NetworkImage(_fotoPath!),
-                            fit: BoxFit.cover,
-                          )
-                        : (File(_fotoPath!).existsSync()
-                            ? DecorationImage(
-                                image: AppImageHelper.resizedFileImage(
-                                  File(_fotoPath!),
-                                  maxWidth: 400,
-                                  maxHeight: 400,
-                                ),
-                                fit: BoxFit.cover,
-                              )
-                            : null))
+                          ? DecorationImage(
+                              image: NetworkImage(_fotoPath!),
+                              fit: BoxFit.cover,
+                            )
+                          : (File(_fotoPath!).existsSync()
+                                ? DecorationImage(
+                                    image: AppImageHelper.resizedFileImage(
+                                      File(_fotoPath!),
+                                      maxWidth: 400,
+                                      maxHeight: 400,
+                                    ),
+                                    fit: BoxFit.cover,
+                                  )
+                                : null))
                     : null,
               ),
-              child: _fotoPath == null ||
+              child:
+                  _fotoPath == null ||
                       _fotoPath!.startsWith('avatar_') ||
                       (!_fotoPath!.startsWith('http') &&
                           !File(_fotoPath!).existsSync())
@@ -976,10 +947,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
         _buildActionButton(
           onPressed: () async {
             TTSService.instance.parar(caller: this);
-            final result = await Navigator.pushNamed(
-              context,
-              '/edit-profile',
-            );
+            final result = await Navigator.pushNamed(context, '/edit-profile');
             if (result == true) {
               _loadProfile();
             }
@@ -1213,10 +1181,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
                 onPressed: () => Navigator.pop(ctx, false),
                 child: const Text(
                   'NÃO',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
               ),
               TextButton(
@@ -1237,11 +1202,7 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
           await SessionRoleService.exitElderlyModeOnly();
           await LembreteService.instance.reset();
           if (mounted) {
-            Navigator.pushNamedAndRemoveUntil(
-              context,
-              '/',
-              (route) => false,
-            );
+            Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
           }
         }
       },
@@ -1786,9 +1747,6 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
         final idosoId = await SessionRoleService.getActiveIdosoId();
 
         // Atualiza Firestore para remover a referência da foto
-        await OfflineSyncService.instance.setOrQueue('idosos', idosoId, {
-          'fotoPath': null,
-        });
         await OfflineSyncService.instance.setOrQueue('idoso_perfil', idosoId, {
           'fotoPath': null,
         });
@@ -1860,9 +1818,6 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
         if (_useFirebase) {
           final idosoId = await SessionRoleService.getActiveIdosoId();
 
-          await OfflineSyncService.instance.setOrQueue('idosos', idosoId, {
-            'fotoPath': durablePath,
-          });
           await OfflineSyncService.instance.setOrQueue(
             'idoso_perfil',
             idosoId,
@@ -1952,9 +1907,6 @@ class _ElderlyProfileScreenState extends State<ElderlyProfileScreen> {
 
     if (_useFirebase) {
       final idosoId = await SessionRoleService.getActiveIdosoId();
-      await OfflineSyncService.instance.setOrQueue('idosos', idosoId, {
-        'fotoPath': avatarName,
-      });
       await OfflineSyncService.instance.setOrQueue('idoso_perfil', idosoId, {
         'fotoPath': avatarName,
       });

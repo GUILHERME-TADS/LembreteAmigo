@@ -8,6 +8,7 @@ import 'package:record/record.dart';
 import '../theme/app_theme.dart';
 import '../services/tts_service.dart';
 import '../widgets/responsive_layout.dart';
+import '../widgets/app_top_bar.dart';
 
 class NewReminderAudioScreen extends StatefulWidget {
   const NewReminderAudioScreen({super.key});
@@ -177,7 +178,11 @@ class _NewReminderAudioScreenState extends State<NewReminderAudioScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            _buildTopBar(context),
+            const AppTopBar(
+              title: 'Gravar Voz do Familiar',
+              horizontalPadding: 16,
+              iconSize: 36,
+            ),
             Expanded(
               child: ResponsiveScrollView(
                 padding: const EdgeInsets.symmetric(
@@ -426,38 +431,6 @@ class _NewReminderAudioScreenState extends State<NewReminderAudioScreen> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildTopBar(BuildContext context) {
-    return Container(
-      height: 64,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(color: AppColors.surface),
-      child: Row(
-        children: [
-          IconButton(
-            onPressed: () => Navigator.pop(context),
-            icon: Icon(
-              Icons.arrow_back,
-              color: AppColors.primary,
-              size: 36,
-            ),
-          ),
-          Expanded(
-            child: Text(
-              'Gravar Voz do Familiar',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.w700,
-                color: AppColors.primary,
-              ),
-            ),
-          ),
-          const SizedBox(width: 48),
-        ],
       ),
     );
   }

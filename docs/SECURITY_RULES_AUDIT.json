@@ -1,0 +1,42 @@
+{
+  "score": 4,
+  "summary": "As regras aplicam autenticação, negação padrão, propriedade, papéis e vínculos derivados de documentos protegidos, validam esquemas em criação e atualização e restringem o Storage por proprietário, tipo e tamanho. Os 43 testes positivos e negativos passaram. Não foi encontrado bypass de privilégio ou acesso global. Permanecem riscos menores de minimização de PII e de complexidade de avaliação que devem ser tratados antes da produção.",
+  "findings": [
+    {
+      "check": "The Update Bypass",
+      "severity": "minor",
+      "issue": "Os testes de mutações inválidas são negados, porém algumas negações complexas alcançam o limite de 1000 expressões do emulador. O comportamento observado é de falha fechada, mas a complexidade aumenta o risco de indisponibilidade ou regressão em mudanças futuras.",
+      "recommendation": "Simplificar validadores críticos, dividir documentos muito amplos quando necessário e manter testes de criação e atualização para cada campo protegido."
+    },
+    {
+      "check": "Authority Source",
+      "severity": "minor",
+      "issue": "A autoridade principal vem da identidade autenticada e de vínculos protegidos, não do papel enviado pelo cliente. Entretanto, qualquer nova coleção ou função administrativa poderá contornar as regras se usar o Admin SDK sem repetir essas verificações.",
+      "recommendation": "Centralizar as verificações de vínculo no backend, manter App Check e autenticação nas funções callable e adicionar testes unitários das funções privilegiadas."
+    },
+    {
+      "check": "Business Logic vs. Rules",
+      "severity": "minor",
+      "issue": "O idoso vinculado pode ler o documento completo do cuidador. Se esse documento acumular campos administrativos ou PII não necessários, o vínculo legítimo poderá expor mais dados do que o mínimo funcional.",
+      "recommendation": "Separar dados públicos de contato dos campos privados ou administrativos e limitar o documento compartilhado ao mínimo necessário."
+    },
+    {
+      "check": "Storage Abuse",
+      "severity": "minor",
+      "issue": "As regras restringem proprietário, extensões, MIME e tamanho, e os testes rejeitam arquivo disfarçado e imagem acima do limite. Ainda falta monitoramento operacional de volume e custo em produção.",
+      "recommendation": "Configurar alertas de uso e orçamento, varredura de conteúdo quando aplicável e política de retenção e exclusão dos arquivos."
+    },
+    {
+      "check": "Type Safety",
+      "severity": "minor",
+      "issue": "Os documentos críticos possuem validações de tipos e listas de campos. A evolução do esquema pode introduzir caminhos não testados ou incompatíveis se não houver revisão conjunta de regras e cliente.",
+      "recommendation": "Exigir teste de regra para todo novo campo, coleção e transição de estado no processo de integração contínua."
+    },
+    {
+      "check": "Field-Level vs. Identity-Level Security",
+      "severity": "minor",
+      "issue": "As permissões observadas combinam restrições de campos com identidade, propriedade ou vínculo, e os novos testes cobrem tentativas de falsificação. A cobertura ainda não substitui auditoria independente do ambiente implantado e dos acessos administrativos.",
+      "recommendation": "Realizar auditoria externa antes do uso com dados reais e revisar IAM, contas de serviço, logs e acessos do console Firebase."
+    }
+  ]
+}

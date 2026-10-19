@@ -15,6 +15,10 @@ class HoldToActivateButton extends StatefulWidget {
   final Color? progressColor;
   final Color? textColor;
   final double minHeight;
+  final String? helperText;
+  final String? activeHelperText;
+  final String semanticsHint;
+  final bool showHelperText;
 
   const HoldToActivateButton({
     super.key,
@@ -27,6 +31,10 @@ class HoldToActivateButton extends StatefulWidget {
     this.progressColor,
     this.textColor,
     this.minHeight = 96,
+    this.helperText,
+    this.activeHelperText,
+    this.semanticsHint = 'Pressione e segure para ativar. Solte para cancelar.',
+    this.showHelperText = true,
   });
 
   @override
@@ -74,13 +82,7 @@ class _HoldToActivateButtonState extends State<HoldToActivateButton>
       _isHolding = true;
       _lastSecondsLeft = widget.holdDuration.inSeconds;
     });
-    _controller.forward(from: 0.0).then((_) {
-      if (_isHolding && mounted) {
-        HapticFeedback.heavyImpact();
-        widget.onTriggered();
-        _resetHold();
-      }
-    });
+    _controller.forward(from: 0.0);
   }
 
   void _resetHold() {
@@ -109,121 +111,133 @@ class _HoldToActivateButtonState extends State<HoldToActivateButton>
     final secondsRemaining =
         (widget.holdDuration.inSeconds * (1.0 - _controller.value)).ceil();
 
-    return Listener(
-      behavior: HitTestBehavior.opaque,
-      onPointerDown: (_) => _startHold(),
-      onPointerUp: (_) => _resetHold(),
-      onPointerCancel: (_) => _resetHold(),
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, child) {
-          final scale = _isHolding ? 0.97 : 1.0;
-          return Transform.scale(
-            scale: scale,
-            child: Container(
-              width: double.infinity,
-              constraints: BoxConstraints(minHeight: widget.minHeight),
-              decoration: BoxDecoration(
-                color: bg,
-                borderRadius: BorderRadius.circular(AppRadius.xl),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.4),
-                  width: 2.5,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: bg.withValues(alpha: 0.35),
-                    blurRadius: _isHolding ? 8 : 16,
-                    offset:
-                        _isHolding ? const Offset(0, 3) : const Offset(0, 7),
+    return Semantics(
+      container: true,
+      button: true,
+      label: widget.label,
+      hint: widget.semanticsHint,
+      onLongPress: _startHold,
+      child: Listener(
+        behavior: HitTestBehavior.opaque,
+        onPointerDown: (_) => _startHold(),
+        onPointerUp: (_) => _resetHold(),
+        onPointerCancel: (_) => _resetHold(),
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, child) {
+            final scale = _isHolding ? 0.97 : 1.0;
+            return Transform.scale(
+              scale: scale,
+              child: Container(
+                width: double.infinity,
+                constraints: BoxConstraints(minHeight: widget.minHeight),
+                decoration: BoxDecoration(
+                  color: bg,
+                  borderRadius: BorderRadius.circular(AppRadius.xl),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.4),
+                    width: 2.5,
                   ),
-                  BoxShadow(
-                    color: Colors.white.withValues(alpha: 0.7),
-                    blurRadius: 0,
-                    offset: const Offset(0, 1),
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(AppRadius.xl - 2),
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    // Barra de progresso interna
-                    if (_isHolding)
-                      Positioned.fill(
-                        child: FractionallySizedBox(
-                          alignment: Alignment.centerLeft,
-                          widthFactor: _controller.value.clamp(0.0, 1.0),
-                          child: Container(
-                            color: progressCol.withValues(alpha: 0.4),
-                          ),
-                        ),
-                      ),
-
-                    // Conteúdo do botão
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 16,
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.2),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              widget.icon,
-                              size: 38,
-                              color: textCol,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _isHolding
-                                      ? 'SEGURE ($secondsRemaining s)'
-                                      : widget.label,
-                                  style: TextStyle(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.w900,
-                                    color: textCol,
-                                    height: 1.1,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  _isHolding
-                                      ? 'Solte para cancelar o socorro'
-                                      : 'Pressione e segure por 3 segundos',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700,
-                                    color: textCol.withValues(alpha: 0.9),
-                                    height: 1.2,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: bg.withValues(alpha: 0.35),
+                      blurRadius: _isHolding ? 8 : 16,
+                      offset: _isHolding
+                          ? const Offset(0, 3)
+                          : const Offset(0, 7),
+                    ),
+                    BoxShadow(
+                      color: Colors.white.withValues(alpha: 0.7),
+                      blurRadius: 0,
+                      offset: const Offset(0, 1),
                     ),
                   ],
                 ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(AppRadius.xl - 2),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // Barra de progresso interna
+                      if (_isHolding)
+                        Positioned.fill(
+                          child: FractionallySizedBox(
+                            alignment: Alignment.centerLeft,
+                            widthFactor: _controller.value.clamp(0.0, 1.0),
+                            child: Container(
+                              color: progressCol.withValues(alpha: 0.4),
+                            ),
+                          ),
+                        ),
+
+                      // Conteúdo do botão
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 16,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.2),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                widget.icon,
+                                size: 38,
+                                color: textCol,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _isHolding
+                                        ? '${widget.activeLabel} ($secondsRemaining s)'
+                                        : widget.label,
+                                    style: TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w900,
+                                      color: textCol,
+                                      height: 1.1,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                  if (widget.showHelperText) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      _isHolding
+                                          ? widget.activeHelperText ??
+                                                'Solte para cancelar o socorro'
+                                          : widget.helperText ??
+                                                'Pressione e segure por ${widget.holdDuration.inSeconds} segundos',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                        color: textCol.withValues(alpha: 0.9),
+                                        height: 1.2,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }

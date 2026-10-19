@@ -1,7 +1,9 @@
 /* eslint-disable require-jsdoc */
 
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
-const admin = require("firebase-admin");
+const {
+  getFirestore, Timestamp,
+} = require("firebase-admin/firestore");
 
 const CALL_OPTIONS = {cors: true, enforceAppCheck: true};
 
@@ -53,7 +55,7 @@ function caregiverCanManage(profile, uid) {
 }
 
 async function assertCanManage(transaction, elderlyId, uid) {
-  const profileRef = admin.firestore()
+  const profileRef = getFirestore()
       .collection("idoso_perfil")
       .doc(elderlyId);
   const profileSnapshot = await transaction.get(profileRef);
@@ -69,7 +71,7 @@ async function assertCanManage(transaction, elderlyId, uid) {
 }
 
 async function checkRateLimit(uid, functionName, maxCalls = 30) {
-  const db = admin.firestore();
+  const db = getFirestore();
   const now = Date.now();
   const ref = db.collection("_rate_limits").doc(`${functionName}_${uid}`);
   await db.runTransaction(async (transaction) => {
@@ -95,7 +97,7 @@ const acknowledgeCareAlert = onCall(CALL_OPTIONS, async (request) => {
   const uid = requireAuth(request);
   await checkRateLimit(uid, "acknowledgeCareAlert");
   const alertId = requireId(request.data?.alertId, "alertId");
-  const db = admin.firestore();
+  const db = getFirestore();
   const alertRef = db.collection("alertas").doc(alertId);
 
   return db.runTransaction(async (transaction) => {
@@ -109,7 +111,7 @@ const acknowledgeCareAlert = onCall(CALL_OPTIONS, async (request) => {
     if (alert.status === "resolved") {
       return {success: true, status: "resolved"};
     }
-    const now = admin.firestore.Timestamp.now();
+    const now = Timestamp.now();
     transaction.update(alertRef, {
       status: "acknowledged",
       responsavelId: uid,
@@ -129,7 +131,7 @@ const resolveCareAlert = onCall(CALL_OPTIONS, async (request) => {
       "resolution",
       500,
   );
-  const db = admin.firestore();
+  const db = getFirestore();
   const alertRef = db.collection("alertas").doc(alertId);
 
   return db.runTransaction(async (transaction) => {
@@ -143,7 +145,7 @@ const resolveCareAlert = onCall(CALL_OPTIONS, async (request) => {
     if (alert.status === "resolved") {
       return {success: true, status: "resolved"};
     }
-    const now = admin.firestore.Timestamp.now();
+    const now = Timestamp.now();
     transaction.update(alertRef, {
       status: "resolved",
       responsavelId: alert.responsavelId || uid,
@@ -182,10 +184,10 @@ const replenishMedicationStock = onCall(CALL_OPTIONS, async (request) => {
     if (Number.isNaN(parsed.getTime())) {
       throw new HttpsError("invalid-argument", "Validade invalida.");
     }
-    expiration = admin.firestore.Timestamp.fromDate(parsed);
+    expiration = Timestamp.fromDate(parsed);
   }
 
-  const db = admin.firestore();
+  const db = getFirestore();
   const reminderRef = db.collection("lembretes").doc(reminderId);
   const movementId = `replenish_${reminderId}_${requestId}`;
   const movementRef = db.collection("estoque_movimentos").doc(movementId);
@@ -221,7 +223,7 @@ const replenishMedicationStock = onCall(CALL_OPTIONS, async (request) => {
     if (remainingStock > 1000000) {
       throw new HttpsError("invalid-argument", "Estoque acima do limite.");
     }
-    const now = admin.firestore.Timestamp.now();
+    const now = Timestamp.now();
     transaction.update(reminderRef, {medicamentoEstoque: remainingStock});
     const movement = {
       id: movementId,

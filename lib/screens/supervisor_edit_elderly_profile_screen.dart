@@ -158,14 +158,12 @@ class _SupervisorEditElderlyProfileScreenState
       );
 
       if (_useFirebase) {
+        final remoteProfile = ElderlyProfileRepository.instance
+            .sanitizeWritable(sanitized);
         await FirebaseFirestore.instance
             .collection('idoso_perfil')
             .doc(idosoId)
-            .set(sanitized, SetOptions(merge: true));
-        await FirebaseFirestore.instance
-            .collection('idosos')
-            .doc(idosoId)
-            .set(sanitized, SetOptions(merge: true));
+            .set(remoteProfile, SetOptions(merge: true));
       }
 
       if (!mounted) return;

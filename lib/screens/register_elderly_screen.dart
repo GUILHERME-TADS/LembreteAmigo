@@ -12,6 +12,7 @@ import '../services/lembrete_service.dart';
 import '../services/message_service.dart';
 import '../services/session_role_service.dart';
 import '../services/secure_cache_service.dart';
+import '../widgets/app_top_bar.dart';
 
 class RegisterElderlyScreen extends StatefulWidget {
   const RegisterElderlyScreen({super.key});
@@ -440,7 +441,7 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            _buildTopBar(context),
+            const AppTopBar(title: 'Lembrete Amigo'),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 80),
@@ -597,35 +598,4 @@ class _RegisterElderlyScreenState extends State<RegisterElderlyScreen> {
     );
   }
 
-  Widget _buildTopBar(BuildContext context) {
-    return Container(
-      height: 64,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      decoration: BoxDecoration(color: AppColors.surface),
-      child: Row(
-        children: [
-          IconButton(
-            onPressed: () => Navigator.pop(context),
-            icon: Icon(
-              Icons.arrow_back,
-              color: AppColors.primary,
-              size: 32,
-            ),
-          ),
-          Expanded(
-            child: Text(
-              'Lembrete Amigo',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.w700,
-                color: AppColors.primary,
-              ),
-            ),
-          ),
-          const SizedBox(width: 48),
-        ],
-      ),
-    );
-  }
 }

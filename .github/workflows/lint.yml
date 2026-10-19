@@ -1,4 +1,4 @@
-name: Lint & Test
+name: Quality & Security
 
 on:
   pull_request:
@@ -6,15 +6,44 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  lint-and-test:
+  flutter-quality:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: 'stable'
+          flutter-version: '3.44.6'
           channel: 'stable'
+          cache: true
       - run: flutter pub get
-      - run: dart analyze lib/
+      - run: flutter analyze
       - run: flutter test --exclude-tags=golden
+
+  firebase-rules:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci --prefix functions
+      - run: npm run lint --prefix functions
+      - run: npm run test:rules --prefix functions
+      - run: npm audit --prefix functions --audit-level=moderate
+      - run: npm run test:unit --prefix functions

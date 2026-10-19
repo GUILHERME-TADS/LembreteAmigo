@@ -12,6 +12,7 @@ import '../services/session_role_service.dart';
 import '../services/lembrete_service.dart';
 import '../services/message_service.dart';
 import '../services/google_auth_service.dart';
+import '../widgets/app_top_bar.dart';
 
 class SupervisorSettingsScreen extends StatefulWidget {
   const SupervisorSettingsScreen({super.key});
@@ -271,7 +272,7 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            _buildTopBar(context),
+            const AppTopBar(title: 'Configurações'),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 80),
@@ -538,31 +539,4 @@ class _SupervisorSettingsScreenState extends State<SupervisorSettingsScreen> {
     );
   }
 
-  Widget _buildTopBar(BuildContext context) {
-    return Container(
-      height: 64,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      decoration: BoxDecoration(color: AppColors.surface),
-      child: Row(
-        children: [
-          IconButton(
-            onPressed: () => Navigator.pop(context),
-            icon: Icon(Icons.arrow_back, color: AppColors.primary, size: 32),
-          ),
-          Expanded(
-            child: Text(
-              'Configurações',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.w700,
-                color: AppColors.primary,
-              ),
-            ),
-          ),
-          const SizedBox(width: 48),
-        ],
-      ),
-    );
-  }
 }

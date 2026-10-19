@@ -1,7 +1,9 @@
 /* eslint-disable require-jsdoc */
 
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
-const admin = require("firebase-admin");
+const {
+  FieldValue, getFirestore, Timestamp,
+} = require("firebase-admin/firestore");
 
 const CALL_OPTIONS = {cors: true, enforceAppCheck: true};
 
@@ -105,9 +107,7 @@ function caregiverCanManage(profile, uid) {
 async function assertReminderManager(transaction, reminder, uid) {
   const elderlyId = validateId(reminder.idosoId, "reminder.idosoId");
   if (uid === elderlyId) return;
-  const profileRef = admin
-      .firestore()
-      .collection("idoso_perfil")
+  const profileRef = getFirestore().collection("idoso_perfil")
       .doc(elderlyId);
   const profileSnapshot = await transaction.get(profileRef);
   const profile = profileSnapshot.data() || {};
@@ -124,7 +124,7 @@ async function assertReminderManager(transaction, reminder, uid) {
 }
 
 async function checkRateLimit(uid, functionName, maxCalls) {
-  const db = admin.firestore();
+  const db = getFirestore();
   const ref = db.collection("_rate_limits").doc(`${functionName}_${uid}`);
   const now = Date.now();
   await db.runTransaction(async (transaction) => {
@@ -140,7 +140,7 @@ async function checkRateLimit(uid, functionName, maxCalls) {
           "Muitas tentativas. Aguarde um minuto.",
       );
     }
-    transaction.update(ref, {count: admin.firestore.FieldValue.increment(1)});
+    transaction.update(ref, {count: FieldValue.increment(1)});
   });
 }
 
@@ -208,7 +208,7 @@ const confirmReminderOccurrence = onCall(CALL_OPTIONS, async (request) => {
   );
   const method = validateConfirmationMethod(request.data?.method);
   const photoPath = validatePhotoPath(request.data?.photoPath);
-  const db = admin.firestore();
+  const db = getFirestore();
   const reminderRef = db.collection("lembretes").doc(reminderId);
   const eventId = `confirm_${occurrenceKey}`;
   const eventRef = db.collection("lembrete_eventos").doc(eventId);
@@ -314,12 +314,12 @@ const confirmReminderOccurrence = onCall(CALL_OPTIONS, async (request) => {
           estoqueAnterior: previousStock,
           estoquePosterior: remainingStock,
           ocorrenciaChave: occurrenceKey,
-          createdAt: admin.firestore.Timestamp.now(),
+          createdAt: Timestamp.now(),
           createdBy: uid,
         });
       }
       if (lowStockRef !== null) {
-        const nowTimestamp = admin.firestore.Timestamp.now();
+        const nowTimestamp = Timestamp.now();
         transaction.set(lowStockRef, {
           id: `low_stock_${reminderId}`,
           idosoId: reminder.idosoId,
@@ -359,7 +359,7 @@ const undoReminderConfirmation = onCall(CALL_OPTIONS, async (request) => {
       request.data?.occurrenceKey,
       reminderId,
   );
-  const db = admin.firestore();
+  const db = getFirestore();
   const reminderRef = db.collection("lembretes").doc(reminderId);
   const completionEventId = `confirm_${occurrenceKey}`;
   const completionRef = db
@@ -466,7 +466,7 @@ const undoReminderConfirmation = onCall(CALL_OPTIONS, async (request) => {
           estoqueAnterior: Number(completion.estoqueRestante) || 0,
           estoquePosterior: restoredStock,
           ocorrenciaChave: occurrenceKey,
-          createdAt: admin.firestore.Timestamp.now(),
+          createdAt: Timestamp.now(),
           createdBy: uid,
         });
       }
@@ -477,7 +477,7 @@ const undoReminderConfirmation = onCall(CALL_OPTIONS, async (request) => {
           minimumStock !== null &&
           restoredStock > minimumStock &&
           lowStockAlertSnapshot?.exists) {
-        const nowTimestamp = admin.firestore.Timestamp.now();
+        const nowTimestamp = Timestamp.now();
         transaction.update(lowStockAlertRef, {
           status: "resolved",
           responsavelId: uid,

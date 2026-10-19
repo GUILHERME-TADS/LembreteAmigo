@@ -73,17 +73,6 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
               .collection('idoso_perfil')
               .doc(idosoId)
               .get();
-          final docIdoso = await FirebaseFirestore.instance
-              .collection('idosos')
-              .doc(idosoId)
-              .get();
-
-          if (docIdoso.exists && docIdoso.data() != null) {
-            final data = docIdoso.data()!;
-            nome = data['nome'] as String? ?? nome;
-            telefone = data['telefone'] as String? ?? telefone;
-            foto = data['fotoPath'] as String? ?? foto;
-          }
           if (docPerfil.exists && docPerfil.data() != null) {
             final data = docPerfil.data()!;
             nome = data['nome'] as String? ?? nome;
@@ -197,10 +186,7 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text(
-              'CANCELAR',
-              style: TextStyle(color: AppColors.primary),
-            ),
+            child: Text('CANCELAR', style: TextStyle(color: AppColors.primary)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
@@ -321,10 +307,7 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
                     decoration: BoxDecoration(
                       color: AppColors.surfaceContainerLowest,
                       borderRadius: BorderRadius.circular(AppRadius.xl),
-                      border: Border.all(
-                        color: AppColors.error,
-                        width: 2.5,
-                      ),
+                      border: Border.all(color: AppColors.error, width: 2.5),
                       boxShadow: [
                         BoxShadow(
                           color: AppColors.error.withValues(alpha: 0.2),
@@ -337,7 +320,10 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
                       children: [
                         Container(
                           width: double.infinity,
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 14,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.error,
                             borderRadius: BorderRadius.circular(AppRadius.md),
@@ -500,9 +486,7 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
                               ),
                             ),
                             style: OutlinedButton.styleFrom(
-                              side: BorderSide(
-                                color: AppColors.outlineVariant,
-                              ),
+                              side: BorderSide(color: AppColors.outlineVariant),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
@@ -602,11 +586,7 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
       child: Row(
         children: [
           IconButton(
-            icon: Icon(
-              Icons.arrow_back,
-              color: AppColors.onSurface,
-              size: 36,
-            ),
+            icon: Icon(Icons.arrow_back, color: AppColors.onSurface, size: 36),
             onPressed: () => Navigator.pop(context),
           ),
           const Spacer(),
@@ -658,10 +638,7 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
         ),
         Text(
           dateStr,
-          style: TextStyle(
-            fontSize: 16,
-            color: AppColors.onSurfaceVariant,
-          ),
+          style: TextStyle(fontSize: 16, color: AppColors.onSurfaceVariant),
         ),
       ],
     );

@@ -95,9 +95,6 @@ class AlwaysListeningService {
         await OfflineSyncService.instance.setOrQueue('idoso_perfil', idosoId, {
           'always_listening_enabled': value,
         });
-        await OfflineSyncService.instance.setOrQueue('idosos', idosoId, {
-          'always_listening_enabled': value,
-        });
       }
     }
 

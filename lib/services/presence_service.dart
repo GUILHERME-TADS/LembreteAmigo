@@ -71,14 +71,6 @@ class PresenceService {
             'updatedAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
 
-          final idosoRef = FirebaseFirestore.instance
-              .collection('idosos')
-              .doc(idosoId);
-          batch.set(idosoRef, {
-            'lastSeen': FieldValue.serverTimestamp(),
-            'updatedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
-
           await batch.commit();
         }
       }

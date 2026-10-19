@@ -332,8 +332,11 @@ class OfflineSyncService {
   }
 
   Future<void> _apply(OfflineWrite write) {
+    final canonicalCollection = write.collection == 'idosos'
+        ? 'idoso_perfil'
+        : write.collection;
     final doc = FirebaseFirestore.instance
-        .collection(write.collection)
+        .collection(canonicalCollection)
         .doc(write.docId);
 
     switch (write.action) {

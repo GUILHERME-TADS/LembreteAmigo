@@ -338,27 +338,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           canUseRemoteProfile &&
           !SessionRoleService.isLocalOnlyIdosoId(idosoId)) {
         try {
-          final docPerfil = await FirebaseFirestore.instance
-              .collection('idoso_perfil')
-              .doc(idosoId)
-              .get();
-          final docIdoso = await FirebaseFirestore.instance
-              .collection('idosos')
-              .doc(idosoId)
-              .get();
-
-          if (docIdoso.exists && docIdoso.data() != null) {
-            final data = docIdoso.data()!;
-            nome = data['nome'] as String? ?? nome;
-            dataNasc = data['dataNascimento'] as String? ?? dataNasc;
-            telefone = data['telefone'] as String? ?? telefone;
-            ambulancePhone =
-                data['ambulancia_telefone'] as String? ?? ambulancePhone;
-            endereco = data['endereco'] as String? ?? endereco;
-          }
-
-          if (docPerfil.exists && docPerfil.data() != null) {
-            final data = docPerfil.data()!;
+          final data = await ElderlyProfileRepository.instance.getData(idosoId);
+          if (data != null) {
             nome = data['nome'] as String? ?? nome;
             dataNasc = data['dataNascimento'] as String? ?? dataNasc;
             telefone = data['telefone'] as String? ?? telefone;
@@ -555,17 +536,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           canUseRemoteProfile &&
           !SessionRoleService.isLocalOnlyIdosoId(idosoId)) {
         try {
+          final remoteProfile = ElderlyProfileRepository.instance
+              .sanitizeWritable(perfil);
           final profileSynced = await OfflineSyncService.instance.setOrQueue(
             'idoso_perfil',
             idosoId,
-            perfil,
+            remoteProfile,
           );
-          final elderlySynced = await OfflineSyncService.instance.setOrQueue(
-            'idosos',
-            idosoId,
-            perfil,
-          );
-          if ((!profileSynced || !elderlySynced) && mounted) {
+          if (!profileSynced && mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text(
@@ -623,11 +601,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         children: [
           IconButton(
             onPressed: _voltar,
-            icon: Icon(
-              Icons.arrow_back,
-              color: AppColors.primary,
-              size: 36,
-            ),
+            icon: Icon(Icons.arrow_back, color: AppColors.primary, size: 36),
           ),
           const Spacer(),
           Column(

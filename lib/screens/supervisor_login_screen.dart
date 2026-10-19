@@ -357,7 +357,7 @@ class _SupervisorLoginScreenState extends State<SupervisorLoginScreen> {
                                 context: context,
                                 title: 'Política de Privacidade',
                                 content:
-                                    'Sua privacidade é nossa prioridade. Todos os dados cadastrados, incluindo histórico de medicamentos e alertas de rotina, são criptografados e armazenados com segurança. Não compartilhamos informações pessoais com terceiros.',
+                                    'O Lembrete Amigo usa autenticação e regras de acesso para restringir os dados ao titular e aos cuidadores vinculados. Alguns dados são processados por serviços necessários ao funcionamento do aplicativo. Antes do uso público, o projeto ainda exige validação jurídica, definição de prazos de retenção e publicação de um canal para o exercício dos direitos do titular.',
                                 icon: Icons.security_outlined,
                               );
                             },

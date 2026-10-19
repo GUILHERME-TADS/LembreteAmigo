@@ -140,7 +140,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
       localPerfil.putIfAbsent('endereco', () => '');
       localPerfil.putIfAbsent('fotoPath', () => null);
       final remotePerfil =
-          ElderlyProfileRepository.instance.sanitize(localPerfil)
+          ElderlyProfileRepository.instance.sanitizeWritable(localPerfil)
             ..remove('supervisorId')
             ..remove('status')
             ..remove('pairingCode')
@@ -217,7 +217,7 @@ class _ElderlyPairingScreenState extends State<ElderlyPairingScreen> {
           ? jsonDecode(jsonStr) as Map<String, dynamic>
           : <String, dynamic>{};
       final safeProfile =
-          ElderlyProfileRepository.instance.sanitize(localProfile)
+          ElderlyProfileRepository.instance.sanitizeWritable(localProfile)
             ..remove('supervisorId')
             ..remove('status')
             ..remove('pairingCode')

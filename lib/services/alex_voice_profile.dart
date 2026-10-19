@@ -32,10 +32,6 @@ class AlexVoiceProfile {
           'alex_voice_rate': speechRate,
           'alex_voice_pitch': pitch,
         });
-        await OfflineSyncService.instance.setOrQueue('idosos', idosoId, {
-          'alex_voice_rate': speechRate,
-          'alex_voice_pitch': pitch,
-        });
       }
     }
   }

@@ -597,13 +597,7 @@ class _TakePhotoConfirmationScreenState
                                     .setOrQueue('idoso_perfil', idosoId, {
                                       'fotoPath': durablePath,
                                     });
-                                final idososSynced = await OfflineSyncService
-                                    .instance
-                                    .setOrQueue('idosos', idosoId, {
-                                      'fotoPath': durablePath,
-                                    });
-                                if ((!profileSynced || !idososSynced) &&
-                                    mounted) {
+                                if (!profileSynced && mounted) {
                                   scaffoldMessenger.showSnackBar(
                                     const SnackBar(
                                       content: Text(

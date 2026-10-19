@@ -1,7 +1,9 @@
 /* eslint-disable require-jsdoc */
 
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
-const admin = require("firebase-admin");
+const {
+  FieldValue, getFirestore, Timestamp,
+} = require("firebase-admin/firestore");
 
 const CALL_OPTIONS = {cors: true, enforceAppCheck: true};
 const ALLOWED_ALERT_TYPES = new Set([
@@ -60,14 +62,10 @@ exports.updateCaregiverRouting = onCall(CALL_OPTIONS, async (request) => {
     throw new HttpsError("invalid-argument", "Tipos de alerta inválidos.");
   }
 
-  const db = admin.firestore();
+  const db = getFirestore();
   const profileRef = db.collection("idoso_perfil").doc(elderlyId);
-  const legacyRef = db.collection("idosos").doc(elderlyId);
   await db.runTransaction(async (transaction) => {
-    const [profileSnap, legacySnap] = await Promise.all([
-      transaction.get(profileRef),
-      transaction.get(legacyRef),
-    ]);
+    const profileSnap = await transaction.get(profileRef);
     if (!profileSnap.exists) {
       throw new HttpsError("not-found", "Perfil não encontrado.");
     }
@@ -102,15 +100,14 @@ exports.updateCaregiverRouting = onCall(CALL_OPTIONS, async (request) => {
       availableStart,
       availableEnd,
       alertTypes,
-      updatedAt: admin.firestore.Timestamp.now(),
+      updatedAt: Timestamp.now(),
       updatedBy: uid,
     };
     const patch = {
       caregiverRouting: nextRouting,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     };
     transaction.update(profileRef, patch);
-    if (legacySnap.exists) transaction.update(legacyRef, patch);
   });
 
   return {success: true};

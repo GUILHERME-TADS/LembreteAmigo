@@ -116,7 +116,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     const SizedBox(height: 32),
                     Center(
                       child: Text(
-                        'Proteção de dados em conformidade com a LGPD.',
+                        'Acesso protegido por autenticação e regras de autorização.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 14,

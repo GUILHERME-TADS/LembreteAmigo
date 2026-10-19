@@ -12,6 +12,7 @@ import '../utils/debounce.dart';
 import '../widgets/supervisor_bottom_nav.dart';
 import '../widgets/supervisor_drawer.dart';
 import '../utils/app_image_helper.dart';
+import '../widgets/app_top_bar.dart';
 
 class ActivityHistoryScreen extends StatefulWidget {
   const ActivityHistoryScreen({super.key});
@@ -265,7 +266,7 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            _buildTopBar(context),
+            const AppTopBar(title: 'Lembrete Amigo', showMenu: true),
             Expanded(
               child: ValueListenableBuilder<List<LembreteEvento>>(
                 valueListenable: _service.eventosNotifier,
@@ -698,37 +699,6 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
     );
   }
 
-  Widget _buildTopBar(BuildContext context) {
-    return Builder(
-      builder: (context) {
-        return Container(
-          height: 64,
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          decoration: BoxDecoration(color: AppColors.surface),
-          child: Row(
-            children: [
-              IconButton(
-                onPressed: () => Scaffold.of(context).openDrawer(),
-                icon: Icon(Icons.menu, color: AppColors.primary, size: 32),
-              ),
-              Expanded(
-                child: Text(
-                  'Lembrete Amigo',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 48),
-            ],
-          ),
-        );
-      },
-    );
-  }
 
   Lembrete _reminderForEvent(LembreteEvento evento) {
     Lembrete? source;

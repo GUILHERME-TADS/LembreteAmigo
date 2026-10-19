@@ -12,6 +12,7 @@ import '../widgets/custom_time_picker.dart';
 import '../widgets/supervisor_drawer.dart';
 import '../widgets/medication_scanner_sheet.dart';
 import '../services/session_role_service.dart';
+import '../widgets/app_top_bar.dart';
 
 class NewReminderScreen extends StatefulWidget {
   final Lembrete? lembrete;
@@ -406,7 +407,7 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            _buildTopBar(),
+            const AppTopBar(title: 'Lembrete Amigo', showMenu: true),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 96),
@@ -769,37 +770,6 @@ class _NewReminderScreenState extends State<NewReminderScreen> {
     );
   }
 
-  Widget _buildTopBar() {
-    return Builder(
-      builder: (context) {
-        return Container(
-          height: 64,
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          decoration: BoxDecoration(color: AppColors.surface),
-          child: Row(
-            children: [
-              IconButton(
-                onPressed: () => Scaffold.of(context).openDrawer(),
-                icon: Icon(Icons.menu, color: AppColors.primary, size: 32),
-              ),
-              Expanded(
-                child: Text(
-                  'Lembrete Amigo',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 48),
-            ],
-          ),
-        );
-      },
-    );
-  }
 
   Widget _buildIACard() {
     return Container(

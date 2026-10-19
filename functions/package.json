@@ -1,5 +1,6 @@
 {
   "name": "functions",
+  "version": "1.0.0",
   "description": "Cloud Functions for Firebase",
   "scripts": {
     "lint": "eslint .",
@@ -8,22 +9,26 @@
     "start": "npm run shell",
     "deploy": "firebase deploy --only functions",
     "logs": "firebase functions:log",
-    "test:rules": "firebase emulators:exec --only firestore,storage \"node test/security-rules.test.js\""
+    "test:rules": "npx --cache ../.cache/firebase-cli -y firebase-tools@15.28.1 --config ../firebase.json emulators:exec --only firestore,storage \"node test/security-rules.test.js\"",
+    "test:unit": "node --test --test-force-exit test/profile-migration.test.js"
   },
   "engines": {
     "node": "22"
   },
   "main": "index.js",
   "dependencies": {
-    "@google/generative-ai": "^0.21.0",
-    "firebase-admin": "^13.6.0",
-    "firebase-functions": "^7.3.0"
+    "@google/generative-ai": "^0.24.1",
+    "firebase-admin": "^14.3.0",
+    "firebase-functions": "^7.3.2"
   },
   "devDependencies": {
-    "@firebase/rules-unit-testing": "^5.0.1",
+    "@firebase/rules-unit-testing": "^5.0.2",
     "eslint": "^8.15.0",
-    "eslint-config-google": "^0.14.0",
-    "firebase-functions-test": "^3.4.1"
+    "eslint-config-google": "^0.14.0"
+  },
+  "overrides": {
+    "uuid": "^11.1.1",
+    "@grpc/grpc-js": "1.14.6"
   },
   "private": true
 }

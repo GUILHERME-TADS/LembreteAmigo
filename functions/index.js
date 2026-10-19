@@ -2,11 +2,17 @@ const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {setGlobalOptions} = require("firebase-functions");
 const {defineSecret} = require("firebase-functions/params");
 const crypto = require("node:crypto");
-const admin = require("firebase-admin");
+const {initializeApp} = require("firebase-admin/app");
+const {
+  FieldValue,
+  getFirestore,
+  Timestamp,
+} = require("firebase-admin/firestore");
+const {getMessaging} = require("firebase-admin/messaging");
 
 setGlobalOptions({maxInstances: 10});
 
-admin.initializeApp();
+initializeApp();
 
 const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
 
@@ -148,8 +154,7 @@ function caregiverIdsForProfile(profile) {
  */
 async function isLinkedSupervisor(elderlyId, supervisorId) {
   if (!elderlyId || !supervisorId) return false;
-  const doc = await admin
-      .firestore()
+  const doc = await getFirestore()
       .collection("idoso_perfil")
       .doc(elderlyId)
       .get();
@@ -194,7 +199,7 @@ async function buildVerifiedPushEvent(uid, targetUserId, targetRole, payload) {
   }
 
   const type = validateString(payload.type, "data.type", 30);
-  const db = admin.firestore();
+  const db = getFirestore();
 
   if (type === "app_message") {
     const messageId = validateFirestoreId(payload.messageId, "data.messageId");
@@ -348,8 +353,7 @@ function pairingCodeHash(code) {
  * @param {string} uid
  */
 async function assertSupervisorAccount(uid) {
-  const profile = await admin
-      .firestore()
+  const profile = await getFirestore()
       .collection("supervisores")
       .doc(uid)
       .get();
@@ -392,13 +396,12 @@ async function checkRateLimit(uid, functionName) {
   if (!limit) return;
 
   const now = Date.now();
-  const docRef = admin
-      .firestore()
+  const docRef = getFirestore()
       .collection("_rate_limits")
       .doc(`${functionName}_${uid}`);
 
   try {
-    await admin.firestore().runTransaction(async (transaction) => {
+    await getFirestore().runTransaction(async (transaction) => {
       const doc = await transaction.get(docRef);
       const data = doc.data();
 
@@ -422,7 +425,7 @@ async function checkRateLimit(uid, functionName) {
       }
 
       transaction.update(docRef, {
-        count: admin.firestore.FieldValue.increment(1),
+        count: FieldValue.increment(1),
       });
     });
   } catch (error) {
@@ -445,9 +448,8 @@ exports.createPairingCode = onCall(BASE_CALL_OPTIONS, async (request) => {
   const uid = requireAuth(request);
   await checkRateLimit(uid, "createPairingCode");
 
-  const db = admin.firestore();
+  const db = getFirestore();
   const profileRef = db.collection("idoso_perfil").doc(uid);
-  const legacyRef = db.collection("idosos").doc(uid);
   const stateRef = db.collection("pairing_state").doc(uid);
 
   for (let attempt = 0; attempt < 5; attempt += 1) {
@@ -455,12 +457,11 @@ exports.createPairingCode = onCall(BASE_CALL_OPTIONS, async (request) => {
     const codeHash = pairingCodeHash(code);
     const codeRef = db.collection("pairing_codes").doc(codeHash);
     const expiresAtMillis = Date.now() + PAIRING_TTL_MS;
-    const expiresAt = admin.firestore.Timestamp.fromMillis(expiresAtMillis);
+    const expiresAt = Timestamp.fromMillis(expiresAtMillis);
 
     try {
       await db.runTransaction(async (transaction) => {
         const profileSnapshot = await transaction.get(profileRef);
-        const legacySnapshot = await transaction.get(legacyRef);
         const stateSnapshot = await transaction.get(stateRef);
         const codeSnapshot = await transaction.get(codeRef);
 
@@ -491,13 +492,13 @@ exports.createPairingCode = onCall(BASE_CALL_OPTIONS, async (request) => {
 
         transaction.set(codeRef, {
           elderlyId: uid,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          createdAt: FieldValue.serverTimestamp(),
           expiresAt,
         });
         transaction.set(stateRef, {
           codeHash,
           expiresAt,
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
         });
         const relationshipState =
           caregiverIds.length > 0 ?
@@ -510,15 +511,11 @@ exports.createPairingCode = onCall(BASE_CALL_OPTIONS, async (request) => {
             };
         const pairingUpdate = {
           ...relationshipState,
-          pairingCode: admin.firestore.FieldValue.delete(),
-          pairingCodeExpires: admin.firestore.FieldValue.delete(),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          pairingCode: FieldValue.delete(),
+          pairingCodeExpires: FieldValue.delete(),
+          updatedAt: FieldValue.serverTimestamp(),
         };
         transaction.set(profileRef, pairingUpdate, {merge: true});
-
-        if (legacySnapshot.exists) {
-          transaction.set(legacyRef, pairingUpdate, {merge: true});
-        }
       });
 
       return {
@@ -558,7 +555,7 @@ exports.claimPairingCode = onCall(BASE_CALL_OPTIONS, async (request) => {
     );
   }
 
-  const db = admin.firestore();
+  const db = getFirestore();
   const codeHash = pairingCodeHash(code);
   const codeRef = db.collection("pairing_codes").doc(codeHash);
 
@@ -571,7 +568,7 @@ exports.claimPairingCode = onCall(BASE_CALL_OPTIONS, async (request) => {
       if (
         !codeSnapshot.exists ||
         typeof linkedElderlyId !== "string" ||
-        !(codeData.expiresAt instanceof admin.firestore.Timestamp) ||
+        !(codeData.expiresAt instanceof Timestamp) ||
         codeData.expiresAt.toMillis() <= Date.now()
       ) {
         throw new HttpsError(
@@ -587,7 +584,6 @@ exports.claimPairingCode = onCall(BASE_CALL_OPTIONS, async (request) => {
       }
 
       const profileRef = db.collection("idoso_perfil").doc(linkedElderlyId);
-      const legacyRef = db.collection("idosos").doc(linkedElderlyId);
       const stateRef = db.collection("pairing_state").doc(linkedElderlyId);
       const linkRef = db
           .collection("supervisores")
@@ -596,7 +592,6 @@ exports.claimPairingCode = onCall(BASE_CALL_OPTIONS, async (request) => {
           .doc(linkedElderlyId);
 
       const profileSnapshot = await transaction.get(profileRef);
-      const legacySnapshot = await transaction.get(legacyRef);
       const stateSnapshot = await transaction.get(stateRef);
       const profile = profileSnapshot.data() || {};
 
@@ -640,19 +635,16 @@ exports.claimPairingCode = onCall(BASE_CALL_OPTIONS, async (request) => {
         caregiverIds: nextCaregiverIds,
         caregiverRoles,
         status: "active",
-        pairingCode: admin.firestore.FieldValue.delete(),
-        pairingCodeExpires: admin.firestore.FieldValue.delete(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        pairingCode: FieldValue.delete(),
+        pairingCodeExpires: FieldValue.delete(),
+        updatedAt: FieldValue.serverTimestamp(),
       };
 
       transaction.set(profileRef, relationshipUpdate, {merge: true});
-      if (legacySnapshot.exists) {
-        transaction.set(legacyRef, relationshipUpdate, {merge: true});
-      }
       transaction.set(linkRef, {
         elderlyId: linkedElderlyId,
         role: firstCaregiver ? "primary" : "backup",
-        linkedAt: admin.firestore.FieldValue.serverTimestamp(),
+        linkedAt: FieldValue.serverTimestamp(),
       });
       transaction.delete(codeRef);
       transaction.delete(stateRef);
@@ -675,15 +667,13 @@ exports.unlinkElderly = onCall(BASE_CALL_OPTIONS, async (request) => {
   const elderlyId =
     requestedId == null ? uid : validateFirestoreId(requestedId, "elderlyId");
 
-  const db = admin.firestore();
+  const db = getFirestore();
   const profileRef = db.collection("idoso_perfil").doc(elderlyId);
-  const legacyRef = db.collection("idosos").doc(elderlyId);
   const stateRef = db.collection("pairing_state").doc(elderlyId);
 
   try {
     await db.runTransaction(async (transaction) => {
       const profileSnapshot = await transaction.get(profileRef);
-      const legacySnapshot = await transaction.get(legacyRef);
       const stateSnapshot = await transaction.get(stateRef);
 
       if (!profileSnapshot.exists) {
@@ -737,14 +727,11 @@ exports.unlinkElderly = onCall(BASE_CALL_OPTIONS, async (request) => {
         caregiverIds: nextCaregiverIds,
         caregiverRoles,
         status: nextCaregiverIds.length > 0 ? "active" : "pending",
-        pairingCode: admin.firestore.FieldValue.delete(),
-        pairingCodeExpires: admin.firestore.FieldValue.delete(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        pairingCode: FieldValue.delete(),
+        pairingCodeExpires: FieldValue.delete(),
+        updatedAt: FieldValue.serverTimestamp(),
       };
       transaction.set(profileRef, relationshipUpdate, {merge: true});
-      if (legacySnapshot.exists) {
-        transaction.set(legacyRef, relationshipUpdate, {merge: true});
-      }
 
       const removedIds = removingAll ? caregiverIds : [caregiverToRemove];
       for (const caregiverId of removedIds) {
@@ -781,6 +768,10 @@ exports.undoReminderConfirmation =
   reminderConfirmation.undoReminderConfirmation;
 
 const caregiverRouting = require("./caregiver-routing");
+const profileMigration = require("./lib/profile-migration");
+exports.migrateLegacyElderlyProfile =
+  profileMigration.migrateLegacyElderlyProfile;
+
 exports.updateCaregiverRouting = caregiverRouting.updateCaregiverRouting;
 
 const caregiverEscalation = require("./caregiver-escalation");
@@ -1524,8 +1515,7 @@ exports.sendPush = onCall(BASE_CALL_OPTIONS, async (request) => {
         input.data,
     );
     const docId = `${validatedRole}_${validatedTargetUserId}`;
-    const tokenDoc = await admin
-        .firestore()
+    const tokenDoc = await getFirestore()
         .collection("fcm_tokens")
         .doc(docId)
         .get();
@@ -1584,7 +1574,7 @@ exports.sendPush = onCall(BASE_CALL_OPTIONS, async (request) => {
       };
     }
 
-    const response = await admin.messaging().send(message);
+    const response = await getMessaging().send(message);
     return {success: true, messageId: response};
   } catch (error) {
     console.error("sendPush error:", error);
@@ -1629,8 +1619,7 @@ exports.lookupBarcode = onCall(GEMINI_CALL_OPTIONS, async (request) => {
 
   // 1. Try Firestore cache first
   try {
-    const cached = await admin
-        .firestore()
+    const cached = await getFirestore()
         .collection("medicamentos_barcode")
         .doc(cleanBarcode)
         .get();
@@ -1724,8 +1713,7 @@ exports.lookupBarcode = onCall(GEMINI_CALL_OPTIONS, async (request) => {
 
     // Cache in Firestore for future lookups
     try {
-      await admin
-          .firestore()
+      await getFirestore()
           .collection("medicamentos_barcode")
           .doc(cleanBarcode)
           .set({
@@ -1733,7 +1721,7 @@ exports.lookupBarcode = onCall(GEMINI_CALL_OPTIONS, async (request) => {
             dosagem,
             forma,
             cor,
-            consultadoEm: admin.firestore.FieldValue.serverTimestamp(),
+            consultadoEm: FieldValue.serverTimestamp(),
             consultadoPor: uid,
           });
     } catch (e) {

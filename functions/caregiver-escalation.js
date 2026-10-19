@@ -1,7 +1,10 @@
 /* eslint-disable require-jsdoc */
 
 const {onSchedule} = require("firebase-functions/v2/scheduler");
-const admin = require("firebase-admin");
+const {
+  getFirestore, Timestamp,
+} = require("firebase-admin/firestore");
+const {getMessaging} = require("firebase-admin/messaging");
 
 const TIME_ZONE = "America/Sao_Paulo";
 
@@ -115,7 +118,7 @@ exports.escalateMissedReminders = onSchedule(
       maxInstances: 1,
     },
     async () => {
-      const db = admin.firestore();
+      const db = getFirestore();
       const now = new Date();
       const clock = localClock(now);
       const currentMinutes = clock.hour * 60 + clock.minute;
@@ -155,7 +158,7 @@ exports.escalateMissedReminders = onSchedule(
           const existingAlert = await alertRef.get();
           if (existingAlert.exists &&
               existingAlert.data()?.status !== "resolved") {
-            const resolvedAt = admin.firestore.Timestamp.now();
+            const resolvedAt = Timestamp.now();
             await alertRef.update({
               status: "resolved",
               resolvidoEm: resolvedAt,
@@ -201,7 +204,7 @@ exports.escalateMissedReminders = onSchedule(
               Number(existingData.nivelEscalonamento) >= level) {
             return false;
           }
-          const nowTimestamp = admin.firestore.Timestamp.now();
+          const nowTimestamp = Timestamp.now();
           const alertData = {
             id: alertId,
             idosoId: reminder.idosoId,
@@ -242,7 +245,7 @@ exports.escalateMissedReminders = onSchedule(
           continue;
         }
         try {
-          await admin.messaging().send({
+          await getMessaging().send({
             token,
             notification: {
               title: "Lembrete sem resposta",

@@ -40,10 +40,7 @@ class EmergencyContactService {
       return null;
     }
 
-    final profilePhone = await _phoneFromFirestore('idoso_perfil', idosoId);
-    if (profilePhone != null) return profilePhone;
-
-    return _phoneFromFirestore('idosos', idosoId);
+    return _phoneFromFirestore('idoso_perfil', idosoId);
   }
 
   Future<void> saveAmbulancePhone(String phone) async {
@@ -58,7 +55,7 @@ class EmergencyContactService {
         final idosoId = await SessionRoleService.getActiveIdosoId();
         if (!SessionRoleService.isLocalOnlyIdosoId(idosoId)) {
           await FirebaseFirestore.instance
-              .collection('idosos')
+              .collection('idoso_perfil')
               .doc(idosoId)
               .set({'ambulancia_telefone': cleaned}, SetOptions(merge: true));
         }

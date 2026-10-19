@@ -19,6 +19,7 @@ import '../theme/app_theme.dart';
 import '../widgets/supervisor_bottom_nav.dart';
 import '../widgets/charts/adherence_trend_chart.dart';
 import '../widgets/charts/weekly_comparison_chart.dart';
+import '../widgets/app_top_bar.dart';
 
 class MonthlyReportsScreen extends StatefulWidget {
   const MonthlyReportsScreen({super.key});
@@ -67,7 +68,7 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
       final idosoId = await SessionRoleService.getActiveIdosoId();
       try {
         final doc = await FirebaseFirestore.instance
-            .collection('idosos')
+            .collection('idoso_perfil')
             .doc(idosoId)
             .get();
         if (doc.exists) {
@@ -179,9 +180,14 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
 
       final medRows = <List<String>>[];
       for (final l in lembretes.where((e) => e.categoria == 'medicacao')) {
-        final hora = '${l.horarioHour.toString().padLeft(2, '0')}:${l.horarioMinute.toString().padLeft(2, '0')}';
-        final status = l.concluido ? 'Concluido' : (l.isActiveOn(DateTime.now()) ? 'Ativo' : 'Pausado');
-        final estoque = l.medicamentoEstoque != null ? '${l.medicamentoEstoque} un.' : '-';
+        final hora =
+            '${l.horarioHour.toString().padLeft(2, '0')}:${l.horarioMinute.toString().padLeft(2, '0')}';
+        final status = l.concluido
+            ? 'Concluido'
+            : (l.isActiveOn(DateTime.now()) ? 'Ativo' : 'Pausado');
+        final estoque = l.medicamentoEstoque != null
+            ? '${l.medicamentoEstoque} un.'
+            : '-';
         medRows.add([hora, sanitize(l.titulo), estoque, status]);
       }
 
@@ -199,27 +205,62 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
                   children: [
                     pw.Text(
                       'RELATORIO CLINICO DE ACOMPANHAMENTO',
-                      style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+                      style: pw.TextStyle(
+                        fontSize: 16,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
                     ),
                     pw.Text(
                       'Lembrete Amigo',
-                      style: pw.TextStyle(fontSize: 12, color: PdfColors.blueGrey800),
+                      style: pw.TextStyle(
+                        fontSize: 12,
+                        color: PdfColors.blueGrey800,
+                      ),
                     ),
                   ],
                 ),
               ),
               pw.SizedBox(height: 12),
-              pw.Text('Paciente: ${sanitize(_idosoName)}', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
-              pw.Text('Data de emissao: ${DateTime.now().toIso8601String().substring(0, 10)}', style: const pw.TextStyle(fontSize: 11)),
+              pw.Text(
+                'Paciente: ${sanitize(_idosoName)}',
+                style: pw.TextStyle(
+                  fontSize: 14,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+              pw.Text(
+                'Data de emissao: ${DateTime.now().toIso8601String().substring(0, 10)}',
+                style: const pw.TextStyle(fontSize: 11),
+              ),
               pw.SizedBox(height: 16),
-              pw.Text('INDICADORES DE ADESAO DA ROTINA', style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold)),
+              pw.Text(
+                'INDICADORES DE ADESAO DA ROTINA',
+                style: pw.TextStyle(
+                  fontSize: 13,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
               pw.Divider(thickness: 1),
               pw.Bullet(text: 'Taxa de adesao geral na semana: $weeklyPct%'),
-              pw.Bullet(text: 'Total de atividades programadas: $_weeklyTotal (Concluidas: $_weeklyDone, Nao concluidas: $_weeklyMissed)'),
-              pw.Bullet(text: 'Adesao por categoria: Medicamentos ($_medicacaoPct%), Refeicoes ($_refeicoesPct%), Exercicios ($_exercicioPct%), Hidratacao ($_hidratacaoPct%)'),
-              pw.Bullet(text: 'Observacoes clinicas: ${sanitize(_weeklyHumanSummary)}'),
+              pw.Bullet(
+                text:
+                    'Total de atividades programadas: $_weeklyTotal (Concluidas: $_weeklyDone, Nao concluidas: $_weeklyMissed)',
+              ),
+              pw.Bullet(
+                text:
+                    'Adesao por categoria: Medicamentos ($_medicacaoPct%), Refeicoes ($_refeicoesPct%), Exercicios ($_exercicioPct%), Hidratacao ($_hidratacaoPct%)',
+              ),
+              pw.Bullet(
+                text: 'Observacoes clinicas: ${sanitize(_weeklyHumanSummary)}',
+              ),
               pw.SizedBox(height: 20),
-              pw.Text('GRADE ATUAL DE MEDICAMENTOS', style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold)),
+              pw.Text(
+                'GRADE ATUAL DE MEDICAMENTOS',
+                style: pw.TextStyle(
+                  fontSize: 13,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
               pw.Divider(thickness: 1),
               if (medRows.isEmpty)
                 pw.Text('Nenhum medicamento ativo cadastrado.')
@@ -227,18 +268,31 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
                 pw.TableHelper.fromTextArray(
                   headers: ['Horario', 'Medicamento', 'Estoque', 'Situacao'],
                   data: medRows,
-                  headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10),
+                  headerStyle: pw.TextStyle(
+                    fontWeight: pw.FontWeight.bold,
+                    fontSize: 10,
+                  ),
                   cellStyle: const pw.TextStyle(fontSize: 9),
                   cellAlignment: pw.Alignment.centerLeft,
-                  headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
+                  headerDecoration: const pw.BoxDecoration(
+                    color: PdfColors.grey200,
+                  ),
                 ),
               pw.SizedBox(height: 24),
               pw.Container(
                 padding: const pw.EdgeInsets.all(10),
-                decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.grey400), borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6))),
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(color: PdfColors.grey400),
+                  borderRadius: const pw.BorderRadius.all(
+                    pw.Radius.circular(6),
+                  ),
+                ),
                 child: pw.Text(
                   'Documento gerado para suporte a consultas medicas e planejamento do cuidado familiar.',
-                  style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
+                  style: const pw.TextStyle(
+                    fontSize: 9,
+                    color: PdfColors.grey700,
+                  ),
                 ),
               ),
             ];
@@ -247,7 +301,9 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
       );
 
       final output = await getTemporaryDirectory();
-      final file = File('${output.path}/relatorio_medico_${sanitize(_idosoName)}.pdf');
+      final file = File(
+        '${output.path}/relatorio_medico_${sanitize(_idosoName)}.pdf',
+      );
       await file.writeAsBytes(await pdf.save());
 
       await SharePlus.instance.share(
@@ -277,7 +333,7 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            _buildTopBar(context),
+            const AppTopBar(title: 'Lembrete Amigo'),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 96),
@@ -306,37 +362,6 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
     );
   }
 
-  Widget _buildTopBar(BuildContext context) {
-    return Container(
-      height: 64,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      decoration: BoxDecoration(color: AppColors.surface),
-      child: Row(
-        children: [
-          IconButton(
-            onPressed: () => Navigator.pop(context),
-            icon: Icon(
-              Icons.arrow_back,
-              color: AppColors.primary,
-              size: 32,
-            ),
-          ),
-          Expanded(
-            child: Text(
-              'Lembrete Amigo',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.w700,
-                color: AppColors.primary,
-              ),
-            ),
-          ),
-          const SizedBox(width: 48),
-        ],
-      ),
-    );
-  }
 
   Widget _buildHeader() {
     return Column(
@@ -578,10 +603,7 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 18,
-                  color: AppColors.primaryFixed,
-                ),
+                style: TextStyle(fontSize: 18, color: AppColors.primaryFixed),
               ),
             ),
             const SizedBox(width: 8),
@@ -739,10 +761,7 @@ class _MonthlyReportsScreenState extends State<MonthlyReportsScreen> {
         const SizedBox(width: 8),
         Text(
           label,
-          style: TextStyle(
-            fontSize: 14,
-            color: AppColors.onSurfaceVariant,
-          ),
+          style: TextStyle(fontSize: 14, color: AppColors.onSurfaceVariant),
         ),
         const Spacer(),
         Text(

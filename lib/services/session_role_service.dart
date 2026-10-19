@@ -11,6 +11,7 @@ import 'tts_service.dart';
 import 'always_listening_service.dart';
 import 'secure_cache_service.dart';
 import '../utils/firebase_helper.dart';
+import 'elderly_profile_repository.dart';
 
 class SessionRoleService {
   static const String _roleKey = 'active_user_role';
@@ -127,11 +128,9 @@ class SessionRoleService {
     _lastVerificationFailedByError = false;
 
     try {
-      final document = await FirebaseFirestore.instance
-          .collection('idoso_perfil')
-          .doc(user.uid)
-          .get()
-          .timeout(const Duration(seconds: 5));
+      final document = await ElderlyProfileRepository.instance.getDocument(
+        user.uid,
+      );
       final profile = document.data();
       final connected = document.exists && isElderlyProfileConnected(profile);
 
@@ -220,7 +219,9 @@ class SessionRoleService {
   }
 
   static Future<String> getActiveSupervisorId() async {
-    final user = Firebase.apps.isNotEmpty ? FirebaseAuth.instance.currentUser : null;
+    final user = Firebase.apps.isNotEmpty
+        ? FirebaseAuth.instance.currentUser
+        : null;
     return user?.uid ?? 'supervisor_local';
   }
 
